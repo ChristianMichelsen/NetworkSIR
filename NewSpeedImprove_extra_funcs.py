@@ -267,7 +267,7 @@ def single_run_numba(N0, mu, alpha, beta, sigma, Ninit, Mrate1, Mrate2, gamma, d
             # cout << "Equilibrium " << endl
             print("Equilibrium")
         
-        if S[8] > N0-10:      
+        if S[Nstates-1] > N0-10:      
             # cout << "2/3 through " << endl 
             # print("2/3 through")
             on = 0

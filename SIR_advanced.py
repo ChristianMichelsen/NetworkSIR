@@ -56,63 +56,94 @@ for filename in tqdm(filenames):
     # df_fit_parameters = fit_object.get_all_fit_pars()
     # df_correlations = fit_object.get_correlations()
 
+# import joblib
+# joblib.dump(all_fit_objects, 'all_fit_objects.joblib')
+
+
 #%%
 
-x=x
+def cut_percentiles(x, p1, p2=None):
+    if p2 is None:
+        p1 = p1/2
+        p2 = 100 - p1
+    
+    x = x[~np.isnan(x)]
+
+    mask = (np.percentile(x, p1) < x) & (x < np.percentile(x, p2))
+    return x[mask]
+
+
+
+
 
 #%%
 
-for parameter in fit_object.parameters:
+percentage1 = 10
+percentage2 = 90
+Nbins = 100
 
-    means = np.zeros(N_files)
-    stds = np.zeros(N_files)
+for parameters_as_string, fit_objects in all_fit_objects.items():
 
-    for i, fit_object in enumerate(fit_objects):
-        # df_fit_parameters = fit_object.get_all_fit_pars()
-        means[i], stds[i] = fit_object.get_fit_par(parameter)
-
-
-    fig = make_subplots(rows=1, cols=3, 
-    subplot_titles=(f"mean {parameter}", f"std {parameter}", f"pull {parameter}"))
-
-    fig.add_trace(go.Histogram(x=means, 
-                            nbinsx=50,
-                            histnorm='probability', 
-                            name=parameter),
-                    row=1, col=1)
+    # fit_objects = all_fit_objects[]
+    d = extra_funcs.string_to_dict(parameters_as_string)
 
 
-    fig.add_trace(go.Histogram(x=stds, 
-                               nbinsx=50,
-                            # xbins=dict( # bins used for histogram
-                            #         start=0.01,
-                            #         end=0.075,
-                            #         size=0.001,
-                            #         ),
-                            histnorm='probability', 
-                            name=parameter),
-                    row=1, col=2)
+    fig = make_subplots(rows=3, cols=len(fit_objects[0].parameters), 
+    subplot_titles=fit_objects[0].parameters,
+    )
 
-    fig.add_trace(go.Histogram(x=means/stds, 
-                                nbinsx=50,
-                            # xbins=dict( # bins used for histogram
-                            #         start=-20.0,
-                            #         end=25.0,
-                            #         size=2,
-                            #         ),
-                            histnorm='probability', 
-                            name=parameter),
-                    row=1, col=3)
 
-    for i in range(3):
-        fig.update_xaxes(title_text=parameter, row=1, col=i+1)
-    fig.update_yaxes(title_text="Normalized Counts", row=1, col=1)
+    for i_par, parameter in enumerate(fit_objects[0].parameters):
+        i_par += 1
+
+        N_files = len(fit_objects)
+
+        means = np.zeros(N_files)
+        stds = np.zeros(N_files)
+
+        for i, fit_object in enumerate(fit_objects):
+            means[i], stds[i] = fit_object.get_fit_par(parameter)
+
+
+        fig.add_trace(go.Histogram(x=cut_percentiles(means, percentage1, percentage2), 
+                                nbinsx=Nbins,
+                                histnorm='probability', 
+                                ),
+                        row=1, col=i_par)
+
+
+        fig.add_trace(go.Histogram(x=cut_percentiles(stds, percentage1, percentage2),
+                                nbinsx=Nbins,
+                                histnorm='probability', 
+                                ),
+                        row=2, col=i_par)
+
+        fig.add_trace(go.Histogram(x=cut_percentiles(means/stds, percentage1, percentage2),
+                                    nbinsx=Nbins,
+                                # xbins=dict( # bins used for histogram
+                                #         start=-20.0,
+                                #         end=25.0,
+                                #         size=2,
+                                #         ),
+                                histnorm='probability', 
+                                ),
+                        row=3, col=i_par)
+        
+        # fig.update_yaxes(title_text=f"Mu", row=1, col=i_par)
+
+    fig.update_yaxes(title_text=f"Mu", row=1, col=1)
+    fig.update_yaxes(title_text=f"Std", row=2, col=1)
+    fig.update_yaxes(title_text=f"'Pull'", row=3, col=1)
+        
+    
+        # fig.update_yaxes(title_text="Normalized Counts", row=1, col=1)
 
     k_scale = 1
 
+    fig.update_layout(showlegend=False)
 
     # Edit the layout
-    fig.update_layout(title=f'Histograms of fitted {parameter} values',
+    fig.update_layout(title=f"Histograms for 'Mrate1'={d['Mrate1']:.1f}",
                     height=600*k_scale, width=800*k_scale,
                     )
 
@@ -145,8 +176,3 @@ fig.update_yaxes(rangemode="tozero")
 fig.show()
 if savefig:
     fig.write_html(f"Figures/{filename.stem}.html")
-
-
-
-
-# %%
