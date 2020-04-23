@@ -3,7 +3,6 @@ import pandas as pd
 from numba import njit
 from pathlib import Path
 
-
 @njit
 def single_run_numba(N0, mu, alpha, beta, sigma, Ninit, Mrate1, Mrate2, gamma, delta, nts, Nstates):
 
@@ -317,19 +316,17 @@ def filename_to_dict(filename):
                 dict_in[key] = float(val)
     return dict_in
 
-def single_run_and_save(filename, force_overwrite=False):
-
-    if not Path(filename).exists() or force_overwrite:
-        dict_in = filename_to_dict(filename)
-        out_single_run = single_run_numba(**dict_in)
-        header = ['Time', 
-                'E1', 'E2', 'E3', 'E4', 
-                'I1', 'I2', 'I3', 'I4', 
-                'R',
-                'NR0Inf',
-                ]
-        df = pd.DataFrame(out_single_run, columns=header)
-        df.to_csv(filename, index=False)
+def single_run_and_save(filename):
+    dict_in = filename_to_dict(filename)
+    out_single_run = single_run_numba(**dict_in)
+    header = ['Time', 
+            'E1', 'E2', 'E3', 'E4', 
+            'I1', 'I2', 'I3', 'I4', 
+            'R',
+            'NR0Inf',
+            ]
+    df = pd.DataFrame(out_single_run, columns=header)
+    df.to_csv(filename, index=False)
     return None
 
 
