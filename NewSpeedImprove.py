@@ -41,6 +41,8 @@ if __name__ == '__main__':
     # extra_funcs.single_run_and_save(filenames[0])
 
     num_cores = mp.cpu_count() - 1
+    num_cores_max = 20
+    num_cores = num_cores_max if num_cores >= num_cores_max
 
     print(f"Generating {N_files} network-based simulations, please wait.", flush=True)
     with mp.Pool(num_cores) as p:
