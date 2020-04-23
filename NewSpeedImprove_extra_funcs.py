@@ -303,9 +303,12 @@ def dict_to_filename(dict_in, ID):
     filename = filename / file_string
     return str(filename)
 
-def filename_to_dict(filename):
+def filename_to_dict(filename, normal_string=False):
     dict_in = {}
-    keyvals = filename.split('.csv')[0].split('_')[1:]
+    if normal_string:
+        keyvals = filename.split('_')
+    else:
+        keyvals = filename.split('.csv')[0].split('_')[1:]
     keyvals_chunks = [keyvals[i:i + 2] for i in range(0, len(keyvals), 2)]
     ints = ['N0', 'Ninit', 'Nstates']
     for key, val in keyvals_chunks:
@@ -355,5 +358,5 @@ class DotDict(dict):
         )
 
 
-def filename_to_dotdict(filename):
-    return DotDict(filename_to_dict(filename))
+def filename_to_dotdict(filename, normal_string=False):
+    return DotDict(filename_to_dict(filename, normal_string))

@@ -52,7 +52,9 @@ def interpolate_dataframe(df, time, t_interpolated, cols_to_interpolate):
     return df_interpolated
 
 @njit
-def ODE_integrate(y0, Tmax, dt, ts, Mrate1, Mrate2, mu0, beta): 
+def ODE_integrate(y0, Tmax, dt, ts, Mrate1, Mrate2, beta): 
+
+    mu0 = 1
 
     S, S0, E1, E2, E3, E4, I1, I2, I3, I4, R, R0 = y0
 
@@ -134,12 +136,12 @@ class CustomChi2:  # override the class with a better one
         chi2 = np.sum((self.y_true[mask] - y_hat[mask])**2/self.sy[mask]**2)
         return chi2
 
-    def _calc_res_sir(self, Mrate1, Mrate2, mu0, beta, ts=None):
+    def _calc_res_sir(self, Mrate1, Mrate2, beta, ts=None):
         ts = self.ts if ts is None else ts
-        return ODE_integrate(self.y0, self.Tmax, self.dt, ts, Mrate1, Mrate2, mu0, beta)
+        return ODE_integrate(self.y0, self.Tmax, self.dt, ts, Mrate1, Mrate2, beta)
 
-    def _calc_yhat_interpolated(self, Mrate1, Mrate2, mu0, beta, tau):
-        res_sir = self._calc_res_sir(Mrate1, Mrate2, mu0, beta)
+    def _calc_yhat_interpolated(self, Mrate1, Mrate2, beta, tau):
+        res_sir = self._calc_res_sir(Mrate1, Mrate2, beta)
         I_SIR = res_sir[:, 2]
         time = res_sir[:, 4]
         y_hat = interpolate_array(I_SIR, time, self.t_interpolated+tau)
@@ -169,8 +171,8 @@ class CustomChi2:  # override the class with a better one
                             columns=self.parameters)
 
     def calc_df_fit(self, ts=0.01):
-        Mrate1, Mrate2, mu0, beta, tau = self.values
-        res_sir = self._calc_res_sir(Mrate1, Mrate2, mu0, beta, ts=ts)
+        Mrate1, Mrate2, beta, tau = self.values
+        res_sir = self._calc_res_sir(Mrate1, Mrate2, beta, ts=ts)
         cols = ['S', 'E_sum', 'I_sum', 'R', 'Time', 'R0']
         df_fit = pd.DataFrame(res_sir, columns=cols).convert_dtypes()
         df_fit['Time'] -= tau
@@ -179,3 +181,20 @@ class CustomChi2:  # override the class with a better one
             df_fit = df_fit.iloc[:-1]
         return df_fit
     
+
+
+
+def dict_to_str(d):
+    string = ''
+    for key, val in d.items():
+        string += f"{key}_{val}_"
+    return string[:-1]
+
+
+import NewSpeedImprove_extra_funcs
+
+def filename_to_dotdict(filename):
+    return NewSpeedImprove_extra_funcs.filename_to_dotdict(filename)
+
+def string_to_dict(string):
+    return NewSpeedImprove_extra_funcs.filename_to_dotdict(string, normal_string=True)

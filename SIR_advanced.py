@@ -7,9 +7,11 @@ from plotly.subplots import make_subplots
 from tqdm import tqdm
 from pathlib import Path
 from iminuit import Minuit
+from collections import defaultdict
+
 import extra_funcs
 from importlib import reload
-import NewSpeedImprove_extra_funcs as extra_funcs2
+# import NewSpeedImprove_extra_funcs as extra_funcs2
 
 
 
@@ -25,11 +27,13 @@ dt = 0.01 # stepsize in integration
 filenames = extra_funcs.get_filenames()
 N_files = len(filenames)
 
+all_fit_objects = defaultdict(list)
 
-fit_objects = []
 for filename in tqdm(filenames):
 
-    cfg = extra_funcs2.filename_to_dotdict(str(filename))
+    cfg = extra_funcs.filename_to_dotdict(str(filename))
+    parameters_as_string = extra_funcs.dict_to_str(cfg)
+    # d = extra_funcs.string_to_dict(parameters_as_string)
 
     df, df_interpolated, time, t_interpolated = extra_funcs.pandas_load_file(filename)
     y_true = df_interpolated['I']
@@ -41,13 +45,12 @@ for filename in tqdm(filenames):
     # reload(extra_funcs)
     fit_object = extra_funcs.CustomChi2(time, t_interpolated, y_true, y0, Tmax, dt=dt, ts=ts, y_min=10)
 
-    minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, mu0=cfg.mu, beta=cfg.beta, tau=0)
+    minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
     minuit.migrad()
-    if (not minuit.get_fmin().is_valid) :
-        print("  WARNING: The ChiSquare fit DID NOT converge!!! ")
-
     fit_object.set_minuit(minuit)
-    fit_objects.append(fit_object)
+    # if (not minuit.get_fmin().is_valid) :
+    
+    all_fit_objects[parameters_as_string].append(fit_object)
 
     # df_fit = fit_object.calc_df_fit(ts=0.01)
     # df_fit_parameters = fit_object.get_all_fit_pars()
@@ -55,6 +58,7 @@ for filename in tqdm(filenames):
 
 #%%
 
+x=x
 
 #%%
 
