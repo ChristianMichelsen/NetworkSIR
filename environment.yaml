@@ -1,0 +1,22 @@
+name: PyCorona
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.8  
+  - pip
+  - numpy
+  - scipy
+  - pandas
+  - matplotlib
+  - seaborn
+  - iminuit
+  - statsmodels
+  - jupyter
+  - jupyterlab
+  - tqdm
+  - pyyaml
+  - black
+  - pysftp
+  - plotly
+  - numba

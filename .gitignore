@@ -1,0 +1,31 @@
+# exclude data from source control by default
+/Data/
+
+#Jottacloud conflicted files
+*(Conflicted)*
+*jottacloud*
+
+# C extensions
+*.so
+
+# VS Code
+.vscode/
+._environment.yaml
+*.code-workspace
+
+# Spyder
+.spyproject/
+
+# Jupyter NB Checkpoints
+.ipynb_checkpoints/
+
+# Mac OS-specific storage files
+.DS_Store
+._.DS_Store
+
+# vim
+*.swp
+*.swo
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
