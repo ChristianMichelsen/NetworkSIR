@@ -1,4 +1,4 @@
-name: PyCorona
+name: NetworkSIR
 channels:
   - conda-forge
   - defaults

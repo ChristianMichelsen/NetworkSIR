@@ -1,15 +1,9 @@
->> git clone https://github.com/ChristianMichelsen/PyCorona
+>> git clone https://github.com/ChristianMichelsen/NetworkSIR
 >> conda env create -f environment.yaml
->> conda activate PyCorona
+>> conda activate NetworkSIR
 
-create login.yaml in login_credentials/ file with the following content: 
+Simulate data:
+>> python NewSpeedImprove.py
 
-Hostname: [insert hostname here]
-Username: [insert username here]
-Password: [insert password here]
-
-Run DownloadData.py:
->> python DownloadData.py
-
-Run ModelOfCorona_FitToDanishNumbers.py
->> python ModelOfCorona_FitToDanishNumbers.py
+Analyse results
+>> python SIR_advanced.py
