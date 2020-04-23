@@ -14,7 +14,6 @@ from importlib import reload
 # import NewSpeedImprove_extra_funcs as extra_funcs2
 
 
-
 savefig = False
 # cfg = configuration.load()
 
@@ -56,8 +55,8 @@ for filename in tqdm(filenames):
     # df_fit_parameters = fit_object.get_all_fit_pars()
     # df_correlations = fit_object.get_correlations()
 
-# import joblib
-# joblib.dump(all_fit_objects, 'all_fit_objects.joblib')
+import joblib
+joblib.dump(all_fit_objects, 'all_fit_objects.joblib')
 
 
 #%%
@@ -71,9 +70,6 @@ def cut_percentiles(x, p1, p2=None):
 
     mask = (np.percentile(x, p1) < x) & (x < np.percentile(x, p2))
     return x[mask]
-
-
-
 
 
 #%%

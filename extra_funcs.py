@@ -148,15 +148,22 @@ class CustomChi2:  # override the class with a better one
         return y_hat
 
     def set_minuit(self, minuit):
-        self.minuit = minuit
-        self.m = minuit
+        # self.minuit = minuit
+        # self.m = minuit
         self.parameters = minuit.parameters
         self.values = minuit.np_values()
         self.errors = minuit.np_values()
+
+        self.fit_values = minuit.values
+        self.fit_errors = minuit.errors
+
+        self.correlations = minuit.np_matrix(correlation=True)
+        self.covariances = minuit.np_matrix(correlation=False) 
+
         return None
     
     def get_fit_par(self, parameter):
-        return self.minuit.values[parameter], self.minuit.errors[parameter]
+        return self.fit_values[parameter], self.fit_errors[parameter]
 
     def get_all_fit_pars(self):
         all_fit_pars = {}
@@ -165,8 +172,8 @@ class CustomChi2:  # override the class with a better one
         df_fit_parameters = pd.DataFrame(all_fit_pars, index=['mean', 'std'])
         return df_fit_parameters
 
-    def get_correlations(self, correlation=True):
-        return pd.DataFrame(self.minuit.np_matrix(correlation=correlation), 
+    def get_correlations(self):
+        return pd.DataFrame(self.correlations, 
                             index=self.parameters, 
                             columns=self.parameters)
 
