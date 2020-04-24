@@ -21,3 +21,4 @@ dependencies:
   - plotly
   - numba
   - joblib
+  - scikit-learn

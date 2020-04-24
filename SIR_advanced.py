@@ -8,6 +8,14 @@ from tqdm import tqdm
 from pathlib import Path
 from iminuit import Minuit
 from collections import defaultdict
+from sklearn.model_selection import ParameterSampler
+from scipy.stats import uniform as sp_uniform
+
+def uniform(a, b):
+    loc = a
+    scale = b-a
+    return sp_uniform(loc, scale)
+
 
 import extra_funcs
 from importlib import reload
@@ -20,6 +28,7 @@ savefig = False
 ts = 0.1 # frequency of "observations". Now 1 pr. day
 dt = 0.01 # stepsize in integration
 
+FIT_MAX = 100
 
 #%%
 
@@ -45,11 +54,38 @@ for filename in tqdm(filenames):
     fit_object = extra_funcs.CustomChi2(time, t_interpolated, y_true, y0, Tmax, dt=dt, ts=ts, y_min=10)
 
     minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
+
     minuit.migrad()
-    fit_object.set_minuit(minuit)
+    fit_object.set_chi2(minuit)
+
+
+    i_fit = 0
     # if (not minuit.get_fmin().is_valid) :
-    
-    all_fit_objects[parameters_as_string].append(fit_object)
+    if fit_object.chi2 / fit_object.N > 100:
+
+        continue_fit = True
+        while continue_fit:
+            i_fit += 1
+
+            param_grid = {'Mrate1': uniform(0.1, 10), 
+                          'Mrate2': uniform(0.1, 10), 
+                          'beta': uniform(0.1, 20), 
+                          'tau': uniform(-10, 10),
+                          }
+            param_list = list(ParameterSampler(param_grid, n_iter=1))[0]
+            minuit = Minuit(fit_object, pedantic=False, print_level=0, **param_list)
+            minuit.migrad()
+            fit_object.set_minuit(minuit)
+
+            if fit_object.chi2 / fit_object.N <= 10 or i_fit>FIT_MAX:
+                continue_fit = False
+            
+    if i_fit <= FIT_MAX:
+        fit_object.set_minuit(minuit)
+        all_fit_objects[parameters_as_string].append(fit_object)
+
+    else:
+        print(f"{filename} was discarded")
 
     # df_fit = fit_object.calc_df_fit(ts=0.01)
     # df_fit_parameters = fit_object.get_all_fit_pars()
@@ -70,6 +106,7 @@ def cut_percentiles(x, p1, p2=None):
 
     mask = (np.percentile(x, p1) < x) & (x < np.percentile(x, p2))
     return x[mask]
+
 
 
 #%%
@@ -146,11 +183,16 @@ for parameters_as_string, fit_objects in all_fit_objects.items():
     fig.show()
 
 
+
 #%%
 
 fig = go.Figure()
 
-df_fit = fit_object.calc_df_fit(ts=0.01)
+
+df_fit = fit_object.calc_df_fit(ts=0.01, values=(2, 1, 15, 1))
+
+# df_fit = fit_object.calc_df_fit(ts=0.01, values=(cfg.Mrate1, cfg.Mrate2, cfg.beta, 0))
+# df_fit = fit_object.calc_df_fit(ts=0.01, values=(cfg.Mrate1, cfg.Mrate2, cfg.beta, 0))
 
 for s in ['E', 'I', 'R']:
     fig.add_trace(go.Scatter(x=df['Time'], y=df[s], name=f'{s} raw network'))
@@ -172,3 +214,6 @@ fig.update_yaxes(rangemode="tozero")
 fig.show()
 if savefig:
     fig.write_html(f"Figures/{filename.stem}.html")
+
+
+# %%

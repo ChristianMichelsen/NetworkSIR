@@ -125,12 +125,12 @@ class CustomChi2:  # override the class with a better one
         self.ts = ts
         self.sy = np.sqrt(y_true.values) #if sy is None else sy
         self.y_min = y_min
+        self.N = sum(self.y_true > self.y_min)
+        # self.func_code = make_func_code(describe(self._calc_yhat_interpolated))
 
-        self.func_code = make_func_code(describe(self._calc_yhat_interpolated))
-
-    def __call__(self, *par):  # par are a variable number of model parameters
+    def __call__(self, Mrate1, Mrate2, beta, tau):  # par are a variable number of model parameters
         # compute the function value
-        y_hat = self._calc_yhat_interpolated(*par)
+        y_hat = self._calc_yhat_interpolated(Mrate1, Mrate2, beta, tau)
         mask = (self.y_true > self.y_min)
         # compute the chi2-value
         chi2 = np.sum((self.y_true[mask] - y_hat[mask])**2/self.sy[mask]**2)
@@ -147,6 +147,10 @@ class CustomChi2:  # override the class with a better one
         y_hat = interpolate_array(I_SIR, time, self.t_interpolated+tau)
         return y_hat
 
+    def set_chi2(self, minuit):
+        self.chi2 = self.__call__(**minuit.values)
+        return self.chi2
+
     def set_minuit(self, minuit):
         # self.minuit = minuit
         # self.m = minuit
@@ -154,11 +158,18 @@ class CustomChi2:  # override the class with a better one
         self.values = minuit.np_values()
         self.errors = minuit.np_values()
 
-        self.fit_values = minuit.values
-        self.fit_errors = minuit.errors
+        self.fit_values = dict(minuit.values)
+        self.fit_errors = dict(minuit.errors)
 
-        self.correlations = minuit.np_matrix(correlation=True)
-        self.covariances = minuit.np_matrix(correlation=False) 
+        self.chi2 = self.__call__(**self.fit_values)
+        self.is_valid = minuit.get_fmin().is_valid
+
+        try:
+            self.correlations = minuit.np_matrix(correlation=True)
+            self.covariances = minuit.np_matrix(correlation=False)
+
+        except RuntimeError:
+            pass
 
         return None
     
@@ -177,8 +188,10 @@ class CustomChi2:  # override the class with a better one
                             index=self.parameters, 
                             columns=self.parameters)
 
-    def calc_df_fit(self, ts=0.01):
-        Mrate1, Mrate2, beta, tau = self.values
+    def calc_df_fit(self, ts=0.01, values=None):
+        if values is None:
+            values = self.values
+        Mrate1, Mrate2, beta, tau = values
         res_sir = self._calc_res_sir(Mrate1, Mrate2, beta, ts=ts)
         cols = ['S', 'E_sum', 'I_sum', 'R', 'Time', 'R0']
         df_fit = pd.DataFrame(res_sir, columns=cols).convert_dtypes()
