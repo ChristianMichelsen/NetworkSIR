@@ -9,14 +9,7 @@ from pathlib import Path
 from iminuit import Minuit
 from collections import defaultdict
 from sklearn.model_selection import ParameterSampler
-from scipy.stats import uniform as sp_uniform
-
-def uniform(a, b):
-    loc = a
-    scale = b-a
-    return sp_uniform(loc, scale)
-
-
+import joblib
 import extra_funcs
 from importlib import reload
 # import NewSpeedImprove_extra_funcs as extra_funcs2
@@ -32,12 +25,16 @@ FIT_MAX = 100
 
 #%%
 
+reload(extra_funcs)
 filenames = extra_funcs.get_filenames()
 N_files = len(filenames)
 
 all_fit_objects = defaultdict(list)
 
-for filename in tqdm(filenames):
+N_refits = 0
+filename = filenames[0]
+N_chunk_save = 1000
+for j, filename in enumerate(tqdm(filenames)):
 
     cfg = extra_funcs.filename_to_dotdict(str(filename))
     parameters_as_string = extra_funcs.dict_to_str(cfg)
@@ -51,13 +48,12 @@ for filename in tqdm(filenames):
     y0 = S0-cfg.Ninit,S0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
 
     # reload(extra_funcs)
-    fit_object = extra_funcs.CustomChi2(time, t_interpolated, y_true, y0, Tmax, dt=dt, ts=ts, y_min=10)
+    fit_object = extra_funcs.CustomChi2(time, t_interpolated, y_true, y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
 
     minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
 
     minuit.migrad()
     fit_object.set_chi2(minuit)
-
 
     i_fit = 0
     # if (not minuit.get_fmin().is_valid) :
@@ -66,11 +62,12 @@ for filename in tqdm(filenames):
         continue_fit = True
         while continue_fit:
             i_fit += 1
+            N_refits += 1
 
-            param_grid = {'Mrate1': uniform(0.1, 10), 
-                          'Mrate2': uniform(0.1, 10), 
-                          'beta': uniform(0.1, 20), 
-                          'tau': uniform(-10, 10),
+            param_grid = {'Mrate1': extra_funcs.uniform(0.1, 10), 
+                          'Mrate2': extra_funcs.uniform(0.1, 10), 
+                          'beta': extra_funcs.uniform(0.1, 20), 
+                          'tau': extra_funcs.uniform(-10, 10),
                           }
             param_list = list(ParameterSampler(param_grid, n_iter=1))[0]
             minuit = Minuit(fit_object, pedantic=False, print_level=0, **param_list)
@@ -85,13 +82,15 @@ for filename in tqdm(filenames):
         all_fit_objects[parameters_as_string].append(fit_object)
 
     else:
-        print(f"{filename} was discarded")
+        print(f"\n\n{filename} was discarded\n", flush=True)
 
     # df_fit = fit_object.calc_df_fit(ts=0.01)
     # df_fit_parameters = fit_object.get_all_fit_pars()
     # df_correlations = fit_object.get_correlations()
 
-import joblib
+    if j % N_chunk_save == 0:
+        joblib.dump(all_fit_objects, f'all_fit_objects_{j}.joblib')
+
 joblib.dump(all_fit_objects, 'all_fit_objects.joblib')
 
 
@@ -111,8 +110,8 @@ def cut_percentiles(x, p1, p2=None):
 
 #%%
 
-percentage1 = 10
-percentage2 = 90
+percentage1 = 5
+percentage2 = 95
 Nbins = 100
 
 for parameters_as_string, fit_objects in all_fit_objects.items():
@@ -166,7 +165,7 @@ for parameters_as_string, fit_objects in all_fit_objects.items():
 
     fig.update_yaxes(title_text=f"Mu", row=1, col=1)
     fig.update_yaxes(title_text=f"Std", row=2, col=1)
-    fig.update_yaxes(title_text=f"'Pull'", row=3, col=1)
+    fig.update_yaxes(title_text=f'"Pull"', row=3, col=1)
         
     
         # fig.update_yaxes(title_text="Normalized Counts", row=1, col=1)
@@ -176,7 +175,7 @@ for parameters_as_string, fit_objects in all_fit_objects.items():
     fig.update_layout(showlegend=False)
 
     # Edit the layout
-    fig.update_layout(title=f"Histograms for 'Mrate1'={d['Mrate1']:.1f}",
+    fig.update_layout(title=f"Histograms for Mrate1={d['Mrate1']:.1f}, Mrate2={d['Mrate2']:.1f}, beta={d['beta']:.1f}",
                     height=600*k_scale, width=800*k_scale,
                     )
 
@@ -189,10 +188,10 @@ for parameters_as_string, fit_objects in all_fit_objects.items():
 fig = go.Figure()
 
 
-df_fit = fit_object.calc_df_fit(ts=0.01, values=(2, 1, 15, 1))
+# df_fit = fit_object.calc_df_fit(ts=0.01, values=(2, 1, 15, 1))
 
 # df_fit = fit_object.calc_df_fit(ts=0.01, values=(cfg.Mrate1, cfg.Mrate2, cfg.beta, 0))
-# df_fit = fit_object.calc_df_fit(ts=0.01, values=(cfg.Mrate1, cfg.Mrate2, cfg.beta, 0))
+df_fit = fit_object.calc_df_fit(ts=0.01)
 
 for s in ['E', 'I', 'R']:
     fig.add_trace(go.Scatter(x=df['Time'], y=df[s], name=f'{s} raw network'))

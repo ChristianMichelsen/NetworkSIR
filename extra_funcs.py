@@ -3,11 +3,13 @@ from numba import njit
 from scipy import interpolate
 import pandas as pd
 from pathlib import Path
+from scipy.stats import uniform as sp_uniform
+
 
 
 def get_filenames():
     filenames = Path('Data').glob(f'*.csv')
-    return list(filenames)
+    return sorted(filenames)
 
 
 def pandas_load_file(filename):
@@ -52,9 +54,9 @@ def interpolate_dataframe(df, time, t_interpolated, cols_to_interpolate):
     return df_interpolated
 
 @njit
-def ODE_integrate(y0, Tmax, dt, ts, Mrate1, Mrate2, beta): 
+def ODE_integrate(y0, Tmax, dt, ts, mu0, Mrate1, Mrate2, beta): 
 
-    mu0 = 1
+    # mu0 = 1
 
     S, S0, E1, E2, E3, E4, I1, I2, I3, I4, R, R0 = y0
 
@@ -113,7 +115,7 @@ from iminuit import describe
 
 class CustomChi2:  # override the class with a better one
     
-    def __init__(self, time, t_interpolated, y_true, y0, Tmax, dt, ts, y_min=0):
+    def __init__(self, time, t_interpolated, y_true, y0, Tmax, dt, ts, mu0, y_min=0):
         
         # self.f = f  # model predicts y for given x
         self.time = time
@@ -123,6 +125,7 @@ class CustomChi2:  # override the class with a better one
         self.Tmax = Tmax
         self.dt = dt
         self.ts = ts
+        self.mu0 = mu0
         self.sy = np.sqrt(y_true.values) #if sy is None else sy
         self.y_min = y_min
         self.N = sum(self.y_true > self.y_min)
@@ -138,7 +141,7 @@ class CustomChi2:  # override the class with a better one
 
     def _calc_res_sir(self, Mrate1, Mrate2, beta, ts=None):
         ts = self.ts if ts is None else ts
-        return ODE_integrate(self.y0, self.Tmax, self.dt, ts, Mrate1, Mrate2, beta)
+        return ODE_integrate(self.y0, self.Tmax, self.dt, ts, self.mu0, Mrate1, Mrate2, beta)
 
     def _calc_yhat_interpolated(self, Mrate1, Mrate2, beta, tau):
         res_sir = self._calc_res_sir(Mrate1, Mrate2, beta)
@@ -218,3 +221,8 @@ def filename_to_dotdict(filename):
 
 def string_to_dict(string):
     return NewSpeedImprove_extra_funcs.filename_to_dotdict(string, normal_string=True)
+
+def uniform(a, b):
+    loc = a
+    scale = b-a
+    return sp_uniform(loc, scale)
