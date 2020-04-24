@@ -376,12 +376,6 @@ def get_fit_results(filenames, force_rerun=False, num_cores_max=20):
         return fit_results
 
 
-class filename_dict:
-
-    def __init__()
-
-
-
 def cut_percentiles(x, p1, p2=None):
     if p2 is None:
         p1 = p1/2
