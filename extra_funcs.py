@@ -337,20 +337,29 @@ def calc_fit_results(filenames, num_cores_max=20):
 
     N_refits_total = 0
     discarded_files = []
-    all_fit_objects = defaultdict(list)
+    all_fit_objects = {}
     for filename, fit_object, N_refits in results:
         
         if fit_object is None:
             discarded_files.append(filename)
         else:
-            cfg = filename_to_dotdict(filename)
-            parameters_as_string = dict_to_str(cfg)
-            all_fit_objects[parameters_as_string].append(fit_object)
+            # cfg = filename_to_dotdict(filename)
+            # parameters_as_string = dict_to_str(cfg)
+            # parameters_string = filename_to_fixed_string(filename)
+            # ID = filename_to_ID(filename)
+            # all_fit_objects[parameters_string][ID] = fit_object
+            all_fit_objects[filename] = fit_object
         
         N_refits_total += N_refits
 
     return all_fit_objects, discarded_files, N_refits_total
 
+
+def filename_to_ID(filename):
+    return int(filename.split('ID_')[1].strip('.csv'))
+
+def filename_to_fixed_string(filename):
+    return dict_to_str(filename_to_dotdict(filename))
 
 
 def get_fit_results(filenames, force_rerun=False, num_cores_max=20):
@@ -367,6 +376,9 @@ def get_fit_results(filenames, force_rerun=False, num_cores_max=20):
         return fit_results
 
 
+class filename_dict:
+
+    def __init__()
 
 
 
