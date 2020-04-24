@@ -33,78 +33,82 @@ reload(extra_funcs)
 filenames = extra_funcs.get_filenames()
 N_files = len(filenames)
 
-all_fit_objects = defaultdict(list)
+if Path('all_fit_objects.joblib').exists():
+    all_fit_objects, discarded_files = joblib.load('all_fit_objects.joblib')
 
-N_refits = 0
-N_chunk_save = 1000
+else:
 
-discarded_files = []
+    all_fit_objects = defaultdict(list)
 
-filename = filenames[0]
+    N_refits = 0
+    N_chunk_save = 1000
 
-#filename = 'Data/NetworkSimulation_N0_500000_mu_20.0_alpha_0.0_beta_1.0_sigma_0.8_Ninit_10_gamma_0.0_delta_0.05_nts_0.1_Nstates_9_Mrate1_0.5_Mrate2_1_ID_310.csv'
+    discarded_files = []
 
-for j, filename in enumerate(tqdm(filenames)):
+    filename = filenames[0]
 
-    cfg = extra_funcs.filename_to_dotdict(str(filename))
-    parameters_as_string = extra_funcs.dict_to_str(cfg)
-    # d = extra_funcs.string_to_dict(parameters_as_string)
+    #filename = 'Data/NetworkSimulation_N0_500000_mu_20.0_alpha_0.0_beta_1.0_sigma_0.8_Ninit_10_gamma_0.0_delta_0.05_nts_0.1_Nstates_9_Mrate1_0.5_Mrate2_1_ID_310.csv'
 
-    df, df_interpolated, time, t_interpolated = extra_funcs.pandas_load_file(filename)
-    y_true = df_interpolated['I']
-    Tmax = int(time.max())+1 # max number of days
-    S0 = cfg.N0
-    # y0 =  S, S0,                E1,E2,E3,E4,  I1,I2,I3,I4,  R, R0
-    y0 = S0-cfg.Ninit,S0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
+    for j, filename in enumerate(tqdm(filenames)):
 
-    # reload(extra_funcs)
-    fit_object = extra_funcs.CustomChi2(time, t_interpolated, y_true, y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
+        cfg = extra_funcs.filename_to_dotdict(str(filename))
+        parameters_as_string = extra_funcs.dict_to_str(cfg)
+        # d = extra_funcs.string_to_dict(parameters_as_string)
 
-    minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
+        df, df_interpolated, time, t_interpolated = extra_funcs.pandas_load_file(filename)
+        y_true = df_interpolated['I']
+        Tmax = int(time.max())+1 # max number of days
+        S0 = cfg.N0
+        # y0 =  S, S0,                E1,E2,E3,E4,  I1,I2,I3,I4,  R, R0
+        y0 = S0-cfg.Ninit,S0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
 
-    minuit.migrad()
-    fit_object.set_chi2(minuit)
+        # reload(extra_funcs)
+        fit_object = extra_funcs.CustomChi2(time, t_interpolated, y_true, y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
 
-    i_fit = 0
-    # if (not minuit.get_fmin().is_valid) :
-    if fit_object.chi2 / fit_object.N > 100:
+        minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
 
-        continue_fit = True
-        while continue_fit:
-            i_fit += 1
-            N_refits += 1
+        minuit.migrad()
+        fit_object.set_chi2(minuit)
 
-            param_grid = {'Mrate1': extra_funcs.uniform(0.1, 10), 
-                          'Mrate2': extra_funcs.uniform(0.1, 10), 
-                          'beta': extra_funcs.uniform(0.1, 20), 
-                          'tau': extra_funcs.uniform(-10, 10),
-                          }
-            param_list = list(ParameterSampler(param_grid, n_iter=1))[0]
-            minuit = Minuit(fit_object, pedantic=False, print_level=0, **param_list)
-            minuit.migrad()
+        i_fit = 0
+        # if (not minuit.get_fmin().is_valid) :
+        if fit_object.chi2 / fit_object.N > 100:
+
+            continue_fit = True
+            while continue_fit:
+                i_fit += 1
+                N_refits += 1
+
+                param_grid = {'Mrate1': extra_funcs.uniform(0.1, 10), 
+                            'Mrate2': extra_funcs.uniform(0.1, 10), 
+                            'beta': extra_funcs.uniform(0.1, 20), 
+                            'tau': extra_funcs.uniform(-10, 10),
+                            }
+                param_list = list(ParameterSampler(param_grid, n_iter=1))[0]
+                minuit = Minuit(fit_object, pedantic=False, print_level=0, **param_list)
+                minuit.migrad()
+                fit_object.set_minuit(minuit)
+
+                if fit_object.chi2 / fit_object.N <= 10 or i_fit>FIT_MAX:
+                    continue_fit = False
+                
+        if i_fit <= FIT_MAX:
             fit_object.set_minuit(minuit)
+            all_fit_objects[parameters_as_string].append(fit_object)
 
-            if fit_object.chi2 / fit_object.N <= 10 or i_fit>FIT_MAX:
-                continue_fit = False
-            
-    if i_fit <= FIT_MAX:
-        fit_object.set_minuit(minuit)
-        all_fit_objects[parameters_as_string].append(fit_object)
+        else:
+            print(f"\n\n{filename} was discarded\n", flush=True)
+            discarded_files.append(filename)
 
-    else:
-        print(f"\n\n{filename} was discarded\n", flush=True)
-        discarded_files.append(filename)
+        # df_fit = fit_object.calc_df_fit(ts=0.01)
+        # df_fit_parameters = fit_object.get_all_fit_pars()
+        # df_correlations = fit_object.get_correlations()
 
-    # df_fit = fit_object.calc_df_fit(ts=0.01)
-    # df_fit_parameters = fit_object.get_all_fit_pars()
-    # df_correlations = fit_object.get_correlations()
+        if j % N_chunk_save == 0 and j > 0:
+            joblib.dump(all_fit_objects, f'all_fit_objects_{j}.joblib')
 
-    if j % N_chunk_save == 0 and j > 0:
-        joblib.dump(all_fit_objects, f'all_fit_objects_{j}.joblib')
-
-joblib.dump(all_fit_objects, 'all_fit_objects.joblib')
-
-print(f"{N_refits=}, number of discarded files = {len(discarded_files)}", flush=True)
+    joblib.dump([all_fit_objects, discarded_files], 'all_fit_objects.joblib')
+    print(f"{N_refits=}, number of discarded files = {len(discarded_files)}", flush=True)
 
 
 #%%
