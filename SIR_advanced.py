@@ -34,13 +34,11 @@ if __name__ == '__main__':
     print(f"{N_refits_total=}, number of discarded files = {len(discarded_files)}", flush=True)
 
 
+    x=x
+
 #%%
 
-
-
-    #%%
-
-        # reload(extra_funcs)
+    # reload(extra_funcs)
 
     percentage1 = 5
     percentage2 = 95
@@ -111,36 +109,43 @@ if __name__ == '__main__':
 
     #%%
 
-    fig = go.Figure()
+
+    if False:
+
+        fig = go.Figure()
+
+        # reload(extra_funcs)
+        file_string = extra_funcs.filename_to_fixed_string(filenames[0])
+        fit_objects = all_fit_objects[file_string]
 
 
-    # df_fit = fit_object.calc_df_fit(ts=0.01, values=(2, 1, 15, 1))
-    # df_fit = fit_object.calc_df_fit(ts=0.01, values=(cfg.Mrate1, cfg.Mrate2, cfg.beta, 0))
-    df_fit = fit_object.calc_df_fit(ts=0.01)
+        # df_fit = fit_object.calc_df_fit(ts=0.01, values=(2, 1, 15, 1))
+        # df_fit = fit_object.calc_df_fit(ts=0.01, values=(cfg.Mrate1, cfg.Mrate2, cfg.beta, 0))
+        df_fit = fit_object.calc_df_fit(ts=0.01)
 
-    df, df_interpolated, time, t_interpolated = extra_funcs.pandas_load_file(filenames[-1])
-
-
-    for s in ['E', 'I', 'R']:
-        fig.add_trace(go.Scatter(x=df['Time'], y=df[s], name=f'{s} raw network'))
-        ss = f'{s}_sum' if s != 'R' else s
-        fig.add_trace(go.Scatter(x=df_fit['Time'], y=df_fit[ss], name=f'{s} FIT'))
-
-    k_scale = 2/3
-    k_scale = 1
-
-    # Edit the layout
-    fig.update_layout(title=f'Simulation comparison',
-                    xaxis_title='Time',
-                    yaxis_title='Count',
-                    height=600*k_scale, width=800*k_scale,
-                    )
-
-    fig.update_yaxes(rangemode="tozero")
-
-    fig.show()
-    # if savefig:
-    #     fig.write_html(f"Figures/{filename.stem}.html")
+        df, df_interpolated, time, t_interpolated = extra_funcs.pandas_load_file(filenames[-1])
 
 
-        # %%
+        for s in ['E', 'I', 'R']:
+            fig.add_trace(go.Scatter(x=df['Time'], y=df[s], name=f'{s} raw network'))
+            ss = f'{s}_sum' if s != 'R' else s
+            fig.add_trace(go.Scatter(x=df_fit['Time'], y=df_fit[ss], name=f'{s} FIT'))
+
+        k_scale = 2/3
+        k_scale = 1
+
+        # Edit the layout
+        fig.update_layout(title=f'Simulation comparison',
+                        xaxis_title='Time',
+                        yaxis_title='Count',
+                        height=600*k_scale, width=800*k_scale,
+                        )
+
+        fig.update_yaxes(rangemode="tozero")
+
+        fig.show()
+        # if savefig:
+        #     fig.write_html(f"Figures/{filename.stem}.html")
+
+
+            # %%
