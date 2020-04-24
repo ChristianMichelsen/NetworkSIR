@@ -50,8 +50,7 @@ for j, filename in enumerate(tqdm(filenames)):
     parameters_as_string = extra_funcs.dict_to_str(cfg)
     # d = extra_funcs.string_to_dict(parameters_as_string)
 
-    with np.errstate(invalid="ignore"):
-        df, df_interpolated, time, t_interpolated = extra_funcs.pandas_load_file(filename)
+    df, df_interpolated, time, t_interpolated = extra_funcs.pandas_load_file(filename)
     y_true = df_interpolated['I']
     Tmax = int(time.max())+1 # max number of days
     S0 = cfg.N0

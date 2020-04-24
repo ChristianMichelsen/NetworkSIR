@@ -37,9 +37,10 @@ def pandas_load_file(filename):
 # from scipy.signal import savgol_filter
 def interpolate_array(y, time, t_interpolated, force_positive=True):
     f = interpolate.interp1d(time, y, kind='cubic', fill_value=0, bounds_error=False)
-    y_hat = f(t_interpolated)
-    if force_positive:
-        y_hat[y_hat<0] = 0
+    with np.errstate(invalid="ignore"):
+        y_hat = f(t_interpolated)
+        if force_positive:
+            y_hat[y_hat<0] = 0
     return y_hat
 
 # from scipy.signal import savgol_filter
