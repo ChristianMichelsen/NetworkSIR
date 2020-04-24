@@ -14,7 +14,6 @@ import extra_funcs
 from importlib import reload
 # import NewSpeedImprove_extra_funcs as extra_funcs2
 
-
 savefig = False
 # cfg = configuration.load()
 
@@ -22,6 +21,11 @@ ts = 0.1 # frequency of "observations". Now 1 pr. day
 dt = 0.01 # stepsize in integration
 
 FIT_MAX = 100
+
+
+# import warnings
+# with warnings.catch_warnings():
+#     warnings.filterwarnings('ignore', r'invalid value encountered')
 
 #%%
 
@@ -32,15 +36,22 @@ N_files = len(filenames)
 all_fit_objects = defaultdict(list)
 
 N_refits = 0
-filename = filenames[0]
 N_chunk_save = 1000
+
+discarded_files = []
+
+filename = filenames[0]
+
+#filename = 'Data/NetworkSimulation_N0_500000_mu_20.0_alpha_0.0_beta_1.0_sigma_0.8_Ninit_10_gamma_0.0_delta_0.05_nts_0.1_Nstates_9_Mrate1_0.5_Mrate2_1_ID_310.csv'
+
 for j, filename in enumerate(tqdm(filenames)):
 
     cfg = extra_funcs.filename_to_dotdict(str(filename))
     parameters_as_string = extra_funcs.dict_to_str(cfg)
     # d = extra_funcs.string_to_dict(parameters_as_string)
 
-    df, df_interpolated, time, t_interpolated = extra_funcs.pandas_load_file(filename)
+    with np.errstate(invalid="ignore"):
+        df, df_interpolated, time, t_interpolated = extra_funcs.pandas_load_file(filename)
     y_true = df_interpolated['I']
     Tmax = int(time.max())+1 # max number of days
     S0 = cfg.N0
@@ -83,6 +94,7 @@ for j, filename in enumerate(tqdm(filenames)):
 
     else:
         print(f"\n\n{filename} was discarded\n", flush=True)
+        discarded_files.append(filename)
 
     # df_fit = fit_object.calc_df_fit(ts=0.01)
     # df_fit_parameters = fit_object.get_all_fit_pars()
@@ -92,6 +104,8 @@ for j, filename in enumerate(tqdm(filenames)):
         joblib.dump(all_fit_objects, f'all_fit_objects_{j}.joblib')
 
 joblib.dump(all_fit_objects, 'all_fit_objects.joblib')
+
+print(f"{N_refits=}, number of discarded files = {len(discarded_files)}", flush=True)
 
 
 #%%
