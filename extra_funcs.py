@@ -6,7 +6,6 @@ from pathlib import Path
 from scipy.stats import uniform as sp_uniform
 
 
-
 def get_filenames():
     filenames = Path('Data').glob(f'*.csv')
     return [str(file) for file in sorted(filenames)]
@@ -331,8 +330,6 @@ def calc_fit_results(filenames, num_cores_max=20):
     with mp.Pool(num_cores) as p:
         results = list(tqdm(p.imap_unordered(fit_single_file, filenames), total=N_files))
 
-    print("Finished fitting")
-
     # modify results from multiprocessing
 
     N_refits_total = 0
@@ -345,7 +342,7 @@ def calc_fit_results(filenames, num_cores_max=20):
         else:
             # cfg = filename_to_dotdict(filename)
             # parameters_as_string = dict_to_str(cfg)
-            # parameters_string = filename_to_fixed_string(filename)
+            # parameters_string = filename_to_par_string(filename)
             # ID = filename_to_ID(filename)
             # all_fit_objects[parameters_string][ID] = fit_object
             all_fit_objects[filename] = fit_object
@@ -358,7 +355,7 @@ def calc_fit_results(filenames, num_cores_max=20):
 def filename_to_ID(filename):
     return int(filename.split('ID_')[1].strip('.csv'))
 
-def filename_to_fixed_string(filename):
+def filename_to_par_string(filename):
     return dict_to_str(filename_to_dotdict(filename))
 
 
@@ -367,11 +364,12 @@ def get_fit_results(filenames, force_rerun=False, num_cores_max=20):
     output_filename = 'fit_results.joblib'
 
     if Path(output_filename).exists() and not force_rerun:
-        print("Loading data")
+        print("Loading fit results")
         return joblib.load(output_filename)
 
     else:
         fit_results = calc_fit_results(filenames, num_cores_max=num_cores_max)
+        print(f"Finished fitting, saving results to {output_filename}", flush=True)
         joblib.dump(fit_results, output_filename)
         return fit_results
 
