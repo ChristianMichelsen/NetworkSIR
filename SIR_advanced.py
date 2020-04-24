@@ -23,10 +23,6 @@ dt = 0.01 # stepsize in integration
 FIT_MAX = 100
 
 
-# import warnings
-# with warnings.catch_warnings():
-#     warnings.filterwarnings('ignore', r'invalid value encountered')
-
 #%%
 
 reload(extra_funcs)
@@ -34,6 +30,7 @@ filenames = extra_funcs.get_filenames()
 N_files = len(filenames)
 
 if Path('all_fit_objects.joblib').exists():
+    # all_fit_objects = joblib.load('all_fit_objects.joblib')
     all_fit_objects, discarded_files = joblib.load('all_fit_objects.joblib')
 
 else:
@@ -127,6 +124,8 @@ def cut_percentiles(x, p1, p2=None):
 
 #%%
 
+reload(extra_funcs)
+
 percentage1 = 5
 percentage2 = 95
 Nbins = 100
@@ -192,13 +191,18 @@ for parameters_as_string, fit_objects in all_fit_objects.items():
     fig.update_layout(showlegend=False)
 
     # Edit the layout
-    fig.update_layout(title=f"Histograms for Mrate1={d['Mrate1']:.1f}, Mrate2={d['Mrate2']:.1f}, beta={d['beta']:.1f}",
+    N0_str = extra_funcs.human_format(d['N0'])
+    fig.update_layout(title=f"Histograms for N={N0_str}, Mrate1={d['Mrate1']:.1f}, Mrate2={d['Mrate2']:.1f}, beta={d['beta']:.1f}",
                     height=600*k_scale, width=800*k_scale,
                     )
 
     fig.show()
 
+    # d_out = {k: d[k] for k in ('N0', 'Mrate1', 'Mrate2', '')}
 
+    # figname = extra_funcs.dict_to_str(cfg)
+
+    fig.write_html(f"Figures/fits_{parameters_as_string}.html")
 
 #%%
 
