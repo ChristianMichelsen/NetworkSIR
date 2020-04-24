@@ -88,7 +88,7 @@ for j, filename in enumerate(tqdm(filenames)):
     # df_fit_parameters = fit_object.get_all_fit_pars()
     # df_correlations = fit_object.get_correlations()
 
-    if j % N_chunk_save == 0:
+    if j % N_chunk_save == 0 and j > 0:
         joblib.dump(all_fit_objects, f'all_fit_objects_{j}.joblib')
 
 joblib.dump(all_fit_objects, 'all_fit_objects.joblib')
