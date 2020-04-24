@@ -9,7 +9,7 @@ from scipy.stats import uniform as sp_uniform
 
 def get_filenames():
     filenames = Path('Data').glob(f'*.csv')
-    return sorted(filenames)
+    return [str(file) for file in sorted(filenames)]
 
 
 def pandas_load_file(filename):
@@ -138,6 +138,8 @@ class CustomChi2:  # override the class with a better one
         mask = (self.y_true > self.y_min)
         # compute the chi2-value
         chi2 = np.sum((self.y_true[mask] - y_hat[mask])**2/self.sy[mask]**2)
+        if np.isnan(chi2):
+            return 1e10
         return chi2
 
     def _calc_res_sir(self, Mrate1, Mrate2, beta, ts=None):
@@ -206,8 +208,6 @@ class CustomChi2:  # override the class with a better one
         return df_fit
     
 
-
-
 def dict_to_str(d):
     string = ''
     for key, val in d.items():
@@ -236,3 +236,146 @@ def human_format(num):
         magnitude += 1
         num /= 1000.0
     return '{}{}'.format('{:f}'.format(num).rstrip('0').rstrip('.'), ['', 'K', 'M', 'B', 'T'][magnitude])
+
+
+
+
+
+
+# %%%%
+
+from collections import defaultdict
+from sklearn.model_selection import ParameterSampler
+import joblib
+from pathlib import Path
+from iminuit import Minuit
+
+
+def fit_single_file(filename, ts=0.1, dt=0.01, FIT_MAX=100):
+
+
+    # ts = 0.1 # frequency of "observations". Now 1 pr. day
+    # dt = 0.01 # stepsize in integration
+    # FIT_MAX = 100
+
+    N_refits = 0
+    discarded_files = []
+
+    cfg = filename_to_dotdict(str(filename))
+    parameters_as_string = dict_to_str(cfg)
+    # d = extra_funcs.string_to_dict(parameters_as_string)
+
+    df, df_interpolated, time, t_interpolated = pandas_load_file(filename)
+    y_true = df_interpolated['I']
+    Tmax = int(time.max())+1 # max number of days
+    S0 = cfg.N0
+    # y0 =  S, S0,                E1,E2,E3,E4,  I1,I2,I3,I4,  R, R0
+    y0 = S0-cfg.Ninit,S0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
+
+    # reload(extra_funcs)
+    fit_object = CustomChi2(time, t_interpolated, y_true, y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
+
+    minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
+
+    minuit.migrad()
+    fit_object.set_chi2(minuit)
+
+    i_fit = 0
+    # if (not minuit.get_fmin().is_valid) :
+    if fit_object.chi2 / fit_object.N > 100:
+
+        continue_fit = True
+        while continue_fit:
+            i_fit += 1
+            N_refits += 1
+
+            param_grid = {'Mrate1': uniform(0.1, 10), 
+                        'Mrate2': uniform(0.1, 10), 
+                        'beta': uniform(0.1, 20), 
+                        'tau': uniform(-10, 10),
+                        }
+            param_list = list(ParameterSampler(param_grid, n_iter=1))[0]
+            minuit = Minuit(fit_object, pedantic=False, print_level=0, **param_list)
+            minuit.migrad()
+            fit_object.set_minuit(minuit)
+
+            if fit_object.chi2 / fit_object.N <= 10 or i_fit>FIT_MAX:
+                continue_fit = False
+            
+    if i_fit <= FIT_MAX:
+        fit_object.set_minuit(minuit)
+        return filename, fit_object, N_refits
+
+    else:
+        print(f"\n\n{filename} was discarded\n", flush=True)
+        return filename, None, N_refits
+
+
+#%%
+
+
+
+import multiprocessing as mp
+from tqdm import tqdm
+
+
+def calc_fit_results(filenames, num_cores_max=20):
+
+    N_files = len(filenames)
+
+    num_cores = mp.cpu_count() - 1
+    if num_cores >= num_cores_max:
+        num_cores = num_cores_max
+
+    print(f"Fitting {N_files} network-based simulations with {num_cores} cores, please wait.", flush=True)
+    with mp.Pool(num_cores) as p:
+        results = list(tqdm(p.imap_unordered(fit_single_file, filenames), total=N_files))
+
+    print("Finished fitting")
+
+    # modify results from multiprocessing
+
+    N_refits_total = 0
+    discarded_files = []
+    all_fit_objects = defaultdict(list)
+    for filename, fit_object, N_refits in results:
+        
+        if fit_object is None:
+            discarded_files.append(filename)
+        else:
+            cfg = filename_to_dotdict(filename)
+            parameters_as_string = dict_to_str(cfg)
+            all_fit_objects[parameters_as_string].append(fit_object)
+        
+        N_refits_total += N_refits
+
+    return all_fit_objects, discarded_files, N_refits_total
+
+
+
+def get_fit_results(filenames, force_rerun=False, num_cores_max=20):
+
+    output_filename = 'fit_results.joblib'
+
+    if Path(output_filename).exists() and not force_rerun:
+        print("Loading data")
+        return joblib.load(output_filename)
+
+    else:
+        fit_results = calc_fit_results(filenames, num_cores_max=num_cores_max)
+        joblib.dump(fit_results, output_filename)
+        return fit_results
+
+
+
+
+
+def cut_percentiles(x, p1, p2=None):
+    if p2 is None:
+        p1 = p1/2
+        p2 = 100 - p1
+    
+    x = x[~np.isnan(x)]
+
+    mask = (np.percentile(x, p1) < x) & (x < np.percentile(x, p2))
+    return x[mask]
