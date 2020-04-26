@@ -46,8 +46,8 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     # Here we initialize the system
     # psi = 2.0
     # alpha = 1.0
-    x = 0.0 
-    y = 0.0 
+    xx = 0.0 
+    yy = 0.0 
     tnext = (1/np.random.random())**(1/psi)-1
     D0 = 0.01 
     D = D0*1000 
@@ -58,17 +58,17 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     for i in range(NRe):
         RT += dt
         if (RT > tnext):
-            x += np.sqrt(2*D*dt)*np.random.normal()
-            y += np.sqrt(2*D*dt)*np.random.normal()
+            xx += np.sqrt(2*D*dt)*np.random.normal()
+            yy += np.sqrt(2*D*dt)*np.random.normal()
             ra = (1/np.random.random())**(1/psi)-1  
             DS = D
             tnext = RT + ra       
         else:
-            x += np.sqrt(2*D0*dt)*np.random.normal()
-            y += np.sqrt(2*D0*dt)*np.random.normal()    
+            xx += np.sqrt(2*D0*dt)*np.random.normal()
+            yy += np.sqrt(2*D0*dt)*np.random.normal()    
 
-        P1[i, 1] = x
-        P1[i, 2] = y
+        P1[i, 1] = xx
+        P1[i, 2] = yy
 
 
     # initialize Prob
