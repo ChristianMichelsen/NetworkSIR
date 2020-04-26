@@ -271,6 +271,17 @@ def fit_single_file(filename, ts=0.1, dt=0.01, FIT_MAX=100):
     # y0 =  S, S0,                E1,E2,E3,E4,  I1,I2,I3,I4,  R, R0
     y0 = S0-cfg.Ninit,S0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
 
+
+    # I_min = 0.1 / 100 * cfg.N0 # percent
+    # I_max = 10 / 100 * cfg.N0 # percent
+    # I = df['I'].values
+    # iloc_min = np.argmax(I > I_min)
+    # iloc_max = np.argmax(I > I_max)
+    # df.iloc[iloc_min:iloc_max]
+    # iloc_min2 = np.argmax(I[iloc_max:] < I_min) + iloc_max
+    # df.iloc[iloc_max:iloc_min2]
+    # I_width_time = df['Time'].iloc[iloc_min2] - df['Time'].iloc[iloc_min]
+
     # reload(extra_funcs)
     fit_object = CustomChi2(time, t_interpolated, y_true, y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
 

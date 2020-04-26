@@ -22,6 +22,10 @@ filenames = extra_funcs.get_filenames()
 N_files = len(filenames)
 
 # filenames = filenames[:1000]
+# filename = filenames[0]
+
+
+x=x
 
 #%%
 
@@ -128,7 +132,7 @@ if __name__ == '__main__':
         ss = f'{s}_sum' if s != 'R' else s
         fig.add_trace(go.Scatter(x=df_fit['Time'], y=df_fit[ss], name=f'{s} FIT'))
 
-    k_scale = 1.5
+    k_scale = 1
 
     # Edit the layout
     fig.update_layout(title=f'Simulation comparison',
@@ -143,3 +147,6 @@ if __name__ == '__main__':
     # if savefig:
     #     fig.write_html(f"Figures/{filename.stem}.html")
 
+
+
+# %%
