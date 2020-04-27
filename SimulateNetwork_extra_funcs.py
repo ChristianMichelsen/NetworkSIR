@@ -300,7 +300,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
         if (TotInf + TotMov < 0.0001) and (TotMov + TotInf > -0.00001): 
             on = 0 
             # cout << "Equilibrium " << endl
-            print("Equilibrium")
+            # print("Equilibrium")
         
         if S[Nstates-1] > N0-10:      
             # cout << "2/3 through " << endl 
