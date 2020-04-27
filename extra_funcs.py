@@ -115,28 +115,28 @@ from iminuit import describe
 
 class CustomChi2:  # override the class with a better one
     
-    def __init__(self, t_interpolated, y_true, y0, Tmax, dt, ts, mu0, y_min=0):
+    def __init__(self, t_interpolated, y_truth, y0, Tmax, dt, ts, mu0, y_min=0):
         
         # self.f = f  # model predicts y for given x
         # self.time = time
         self.t_interpolated = t_interpolated
-        self.y_true = y_true#.to_numpy(int)
+        self.y_truth = y_truth#.to_numpy(int)
         self.y0 = y0
         self.Tmax = Tmax
         self.dt = dt
         self.ts = ts
         self.mu0 = mu0
-        self.sy = np.sqrt(self.y_true) #if sy is None else sy
+        self.sy = np.sqrt(self.y_truth) #if sy is None else sy
         self.y_min = y_min
-        self.N = sum(self.y_true > self.y_min)
+        self.N = sum(self.y_truth > self.y_min)
         # self.func_code = make_func_code(describe(self._calc_yhat_interpolated))
 
     def __call__(self, Mrate1, Mrate2, beta, tau):  # par are a variable number of model parameters
         # compute the function value
         y_hat = self._calc_yhat_interpolated(Mrate1, Mrate2, beta, tau)
-        mask = (self.y_true > self.y_min)
+        mask = (self.y_truth > self.y_min)
         # compute the chi2-value
-        chi2 = np.sum((self.y_true[mask] - y_hat[mask])**2/self.sy[mask]**2)
+        chi2 = np.sum((self.y_truth[mask] - y_hat[mask])**2/self.sy[mask]**2)
         if np.isnan(chi2):
             return 1e10
         return chi2
@@ -271,14 +271,14 @@ def fit_single_file(filename, ts=0.1, dt=0.01, FIT_MAX=100):
     # d = extra_funcs.string_to_dict(parameters_as_string)
 
     df, df_interpolated, time, t_interpolated = pandas_load_file(filename)
-    y_true = df_interpolated['I'].to_numpy(int)
+    y_truth = df_interpolated['I'].to_numpy(int)
     Tmax = int(time.max())+1 # max number of days
     S0 = cfg.N0
     # y0 =  S, S0,                E1,E2,E3,E4,  I1,I2,I3,I4,  R, R0
     y0 = S0-cfg.Ninit,S0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
 
     # reload(extra_funcs)
-    fit_object = CustomChi2(t_interpolated, y_true, y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
+    fit_object = CustomChi2(t_interpolated, y_truth, y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
 
     minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
 
@@ -329,7 +329,7 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
     # d = extra_funcs.string_to_dict(parameters_as_string)
 
     df, df_interpolated, time, t_interpolated = pandas_load_file(filename)
-    y_true = df_interpolated['I'].to_numpy(int)
+    y_truth = df_interpolated['I'].to_numpy(int)
     Tmax = int(time.max())+1 # max number of days
     S0 = cfg.N0
     # y0 =  S, S0,                E1,E2,E3,E4,  I1,I2,I3,I4,  R, R0
@@ -358,7 +358,7 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
     # df_prefit
 
     t_interpolated = df_prefit['Time'].to_numpy()
-    y_true = df_prefit['I'].to_numpy(int)
+    y_truth = df_prefit['I'].to_numpy(int)
 
     Tmax = Time[iloc_max]*1.1
 
@@ -366,19 +366,19 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
 
     # reload(extra_funcs)
     # N_peak_fits = N_peak_fits
-    I_max_true = np.max(I)
+    I_max_truth = np.max(I)
     I_maxs = np.zeros(N_peak_fits)
     times_maxs = t_interpolated[1:] - Time[iloc_min]
     times_maxs_normalized = times_maxs / I_time_duration
     for imax in range(N_peak_fits):
-        fit_object = CustomChi2(t_interpolated[:imax+1], y_true[:imax+1], y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
+        fit_object = CustomChi2(t_interpolated[:imax+1], y_truth[:imax+1], y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
         minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
         minuit.migrad()
         fit_object.set_minuit(minuit)
         I_max = fit_object.compute_I_max()
         I_maxs[imax] = I_max
 
-    return filename, times_maxs_normalized, I_maxs, I_max_true
+    return filename, times_maxs_normalized, I_maxs, I_max_truth
 
 
 #%%
@@ -438,18 +438,18 @@ def calc_fit_Imax_results(filenames, num_cores_max=30):
 
     # modify results from multiprocessing
 
-    I_maxs_true = {}
+    I_maxs_truth = {}
     I_maxs_normed = {}
 
     bins = np.linspace(0, 1, 10+1)
-    # filename, times_maxs_normalized, I_maxs, I_max_true = results[0]
-    for filename, times_maxs_normalized, I_maxs, I_max_true in results:
-        I_maxs_true[filename] = I_max_true
+    # filename, times_maxs_normalized, I_maxs, I_max_truth = results[0]
+    for filename, times_maxs_normalized, I_maxs, I_max_truth in results:
+        I_maxs_truth[filename] = I_max_truth
 
         if np.all(1 == np.histogram(times_maxs_normalized, bins)[0]):
-            I_maxs_normed[filename] = I_maxs / I_max_true
+            I_maxs_normed[filename] = I_maxs / I_max_truth
         
-    return I_maxs_true, I_maxs_normed
+    return I_maxs_truth, I_maxs_normed
 
 
 
