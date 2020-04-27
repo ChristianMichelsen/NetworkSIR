@@ -338,7 +338,7 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
     I = df['I'].to_numpy(int)
     Time = df['Time'].to_numpy()
     
-    N_peak_fits = 10
+    N_peak_fits = 20
     I_cut_min = 0.05 / 100 * I.max() # percent
     iloc_min = np.argmax(I > I_cut_min)
     iloc_max = np.argmax(I) 
