@@ -61,7 +61,7 @@ def ODE_integrate(y0, Tmax, dt, ts, mu0, Mrate1, Mrate2, beta):
     S, S0, E1, E2, E3, E4, I1, I2, I3, I4, R, R0 = y0
 
     click = 0
-    res_sir = np.zeros((int(Tmax/ts)+1, 6))
+    ODE_result_SIR = np.zeros((int(Tmax/ts)+1, 6))
     Times = np.linspace(0, Tmax, int(Tmax/dt)+1)
 
     for Time in Times:
@@ -95,7 +95,7 @@ def ODE_integrate(y0, Tmax, dt, ts, mu0, Mrate1, Mrate2, beta):
         R += dt*dR
 
         if Time >= ts*click: # - t0:
-            res_sir[click, :] = [
+            ODE_result_SIR[click, :] = [
                             S, 
                             E1+E2+E3+E4, 
                             I1+I2+I3+I4,
@@ -104,7 +104,7 @@ def ODE_integrate(y0, Tmax, dt, ts, mu0, Mrate1, Mrate2, beta):
                             R0,
                             ]
             click += 1
-    return res_sir
+    return ODE_result_SIR
 
 
 
@@ -115,18 +115,18 @@ from iminuit import describe
 
 class CustomChi2:  # override the class with a better one
     
-    def __init__(self, time, t_interpolated, y_true, y0, Tmax, dt, ts, mu0, y_min=0):
+    def __init__(self, t_interpolated, y_true, y0, Tmax, dt, ts, mu0, y_min=0):
         
         # self.f = f  # model predicts y for given x
-        self.time = time
+        # self.time = time
         self.t_interpolated = t_interpolated
-        self.y_true = y_true.values
+        self.y_true = y_true#.to_numpy(int)
         self.y0 = y0
         self.Tmax = Tmax
         self.dt = dt
         self.ts = ts
         self.mu0 = mu0
-        self.sy = np.sqrt(y_true.values) #if sy is None else sy
+        self.sy = np.sqrt(self.y_true) #if sy is None else sy
         self.y_min = y_min
         self.N = sum(self.y_true > self.y_min)
         # self.func_code = make_func_code(describe(self._calc_yhat_interpolated))
@@ -141,14 +141,14 @@ class CustomChi2:  # override the class with a better one
             return 1e10
         return chi2
 
-    def _calc_res_sir(self, Mrate1, Mrate2, beta, ts=None):
+    def _calc_ODE_result_SIR(self, Mrate1, Mrate2, beta, ts=None):
         ts = self.ts if ts is None else ts
         return ODE_integrate(self.y0, self.Tmax, self.dt, ts, self.mu0, Mrate1, Mrate2, beta)
 
     def _calc_yhat_interpolated(self, Mrate1, Mrate2, beta, tau):
-        res_sir = self._calc_res_sir(Mrate1, Mrate2, beta)
-        I_SIR = res_sir[:, 2]
-        time = res_sir[:, 4]
+        ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, Mrate2, beta)
+        I_SIR = ODE_result_SIR[:, 2]
+        time = ODE_result_SIR[:, 4]
         y_hat = interpolate_array(I_SIR, time, self.t_interpolated+tau)
         return y_hat
 
@@ -197,15 +197,24 @@ class CustomChi2:  # override the class with a better one
         if values is None:
             values = self.values
         Mrate1, Mrate2, beta, tau = values
-        res_sir = self._calc_res_sir(Mrate1, Mrate2, beta, ts=ts)
+        ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, Mrate2, beta, ts=ts)
         cols = ['S', 'E_sum', 'I_sum', 'R', 'Time', 'R0']
-        df_fit = pd.DataFrame(res_sir, columns=cols).convert_dtypes()
+        df_fit = pd.DataFrame(ODE_result_SIR, columns=cols).convert_dtypes()
         df_fit['Time'] -= tau
         df_fit['N'] = df_fit[['S', 'E_sum', 'I_sum', 'R']].sum(axis=1)
         if df_fit.iloc[-1]['R'] == 0:
             df_fit = df_fit.iloc[:-1]
         return df_fit
-    
+
+    def compute_I_max(self, ts=0.1, values=None):
+        if values is None:
+            values = self.values
+        Mrate1, Mrate2, beta, tau = values
+        ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, Mrate2, beta, ts=ts)
+        I_max = np.max(ODE_result_SIR[:, 2])
+        return I_max
+
+
 
 def dict_to_str(d):
     string = ''
@@ -238,9 +247,6 @@ def human_format(num):
 
 
 
-
-
-
 # %%%%
 
 from collections import defaultdict
@@ -265,25 +271,14 @@ def fit_single_file(filename, ts=0.1, dt=0.01, FIT_MAX=100):
     # d = extra_funcs.string_to_dict(parameters_as_string)
 
     df, df_interpolated, time, t_interpolated = pandas_load_file(filename)
-    y_true = df_interpolated['I']
+    y_true = df_interpolated['I'].to_numpy(int)
     Tmax = int(time.max())+1 # max number of days
     S0 = cfg.N0
     # y0 =  S, S0,                E1,E2,E3,E4,  I1,I2,I3,I4,  R, R0
     y0 = S0-cfg.Ninit,S0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
 
-
-    # I_min = 0.1 / 100 * cfg.N0 # percent
-    # I_max = 10 / 100 * cfg.N0 # percent
-    # I = df['I'].values
-    # iloc_min = np.argmax(I > I_min)
-    # iloc_max = np.argmax(I > I_max)
-    # df.iloc[iloc_min:iloc_max]
-    # iloc_min2 = np.argmax(I[iloc_max:] < I_min) + iloc_max
-    # df.iloc[iloc_max:iloc_min2]
-    # I_width_time = df['Time'].iloc[iloc_min2] - df['Time'].iloc[iloc_min]
-
     # reload(extra_funcs)
-    fit_object = CustomChi2(time, t_interpolated, y_true, y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
+    fit_object = CustomChi2(t_interpolated, y_true, y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
 
     minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
 
@@ -319,6 +314,71 @@ def fit_single_file(filename, ts=0.1, dt=0.01, FIT_MAX=100):
     else:
         print(f"\n\n{filename} was discarded\n", flush=True)
         return filename, None, N_refits
+
+
+
+
+def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
+
+    # ts = 0.1 # frequency of "observations". Now 1 pr. day
+    # dt = 0.01 # stepsize in integration
+    # FIT_MAX = 100
+
+    cfg = filename_to_dotdict(filename)
+    parameters_as_string = dict_to_str(cfg)
+    # d = extra_funcs.string_to_dict(parameters_as_string)
+
+    df, df_interpolated, time, t_interpolated = pandas_load_file(filename)
+    y_true = df_interpolated['I'].to_numpy(int)
+    Tmax = int(time.max())+1 # max number of days
+    S0 = cfg.N0
+    # y0 =  S, S0,                E1,E2,E3,E4,  I1,I2,I3,I4,  R, R0
+    y0 = S0-cfg.Ninit,S0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
+
+    I = df['I'].to_numpy(int)
+    Time = df['Time'].to_numpy()
+    
+    N_peak_fits = 10
+    I_cut_min = 0.05 / 100 * I.max() # percent
+    iloc_min = np.argmax(I > I_cut_min)
+    iloc_max = np.argmax(I) 
+
+    # delta_step = int(1/cfg.nts) # equals to about one a day
+    # df_prefit = df.iloc[iloc_min:iloc_max+delta_step:delta_step]
+    delta_iloc = (iloc_max - iloc_min) // N_peak_fits
+    indices = np.linspace(iloc_min, iloc_max, N_peak_fits+1).astype(int) - delta_iloc // 2
+    df_prefit = df.iloc[indices]
+
+    ## time at which the peak has been reduced again
+    # iloc_min2 = np.argmax(I[iloc_max:] < I_cut_min) + iloc_max
+    # Time from beginning to peak
+    I_time_duration = Time[iloc_max] - Time[iloc_min]
+
+    # df_prefit['I'].plot()
+    # df_prefit
+
+    t_interpolated = df_prefit['Time'].to_numpy()
+    y_true = df_prefit['I'].to_numpy(int)
+
+    Tmax = Time[iloc_max]*1.1
+
+    # Time = df_prefit['Time'].to_numpy()
+
+    # reload(extra_funcs)
+    # N_peak_fits = N_peak_fits
+    I_max_true = np.max(I)
+    I_maxs = np.zeros(N_peak_fits)
+    times_maxs = t_interpolated[1:] - Time[iloc_min]
+    times_maxs_normalized = times_maxs / I_time_duration
+    for imax in range(N_peak_fits):
+        fit_object = CustomChi2(t_interpolated[:imax+1], y_true[:imax+1], y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
+        minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
+        minuit.migrad()
+        fit_object.set_minuit(minuit)
+        I_max = fit_object.compute_I_max()
+        I_maxs[imax] = I_max
+
+    return filename, times_maxs_normalized, I_maxs, I_max_true
 
 
 #%%
@@ -363,6 +423,36 @@ def calc_fit_results(filenames, num_cores_max=20):
     return all_fit_objects, discarded_files, N_refits_total
 
 
+
+def calc_fit_Imax_results(filenames, num_cores_max=30):
+
+    N_files = len(filenames)
+
+    num_cores = mp.cpu_count() - 1
+    if num_cores >= num_cores_max:
+        num_cores = num_cores_max
+
+    print(f"Fitting I_max for {N_files} network-based simulations with {num_cores} cores, please wait.", flush=True)
+    with mp.Pool(num_cores) as p:
+        results = list(tqdm(p.imap_unordered(fit_single_file_Imax, filenames), total=N_files))
+
+    # modify results from multiprocessing
+
+    I_maxs_true = {}
+    I_maxs_normed = {}
+
+    bins = np.linspace(0, 1, 10+1)
+    # filename, times_maxs_normalized, I_maxs, I_max_true = results[0]
+    for filename, times_maxs_normalized, I_maxs, I_max_true in results:
+        I_maxs_true[filename] = I_max_true
+
+        if np.all(1 == np.histogram(times_maxs_normalized, bins)[0]):
+            I_maxs_normed[filename] = I_maxs / I_max_true
+        
+    return I_maxs_true, I_maxs_normed
+
+
+
 def filename_to_ID(filename):
     return int(filename.split('ID_')[1].strip('.csv'))
 
@@ -385,6 +475,21 @@ def get_fit_results(filenames, force_rerun=False, num_cores_max=20):
         return fit_results
 
 
+def get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=20):
+
+    output_filename = 'fit_Imax_results.joblib'
+
+    if Path(output_filename).exists() and not force_rerun:
+        print("Loading Imax fit results")
+        return joblib.load(output_filename)
+
+    else:
+        fit_results = calc_fit_Imax_results(filenames, num_cores_max=num_cores_max)
+        print(f"Finished Imax fitting, saving results to {output_filename}", flush=True)
+        joblib.dump(fit_results, output_filename)
+        return fit_results
+
+
 def cut_percentiles(x, p1, p2=None):
     if p2 is None:
         p1 = p1/2
@@ -394,3 +499,9 @@ def cut_percentiles(x, p1, p2=None):
 
     mask = (np.percentile(x, p1) < x) & (x < np.percentile(x, p2))
     return x[mask]
+
+
+def fix_and_sort_index(df):
+    df.index = df.index.map(filename_to_ID)
+    return df.sort_index(ascending=True, inplace=False)
+

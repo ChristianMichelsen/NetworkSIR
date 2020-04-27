@@ -26,6 +26,13 @@ def generate_filenames(N_loops=10, force_overwrite=False):
     # gamma 0.15, 0.3, 0.45
 
 
+    # for alpha in [0.15, 0.3, 0.45]:
+    #     dict_in['alpha'] = alpha
+
+    #     for psi in [0.15, 0.3, 0.45]:
+    #         dict_in['gamma'] = gamma
+
+
     for sigma in [0.15, 0.3, 0.45]:
         dict_in['sigma'] = sigma
 
