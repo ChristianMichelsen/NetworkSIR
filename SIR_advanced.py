@@ -35,7 +35,7 @@ if __name__ == '__main__':
     print(f"{N_refits_total=}, number of discarded files = {len(discarded_files)}\n\n", flush=True)
 
     I_maxs_true_res, I_maxs_normed_res = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=30)
-    I_maxs_times = np.linspace(0.05, 1-0.05, 9+1)    
+    I_maxs_times = np.linspace(0.05, 1-0.05, 19)    
 
 #%%
 
