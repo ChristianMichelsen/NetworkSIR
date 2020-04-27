@@ -15,6 +15,14 @@ from importlib import reload
 
 savefig = False
 
+
+# df = pd.read_csv('bla.csv', encoding='latin1', sep=';', header=None)
+# df_kvinder = df.iloc[1:, 6]
+# df_all = df.iloc[1:, 4]
+# df_kvinder.iloc[25:].sum()
+
+
+
 #%%
 
 reload(extra_funcs)
@@ -23,7 +31,6 @@ N_files = len(filenames)
 
 # filenames = filenames[:1000]
 # filename = filenames[0]
-
 
 #%%
 
@@ -35,10 +42,10 @@ if __name__ == '__main__':
     print(f"{N_refits_total=}, number of discarded files = {len(discarded_files)}\n\n", flush=True)
 
     I_maxs_true_res, I_maxs_normed_res = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=30)
-    I_maxs_times = np.linspace(0.05, 1-0.05, 19)    
+    bins = np.linspace(0, 1, extra_funcs.N_peak_fits+1)
+    I_maxs_times = (bins[1:] + bins[:-1])/2
 
 #%%
-
 
     # reload(extra_funcs)
     fit_objects_by_pars = defaultdict(dict)
