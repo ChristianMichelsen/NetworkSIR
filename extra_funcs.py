@@ -317,7 +317,7 @@ def fit_single_file(filename, ts=0.1, dt=0.01, FIT_MAX=100):
 
 
 
-
+N_peak_fits = 20
 def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
 
     # ts = 0.1 # frequency of "observations". Now 1 pr. day
@@ -338,7 +338,6 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
     I = df['I'].to_numpy(int)
     Time = df['Time'].to_numpy()
     
-    N_peak_fits = 20
     I_cut_min = 0.05 / 100 * I.max() # percent
     iloc_min = np.argmax(I > I_cut_min)
     iloc_max = np.argmax(I) 
@@ -441,7 +440,7 @@ def calc_fit_Imax_results(filenames, num_cores_max=30):
     I_maxs_truth = {}
     I_maxs_normed = {}
 
-    bins = np.linspace(0, 1, 10+1)
+    bins = np.linspace(0, 1, N_peak_fits+1)
     # filename, times_maxs_normalized, I_maxs, I_max_truth = results[0]
     for filename, times_maxs_normalized, I_maxs, I_max_truth in results:
         I_maxs_truth[filename] = I_max_truth
