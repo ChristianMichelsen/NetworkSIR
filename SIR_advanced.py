@@ -27,9 +27,6 @@ reload(extra_funcs)
 filenames = extra_funcs.get_filenames()
 N_files = len(filenames)
 
-x=x
-
-
 # filenames = filenames[:1000]
 # filename = filenames[0]
 
