@@ -42,7 +42,6 @@ if __name__ == '__main__':
 
     fit_results = extra_funcs.get_fit_results(filenames, force_rerun=False, num_cores_max=30)
     all_fit_objects, discarded_files, N_refits_total = fit_results
-
     print(f"{N_refits_total=}, number of discarded files = {len(discarded_files)}\n\n", flush=True)
 
 #%%
