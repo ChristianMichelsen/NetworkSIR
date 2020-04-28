@@ -49,8 +49,6 @@ if __name__ == '__main__':
     if num_cores >= num_cores_max:
         num_cores = num_cores_max
 
-    x=x
-
     print(f"Generating {N_files} network-based simulations, please wait.", flush=True)
     with mp.Pool(num_cores) as p:
         list(tqdm(p.imap_unordered(extra_funcs.single_run_and_save, filenames), total=N_files))
