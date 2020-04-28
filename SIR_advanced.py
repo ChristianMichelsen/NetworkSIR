@@ -27,6 +27,8 @@ reload(extra_funcs)
 filenames = extra_funcs.get_filenames()
 N_files = len(filenames)
 
+x=x
+
 # filenames = filenames[:1000]
 # filename = filenames[0]
 
@@ -34,7 +36,7 @@ N_files = len(filenames)
 
 if __name__ == '__main__':
 
-    I_maxs_true_res, I_maxs_normed_res, betas = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=10)
+    I_maxs_true_res, I_maxs_normed_res, betas, betas_std = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=10)
     bins = np.linspace(0, 1, extra_funcs.N_peak_fits+1)
     I_maxs_times = (bins[1:] + bins[:-1])/2
 
@@ -166,36 +168,51 @@ if __name__ == '__main__':
         filenames_by_pars[par_string].append(filename)
 
 
-    # then 
+    # reload(extra_funcs)
     I_max_truth_by_pars = {}
     I_max_normed_by_pars = {}
-    for par_string in filenames_by_pars.keys():
+    betas_by_pars = {}
+    betas_std_by_pars = {}
+
+    for par_string in tqdm(filenames_by_pars.keys(), desc='Splitting I_max fits by simulation parameters'):
         filenames_to_use = filenames_by_pars[par_string]
 
         I_true_tmp = {k: I_maxs_true_res[k] for k in filenames_to_use}
         I_maxs_true = extra_funcs.fix_and_sort_index(pd.Series(I_true_tmp))
         I_max_truth_by_pars[par_string] = I_maxs_true
 
-        I_normed_tmp = {k: I_maxs_normed_res[k] for k in filenames_to_use}
-        I_maxs_normed = extra_funcs.fix_and_sort_index(pd.DataFrame(I_normed_tmp).T)
-        I_maxs_normed.columns = I_maxs_times
-        I_maxs_normed.loc['mean'] = I_maxs_normed.mean()
-        I_maxs_normed.loc['std'] = I_maxs_normed.std()
-        I_maxs_normed.loc['sdom'] = I_maxs_normed.std() / np.sqrt(len(I_maxs_normed)-2)
-        I_max_normed_by_pars[par_string] = I_maxs_normed
+        # I_normed_tmp = {k: I_maxs_normed_res[k] for k in filenames_to_use}
+        # I_maxs_normed = extra_funcs.fix_and_sort_index(pd.DataFrame(I_normed_tmp).T)
+        # I_maxs_normed.columns = I_maxs_times
+        # I_maxs_normed.loc['mean'] = I_maxs_normed.mean()
+        # I_maxs_normed.loc['std'] = I_maxs_normed.std()
+        # I_maxs_normed.loc['sdom'] = I_maxs_normed.std() / np.sqrt(len(I_maxs_normed)-2)
+
+        df_I_maxs_normed = extra_funcs.Imax_fits_to_df(I_maxs_normed_res, filenames_to_use, I_maxs_times)
+        I_max_normed_by_pars[par_string] = df_I_maxs_normed
+
+        df_betas = extra_funcs.Imax_fits_to_df(betas, filenames_to_use, I_maxs_times)
+        betas_by_pars[par_string] = df_betas
+
+        df_betas_std = extra_funcs.Imax_fits_to_df(betas_std, filenames_to_use, I_maxs_times)
+        betas_std_by_pars[par_string] = df_betas_std
 
 
 #%%
 
-    for par_string in I_max_truth_by_pars.keys():
+    for par_string in tqdm(I_max_truth_by_pars.keys(), desc='Make Imax figures'):
 
         I_maxs_normed = I_max_normed_by_pars[par_string]
         I_maxs_true = I_max_truth_by_pars[par_string]
+        df_betas = betas_by_pars[par_string]
+        df_betas_std = betas_std_by_pars[par_string]
+        
 
-        fig = make_subplots(rows=1, cols=2, 
-                            subplot_titles=['Fits', 'Truth distriution'], 
-                            column_widths=[0.7, 0.3])
+        fig = make_subplots(rows=1, cols=4, 
+                            subplot_titles=['Imax Fits', 'Beta', 'Beta std','Truth distriution'], 
+                            column_widths=[0.3, 0.3, 0.3, 0.1])
 
+        # subplot 1
         fig.add_trace(
             go.Scatter( x=I_maxs_normed.columns, 
                         y=I_maxs_normed.loc['mean'],
@@ -211,21 +228,63 @@ if __name__ == '__main__':
         fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=1)
         fig.update_yaxes(title_text=f"I_max / I_max_truth", row=1, col=1)
 
+
+        # subplot 2
         fig.add_trace(
-            go.Histogram(x=I_maxs_true),
+            go.Scatter( x=df_betas.columns, 
+                        y=df_betas.loc['mean'],
+                        error_y=dict(
+                            type='data', # value of error bar given in data coordinates
+                            array=df_betas.loc['sdom'],
+                            visible=True
+                            ),
+                        mode="markers",
+                        ),
             row=1, col=2,
             )
-        fig.update_xaxes(title_text=f"I_max_truth", row=1, col=2)
-        fig.update_yaxes(title_text=f"Counts", row=1, col=2)
+        fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=2)
+        fig.update_yaxes(title_text=f"Beta", row=1, col=2)
 
+
+        # subplot 3
+        fig.add_trace(
+            go.Scatter( x=df_betas_std.columns, 
+                        y=df_betas_std.loc['mean'],
+                        error_y=dict(
+                            type='data', # value of error bar given in data coordinates
+                            array=df_betas_std.loc['sdom'],
+                            visible=True
+                            ),
+                        mode="markers",
+                        ),
+            row=1, col=3,
+            )
+        fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=3)
+        fig.update_yaxes(title_text=f"Beta std", row=1, col=3)
+
+
+        # subplot 4
+        fig.add_trace(
+            go.Histogram(x=I_maxs_true),
+            row=1, col=4,
+            )
+        fig.update_xaxes(title_text=f"I_max_truth", row=1, col=4)
+        fig.update_yaxes(title_text=f"Counts", row=1, col=4)
+
+        
+        d_parameters = extra_funcs.string_to_dict(par_string)
+        par_string = par_string.replace('delta_0.05', '')
+        # d_parameters.pop("delta", None)
+
+        N0_str = extra_funcs.human_format(d_parameters['N0'])
+        title = f"I_max fits and distribution for N={N0_str}, Mrate1={d_parameters['Mrate1']:.1f}, Mrate2={d_parameters['Mrate2']:.1f}, beta={d_parameters['beta']:.1f}, alpha={d_parameters['alpha']:.1f}, sigma={d_parameters['sigma']:.1f}"
+        if 'psi' in d_parameters:
+            title += f" psi={d_parameters['psi']:.1f}"
 
         k_scale = 1
-        d_parameters = extra_funcs.string_to_dict(par_string)
-        N0_str = extra_funcs.human_format(d_parameters['N0'])
-        title = f"I_max fits and distribution for N={N0_str}, Mrate1={d_parameters['Mrate1']:.1f}, Mrate2={d_parameters['Mrate2']:.1f}, beta={d_parameters['beta']:.1f}"
-        fig.update_layout(title=title, height=600*k_scale, width=800*k_scale, showlegend=False)
+        fig.update_layout(title=title, width=1400*k_scale, height=600*k_scale, showlegend=False)
 
-        fig.show()
+        # fig.show()
         fig.write_html(f"Figures/fits_Imax_{par_string}.html")
 
 

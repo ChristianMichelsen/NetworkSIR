@@ -514,3 +514,13 @@ def fix_and_sort_index(df):
     df.index = df.index.map(filename_to_ID)
     return df.sort_index(ascending=True, inplace=False)
 
+def Imax_fits_to_df(Imax_res, filenames_to_use, I_maxs_times):
+    res_tmp = {k: Imax_res[k] for k in filenames_to_use}
+    df = fix_and_sort_index(pd.DataFrame(res_tmp).T)
+    df.columns = I_maxs_times
+    df.loc['mean'] = df.mean()
+    df.loc['std'] = df.std()
+    df.loc['sdom'] = df.std() / np.sqrt(len(df)-2)
+    # I_max_normed_by_pars[par_string] = df
+    return df
+

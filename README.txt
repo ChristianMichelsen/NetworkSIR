@@ -3,7 +3,7 @@
 >> conda activate NetworkSIR
 
 Simulate data:
->> python NewSpeedImprove.py
+>> python SimulateNetwork.py
 
 Analyse results
 >> python SIR_advanced.py
