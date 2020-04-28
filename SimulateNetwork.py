@@ -21,7 +21,7 @@ def generate_filenames(N_loops=10, force_overwrite=False):
                     Nstates = 9,
                 )
 
-    for psi in [0, 1, 2, 4]:
+    for psi in [1, 2, 4]:
         dict_in['psi'] = psi
         alphas = [1, 2, 4, 8]
         if psi == 0:
@@ -48,6 +48,8 @@ if __name__ == '__main__':
     num_cores_max = 30
     if num_cores >= num_cores_max:
         num_cores = num_cores_max
+
+    x=x
 
     print(f"Generating {N_files} network-based simulations, please wait.", flush=True)
     with mp.Pool(num_cores) as p:
