@@ -21,10 +21,6 @@ savefig = False
 # df_all = df.iloc[1:, 4]
 # df_kvinder.iloc[25:].sum()
 
-
-
-x=x
-
 #%%
 
 reload(extra_funcs)
