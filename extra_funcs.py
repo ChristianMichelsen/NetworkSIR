@@ -370,6 +370,7 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
     I_max_truth = np.max(I)
     I_maxs = np.zeros(N_peak_fits)
     betas = np.zeros(N_peak_fits)
+    betas_std = np.zeros(N_peak_fits)
     times_maxs = t_interpolated[1:] - Time[iloc_min]
     times_maxs_normalized = times_maxs / I_time_duration
     for imax in range(N_peak_fits):
@@ -380,8 +381,9 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
         I_max = fit_object.compute_I_max()
         I_maxs[imax] = I_max
         betas[imax] = fit_object.fit_values['beta']
+        betas_std[imax] = fit_object.fit_errors['beta']
 
-    return filename, times_maxs_normalized, I_maxs, I_max_truth, betas
+    return filename, times_maxs_normalized, I_maxs, I_max_truth, betas, betas_std
 
 
 #%%
@@ -444,17 +446,19 @@ def calc_fit_Imax_results(filenames, num_cores_max=30):
     I_maxs_truth = {}
     I_maxs_normed = {}
     betas = {}
+    betas_std = {}
 
     bins = np.linspace(0, 1, N_peak_fits+1)
     # filename, times_maxs_normalized, I_maxs, I_max_truth = results[0]
-    for filename, times_maxs_normalized, I_maxs, I_max_truth, beta in results:
+    for filename, times_maxs_normalized, I_maxs, I_max_truth, beta, beta_std in results:
         I_maxs_truth[filename] = I_max_truth
 
         if np.all(1 == np.histogram(times_maxs_normalized, bins)[0]):
             I_maxs_normed[filename] = I_maxs / I_max_truth
             betas[filename] = beta
+            betas_std[filename] = beta_std
         
-    return I_maxs_truth, I_maxs_normed, betas
+    return I_maxs_truth, I_maxs_normed, betas, betas_std
 
 
 
