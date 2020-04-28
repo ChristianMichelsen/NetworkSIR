@@ -4,7 +4,7 @@ from numba import njit
 from pathlib import Path
 
 @njit
-def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gamma, delta, nts, Nstates):
+def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gamma, nts, Nstates):
 
     NRe = N0
 

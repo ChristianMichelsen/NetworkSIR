@@ -16,7 +16,7 @@ def generate_filenames(N_loops=10, force_overwrite=False):
                     Mrate1 = 1.0, # E->I
                     Mrate2 = 1.0, # I->R
                     gamma = 0.047, # Parameter for skewed connection shape
-                    delta = 0.05, # Minimum probability to connect
+                    # delta = 0.05, # Minimum probability to connect
                     nts = 0.1, 
                     Nstates = 9,
                 )

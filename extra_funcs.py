@@ -356,6 +356,8 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
     # df_prefit['I'].plot()
     # df_prefit
 
+    #TODO beta
+
     t_interpolated = df_prefit['Time'].to_numpy()
     y_truth = df_prefit['I'].to_numpy(int)
 
