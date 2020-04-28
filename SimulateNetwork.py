@@ -6,7 +6,7 @@ from pathlib import Path
 def generate_filenames(N_loops=10, force_overwrite=False):
     filenames = []
     dict_in = dict(
-                    N0 = 50_000,
+                    N0 = 500_000,
                     mu = 20.0,  # Average number connections
                     alpha = 1.0, # Spatial parameter
                     psi = 2.0, # cluster effect
