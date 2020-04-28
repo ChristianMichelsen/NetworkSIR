@@ -27,6 +27,9 @@ reload(extra_funcs)
 filenames = extra_funcs.get_filenames()
 N_files = len(filenames)
 
+x=x
+
+
 # filenames = filenames[:1000]
 # filename = filenames[0]
 
@@ -34,14 +37,14 @@ N_files = len(filenames)
 
 if __name__ == '__main__':
 
+    I_maxs_true_res, I_maxs_normed_res, betas = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=30)
+    bins = np.linspace(0, 1, extra_funcs.N_peak_fits+1)
+    I_maxs_times = (bins[1:] + bins[:-1])/2
+
     fit_results = extra_funcs.get_fit_results(filenames, force_rerun=False, num_cores_max=30)
     all_fit_objects, discarded_files, N_refits_total = fit_results
 
     print(f"{N_refits_total=}, number of discarded files = {len(discarded_files)}\n\n", flush=True)
-
-    I_maxs_true_res, I_maxs_normed_res = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=30)
-    bins = np.linspace(0, 1, extra_funcs.N_peak_fits+1)
-    I_maxs_times = (bins[1:] + bins[:-1])/2
 
 #%%
 
