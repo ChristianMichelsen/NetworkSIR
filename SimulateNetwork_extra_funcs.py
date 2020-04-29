@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from numba import njit
 from pathlib import Path
+import joblib
 
 @njit
 def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gamma, nts, Nstates):
@@ -40,7 +41,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     # alpha = 1.0
     xx = 0.0 
     yy = 0.0 
-    psi_epsilon = 1e-9
+    psi_epsilon = 1e-2
     tnext = (1/np.random.random())**(1/(psi+psi_epsilon))-1
     R0 = 1.0;
     D0 = 0.01 
@@ -53,21 +54,22 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
         acc = 0;
         while acc == 0:
             if (RT > tnext):
-                dx = np.sqrt(2*D*dt)*np.random.normal();
-                dy = np.sqrt(2*D*dt)*np.random.normal();
+                dx = np.sqrt(2*D*dt)*np.random.normal()
+                dy = np.sqrt(2*D*dt)*np.random.normal()
             else:
-                dx = np.sqrt(2*D0*dt)*np.random.normal();
-                dy = np.sqrt(2*D0*dt)*np.random.normal();
-            r = np.sqrt( (xx + dx)**2 + (yy + dy)**2);        
+                dx = np.sqrt(2*D0*dt)*np.random.normal()
+                dy = np.sqrt(2*D0*dt)*np.random.normal()
+            r = np.sqrt( (xx + dx)**2 + (yy + dy)**2)
             if (r < R0):
-                acc = 1;
-                xx += dx; yy += dy;
+                acc = 1
+                xx += dx
+                yy += dy
                 if (RT > tnext):    
                     ra = (1/np.random.random())**(1/(psi+psi_epsilon))-1  
                     tnext = RT + ra
 
-        P1[i, 1] = xx
-        P1[i, 2] = yy
+        P1[i, 0] = xx
+        P1[i, 1] = yy
 
 
 
@@ -162,10 +164,6 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     #   #   cout << "Here " << endl
 
     SIRfile = []
-
-
-    # if include_tqdm:
-    #     pbar = tqdm()
     # Run the simulation ################################
     while on == 1:
         
@@ -312,9 +310,6 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
             print("Negative Problem", TotMov, TotInf)
             on = 0  
     
-    # if not include_SK_P1_UK:
-        # return SIRfile
-    # else:
     return SIRfile
 
 
@@ -358,7 +353,7 @@ def single_run_numba_SK_P1_UK(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mr
     # alpha = 1.0
     xx = 0.0 
     yy = 0.0 
-    psi_epsilon = 1e-9
+    psi_epsilon = 1e-2
     tnext = (1/np.random.random())**(1/(psi+psi_epsilon))-1
     R0 = 1.0;
     D0 = 0.01 
@@ -371,21 +366,22 @@ def single_run_numba_SK_P1_UK(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mr
         acc = 0;
         while acc == 0:
             if (RT > tnext):
-                dx = np.sqrt(2*D*dt)*np.random.normal();
-                dy = np.sqrt(2*D*dt)*np.random.normal();
+                dx = np.sqrt(2*D*dt)*np.random.normal()
+                dy = np.sqrt(2*D*dt)*np.random.normal()
             else:
-                dx = np.sqrt(2*D0*dt)*np.random.normal();
-                dy = np.sqrt(2*D0*dt)*np.random.normal();
-            r = np.sqrt( (xx + dx)**2 + (yy + dy)**2);        
+                dx = np.sqrt(2*D0*dt)*np.random.normal()
+                dy = np.sqrt(2*D0*dt)*np.random.normal()
+            r = np.sqrt( (xx + dx)**2 + (yy + dy)**2)      
             if (r < R0):
                 acc = 1;
-                xx += dx; yy += dy;
+                xx += dx; 
+                yy += dy;
                 if (RT > tnext):    
                     ra = (1/np.random.random())**(1/(psi+psi_epsilon))-1  
                     tnext = RT + ra
 
-        P1[i, 1] = xx
-        P1[i, 2] = yy
+        P1[i, 0] = xx
+        P1[i, 1] = yy
 
 
 
@@ -471,12 +467,6 @@ def single_run_numba_SK_P1_UK(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mr
     SIRfile_UK = []
 
     while on == 1:
-
-        if nts*click < RT:
-            # print(SK)
-            SIRfile_SK.append(SK)
-            SIRfile_P1.append(P1) 
-            SIRfile_UK.append(UK)
         
         c += 1 
         Tot = TotMov + TotInf
@@ -572,9 +562,25 @@ def single_run_numba_SK_P1_UK(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mr
 
         if nts*click < RT:
             click += 1 
-            # SIRfile_SK.append(SK)
-            # SIRfile_P1.append(P1) 
-            # SIRfile_UK.append(UK)
+
+            # deepcopy
+            SK_tmp = np.zeros(len(SK))
+            for ix in range(len(SK)):
+                SK_tmp[ix] = SK[ix]
+            SIRfile_SK.append(SK_tmp)
+
+            P1_tmp = np.zeros((N0, 2))
+            for ix in range(len(P1)):
+                P1_tmp[ix] = P1[ix]
+            SIRfile_P1.append(P1_tmp)
+
+            UK_tmp = np.zeros(len(UK))
+            for ix in range(len(SK)):
+                UK_tmp[ix] = UK[ix]
+            SIRfile_UK.append(UK_tmp)
+
+            
+            
             
         if c > 10000000: 
             on = 0 
@@ -637,6 +643,24 @@ def single_run_and_save(filename):
 
     # save csv file
     df.to_csv(filename, index=False)
+
+    # save SK, P1, and UK, once for each set of parameters
+    ID = filename_to_ID(filename)
+    if ID == 0:
+        SIRfile_SK, SIRfile_P1, SIRfile_UK = single_run_numba_SK_P1_UK(**dict_in)
+        SIRfile_SK = np.array(SIRfile_SK, dtype=int)
+        SIRfile_P1 = np.array(SIRfile_P1)
+        SIRfile_UK = np.array(SIRfile_UK, dtype=int)
+        
+        filename_SK_P1_UK = filename.replace('Data', 'Data_SK_P1_UK').replace('.csv', '.SK_P1_SK.joblib')
+        Path(filename_SK_P1_UK).parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump([SIRfile_SK, SIRfile_P1, SIRfile_UK], filename_SK_P1_UK)
+
+        # pd.DataFrame(SIRfile_SK).to_csv(filename_SK_P1_UK.replace('.csv', '.SK.csv'), index=False)
+        # pd.DataFrame(SIRfile_P1[:, :, 0]).to_csv(filename_SK_P1_UK.replace('.csv', '.P1A.csv'), index=False)
+        # pd.DataFrame(SIRfile_P1[:, :, 1]).to_csv(filename_SK_P1_UK.replace('.csv', '.P1B.csv'), index=False)
+        # pd.DataFrame(SIRfile_UK).to_csv(filename_SK_P1_UK.replace('.csv', '.UK.csv'), index=False)
+
     return None
 
 
