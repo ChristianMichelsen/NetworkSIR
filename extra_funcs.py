@@ -4,14 +4,14 @@ from scipy import interpolate
 import pandas as pd
 from pathlib import Path
 from scipy.stats import uniform as sp_uniform
-
+import plotly.graph_objects as go
 
 def get_filenames():
     filenames = Path('Data').glob(f'*.csv')
     return [str(file) for file in sorted(filenames)]
 
 
-def pandas_load_file(filename):
+def pandas_load_file(filename, return_only_df=False):
     df_raw = pd.read_csv(filename).convert_dtypes()
 
     for state in ['E', 'I']:
@@ -19,6 +19,8 @@ def pandas_load_file(filename):
 
     # only keep relevant columns
     df = df_raw[['Time', 'E', 'I', 'R', 'NR0Inf']].copy()
+    if return_only_df:
+        return df
 
     # make first value at time 0
     t0 = df['Time'].min()
@@ -321,7 +323,7 @@ def fit_single_file(filename, ts=0.1, dt=0.01, FIT_MAX=100):
 
 
 N_peak_fits = 20
-def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
+def fit_single_file_Imax(filename, ts=0.1, dt=0.01, for_animation=False):
 
     # ts = 0.1 # frequency of "observations". Now 1 pr. day
     # dt = 0.01 # stepsize in integration
@@ -329,9 +331,9 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
     cfg = filename_to_dotdict(filename)
     parameters_as_string = dict_to_str(cfg)
 
-    df, df_interpolated, time, t_interpolated = pandas_load_file(filename)
-    y_truth = df_interpolated['I'].to_numpy(int)
-    Tmax = int(time.max())+1 # max number of days
+    df = pandas_load_file(filename, return_only_df=True)
+    # y_truth = df_interpolated['I'].to_numpy(int)
+    Tmax = int(df['Time'].max())+1 # max number of days
     S0 = cfg.N0
     y0 = S0-cfg.Ninit,S0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
 
@@ -354,6 +356,7 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
 
     Tmax = Time[iloc_max]*1.1
 
+
     # reload(extra_funcs)
     I_max_truth = np.max(I)
     times_maxs = t_interpolated[1:] - Time[iloc_min]
@@ -365,8 +368,57 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
         minuit.migrad()
         fit_object.set_minuit(minuit)
         fit_objects_Imax.append(fit_object)
-    return filename, times_maxs_normalized, I_max_truth, fit_objects_Imax
 
+    if not for_animation:
+        return filename, times_maxs_normalized, I_max_truth, fit_objects_Imax
+    else:
+        return t_interpolated, y_truth, fit_objects_Imax
+
+
+
+def animate_filename(filename):
+
+    t_interpolated, y_truth, fit_objects_Imax = fit_single_file_Imax(filename, ts=0.1, dt=0.01, for_animation=True)
+
+    df = pandas_load_file(filename, return_only_df=True)
+    fignames = []
+    for imax in tqdm(range(N_peak_fits)):
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=df['Time'], y=df['I'], name=f'Simulation', line=dict(color='black', width=2)))
+
+        df_fit = fit_objects_Imax[imax].calc_df_fit(ts=0.01)
+        fig.add_trace(go.Scatter(x=df_fit['Time'], y=df_fit['I_sum'], name=f'Fit'))
+
+        fig.add_trace(go.Scatter(x=t_interpolated[:imax+2], y=y_truth[:imax+2], name=f'Data', mode='markers', marker=dict(size=10, color=1)))
+
+        fig.update_xaxes(range=[df['Time'].min(), df['Time'].max()])
+        fig.update_yaxes(range=[0, df['I'].max()*1.1])
+
+        # Edit the layout
+        fig.update_layout(title=f'Simulation comparison, {imax=}',
+                        xaxis_title='Time',
+                        yaxis_title='Count',
+                        height=600, width=800,
+                        # showlegend=False,
+                        )
+
+        fig.update_yaxes(rangemode="tozero")
+        # fig.show()
+        figname = f"Figures/.tmp_{imax}.png"
+        fig.write_image(figname)
+        fignames.append(figname)
+
+    import imageio # conda install imageio
+    gifname = 'Figures/Imax_animation_' + filename.strip('Data/NetworkSimulation_').strip('.csv') + '.gif'
+    with imageio.get_writer(gifname, mode='I', duration=0.5) as writer:
+        for figname in fignames:
+            image = imageio.imread(figname)
+            writer.append_data(image)
+            Path(figname).unlink() # delete file
+
+
+    return None
 
     # reload(extra_funcs)
     # N_peak_fits = N_peak_fits

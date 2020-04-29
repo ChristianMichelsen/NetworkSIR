@@ -14,7 +14,7 @@ from importlib import reload
 # import NewSpeedImprove_extra_funcs as extra_funcs2
 
 savefig = False
-
+do_animate = False
 
 # df = pd.read_csv('bla.csv', encoding='latin1', sep=';', header=None)
 # df_kvinder = df.iloc[1:, 6]
@@ -29,6 +29,12 @@ N_files = len(filenames)
 
 # filenames = filenames[:100]
 # filename = filenames[0]
+
+x=x
+
+if do_animate:
+    extra_funcs.animate_filename(filenames[0])
+
 
 #%%
 
