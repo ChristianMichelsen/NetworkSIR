@@ -4,7 +4,7 @@ from numba import njit
 from pathlib import Path
 
 @njit
-def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gamma, nts, Nstates):
+def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gamma, delta, nts, Nstates):
 
     NRe = N0
 
@@ -48,35 +48,27 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     # alpha = 1.0
     xx = 0.0 
     yy = 0.0 
-    psi_epsilon = 1e-9
-    tnext = (1/np.random.random())**(1/(psi+psi_epsilon))-1
-    R0 = 1.0;
+    tnext = (1/np.random.random())**(1/psi)-1
     D0 = 0.01 
-    D = D0*100
+    D = D0*1000 
     dt = 0.01 
     RT = 0
+    DS = D0
 
     for i in range(NRe):
         RT += dt
-        acc = 0;
-        while acc == 0:
-            if (RT > tnext):
-                dx = np.sqrt(2*D*dt)*np.random.normal();
-                dy = np.sqrt(2*D*dt)*np.random.normal();
-            else:
-                dx = np.sqrt(2*D0*dt)*np.random.normal();
-                dy = np.sqrt(2*D0*dt)*np.random.normal();
-            r = np.sqrt( (xx + dx)**2 + (yy + dy)**2);        
-            if (r < R0):
-                acc = 1;
-                xx += dx; yy += dy;
-                if (RT > tnext):    
-                    ra = (1/np.random.random())**(1/(psi+psi_epsilon))-1  
-                    tnext = RT + ra
+        if (RT > tnext):
+            xx += np.sqrt(2*D*dt)*np.random.normal()
+            yy += np.sqrt(2*D*dt)*np.random.normal()
+            ra = (1/np.random.random())**(1/psi)-1  
+            DS = D
+            tnext = RT + ra       
+        else:
+            xx += np.sqrt(2*D0*dt)*np.random.normal()
+            yy += np.sqrt(2*D0*dt)*np.random.normal()    
 
         P1[i, 1] = xx
         P1[i, 2] = yy
-
 
 
     # initialize Prob
@@ -119,7 +111,6 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
                     UKRef[id1] += 1 
                     UKRef[id2] += 1
                     accra = 1
-
 
     #   ###############  ####### ########  ########  ############## 
 

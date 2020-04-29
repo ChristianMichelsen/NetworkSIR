@@ -6,22 +6,21 @@ from pathlib import Path
 def generate_filenames(N_loops=10, force_overwrite=False):
     filenames = []
     dict_in = dict(
-                    N0 = 500_000,
+                    N0 = 10_000,
                     mu = 20.0,  # Average number connections
-                    alpha = 1.0, # Spatial parameter
-                    psi = 2.0, # cluster effect
+                    alpha = 0.0, # Spatial parameter
+                    psi = 0.0, # cluster effect
                     beta = 1.0, # Mean rate
-                    sigma = 0.8, # Spread in rate
+                    sigma = 0.0, # Spread in rate
                     Ninit = 10, # Initial Infected
                     Mrate1 = 1.0, # E->I
                     Mrate2 = 1.0, # I->R
-                    gamma = 0.047, # Parameter for skewed connection shape
-                    # delta = 0.05, # Minimum probability to connect
+                    gamma = 0.0, # Parameter for skewed connection shape
                     nts = 0.1, 
                     Nstates = 9,
                 )
 
-    for psi in [1, 2, 4]:
+    for psi in [0, 1, 2, 4]:
         dict_in['psi'] = psi
         alphas = [1, 2, 4, 8]
         if psi == 0:
@@ -40,7 +39,7 @@ def generate_filenames(N_loops=10, force_overwrite=False):
 
 if __name__ == '__main__':
 
-    filenames = generate_filenames(N_loops=1000)
+    filenames = generate_filenames(N_loops=100)
     N_files = len(filenames)
     # extra_funcs.single_run_and_save(filenames[0])
 

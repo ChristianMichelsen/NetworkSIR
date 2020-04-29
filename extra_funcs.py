@@ -375,6 +375,19 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01, for_animation=False):
         return t_interpolated, y_truth, fit_objects_Imax
 
 
+    # reload(extra_funcs)
+    # N_peak_fits = N_peak_fits
+    # I_max_truth = np.max(I)
+    # I_maxs = np.zeros(N_peak_fits)
+    # betas = np.zeros(N_peak_fits)
+    # betas_std = np.zeros(N_peak_fits)
+        # I_max = fit_object.compute_I_max()
+        # I_maxs[imax] = I_max
+        # betas[imax] = fit_object.fit_values['beta']
+        # betas_std[imax] = fit_object.fit_errors['beta']
+    # return filename, times_maxs_normalized, I_maxs, I_max_truth, betas, betas_std
+
+
 
 def animate_filename(filename):
 
@@ -419,18 +432,6 @@ def animate_filename(filename):
 
 
     return None
-
-    # reload(extra_funcs)
-    # N_peak_fits = N_peak_fits
-    # I_max_truth = np.max(I)
-    # I_maxs = np.zeros(N_peak_fits)
-    # betas = np.zeros(N_peak_fits)
-    # betas_std = np.zeros(N_peak_fits)
-        # I_max = fit_object.compute_I_max()
-        # I_maxs[imax] = I_max
-        # betas[imax] = fit_object.fit_values['beta']
-        # betas_std[imax] = fit_object.fit_errors['beta']
-    # return filename, times_maxs_normalized, I_maxs, I_max_truth, betas, betas_std
 
 
 #%%
@@ -565,3 +566,29 @@ def Imax_fits_to_df(Imax_res, filenames_to_use, I_maxs_times):
     # I_max_normed_by_pars[par_string] = df
     return df
 
+
+def extract_relative_Imaxs(d_fit_objects_all_IDs, I_maxs_truth, filenames_to_use, bin_centers_Imax):
+    
+    I_maxs_normed_res = {}
+    for filename, fit_objects in d_fit_objects_all_IDs.items():
+        I_maxs = np.zeros(N_peak_fits)
+        for i_fit_object, fit_object in enumerate(fit_objects):
+            I_maxs[i_fit_object]  = fit_object.compute_I_max()
+        I_maxs_normed_res[filename] = I_maxs / I_maxs_truth[filename]
+    df_I_maxs_normed = Imax_fits_to_df(I_maxs_normed_res, filenames_to_use, bin_centers_Imax)
+    return df_I_maxs_normed
+
+def extract_fit_parameter(par, d_fit_objects_all_IDs, filenames_to_use, bin_centers_Imax):
+    par_tmp = {}
+    par_std_tmp = {}
+    for filename, fit_objects in d_fit_objects_all_IDs.items():
+        pars = np.zeros(N_peak_fits)
+        pars_std = np.zeros(N_peak_fits)
+        for i_fit_object, fit_object in enumerate(fit_objects):
+            pars[i_fit_object]  = fit_object.fit_values[par]
+            pars_std[i_fit_object]  = fit_object.fit_errors[par]
+        par_tmp[filename] = pars 
+        par_std_tmp[filename] = pars_std 
+    df_par = Imax_fits_to_df(par_tmp, filenames_to_use, bin_centers_Imax)
+    df_par_std = Imax_fits_to_df(par_std_tmp, filenames_to_use, bin_centers_Imax)
+    return df_par, df_par_std

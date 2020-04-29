@@ -4,7 +4,7 @@ from numba import njit
 from pathlib import Path
 
 @njit
-def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gamma, nts, Nstates):
+def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gamma, delta, nts, Nstates):
 
     NRe = N0
 
@@ -48,8 +48,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     # alpha = 1.0
     xx = 0.0 
     yy = 0.0 
-    psi_epsilon = 1e-9
-    tnext = (1/np.random.random())**(1/(psi+psi_epsilon))-1
+    tnext = (1/np.random.random())**(1/psi)-1
     R0 = 1.0;
     D0 = 0.01 
     D = D0*100
@@ -71,12 +70,11 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
                 acc = 1;
                 xx += dx; yy += dy;
                 if (RT > tnext):    
-                    ra = (1/np.random.random())**(1/(psi+psi_epsilon))-1  
+                    ra = (1/np.random.random())**(1/psi)-1  
                     tnext = RT + ra
 
         P1[i, 1] = xx
         P1[i, 2] = yy
-
 
 
     # initialize Prob
@@ -103,7 +101,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
             if (ra1 < Prob[id1]) and (ra2 < Prob[id2]) and (UK[id1] < 200) and (UK[id2] < 200) and (id1 != id2) and (acc == 1):
                 r = np.sqrt((P1[id1, 0] - P1[id2, 0])**2 + (P1[id1][1] - P1[id2][1])**2)
                 ra = np.random.rand()
-                if np.exp(-alpha*r/(DS)) > ra:
+                if np.exp(-alpha*r/(R0)) > ra:
                     ran1 = np.random.rand()
 
                     AK[id1, UK[id1]] = id2	        
@@ -119,7 +117,6 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
                     UKRef[id1] += 1 
                     UKRef[id2] += 1
                     accra = 1
-
 
     #   ###############  ####### ########  ########  ############## 
 

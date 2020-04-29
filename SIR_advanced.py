@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
     I_maxs_truth, fit_objects_Imax, bin_centers_Imax = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=10)
     # bins = np.linspace(0, 1, extra_funcs.N_peak_fits+1)
-    # I_maxs_times = (bins[1:] + bins[:-1])/2
+    # bin_centers_Imax = (bins[1:] + bins[:-1])/2
 
     fit_results = extra_funcs.get_fit_results(filenames, force_rerun=False, num_cores_max=30)
     all_fit_objects, discarded_files, N_refits_total = fit_results
@@ -166,7 +166,7 @@ if __name__ == '__main__':
 
     # first sort filenames into groups based on similar simulation parameters
     filenames_by_pars = defaultdict(list)
-    for filename in I_maxs_true_res.keys():
+    for filename in I_maxs_truth.keys():
         par_string = extra_funcs.filename_to_par_string(filename)
         filenames_by_pars[par_string].append(filename)
 
@@ -180,24 +180,26 @@ if __name__ == '__main__':
     for par_string in tqdm(filenames_by_pars.keys(), desc='Splitting I_max fits by simulation parameters'):
         filenames_to_use = filenames_by_pars[par_string]
 
-        I_true_tmp = {k: I_maxs_true_res[k] for k in filenames_to_use}
+
+        # I max truths 
+        I_true_tmp = {k: I_maxs_truth[k] for k in filenames_to_use}
         I_maxs_true = extra_funcs.fix_and_sort_index(pd.Series(I_true_tmp))
         I_max_truth_by_pars[par_string] = I_maxs_true
 
-        # I_normed_tmp = {k: I_maxs_normed_res[k] for k in filenames_to_use}
-        # I_maxs_normed = extra_funcs.fix_and_sort_index(pd.DataFrame(I_normed_tmp).T)
-        # I_maxs_normed.columns = I_maxs_times
-        # I_maxs_normed.loc['mean'] = I_maxs_normed.mean()
-        # I_maxs_normed.loc['std'] = I_maxs_normed.std()
-        # I_maxs_normed.loc['sdom'] = I_maxs_normed.std() / np.sqrt(len(I_maxs_normed)-2)
-
-        df_I_maxs_normed = extra_funcs.Imax_fits_to_df(I_maxs_normed_res, filenames_to_use, I_maxs_times)
+        # fit_objects by par_string (contains all IDs)
+        d_fit_objects_all_IDs = {k: fit_objects_Imax[k] for k in filenames_to_use}
+        
+        # relative I_max from fits
+        df_I_maxs_normed = extra_funcs.extract_relative_Imaxs(d_fit_objects_all_IDs, 
+                                                              I_maxs_truth, 
+                                                              filenames_to_use, 
+                                                              bin_centers_Imax)
         I_max_normed_by_pars[par_string] = df_I_maxs_normed
 
-        df_betas = extra_funcs.Imax_fits_to_df(betas, filenames_to_use, I_maxs_times)
-        betas_by_pars[par_string] = df_betas
 
-        df_betas_std = extra_funcs.Imax_fits_to_df(betas_std, filenames_to_use, I_maxs_times)
+        # extract betas
+        df_betas, df_betas_std = extra_funcs.extract_fit_parameter('beta', d_fit_objects_all_IDs, filenames_to_use, bin_centers_Imax)
+        betas_by_pars[par_string] = df_betas
         betas_std_by_pars[par_string] = df_betas_std
 
 
