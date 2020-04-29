@@ -6,7 +6,7 @@ from pathlib import Path
 def generate_filenames(N_loops=10, force_overwrite=False):
     filenames = []
     dict_in = dict(
-                    N0 = 10_000,
+                    N0 = 50_000,
                     mu = 20.0,  # Average number connections
                     alpha = 0.0, # Spatial parameter
                     psi = 0.0, # cluster effect
@@ -39,7 +39,7 @@ def generate_filenames(N_loops=10, force_overwrite=False):
 
 if __name__ == '__main__':
 
-    filenames = generate_filenames(N_loops=100)
+    filenames = generate_filenames(N_loops=2)
     # filenames = filenames[:20]
     N_files = len(filenames)
     # extra_funcs.single_run_and_save(filenames[0])
@@ -51,9 +51,15 @@ if __name__ == '__main__':
     
     # filename = filenames[0]
 
-    print(f"Generating {N_files} network-based simulations, please wait.", flush=True)
-    with mp.Pool(num_cores) as p:
-        list(tqdm(p.imap_unordered(extra_funcs.single_run_and_save, filenames), total=N_files))
+    # make sure path exists
+    if len(filenames) > 0:
+        Path(filenames[0]).parent.mkdir(parents=True, exist_ok=True)
+
+        print(f"Generating {N_files} network-based simulations, please wait.", flush=True)
+        with mp.Pool(num_cores) as p:
+            list(tqdm(p.imap_unordered(extra_funcs.single_run_and_save, filenames), total=N_files))
+    else:
+        print("No files to generate, everything already generated.")
 
     print("Finished simulating!")
 
