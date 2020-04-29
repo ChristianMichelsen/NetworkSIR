@@ -40,6 +40,7 @@ def generate_filenames(N_loops=10, force_overwrite=False):
 if __name__ == '__main__':
 
     filenames = generate_filenames(N_loops=100)
+    # filenames = filenames[:20]
     N_files = len(filenames)
     # extra_funcs.single_run_and_save(filenames[0])
 
@@ -47,6 +48,8 @@ if __name__ == '__main__':
     num_cores_max = 30
     if num_cores >= num_cores_max:
         num_cores = num_cores_max
+    
+    # filename = filenames[0]
 
     print(f"Generating {N_files} network-based simulations, please wait.", flush=True)
     with mp.Pool(num_cores) as p:
@@ -55,3 +58,5 @@ if __name__ == '__main__':
     print("Finished simulating!")
 
 
+
+# SK, P1, UK

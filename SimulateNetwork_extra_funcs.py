@@ -36,14 +36,6 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     Par[4:8] = Mrate2
 
     # Here we initialize the system
-    # for c in range(N0):
-    #     while True:
-    #         P1[c, :] = np.random.uniform(-1, 1, 2)
-    #         if np.sqrt(P1[c, 0]**2 + P1[c, 1]**2) < 1.0:
-    #             break
-
-
-    # Here we initialize the system
     # psi = 2.0
     # alpha = 1.0
     xx = 0.0 
@@ -103,7 +95,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
             if (ra1 < Prob[id1]) and (ra2 < Prob[id2]) and (UK[id1] < 200) and (UK[id2] < 200) and (id1 != id2) and (acc == 1):
                 r = np.sqrt((P1[id1, 0] - P1[id2, 0])**2 + (P1[id1][1] - P1[id2][1])**2)
                 ra = np.random.rand()
-                if np.exp(-alpha*r/(DS)) > ra:
+                if np.exp(-alpha*r/R0) > ra:
                     ran1 = np.random.rand()
 
                     AK[id1, UK[id1]] = id2	        
@@ -320,8 +312,10 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
             print("Negative Problem", TotMov, TotInf)
             on = 0  
     
+    # if not include_SK_P1_UK:
+        # return SIRfile
+    # else:
     return SIRfile
-
 
 
 
@@ -330,7 +324,7 @@ def dict_to_filename(dict_in, ID):
     file_string = 'NetworkSimulation'
     for key, val in dict_in.items():
         file_string += f"_{key}_{val}"
-    file_string += f"_ID_{ID}.csv"
+    file_string += f"_ID_{ID:03d}.csv"
     filename = filename / file_string
     return str(filename)
 
@@ -353,6 +347,7 @@ def filename_to_dict(filename, normal_string=False):
 def single_run_and_save(filename):
     dict_in = filename_to_dict(filename)
     out_single_run = single_run_numba(**dict_in)
+
     header = ['Time', 
             'E1', 'E2', 'E3', 'E4', 
             'I1', 'I2', 'I3', 'I4', 
@@ -364,6 +359,8 @@ def single_run_and_save(filename):
     return None
 
 
+def filename_to_ID(filename):
+    return int(filename.split('ID_')[1].strip('.csv'))
 
 
 class DotDict(dict):
