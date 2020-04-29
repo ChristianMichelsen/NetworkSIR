@@ -275,10 +275,13 @@ if __name__ == '__main__':
         par_string = par_string.replace('delta_0.05', '')
         # d_parameters.pop("delta", None)
 
+        N_files = len(I_maxs_true)
         N0_str = extra_funcs.human_format(d_parameters['N0'])
-        title = f"I_max fits and distribution for N={N0_str}, Mrate1={d_parameters['Mrate1']:.1f}, Mrate2={d_parameters['Mrate2']:.1f}, beta={d_parameters['beta']:.1f}, alpha={d_parameters['alpha']:.1f}, sigma={d_parameters['sigma']:.1f}"
+
+        title = f"I_max fits and distribution for N={N0_str}, Mrate1={d_parameters['Mrate1']:.1f}, Mrate2={d_parameters['Mrate2']:.1f}, beta={d_parameters['beta']:.1f}, alpha={d_parameters['alpha']:.1f}, sigma={d_parameters['sigma']:.1f}, "
         if 'psi' in d_parameters:
-            title += f" psi={d_parameters['psi']:.1f}"
+            title += f" psi={d_parameters['psi']:.1f}, "
+        title += f"{N_files=}"
 
         k_scale = 1
         fig.update_layout(title=title, width=1400*k_scale, height=600*k_scale, showlegend=False)
