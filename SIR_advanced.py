@@ -27,8 +27,6 @@ reload(extra_funcs)
 filenames = extra_funcs.get_filenames()
 N_files = len(filenames)
 
-x=x
-
 # filenames = filenames[:1000]
 # filename = filenames[0]
 
@@ -284,7 +282,7 @@ if __name__ == '__main__':
         title += f"{N_files=}"
 
         k_scale = 1
-        fig.update_layout(title=title, width=1400*k_scale, height=600*k_scale, showlegend=False)
+        fig.update_layout(title=title, width=1800*k_scale, height=600*k_scale, showlegend=False)
 
         # fig.show()
         fig.write_html(f"Figures/fits_Imax_{par_string}.html")
