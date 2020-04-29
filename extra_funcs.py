@@ -360,7 +360,7 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
     times_maxs_normalized = times_maxs / I_time_duration
     fit_objects_Imax = []
     for imax in range(N_peak_fits):
-        fit_object = CustomChi2(t_interpolated[:imax+1], y_truth[:imax+1], y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
+        fit_object = CustomChi2(t_interpolated[:imax+2], y_truth[:imax+2], y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
         minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
         minuit.migrad()
         fit_object.set_minuit(minuit)
