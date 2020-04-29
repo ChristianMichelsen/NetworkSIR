@@ -141,8 +141,11 @@ class CustomChi2:  # override the class with a better one
             return 1e10
         return chi2
 
+    def __repr__(self):
+        return f'CustomChi2(\n\t{self.t_interpolated=}, \n\t{self.y_truth=}, \n\t{self.y0=}, \n\t{self.Tmax=}, \n\t{self.dt=}, \n\t{self.ts=}, \n\t{self.mu0=}, \n\t{self.y_min=},\n\t)'.replace('=', ' = ').replace('array(', '').replace('])', ']')
+
     def _calc_ODE_result_SIR(self, Mrate1, Mrate2, beta, ts=None):
-        ts = self.ts if ts is None else ts
+        ts = ts if ts is not None else self.ts
         return ODE_integrate(self.y0, self.Tmax, self.dt, ts, self.mu0, Mrate1, Mrate2, beta)
 
     def _calc_yhat_interpolated(self, Mrate1, Mrate2, beta, tau):
@@ -322,17 +325,14 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
 
     # ts = 0.1 # frequency of "observations". Now 1 pr. day
     # dt = 0.01 # stepsize in integration
-    # FIT_MAX = 100
 
     cfg = filename_to_dotdict(filename)
     parameters_as_string = dict_to_str(cfg)
-    # d = extra_funcs.string_to_dict(parameters_as_string)
 
     df, df_interpolated, time, t_interpolated = pandas_load_file(filename)
     y_truth = df_interpolated['I'].to_numpy(int)
     Tmax = int(time.max())+1 # max number of days
     S0 = cfg.N0
-    # y0 =  S, S0,                E1,E2,E3,E4,  I1,I2,I3,I4,  R, R0
     y0 = S0-cfg.Ninit,S0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
 
     I = df['I'].to_numpy(int)
@@ -342,48 +342,43 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
     iloc_min = np.argmax(I > I_cut_min)
     iloc_max = np.argmax(I) 
 
-    # delta_step = int(1/cfg.nts) # equals to about one a day
-    # df_prefit = df.iloc[iloc_min:iloc_max+delta_step:delta_step]
     delta_iloc = (iloc_max - iloc_min) // N_peak_fits
     indices = np.linspace(iloc_min, iloc_max, N_peak_fits+1).astype(int) - delta_iloc // 2
     df_prefit = df.iloc[indices]
 
-    ## time at which the peak has been reduced again
-    # iloc_min2 = np.argmax(I[iloc_max:] < I_cut_min) + iloc_max
     # Time from beginning to peak
     I_time_duration = Time[iloc_max] - Time[iloc_min]
-
-    # df_prefit['I'].plot()
-    # df_prefit
-
-    #TODO beta
 
     t_interpolated = df_prefit['Time'].to_numpy()
     y_truth = df_prefit['I'].to_numpy(int)
 
     Tmax = Time[iloc_max]*1.1
 
-    # Time = df_prefit['Time'].to_numpy()
-
     # reload(extra_funcs)
-    # N_peak_fits = N_peak_fits
     I_max_truth = np.max(I)
-    I_maxs = np.zeros(N_peak_fits)
-    betas = np.zeros(N_peak_fits)
-    betas_std = np.zeros(N_peak_fits)
     times_maxs = t_interpolated[1:] - Time[iloc_min]
     times_maxs_normalized = times_maxs / I_time_duration
+    fit_objects_Imax = []
     for imax in range(N_peak_fits):
         fit_object = CustomChi2(t_interpolated[:imax+1], y_truth[:imax+1], y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
         minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
         minuit.migrad()
         fit_object.set_minuit(minuit)
-        I_max = fit_object.compute_I_max()
-        I_maxs[imax] = I_max
-        betas[imax] = fit_object.fit_values['beta']
-        betas_std[imax] = fit_object.fit_errors['beta']
+        fit_objects_Imax.append(fit_object)
+    return filename, times_maxs_normalized, I_max_truth, fit_objects_Imax
 
-    return filename, times_maxs_normalized, I_maxs, I_max_truth, betas, betas_std
+
+    # reload(extra_funcs)
+    # N_peak_fits = N_peak_fits
+    # I_max_truth = np.max(I)
+    # I_maxs = np.zeros(N_peak_fits)
+    # betas = np.zeros(N_peak_fits)
+    # betas_std = np.zeros(N_peak_fits)
+        # I_max = fit_object.compute_I_max()
+        # I_maxs[imax] = I_max
+        # betas[imax] = fit_object.fit_values['beta']
+        # betas_std[imax] = fit_object.fit_errors['beta']
+    # return filename, times_maxs_normalized, I_maxs, I_max_truth, betas, betas_std
 
 
 #%%
@@ -416,11 +411,6 @@ def calc_fit_results(filenames, num_cores_max=20):
         if fit_object is None:
             discarded_files.append(filename)
         else:
-            # cfg = filename_to_dotdict(filename)
-            # parameters_as_string = dict_to_str(cfg)
-            # parameters_string = filename_to_par_string(filename)
-            # ID = filename_to_ID(filename)
-            # all_fit_objects[parameters_string][ID] = fit_object
             all_fit_objects[filename] = fit_object
         
         N_refits_total += N_refits
@@ -441,24 +431,23 @@ def calc_fit_Imax_results(filenames, num_cores_max=30):
     with mp.Pool(num_cores) as p:
         results = list(tqdm(p.imap_unordered(fit_single_file_Imax, filenames), total=N_files))
 
-    # modify results from multiprocessing
-
+    # postprocess results from multiprocessing:
     I_maxs_truth = {}
-    I_maxs_normed = {}
-    betas = {}
-    betas_std = {}
-
+    fit_objects = {}
     bins = np.linspace(0, 1, N_peak_fits+1)
-    # filename, times_maxs_normalized, I_maxs, I_max_truth = results[0]
-    for filename, times_maxs_normalized, I_maxs, I_max_truth, beta, beta_std in results:
-        I_maxs_truth[filename] = I_max_truth
+    bin_centers = (bins[1:] + bins[:-1])/2
 
+    # filename, times_maxs_normalized, I_max_truth, fit_objects_Imax = results[0]
+    for filename, times_maxs_normalized, I_max_truth, fit_objects_Imax in results:
+        # if one fit in each bin:
         if np.all(1 == np.histogram(times_maxs_normalized, bins)[0]):
-            I_maxs_normed[filename] = I_maxs / I_max_truth
-            betas[filename] = beta
-            betas_std[filename] = beta_std
+            I_maxs_truth[filename] = I_max_truth
+            fit_objects[filename] = fit_objects_Imax
+            # I_maxs_normed[filename] = I_maxs / I_max_truth
+            # betas[filename] = beta
+            # betas_std[filename] = beta_std
         
-    return I_maxs_truth, I_maxs_normed, betas, betas_std
+    return I_maxs_truth, fit_objects, bin_centers
 
 
 
