@@ -1,6 +1,7 @@
 # exclude data from source control by default
 /Data/
 *.zip
+/Data_SK_P1_UK/
 
 #Jottacloud conflicted files
 *(Conflicted)*
