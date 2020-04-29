@@ -5,6 +5,7 @@ import pandas as pd
 from pathlib import Path
 from scipy.stats import uniform as sp_uniform
 import plotly.graph_objects as go
+import SimulateNetwork_extra_funcs
 
 def get_filenames():
     filenames = Path('Data').glob(f'*.csv')
@@ -228,13 +229,11 @@ def dict_to_str(d):
     return string[:-1]
 
 
-import NewSpeedImprove_extra_funcs
-
 def filename_to_dotdict(filename):
-    return NewSpeedImprove_extra_funcs.filename_to_dotdict(filename)
+    return SimulateNetwork_extra_funcs.filename_to_dotdict(filename)
 
 def string_to_dict(string):
-    return NewSpeedImprove_extra_funcs.filename_to_dotdict(string, normal_string=True)
+    return SimulateNetwork_extra_funcs.filename_to_dotdict(string, normal_string=True)
 
 def uniform(a, b):
     loc = a
@@ -423,13 +422,13 @@ def animate_filename(filename):
         fignames.append(figname)
 
     import imageio # conda install imageio
-    gifname = 'Figures/Imax_animation_' + filename.strip('Data/NetworkSimulation_').strip('.csv') + '.gif'
+    gifname = 'Figures/Imax_animation_N' + filename.strip('Data/NetworkSimulation_').strip('.csv') + '.gif'
     with imageio.get_writer(gifname, mode='I', duration=0.5) as writer:
         for figname in fignames:
             image = imageio.imread(figname)
             writer.append_data(image)
             Path(figname).unlink() # delete file
-
+    
 
     return None
 

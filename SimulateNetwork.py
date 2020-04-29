@@ -8,7 +8,7 @@ from importlib import reload
 def generate_filenames(N_loops=10, force_overwrite=False):
     filenames = []
     dict_in = dict(
-                    N0 = 500_000,
+                    N0 = 10_000,
                     mu = 20.0,  # Average number connections
                     alpha = 0.0, # Spatial parameter
                     psi = 0.0, # cluster effect
@@ -22,17 +22,17 @@ def generate_filenames(N_loops=10, force_overwrite=False):
                     Nstates = 9,
                 )
 
-    # for gamma in [0.15, 0.3, 0.45]:
-    #     dict_in['gamma'] = gamma
+    for gamma in [0.15, 0.3, 0.45]:
+        dict_in['gamma'] = gamma
 
-    #     for sigma in [0.15, 0.3, 0.45]:
-    #         dict_in['sigma'] = sigma
+        for sigma in [0.15, 0.3, 0.45]:
+            dict_in['sigma'] = sigma
 
-    for alpha in [1, 2, 4, 8]:
-        dict_in['alpha'] = alpha
+    # for alpha in [1, 2, 4, 8]:
+    #     dict_in['alpha'] = alpha
 
-        for psi in [0, 1, 4]:
-            dict_in['psi'] = psi
+    #     for psi in [0, 1, 4]:
+    #         dict_in['psi'] = psi
 
             for ID in range(N_loops):
                 filename = extra_funcs.dict_to_filename(dict_in, ID)
@@ -44,7 +44,7 @@ def generate_filenames(N_loops=10, force_overwrite=False):
 
 if __name__ == '__main__':
 
-    filenames = generate_filenames(N_loops=100)
+    filenames = generate_filenames(N_loops=2)
     # filenames = filenames[:20]
     N_files = len(filenames)
     # extra_funcs.single_run_and_save(filenames[0])
