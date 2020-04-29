@@ -39,7 +39,7 @@ def generate_filenames(N_loops=10, force_overwrite=False):
 
 if __name__ == '__main__':
 
-    filenames = generate_filenames(N_loops=2)
+    filenames = generate_filenames(N_loops=100)
     # filenames = filenames[:20]
     N_files = len(filenames)
     # extra_funcs.single_run_and_save(filenames[0])
