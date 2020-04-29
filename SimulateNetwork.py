@@ -1,12 +1,14 @@
+import numpy as np
 from tqdm import tqdm
 import multiprocessing as mp
 import SimulateNetwork_extra_funcs as extra_funcs
 from pathlib import Path
+from importlib import reload
 
 def generate_filenames(N_loops=10, force_overwrite=False):
     filenames = []
     dict_in = dict(
-                    N0 = 50_000,
+                    N0 = 500_000,
                     mu = 20.0,  # Average number connections
                     alpha = 0.0, # Spatial parameter
                     psi = 0.0, # cluster effect
@@ -20,14 +22,11 @@ def generate_filenames(N_loops=10, force_overwrite=False):
                     Nstates = 9,
                 )
 
-    for psi in [0, 1, 2, 4]:
-        dict_in['psi'] = psi
-        alphas = [1, 2, 4, 8]
-        if psi == 0:
-            alphas = alphas + [0]
+    for gamma in [0.15, 0.3, 0.45]:
+        dict_in['gamma'] = gamma
 
-        for alpha in alphas:
-            dict_in['alpha'] = alpha
+        for sigma in [0.15, 0.3, 0.45]:
+            dict_in['gamma'] = gamma
 
             for ID in range(N_loops):
                 filename = extra_funcs.dict_to_filename(dict_in, ID)
@@ -43,6 +42,17 @@ if __name__ == '__main__':
     # filenames = filenames[:20]
     N_files = len(filenames)
     # extra_funcs.single_run_and_save(filenames[0])
+
+    # reload(extra_funcs)
+    # dict_in = extra_funcs.filename_to_dict(filenames[0])
+    # SIRfile_SK, SIRfile_P1, SIRfile_UK = extra_funcs.single_run_numba_SK_P1_UK(**dict_in)
+
+    # SIRfile_SK = np.array(SIRfile_SK)
+    # SIRfile_P1 = np.array(SIRfile_P1)
+    # SIRfile_UK = np.array(SIRfile_UK)
+
+    # x=x
+
 
     num_cores = mp.cpu_count() - 1
     num_cores_max = 30

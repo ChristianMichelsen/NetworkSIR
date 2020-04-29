@@ -30,7 +30,7 @@ N_files = len(filenames)
 # filenames = filenames[:100]
 # filename = filenames[0]
 
-x=x
+# x=x
 
 if do_animate:
     extra_funcs.animate_filename(filenames[0])
