@@ -97,3 +97,7 @@ if __name__ == '__main__':
         list(tqdm(p.imap_unordered(animate_single_file, filenames), total=N_files))
 
     print("Finished")
+
+
+# Do you want the application" orca.app to accept incoming network connections
+# https://github.com/plotly/orca/issues/269 
