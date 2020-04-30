@@ -43,10 +43,10 @@ def generate_filenames(N_loops=10, force_overwrite=False):
     #     for psi in [0, 1, 4]:
     #         dict_in['psi'] = psi
 
-        for ID in range(N_loops):
-            filename = extra_funcs.dict_to_filename(dict_in, ID)
-            if not Path(filename).exists() or force_overwrite:
-                filenames.append(filename)
+            for ID in range(N_loops):
+                filename = extra_funcs.dict_to_filename(dict_in, ID)
+                if not Path(filename).exists() or force_overwrite:
+                    filenames.append(filename)
         
     return filenames
 
