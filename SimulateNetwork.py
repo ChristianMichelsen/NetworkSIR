@@ -5,6 +5,8 @@ import SimulateNetwork_extra_funcs as extra_funcs
 from pathlib import Path
 from importlib import reload
 
+num_cores_max = 30
+
 def generate_filenames(N_loops=10, force_overwrite=False):
     filenames = []
     dict_in = dict(
@@ -22,11 +24,11 @@ def generate_filenames(N_loops=10, force_overwrite=False):
                     Nstates = 9,
                 )
 
-    for gamma in [0.15, 0.3, 0.45]:
-        dict_in['gamma'] = gamma
+    # for gamma in [0.15, 0.3, 0.45]:
+    #     dict_in['gamma'] = gamma
 
-        for sigma in [0.15, 0.3, 0.45]:
-            dict_in['sigma'] = sigma
+    #     for sigma in [0.15, 0.3, 0.45]:
+    #         dict_in['sigma'] = sigma
 
     # for alpha in [1, 2, 4, 8]:
     #     dict_in['alpha'] = alpha
@@ -34,10 +36,10 @@ def generate_filenames(N_loops=10, force_overwrite=False):
     #     for psi in [0, 1, 4]:
     #         dict_in['psi'] = psi
 
-            for ID in range(N_loops):
-                filename = extra_funcs.dict_to_filename(dict_in, ID)
-                if not Path(filename).exists() or force_overwrite:
-                    filenames.append(filename)
+    for ID in range(N_loops):
+        filename = extra_funcs.dict_to_filename(dict_in, ID)
+        if not Path(filename).exists() or force_overwrite:
+            filenames.append(filename)
         
     return filenames
 
@@ -50,7 +52,6 @@ if __name__ == '__main__':
     # extra_funcs.single_run_and_save(filenames[0])
 
     num_cores = mp.cpu_count() - 1
-    num_cores_max = 15
     if num_cores >= num_cores_max:
         num_cores = num_cores_max
     
