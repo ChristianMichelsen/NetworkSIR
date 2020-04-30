@@ -5,12 +5,19 @@ import SimulateNetwork_extra_funcs as extra_funcs
 from pathlib import Path
 from importlib import reload
 
-num_cores_max = 30
+num_cores_max = 20
+
+def is_local_computer(N_local_cores=8):
+    import platform
+    if mp.cpu_count() <= N_local_cores and platform.system() == 'Darwin':
+        return True
+    else:
+        return False
 
 def generate_filenames(N_loops=10, force_overwrite=False):
     filenames = []
     dict_in = dict(
-                    N0 = 10_000,
+                    N0 = 10_000 if is_local_computer() else 500_000,
                     mu = 20.0,  # Average number connections
                     alpha = 0.0, # Spatial parameter
                     psi = 0.0, # cluster effect
@@ -46,7 +53,8 @@ def generate_filenames(N_loops=10, force_overwrite=False):
 
 if __name__ == '__main__':
 
-    filenames = generate_filenames(N_loops=2)
+    N_loops = 1 if is_local_computer() else 100
+    filenames = generate_filenames(N_loops)
     # filenames = filenames[:20]
     N_files = len(filenames)
     # extra_funcs.single_run_and_save(filenames[0])

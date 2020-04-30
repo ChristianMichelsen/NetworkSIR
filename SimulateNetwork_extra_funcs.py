@@ -463,7 +463,7 @@ def single_run_numba_SK_P1_UK(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mr
 
     # SK, P1, UK
     SIRfile_SK = []
-    SIRfile_P1 = [] 
+    # SIRfile_P1 = [] 
     SIRfile_UK = []
 
     while on == 1:
@@ -569,11 +569,6 @@ def single_run_numba_SK_P1_UK(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mr
                 SK_tmp[ix] = SK[ix]
             SIRfile_SK.append(SK_tmp)
 
-            P1_tmp = np.zeros((N0, 2))
-            for ix in range(len(P1)):
-                P1_tmp[ix] = P1[ix]
-            SIRfile_P1.append(P1_tmp)
-
             UK_tmp = np.zeros(len(UK))
             for ix in range(len(SK)):
                 UK_tmp[ix] = UK[ix]
@@ -600,7 +595,7 @@ def single_run_numba_SK_P1_UK(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mr
             print("Negative Problem", TotMov, TotInf)
             on = 0  
 
-    return SIRfile_SK, SIRfile_P1, SIRfile_UK
+    return SIRfile_SK, P1, SIRfile_UK
     
 
 
