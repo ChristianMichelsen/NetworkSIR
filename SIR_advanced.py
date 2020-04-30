@@ -39,7 +39,6 @@ if do_animate:
 
     extra_funcs.animate_Imax_fit_filename(filename)
 
-x=x
 
 #%%
 

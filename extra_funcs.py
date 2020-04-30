@@ -334,12 +334,13 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01, for_animation=False):
     # y_truth = df_interpolated['I'].to_numpy(int)
     Tmax = int(df['Time'].max())+1 # max number of days
     S0 = cfg.N0
-    y0 = S0-cfg.Ninit,S0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
+    y0 = S0-cfg.Ninit, S0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
 
     I = df['I'].to_numpy(int)
     Time = df['Time'].to_numpy()
     
-    I_cut_min = 0.05 / 100 * I.max() # percent
+    I_cut_min = 0.2 / 1000 * cfg.N0 # percent
+    # I_cut_min = 0.05 / 100 * I.max() # percent
     iloc_min = np.argmax(I > I_cut_min)
     iloc_max = np.argmax(I) 
 
