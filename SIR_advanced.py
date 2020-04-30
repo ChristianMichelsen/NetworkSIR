@@ -17,11 +17,6 @@ savefig = False
 do_animate = False
 save_and_show_all_plots = False
 
-# df = pd.read_csv('bla.csv', encoding='latin1', sep=';', header=None)
-# df_kvinder = df.iloc[1:, 6]
-# df_all = df.iloc[1:, 4]
-# df_kvinder.iloc[25:].sum()
-
 #%%
 
 reload(extra_funcs)
@@ -31,9 +26,20 @@ N_files = len(filenames)
 # filenames = filenames[:100]
 # filename = filenames[0]
 
-if do_animate:
-    extra_funcs.animate_filename(filenames[0])
+# NetworkSimulation_N0_500000_mu_20.0_alpha_8_psi_0_beta_1.0_sigma_0.0_Ninit_10_Mrate1_1.0_Mrate2_1.0_gamma_0.0_nts_0.1_Nstates_9_ID_068
 
+if do_animate:
+
+    search_string = 'alpha_8_psi_0'
+    filename_alpha_20 = [filename for filename in filenames if search_string in filename]
+
+    for filename in filenames:
+        if search_string in filename:
+            break
+
+    extra_funcs.animate_Imax_fit_filename(filename)
+
+x=x
 
 #%%
 

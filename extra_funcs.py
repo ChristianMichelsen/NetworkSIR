@@ -388,7 +388,7 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01, for_animation=False):
 
 
 
-def animate_filename(filename):
+def animate_Imax_fit_filename(filename):
 
     t_interpolated, y_truth, fit_objects_Imax = fit_single_file_Imax(filename, ts=0.1, dt=0.01, for_animation=True)
 

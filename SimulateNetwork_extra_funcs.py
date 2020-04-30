@@ -43,7 +43,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     yy = 0.0 
     psi_epsilon = 1e-2
     tnext = (1/np.random.random())**(1/(psi+psi_epsilon))-1
-    R0 = 1.0;
+    rD = 1.0;
     D0 = 0.01 
     D = D0*100
     dt = 0.01 
@@ -60,7 +60,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
                 dx = np.sqrt(2*D0*dt)*np.random.normal()
                 dy = np.sqrt(2*D0*dt)*np.random.normal()
             r = np.sqrt( (xx + dx)**2 + (yy + dy)**2)
-            if (r < R0):
+            if (r < rD):
                 acc = 1
                 xx += dx
                 yy += dy
@@ -97,7 +97,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
             if (ra1 < Prob[id1]) and (ra2 < Prob[id2]) and (UK[id1] < 200) and (UK[id2] < 200) and (id1 != id2) and (acc == 1):
                 r = np.sqrt((P1[id1, 0] - P1[id2, 0])**2 + (P1[id1][1] - P1[id2][1])**2)
                 ra = np.random.rand()
-                if np.exp(-alpha*r/R0) > ra:
+                if np.exp(-alpha*r/rD) > ra:
                     ran1 = np.random.rand()
 
                     AK[id1, UK[id1]] = id2	        
@@ -128,7 +128,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     cupd = 0 
     clickN = 0
     click = 0 
-    NR0Inf = Ninit
+    NrDInf = Ninit
     c = 0  
     Csum = 0 
     RT = 0 
@@ -231,7 +231,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
                     if Csum > ra1:
                         idx = AK[idy, i3]	      
                         SK[idx] = 0 
-                        NR0Inf += 1
+                        NrDInf += 1
                         SAK[0, S[0]] = idx	      
                         S[0] += 1
                         TotMov += Par[0]	      
@@ -267,7 +267,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
             for s in S:
                 icount += 1
                 SIRfile_tmp[icount] = s #<< "\t"
-            SIRfile_tmp[icount+1] = NR0Inf
+            SIRfile_tmp[icount+1] = NrDInf
             SIRfile.append(SIRfile_tmp)
 
         # Criteria to stop
@@ -355,7 +355,7 @@ def single_run_numba_SK_P1_UK(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mr
     yy = 0.0 
     psi_epsilon = 1e-2
     tnext = (1/np.random.random())**(1/(psi+psi_epsilon))-1
-    R0 = 1.0;
+    rD = 1.0;
     D0 = 0.01 
     D = D0*100
     dt = 0.01 
@@ -372,7 +372,7 @@ def single_run_numba_SK_P1_UK(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mr
                 dx = np.sqrt(2*D0*dt)*np.random.normal()
                 dy = np.sqrt(2*D0*dt)*np.random.normal()
             r = np.sqrt( (xx + dx)**2 + (yy + dy)**2)      
-            if (r < R0):
+            if (r < rD):
                 acc = 1;
                 xx += dx; 
                 yy += dy;
@@ -409,7 +409,7 @@ def single_run_numba_SK_P1_UK(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mr
             if (ra1 < Prob[id1]) and (ra2 < Prob[id2]) and (UK[id1] < 200) and (UK[id2] < 200) and (id1 != id2) and (acc == 1):
                 r = np.sqrt((P1[id1, 0] - P1[id2, 0])**2 + (P1[id1][1] - P1[id2][1])**2)
                 ra = np.random.rand()
-                if np.exp(-alpha*r/R0) > ra:
+                if np.exp(-alpha*r/rD) > ra:
                     ran1 = np.random.rand()
 
                     AK[id1, UK[id1]] = id2	        
@@ -437,7 +437,7 @@ def single_run_numba_SK_P1_UK(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mr
     cupd = 0 
     clickN = 0
     click = 0 
-    NR0Inf = Ninit
+    NrDInf = Ninit
     c = 0  
     Csum = 0 
     RT = 0 
@@ -532,7 +532,7 @@ def single_run_numba_SK_P1_UK(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mr
                     if Csum > ra1:
                         idx = AK[idy, i3]	      
                         SK[idx] = 0 
-                        NR0Inf += 1
+                        NrDInf += 1
                         SAK[0, S[0]] = idx	      
                         S[0] += 1
                         TotMov += Par[0]	      
@@ -637,7 +637,7 @@ def single_run_and_save(filename):
             'E1', 'E2', 'E3', 'E4', 
             'I1', 'I2', 'I3', 'I4', 
             'R',
-            'NR0Inf',
+            'NrDInf',
             ]
     df = pd.DataFrame(out_single_run, columns=header)
 

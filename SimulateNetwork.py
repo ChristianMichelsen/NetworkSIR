@@ -10,7 +10,7 @@ num_cores_max = 30
 def generate_filenames(N_loops=10, force_overwrite=False):
     filenames = []
     dict_in = dict(
-                    N0 = 50_000,
+                    N0 = 10_000,
                     mu = 20.0,  # Average number connections
                     alpha = 0.0, # Spatial parameter
                     psi = 0.0, # cluster effect
@@ -46,7 +46,7 @@ def generate_filenames(N_loops=10, force_overwrite=False):
 
 if __name__ == '__main__':
 
-    filenames = generate_filenames(N_loops=100)
+    filenames = generate_filenames(N_loops=2)
     # filenames = filenames[:20]
     N_files = len(filenames)
     # extra_funcs.single_run_and_save(filenames[0])
@@ -67,7 +67,6 @@ if __name__ == '__main__':
         print("No files to generate, everything already generated.")
 
     print("Finished simulating!")
-
 
 
 # SK, P1, UK
