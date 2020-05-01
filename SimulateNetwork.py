@@ -30,7 +30,7 @@ if __name__ == '__main__':
                     ]
 
     filenames = []
-    for d_simulation_parameters in all_pars:
+    for d_simulation_parameters in all_sim_pars:
         N_loops = 1 if extra_funcs.is_local_computer() else N_loops
         filenames.extend(extra_funcs.generate_filenames(d_simulation_parameters, N_loops))
     N_files = len(filenames)
