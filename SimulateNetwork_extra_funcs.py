@@ -3,6 +3,51 @@ import pandas as pd
 from numba import njit
 from pathlib import Path
 import joblib
+import multiprocessing as mp
+from itertools import product
+
+
+def is_local_computer(N_local_cores=8):
+    import platform
+    if mp.cpu_count() <= N_local_cores and platform.system() == 'Darwin':
+        return True
+    else:
+        return False
+
+def generate_filenames(d, N_loops=10, force_overwrite=False):
+    filenames = []
+    dict_in = dict(
+                    N0 = 10_000 if is_local_computer() else 50_000,
+                    mu = 20.0,  # Average number connections
+                    alpha = 0.0, # Spatial parameter
+                    psi = 0.0, # cluster effect
+                    beta = 0.01, # Mean rate
+                    sigma = 0.0, # Spread in rate
+                    Mrate1 = 1.0, # E->I
+                    Mrate2 = 1.0, # I->R
+                    gamma = 0.0, # Parameter for skewed connection shape
+                    nts = 0.1, 
+                    Nstates = 9,
+                )
+
+    dict_in['Ninit'] = int(dict_in['N0'] * 0.1 / 1000) # Initial Infected, 1 permille
+
+    nameval_to_str = [[f'{name}_{x}' for x in lst] for (name, lst) in d.items()]
+    all_combinations = list(product(*nameval_to_str))
+
+    for combination in all_combinations:
+        for s in combination:
+            name, val = s.split('_')
+            val = float(val)
+            dict_in[name] = val
+        
+        for ID in range(N_loops):
+            filename = dict_to_filename_with_dir(dict_in, ID)
+            if not Path(filename).exists() or force_overwrite:
+                filenames.append(filename)
+        
+    return filenames
+
 
 @njit
 def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gamma, nts, Nstates):
