@@ -42,7 +42,7 @@ if do_animate:
 
 if __name__ == '__main__':
 
-    I_maxs_truth, fit_objects_Imax, bin_centers_Imax = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=10)
+    I_maxs_truth, fit_objects_Imax, bin_centers_Imax = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=30)
     # bins = np.linspace(0, 1, extra_funcs.N_peak_fits+1)
     # bin_centers_Imax = (bins[1:] + bins[:-1])/2
 
