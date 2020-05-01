@@ -45,6 +45,3 @@ if __name__ == '__main__':
         print("No files to generate, everything already generated.")
 
     print("Finished simulating!")
-
-
-# SK, P1, UK

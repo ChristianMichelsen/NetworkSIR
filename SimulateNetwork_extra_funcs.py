@@ -377,6 +377,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
         if (TotMov < 0) or (TotInf < 0): 
             # cout << "Negative Problem " << " " << TotMov << " " << TotInf << endl 
             print("Negative Problem", TotMov, TotInf)
+            print(gamma, beta)
             on = 0  
     
     return SIRfile
