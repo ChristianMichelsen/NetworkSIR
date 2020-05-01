@@ -30,8 +30,6 @@ def generate_filenames(d, N_loops=10, force_overwrite=False):
                     Nstates = 9,
                 )
 
-    dict_in['Ninit'] = int(dict_in['N0'] * 0.1 / 1000) # Initial Infected, 1 permille
-
     nameval_to_str = [[f'{name}_{x}' for x in lst] for (name, lst) in d.items()]
     all_combinations = list(product(*nameval_to_str))
 
@@ -40,7 +38,9 @@ def generate_filenames(d, N_loops=10, force_overwrite=False):
             name, val = s.split('_')
             val = float(val)
             dict_in[name] = val
-        
+
+
+        dict_in['Ninit'] = int(dict_in['N0'] * 0.1 / 1000) # Initial Infected, 1 permille        
         for ID in range(N_loops):
             filename = dict_to_filename_with_dir(dict_in, ID)
             if not Path(filename).exists() or force_overwrite:
