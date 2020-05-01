@@ -42,6 +42,7 @@ if do_animate:
 
     extra_funcs.animate_Imax_fit_filename(filename)
 
+
 #%%
 
 if __name__ == '__main__':
@@ -70,18 +71,18 @@ if __name__ == '__main__':
     # reload(extra_funcs)
     percentage1 = 5
     percentage2 = 95
-    Nbins = 100
+    Nbins = 50
     
+    # save_and_show_all_plots = True
     if save_and_show_all_plots:
 
-        for fit_pars_as_string, fit_objects_by_ID in fit_objects_by_pars.items():
+        for fit_pars_as_string, fit_objects_by_ID in tqdm(fit_objects_by_pars.items()):
 
             N_fits_for_parameter = len(fit_objects_by_ID)
+            cfg = extra_funcs.string_to_dict(fit_pars_as_string)
+            fit_pars =list(fit_objects_by_ID.values())[0].parameters
+            sim_pars = {'Mrate1': cfg.Mrate1, 'Mrate2': cfg.Mrate2, 'beta': cfg.beta, 'tau': 0}
 
-            # fit_objects = all_fit_objects[]
-            d_parameters = extra_funcs.string_to_dict(fit_pars_as_string)
-
-            fit_pars = fit_objects_by_ID[0].parameters
 
             fig = make_subplots(rows=3, cols=len(fit_pars), subplot_titles=fit_pars)
 
@@ -93,6 +94,7 @@ if __name__ == '__main__':
                 for i_fit_object, fit_object in enumerate(fit_objects_by_ID.values()):
                     means[i_fit_object], stds[i_fit_object] = fit_object.get_fit_par(fit_par)
 
+                z_pull =  (means - sim_pars[fit_par]) / stds
 
                 fig.add_trace(go.Histogram(x=extra_funcs.cut_percentiles(means, percentage1, percentage2), 
                                         nbinsx=Nbins,
@@ -107,7 +109,7 @@ if __name__ == '__main__':
                                         ),
                                 row=2, col=i_fit_par)
 
-                fig.add_trace(go.Histogram(x=extra_funcs.cut_percentiles(means/stds, percentage1, percentage2),
+                fig.add_trace(go.Histogram(x=extra_funcs.cut_percentiles(z_pull, percentage1, percentage2),
                                             nbinsx=Nbins,
                                         # xbins=dict( # bins used for histogram
                                         #         start=-20.0,
@@ -121,19 +123,24 @@ if __name__ == '__main__':
 
             fig.update_yaxes(title_text=f"Mu", row=1, col=1)
             fig.update_yaxes(title_text=f"Std", row=2, col=1)
-            fig.update_yaxes(title_text=f'"Pull"', row=3, col=1)
+            fig.update_yaxes(title_text=f'Pull', row=3, col=1)
 
             fig.update_layout(showlegend=False)
 
             k_scale = 1
             # Edit the layout
-            # N0_str = extra_funcs.human_format(d_parameters['N0'])
-            title = extra_funcs.dict_to_title(d_parameters)
+            # N0_str = extra_funcs.human_format(cfg['N0'])
+            title = extra_funcs.dict_to_title(cfg, N_fits_for_parameter)
             fig.update_layout(title=title, height=600*k_scale, width=800*k_scale)
 
-            fig.show()
-            fig.write_html(f"Figures/fit_to_all/fits_{fit_pars_as_string}.html")
-            fig.write_image(f"Figures/fit_to_all/fits_{fit_pars_as_string}.png")
+            # fig.show()
+            figname = f"Figures/fit_to_all/fits_{fit_pars_as_string}"
+            figname_html = figname.replace('fit_to_all', 'fit_to_all/html')
+            figname_png = figname.replace('fit_to_all', 'fit_to_all/png')
+            Path(figname_html).parent.mkdir(parents=True, exist_ok=True)
+            Path(figname_png).parent.mkdir(parents=True, exist_ok=True)
+            fig.write_html(figname_html+".html")
+            fig.write_image(figname_png+".png")
 
 
 #%%
@@ -326,12 +333,12 @@ if __name__ == '__main__':
         fig.update_yaxes(title_text=f"Counts", row=1, col=5)
 
         
-        d_parameters = extra_funcs.string_to_dict(par_string)
+        cfg = extra_funcs.string_to_dict(par_string)
 
         N_files = len(I_maxs_true)
-        # N0_str = extra_funcs.human_format(d_parameters['N0'])
+        # N0_str = extra_funcs.human_format(cfg['N0'])
 
-        title = extra_funcs.dict_to_title(d_parameters, N_files)
+        title = extra_funcs.dict_to_title(cfg, N_files)
 
         k_scale = 1
         fig.update_layout(title=title, width=2400*k_scale, height=600*k_scale, showlegend=False)
@@ -351,14 +358,12 @@ if __name__ == '__main__':
     print("Finished running")
 
 
-
-
-
-
 # %%
 
 
 reload(extra_funcs)
-filenames_beta_rest_default = extra_funcs.get_filenames_different_than_default('beta')
+extra_funcs.plot_variable_other_than_default('beta')
+extra_funcs.plot_variable_other_than_default('N0')
 
-filenames_N0_rest_default = extra_funcs.get_filenames_different_than_default('N0')
+
+# %%

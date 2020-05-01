@@ -120,7 +120,7 @@ from iminuit import describe
 
 class CustomChi2:  # override the class with a better one
     
-    def __init__(self, t_interpolated, y_truth, y0, Tmax, dt, ts, mu0, y_min=0):
+    def __init__(self, t_interpolated, y_truth, y0, Tmax, dt, ts, mu0, y_min=10):
         
         # self.f = f  # model predicts y for given x
         # self.time = time
@@ -237,7 +237,8 @@ def filename_to_dotdict(filename):
 def string_to_dict(string):
     return SimulateNetwork_extra_funcs.filename_to_dotdict(string, normal_string=True)
 
-def dict_to_title(d, N=None):
+def dict_to_title(d, N=None, exclude=None):
+
     if type(d) == 'dict':
         cfg = SimulateNetwork_extra_funcs.DotDict(d)
     else:
@@ -246,6 +247,15 @@ def dict_to_title(d, N=None):
     title = f"N={N0_str}, β={cfg.beta:.4f}, γ={cfg.gamma:.1f}, σ={cfg.sigma:.1f},  α={cfg.alpha:.1f}, ψ={cfg.psi:.1f}, μ={cfg.mu:.1f}, λ1 = {cfg.Mrate1:.1f}, λ2 = {cfg.Mrate2:.1f}"
     if N:
         title += f", #{N}"
+
+    if exclude:
+        d_translate = {'beta': 'β', 'N0': 'N'}
+        new_title = ''
+        for s in title.split():
+            if not d_translate[exclude] in s:
+                new_title += f"{s} "
+        title = new_title[:-1]
+    
     return title
 
 def filename_to_title(filename):
@@ -732,3 +742,66 @@ def get_filenames_different_than_default(find_par):
 
     df_different_than_default = df_sim_pars.query(query).sort_values(find_par)
     return list(df_different_than_default.index)
+
+
+
+
+#%%
+
+def plot_variable_other_than_default(par):
+
+    filenames_par_rest_default = get_filenames_different_than_default(par)
+
+    base_dir = Path('Data') / 'NetworkSimulation'
+    # I_max_rel = {}
+
+    x = np.zeros(len(filenames_par_rest_default))
+    y = np.zeros_like(x)
+    sy = np.zeros_like(x)
+    n = np.zeros_like(x)
+
+    for i_simpar, sim_par in enumerate(tqdm(filenames_par_rest_default)):
+        filenames = [str(filename) for filename in base_dir.rglob('*.csv') if sim_par in str(filename)]
+        N_files = len(filenames)
+
+        I_max_Net = np.zeros(N_files)
+        for i_filename, filename in enumerate(filenames):
+            cfg = filename_to_dotdict(filename)
+            df = pandas_load_file(filename, return_only_df=True)
+            I_max_Net[i_filename] = df['I'].max()
+
+        Tmax = df['Time'].max()*1.2
+        y0 = cfg.N0-cfg.Ninit, cfg.N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
+        dt = 0.01
+        ts = 0.1
+        ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu0=cfg.mu, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta)
+        # print(y0, Tmax, dt, ts, cfg)
+        I_SIR = ODE_result_SIR[:, 2]
+        I_max_SIR = np.max(I_SIR)
+        z_rel = I_max_Net / I_max_SIR
+        # I_max_rel[cfg[par]] = I_max_Net / I_max_SIR
+        x[i_simpar] = cfg[par]
+        y[i_simpar] = np.mean(z_rel)
+        sy[i_simpar] = np.std(z_rel) / np.sqrt(len(z_rel))
+        n[i_simpar] = len(z_rel)
+
+    title = dict_to_title(cfg, exclude=par)
+
+    n_text = [f"n = {int(ni)}" for ni in n]
+    fig = go.Figure(data=go.Scatter(x=x, y=y, text=n_text, mode='markers', error_y=dict(array=sy)))
+    fig.update_layout(title=title,
+                    xaxis_title=par,
+                    yaxis_title='I_max_Net / I_max_SIR',
+                    height=600, width=800,
+                    showlegend=False,
+                    )
+    # fig.show()
+
+    figname_html = Path(f"Figures/par_SIR_network_relative/html/par_SIR_network_relative_{par}.html")
+    figname_png = Path(f"Figures/par_SIR_network_relative/png/par_SIR_network_relative_{par}.png")
+    Path(figname_html).parent.mkdir(parents=True, exist_ok=True)
+    Path(figname_png).parent.mkdir(parents=True, exist_ok=True)
+    fig.write_html(str(figname_html))
+    fig.write_image(str(figname_png))
+
+
