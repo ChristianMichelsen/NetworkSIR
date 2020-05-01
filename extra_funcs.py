@@ -19,7 +19,7 @@ def pandas_load_file(filename, return_only_df=False):
         df_raw[state] = sum([df_raw[col] for col in df_raw.columns if state in col and len(col) == 2])
 
     # only keep relevant columns
-    df = df_raw[['Time', 'E', 'I', 'R', 'NR0Inf']].copy()
+    df = df_raw[['Time', 'E', 'I', 'R', 'NrDInf']].copy()
     if return_only_df:
         return df
 
@@ -567,8 +567,7 @@ def Imax_fits_to_df(Imax_res, filenames_to_use, I_maxs_times):
     return df
 
 
-def extract_relative_Imaxs(d_fit_objects_all_IDs, I_maxs_truth, filenames_to_use, bin_centers_Imax):
-    
+def extract_normalized_Imaxs(d_fit_objects_all_IDs, I_maxs_truth, filenames_to_use, bin_centers_Imax):
     I_maxs_normed_res = {}
     for filename, fit_objects in d_fit_objects_all_IDs.items():
         I_maxs = np.zeros(N_peak_fits)
@@ -577,6 +576,19 @@ def extract_relative_Imaxs(d_fit_objects_all_IDs, I_maxs_truth, filenames_to_use
         I_maxs_normed_res[filename] = I_maxs / I_maxs_truth[filename]
     df_I_maxs_normed = Imax_fits_to_df(I_maxs_normed_res, filenames_to_use, bin_centers_Imax)
     return df_I_maxs_normed
+
+
+def extract_relative_Imaxs(d_fit_objects_all_IDs, I_maxs_truth, filenames_to_use, bin_centers_Imax):
+    I_maxs_relative_res = {}
+    for filename, fit_objects in d_fit_objects_all_IDs.items():
+        I_maxs = np.zeros(N_peak_fits)
+        I_current_pos = np.zeros(N_peak_fits)
+        for i_fit_object, fit_object in enumerate(fit_objects):
+            I_maxs[i_fit_object] = fit_object.compute_I_max()
+            I_current_pos[i_fit_object] = fit_object.y_truth[-1]
+        I_maxs_relative_res[filename] = (I_maxs_truth[filename]-I_maxs) / (I_maxs_truth[filename]-I_current_pos)
+    df_I_maxs_relative = Imax_fits_to_df(I_maxs_relative_res, filenames_to_use, bin_centers_Imax)
+    return df_I_maxs_relative
 
 def extract_fit_parameter(par, d_fit_objects_all_IDs, filenames_to_use, bin_centers_Imax):
     par_tmp = {}

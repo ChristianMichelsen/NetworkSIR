@@ -129,6 +129,8 @@ if __name__ == '__main__':
 
             fig.show()
             fig.write_html(f"Figures/fits_{fit_pars_as_string}.html")
+            fig.write_image(f"Figures/fits_{fit_pars_as_string}.png")
+
 
 #%%
 
@@ -182,6 +184,7 @@ if __name__ == '__main__':
     # reload(extra_funcs)
     I_max_truth_by_pars = {}
     I_max_normed_by_pars = {}
+    I_max_relative_by_pars = {}
     betas_by_pars = {}
     betas_std_by_pars = {}
 
@@ -197,12 +200,20 @@ if __name__ == '__main__':
         # fit_objects by par_string (contains all IDs)
         d_fit_objects_all_IDs = {k: fit_objects_Imax[k] for k in filenames_to_use}
         
-        # relative I_max from fits
-        df_I_maxs_normed = extra_funcs.extract_relative_Imaxs(d_fit_objects_all_IDs, 
+        # normalized I_max from fits
+        df_I_maxs_normed = extra_funcs.extract_normalized_Imaxs(d_fit_objects_all_IDs, 
                                                               I_maxs_truth, 
                                                               filenames_to_use, 
                                                               bin_centers_Imax)
         I_max_normed_by_pars[par_string] = df_I_maxs_normed
+
+
+        # relative I_max from fits
+        df_I_maxs_relative = extra_funcs.extract_relative_Imaxs(d_fit_objects_all_IDs, 
+                                                              I_maxs_truth, 
+                                                              filenames_to_use, 
+                                                              bin_centers_Imax)
+        I_max_relative_by_pars[par_string] = df_I_maxs_relative
 
 
         # extract betas
@@ -216,16 +227,17 @@ if __name__ == '__main__':
     for par_string in tqdm(I_max_truth_by_pars.keys(), desc='Make Imax figures'):
 
         I_maxs_normed = I_max_normed_by_pars[par_string]
+        I_maxs_relative = I_max_relative_by_pars[par_string]
         I_maxs_true = I_max_truth_by_pars[par_string]
         df_betas = betas_by_pars[par_string]
         df_betas_std = betas_std_by_pars[par_string]
         
 
-        fig = make_subplots(rows=1, cols=4, 
-                            subplot_titles=['Imax Fits', 'Beta', 'Beta std','Truth distriution'], 
-                            column_widths=[0.3, 0.3, 0.3, 0.1])
+        fig = make_subplots(rows=1, cols=5, 
+                            subplot_titles=['Normalized Imax', 'Relative Imax', 'Beta', 'Beta std','Truth distriution'], 
+                            column_widths=[0.225, 0.225, 0.225, 0.225, 0.1])
 
-        # subplot 1
+        # subplot 1 - Normalized Imax
         fig.add_trace(
             go.Scatter( x=I_maxs_normed.columns, 
                         y=I_maxs_normed.loc['mean'],
@@ -242,7 +254,25 @@ if __name__ == '__main__':
         fig.update_yaxes(title_text=f"I_max / I_max_truth", row=1, col=1)
 
 
-        # subplot 2
+
+        # subplot 2  Relative Imax
+        fig.add_trace(
+            go.Scatter( x=I_maxs_relative.columns, 
+                        y=I_maxs_relative.loc['mean'],
+                        error_y=dict(
+                            type='data', # value of error bar given in data coordinates
+                            array=I_maxs_relative.loc['sdom'],
+                            visible=True
+                            ),
+                        mode="markers",
+                        ),
+            row=1, col=2,
+            )
+        fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=2)
+        fig.update_yaxes(title_text=f"Imax relative", row=1, col=2)
+
+
+        # subplot 3
         fig.add_trace(
             go.Scatter( x=df_betas.columns, 
                         y=df_betas.loc['mean'],
@@ -253,13 +283,13 @@ if __name__ == '__main__':
                             ),
                         mode="markers",
                         ),
-            row=1, col=2,
+            row=1, col=3,
             )
-        fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=2)
-        fig.update_yaxes(title_text=f"Beta", row=1, col=2)
+        fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=3)
+        fig.update_yaxes(title_text=f"Beta", row=1, col=3)
 
 
-        # subplot 3
+        # subplot 4
         fig.add_trace(
             go.Scatter( x=df_betas_std.columns, 
                         y=df_betas_std.loc['mean'],
@@ -270,24 +300,22 @@ if __name__ == '__main__':
                             ),
                         mode="markers",
                         ),
-            row=1, col=3,
-            )
-        fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=3)
-        fig.update_yaxes(title_text=f"Beta std", row=1, col=3)
-
-
-        # subplot 4
-        fig.add_trace(
-            go.Histogram(x=I_maxs_true),
             row=1, col=4,
             )
-        fig.update_xaxes(title_text=f"I_max_truth", row=1, col=4)
-        fig.update_yaxes(title_text=f"Counts", row=1, col=4)
+        fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=4)
+        fig.update_yaxes(title_text=f"Beta std", row=1, col=4)
+
+
+        # subplot 5
+        fig.add_trace(
+            go.Histogram(x=I_maxs_true),
+            row=1, col=5,
+            )
+        fig.update_xaxes(title_text=f"I_max_truth", row=1, col=5)
+        fig.update_yaxes(title_text=f"Counts", row=1, col=5)
 
         
         d_parameters = extra_funcs.string_to_dict(par_string)
-        par_string = par_string.replace('delta_0.05', '')
-        # d_parameters.pop("delta", None)
 
         N_files = len(I_maxs_true)
         N0_str = extra_funcs.human_format(d_parameters['N0'])
@@ -298,10 +326,16 @@ if __name__ == '__main__':
         title += f"{N_files=}"
 
         k_scale = 1
-        fig.update_layout(title=title, width=1800*k_scale, height=600*k_scale, showlegend=False)
+        fig.update_layout(title=title, width=2400*k_scale, height=600*k_scale, showlegend=False)
 
         # fig.show()
-        fig.write_html(f"Figures/fits_Imax_{par_string}.html")
+        figname_html = Path(f"Figures/Imax_fits/html/fits_Imax_{par_string}.html")
+        figname_png = Path(f"Figures/Imax_fits/png/fits_Imax_{par_string}.png")
+        Path(figname_html).parent.mkdir(parents=True, exist_ok=True)
+        Path(figname_png).parent.mkdir(parents=True, exist_ok=True)
+        fig.write_html(str(figname_html))
+        fig.write_image(str(figname_png))
+
 
 
 # %%
