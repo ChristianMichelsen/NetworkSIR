@@ -6,6 +6,7 @@ from pathlib import Path
 from scipy.stats import uniform as sp_uniform
 import plotly.graph_objects as go
 import SimulateNetwork_extra_funcs
+import matplotlib.pyplot as plt
 
 def get_filenames():
     filenames = Path('Data').rglob(f'*.csv')
@@ -607,6 +608,9 @@ def extract_fit_parameter(par, d_fit_objects_all_IDs, filenames_to_use, bin_cent
     return df_par, df_par_std
 
 
+def mask_df(df, cut_val):
+    mask = (-cut_val <= df.loc['mean']) & (df.loc['mean'] <= cut_val)
+    return df.loc[:, mask]
 
 
 
@@ -633,7 +637,7 @@ def plot_SIR_model_comparison(force_overwrite=False):
             for sim_par in tqdm(all_sim_pars):
                 ID_files = list((base_dir/sim_par).rglob('*.csv'))
 
-                cfg = extra_funcs.string_to_dict(sim_par)
+                cfg = string_to_dict(sim_par)
 
                 # dfs = []
                 fig, ax = plt.subplots(figsize=(16, 10))
@@ -641,7 +645,7 @@ def plot_SIR_model_comparison(force_overwrite=False):
                 Tmax = 0
                 lw = 0.5
                 for i, filename_ID in enumerate(ID_files):
-                    df = extra_funcs.pandas_load_file(filename_ID, return_only_df=True)
+                    df = pandas_load_file(filename_ID, return_only_df=True)
                     label = 'Simulations' if i == 0 else None
                     # lw = 1 if i == 0 else 0.1
                     ax.plot(df['Time'].values, df['I'].values, lw=lw, c='k', label=label)
@@ -652,7 +656,7 @@ def plot_SIR_model_comparison(force_overwrite=False):
                 dt = 0.01
                 ts = 0.1
 
-                ODE_result_SIR = extra_funcs.ODE_integrate(y0, Tmax, dt, ts, mu0=cfg.mu, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta)
+                ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu0=cfg.mu, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta)
                 I_SIR = ODE_result_SIR[:, 2]
                 time = ODE_result_SIR[:, 4]
                 cols = ['S', 'E_sum', 'I_sum', 'R', 'Time', 'R0']
@@ -663,8 +667,8 @@ def plot_SIR_model_comparison(force_overwrite=False):
                 for legobj in leg.legendHandles:
                     legobj.set_linewidth(2.0)
                 
-                N0_str = extra_funcs.human_format(cfg.N0)
-                title = f"N={N0_str}, β={cfg.beta:.1f}, γ={cfg.gamma:.1f}, σ={cfg.sigma:.1f},  α={cfg.alpha:.1f}, ψ={cfg.psi:.1f}, #{len(ID_files)}"
+                N0_str = human_format(cfg.N0)
+                title = f"N={N0_str}, β={cfg.beta:.4f}, γ={cfg.gamma:.1f}, σ={cfg.sigma:.1f},  α={cfg.alpha:.1f}, ψ={cfg.psi:.1f}, #{len(ID_files)}"
 
                 ax.set(title=title, xlabel='Time', ylabel='I')
                 

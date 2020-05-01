@@ -11,11 +11,13 @@ from collections import defaultdict
 import joblib
 import extra_funcs
 from importlib import reload
+import SimulateNetwork_extra_funcs
 # import NewSpeedImprove_extra_funcs as extra_funcs2
 
 savefig = False
 do_animate = False
 save_and_show_all_plots = False
+plot_SIR_comparison = True if SimulateNetwork_extra_funcs.is_local_computer() else False
 
 #%%
 
@@ -23,8 +25,8 @@ reload(extra_funcs)
 filenames = extra_funcs.get_filenames()
 N_files = len(filenames)
 
-
-extra_funcs.plot_SIR_model_comparison(force_overwrite=False)
+if plot_SIR_comparison:
+    extra_funcs.plot_SIR_model_comparison(force_overwrite=False)
 
 
 if do_animate:
@@ -126,8 +128,8 @@ if __name__ == '__main__':
             fig.update_layout(title=title, height=600*k_scale, width=800*k_scale)
 
             fig.show()
-            fig.write_html(f"Figures/fits_{fit_pars_as_string}.html")
-            fig.write_image(f"Figures/fits_{fit_pars_as_string}.png")
+            fig.write_html(f"Figures/fit_to_all/fits_{fit_pars_as_string}.html")
+            fig.write_image(f"Figures/fit_to_all/fits_{fit_pars_as_string}.png")
 
 
 #%%
@@ -222,6 +224,9 @@ if __name__ == '__main__':
 
 #%%
 
+    do_mask_I_rel = True
+
+
     for par_string in tqdm(I_max_truth_by_pars.keys(), desc='Make Imax figures'):
 
         I_maxs_normed = I_max_normed_by_pars[par_string]
@@ -235,6 +240,7 @@ if __name__ == '__main__':
                             subplot_titles=['Normalized Imax', 'Relative Imax', 'Beta', 'Beta std','Truth distriution'], 
                             column_widths=[0.225, 0.225, 0.225, 0.225, 0.1])
 
+        I_maxs_normed = extra_funcs.mask_df(I_maxs_normed, 5)
         # subplot 1 - Normalized Imax
         fig.add_trace(
             go.Scatter( x=I_maxs_normed.columns, 
@@ -252,7 +258,8 @@ if __name__ == '__main__':
         fig.update_yaxes(title_text=f"I_max / I_max_truth", row=1, col=1)
 
 
-
+        
+        I_maxs_relative = extra_funcs.mask_df(I_maxs_relative, 5)
         # subplot 2  Relative Imax
         fig.add_trace(
             go.Scatter( x=I_maxs_relative.columns, 
@@ -287,6 +294,7 @@ if __name__ == '__main__':
         fig.update_yaxes(title_text=f"Beta", row=1, col=3)
 
 
+        df_betas_std = extra_funcs.mask_df(df_betas_std, 5)
         # subplot 4
         fig.add_trace(
             go.Scatter( x=df_betas_std.columns, 
