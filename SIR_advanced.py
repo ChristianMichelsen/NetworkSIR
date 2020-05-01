@@ -29,6 +29,13 @@ if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison(force_overwrite=False)
 
 
+#%%
+
+reload(extra_funcs)
+filenames_beta_rest_default = extra_funcs.get_filenames_different_than_default('beta')
+
+filenames_N0_rest_default = extra_funcs.get_filenames_different_than_default('N0')
+
 if do_animate:
 
     search_string = 'alpha_8_psi_0'

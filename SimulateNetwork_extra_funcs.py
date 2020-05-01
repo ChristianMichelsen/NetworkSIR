@@ -40,7 +40,8 @@ def generate_filenames(d, N_loops=10, force_overwrite=False):
             dict_in[name] = val
 
 
-        dict_in['Ninit'] = int(dict_in['N0'] * 0.1 / 1000) # Initial Infected, 1 permille        
+
+        dict_in['Ninit'] = int(dict_in['N0'] * 0.1 / 1000) # Initial Infected, 1 permille 
         for ID in range(N_loops):
             filename = dict_to_filename_with_dir(dict_in, ID)
             if not Path(filename).exists() or force_overwrite:
@@ -168,7 +169,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
                     AKRef[id1, UK[id1]] = id2
                     ra1 = np.random.rand()
                     if (ra1 < sigma):
-                        rat = -np.log(np.random.rand())/beta
+                        rat = -np.log(np.random.rand())*beta
                         Rate[id1, UK[id1]] = rat
                         Rate[id2, UK[id2]] = rat
                     else:
@@ -508,7 +509,7 @@ def single_run_numba_SK_P1_UK(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mr
                         Rate[id1, UK[id1]] = beta
                         Rate[id2, UK[id2]] = beta
                     else:
-                        rat = -np.log(np.random.rand())/beta
+                        rat = -np.log(np.random.rand())*beta
                         Rate[id1, UK[id1]] = rat
                         Rate[id2, UK[id2]] = rat
 

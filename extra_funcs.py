@@ -635,6 +635,7 @@ def plot_SIR_model_comparison(force_overwrite=False):
 
             # sim_par = all_sim_pars[0]
             for sim_par in tqdm(all_sim_pars):
+
                 ID_files = list((base_dir/sim_par).rglob('*.csv'))
 
                 cfg = string_to_dict(sim_par)
@@ -652,11 +653,14 @@ def plot_SIR_model_comparison(force_overwrite=False):
                     if df['Time'].max() > Tmax:
                         Tmax = df['Time'].max() 
 
+                Tmax = max(Tmax, 50)
+
                 y0 = cfg.N0-cfg.Ninit, cfg.N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
                 dt = 0.01
                 ts = 0.1
 
                 ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu0=cfg.mu, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta)
+                # print(y0, Tmax, dt, ts, cfg)
                 I_SIR = ODE_result_SIR[:, 2]
                 time = ODE_result_SIR[:, 4]
                 cols = ['S', 'E_sum', 'I_sum', 'R', 'Time', 'R0']
@@ -673,3 +677,44 @@ def plot_SIR_model_comparison(force_overwrite=False):
                 ax.set(title=title, xlabel='Time', ylabel='I')
                 
                 pdf.savefig(fig)
+
+
+
+
+
+#%%
+
+
+def get_filenames_different_than_default(find_par):
+
+    base_dir = Path('Data') / 'NetworkSimulation'
+    all_sim_pars = sorted([str(x.name) for x in base_dir.glob('*') if str(x.name) != '.DS_Store'])
+
+    all_sim_pars_as_dict = {s: string_to_dict(s) for s in all_sim_pars}
+    df_sim_pars = pd.DataFrame.from_dict(all_sim_pars_as_dict, orient='index')
+
+    default_pars = dict(
+                        N0 = 50_000,
+                        mu = 20.0,  # Average number connections
+                        alpha = 0.0, # Spatial parameter
+                        psi = 0.0, # cluster effect
+                        beta = 0.01, # Mean rate
+                        sigma = 0.0, # Spread in rate
+                        Mrate1 = 1.0, # E->I
+                        Mrate2 = 1.0, # I->R
+                        gamma = 0.0, # Parameter for skewed connection shape
+                        nts = 0.1, 
+                        Nstates = 9,
+                    )
+
+    if isinstance(find_par, str):
+        find_par = [find_par]
+
+    query = ''
+    for key, val in default_pars.items():
+        if not key in find_par:
+            query += f"{key} == {val} & "
+    query = query[:-3]
+
+    df_different_than_default = df_sim_pars.query(query).sort_values(find_par)
+    return list(df_different_than_default.index)
