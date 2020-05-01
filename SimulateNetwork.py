@@ -6,6 +6,7 @@ from pathlib import Path
 from importlib import reload
 
 num_cores_max = 38
+N_loops = 10
 
 
 if __name__ == '__main__':
@@ -25,7 +26,7 @@ if __name__ == '__main__':
     all_pars = [d_sim_par1, d_sim_par2, d_sim_par3]
     filenames = []
     for d_simulation_parameters in all_pars:
-        N_loops = 1 if extra_funcs.is_local_computer() else 10
+        N_loops = 1 if extra_funcs.is_local_computer() else N_loops
         filenames.append(extra_funcs.generate_filenames(d_simulation_parameters, N_loops))
     N_files = len(filenames)
 
