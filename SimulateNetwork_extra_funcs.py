@@ -36,7 +36,7 @@ def generate_filenames(d, N_loops=10, force_overwrite=False):
     for combination in all_combinations:
         for s in combination:
             name, val = s.split('_')
-            val = float(val)
+            val = float(val) if name != 'N0' else int(val)
             dict_in[name] = val
 
 
