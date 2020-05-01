@@ -158,7 +158,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
             for i1 in range(UK[id1]):         #  Make sure no element is present twice
                 if AK[id1, i1] == id2:
                     acc = 0         
-            if (UK[id1] < 200) and (UK[id2] < 200) and (id1 != id2) and (acc == 1):
+            if (UK[id1] < 1000) and (UK[id2] < 1000) and (id1 != id2) and (acc == 1):
                 r = np.sqrt((P1[id1, 0] - P1[id2, 0])**2 + (P1[id1, 1] - P1[id2, 1])**2)
                 ra = np.random.rand()
                 if np.exp(-alpha*r/rD) > ra:
