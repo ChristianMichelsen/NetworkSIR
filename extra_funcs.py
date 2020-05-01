@@ -61,7 +61,7 @@ def ODE_integrate(y0, Tmax, dt, ts, mu0, Mrate1, Mrate2, beta):
 
     # mu0 = 1
 
-    S, S0, E1, E2, E3, E4, I1, I2, I3, I4, R, R0 = y0
+    S, N0, E1, E2, E3, E4, I1, I2, I3, I4, R, R0 = y0
 
     click = 0
     ODE_result_SIR = np.zeros((int(Tmax/ts)+1, 6))
@@ -69,8 +69,9 @@ def ODE_integrate(y0, Tmax, dt, ts, mu0, Mrate1, Mrate2, beta):
 
     for Time in Times:
 
-        dS  = -beta*mu0/S0*(I1+I2+I3+I4)*S
-        dE1 = beta*mu0/S0*(I1+I2+I3+I4)*S - Mrate1*E1
+        dS  = -beta*mu0*2/N0*(I1+I2+I3+I4)*S
+        dE1 = beta*mu0*2/N0*(I1+I2+I3+I4)*S - Mrate1*E1
+
         dE2 = Mrate1*E1 - Mrate1*E2
         dE3 = Mrate1*E2 - Mrate1*E3
         dE4 = Mrate1*E3 - Mrate1*E4
@@ -80,7 +81,7 @@ def ODE_integrate(y0, Tmax, dt, ts, mu0, Mrate1, Mrate2, beta):
         dI3 = Mrate2*I2 - Mrate2*I3
         dI4 = Mrate2*I3 - Mrate2*I4
 
-        R0  += dt*beta*mu0/S0*(I1+I2+I3+I4)*S
+        R0  += dt*beta*mu0/N0*(I1+I2+I3+I4)*S
 
         dR  = Mrate2*I4
 
@@ -277,9 +278,9 @@ def fit_single_file(filename, ts=0.1, dt=0.01, FIT_MAX=100):
     df, df_interpolated, time, t_interpolated = pandas_load_file(filename)
     y_truth = df_interpolated['I'].to_numpy(int)
     Tmax = int(time.max())+1 # max number of days
-    S0 = cfg.N0
-    # y0 =  S, S0,                E1,E2,E3,E4,  I1,I2,I3,I4,  R, R0
-    y0 = S0-cfg.Ninit,S0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
+    N0 = cfg.N0
+    # y0 =  S, N0,                E1,E2,E3,E4,  I1,I2,I3,I4,  R, R0
+    y0 = N0-cfg.Ninit,N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
 
     # reload(extra_funcs)
     fit_object = CustomChi2(t_interpolated, y_truth, y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
@@ -333,8 +334,8 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01, for_animation=False):
     df = pandas_load_file(filename, return_only_df=True)
     # y_truth = df_interpolated['I'].to_numpy(int)
     Tmax = int(df['Time'].max())+1 # max number of days
-    S0 = cfg.N0
-    y0 = S0-cfg.Ninit, S0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
+    N0 = cfg.N0
+    y0 = N0-cfg.Ninit, N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
 
     I = df['I'].to_numpy(int)
     Time = df['Time'].to_numpy()
@@ -604,3 +605,67 @@ def extract_fit_parameter(par, d_fit_objects_all_IDs, filenames_to_use, bin_cent
     df_par = Imax_fits_to_df(par_tmp, filenames_to_use, bin_centers_Imax)
     df_par_std = Imax_fits_to_df(par_std_tmp, filenames_to_use, bin_centers_Imax)
     return df_par, df_par_std
+
+
+
+
+
+
+def plot_SIR_model_comparison(force_overwrite=False):
+
+    pdf_name = f"Figures/SIR_comparison.pdf"
+    Path(pdf_name).parent.mkdir(parents=True, exist_ok=True)
+
+    if Path(pdf_name).exists() and not force_overwrite:
+        print(f"{pdf_name} already exists")
+        return None
+    
+    else:
+
+        from matplotlib.backends.backend_pdf import PdfPages
+
+        base_dir = Path('Data') / 'NetworkSimulation'
+        all_sim_pars = sorted([str(x.name) for x in base_dir.glob('*') if str(x.name) != '.DS_Store'])
+
+        with PdfPages(pdf_name) as pdf:
+
+            # sim_par = all_sim_pars[0]
+            for sim_par in tqdm(all_sim_pars):
+                ID_files = list((base_dir/sim_par).rglob('*.csv'))
+
+                cfg = extra_funcs.string_to_dict(sim_par)
+
+                # dfs = []
+                fig, ax = plt.subplots(figsize=(16, 10))
+                # filename_ID = ID_files[0]
+                Tmax = 0
+                lw = 0.5
+                for i, filename_ID in enumerate(ID_files):
+                    df = extra_funcs.pandas_load_file(filename_ID, return_only_df=True)
+                    label = 'Simulations' if i == 0 else None
+                    # lw = 1 if i == 0 else 0.1
+                    ax.plot(df['Time'].values, df['I'].values, lw=lw, c='k', label=label)
+                    if df['Time'].max() > Tmax:
+                        Tmax = df['Time'].max() 
+
+                y0 = cfg.N0-cfg.Ninit, cfg.N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
+                dt = 0.01
+                ts = 0.1
+
+                ODE_result_SIR = extra_funcs.ODE_integrate(y0, Tmax, dt, ts, mu0=cfg.mu, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta)
+                I_SIR = ODE_result_SIR[:, 2]
+                time = ODE_result_SIR[:, 4]
+                cols = ['S', 'E_sum', 'I_sum', 'R', 'Time', 'R0']
+                df_fit = pd.DataFrame(ODE_result_SIR, columns=cols).convert_dtypes()
+
+                ax.plot(time, I_SIR, lw=10*lw, color='red', label='SIR')
+                leg = ax.legend(loc='upper right')
+                for legobj in leg.legendHandles:
+                    legobj.set_linewidth(2.0)
+                
+                N0_str = extra_funcs.human_format(cfg.N0)
+                title = f"N={N0_str}, β={cfg.beta:.1f}, γ={cfg.gamma:.1f}, σ={cfg.sigma:.1f},  α={cfg.alpha:.1f}, ψ={cfg.psi:.1f}, #{len(ID_files)}"
+
+                ax.set(title=title, xlabel='Time', ylabel='I')
+                
+                pdf.savefig(fig)
