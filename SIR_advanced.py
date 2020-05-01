@@ -23,7 +23,7 @@ reload(extra_funcs)
 filenames = extra_funcs.get_filenames()
 N_files = len(filenames)
 
-# filenames = filenames[:100]
+filenames = filenames[:10]
 # filename = filenames[0]
 
 # NetworkSimulation_N0_500000_mu_20.0_alpha_8_psi_0_beta_1.0_sigma_0.0_Ninit_10_Mrate1_1.0_Mrate2_1.0_gamma_0.0_nts_0.1_Nstates_9_ID_068

@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 import SimulateNetwork_extra_funcs
 
 def get_filenames():
-    filenames = Path('Data').glob(f'*.csv')
+    filenames = Path('Data').rglob(f'*.csv')
     return [str(file) for file in sorted(filenames)]
 
 
@@ -19,7 +19,7 @@ def pandas_load_file(filename, return_only_df=False):
         df_raw[state] = sum([df_raw[col] for col in df_raw.columns if state in col and len(col) == 2])
 
     # only keep relevant columns
-    df = df_raw[['Time', 'E', 'I', 'R', 'NrDInf']].copy()
+    df = df_raw[['Time', 'E', 'I', 'R']].copy()
     if return_only_df:
         return df
 
