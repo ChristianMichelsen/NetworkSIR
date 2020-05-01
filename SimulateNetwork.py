@@ -12,19 +12,23 @@ N_loops = 100
 
 if __name__ == '__main__':
 
-    d_sim_par1 = {}
+    all_sim_pars = [
+                    {}, # d_sim_par 1
 
-    d_sim_par2 = {
-            'sigma': [0.0, 0.5, 1.0], 
-            'gamma': [0.0, 0.5, 1.0],
-        }
+                    { # d_sim_par2
+                        'sigma': [0.0, 0.5, 1.0], 
+                        'gamma': [0.0, 0.5, 1.0],
+                        },
     
-    d_sim_par3 = {
-            'alpha': [1, 2, 4, 8]
-            # 'psi':   [0.15, 0.3, 0.45], 
-        }
+                    { # d_sim_par3
+                        'alpha': [1, 2, 4, 8]
+                        },
 
-    all_pars = [d_sim_par1, d_sim_par2, d_sim_par3]
+                    {
+                        'beta': [0.01*0.5, 0.01*0.75, 0.01, 0.01*1.25, 0.01*1.5],
+                        },
+                    ]
+
     filenames = []
     for d_simulation_parameters in all_pars:
         N_loops = 1 if extra_funcs.is_local_computer() else N_loops
