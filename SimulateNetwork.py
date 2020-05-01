@@ -6,7 +6,7 @@ from pathlib import Path
 from importlib import reload
 
 num_cores_max = 38
-N_loops = 10
+N_loops = 100
 
 
 
