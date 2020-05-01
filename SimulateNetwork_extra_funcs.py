@@ -168,12 +168,13 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
                     AKRef[id1, UK[id1]] = id2
                     ra1 = np.random.rand()
                     if (ra1 < sigma):
-                        Rate[id1, UK[id1]] = beta
-                        Rate[id2, UK[id2]] = beta
-                    else:
                         rat = -np.log(np.random.rand())/beta
                         Rate[id1, UK[id1]] = rat
                         Rate[id2, UK[id2]] = rat
+                    else:
+                        Rate[id1, UK[id1]] = beta
+                        Rate[id2, UK[id2]] = beta
+                        
 
                     AK[id2, UK[id2]] = id1 	
                     AKRef[id2, UK[id2]] = id1
@@ -744,7 +745,7 @@ def dict_to_filename_with_dir(dict_in, ID):
 def filename_to_dict(filename, normal_string=False):
     dict_in = {}
     if normal_string:
-        raise AssertionError('AssertionError')
+        # raise AssertionError('AssertionError')
         keyvals = filename.split('_')
     else:
         keyvals = filename.split('/')[2].split('_')
