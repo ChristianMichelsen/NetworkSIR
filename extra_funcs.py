@@ -237,6 +237,21 @@ def filename_to_dotdict(filename):
 def string_to_dict(string):
     return SimulateNetwork_extra_funcs.filename_to_dotdict(string, normal_string=True)
 
+def dict_to_title(d, N=None):
+    if type(d) == 'dict':
+        cfg = SimulateNetwork_extra_funcs.DotDict(d)
+    else:
+        cfg = d
+    N0_str = human_format(cfg.N0)
+    title = f"N={N0_str}, β={cfg.beta:.4f}, γ={cfg.gamma:.1f}, σ={cfg.sigma:.1f},  α={cfg.alpha:.1f}, ψ={cfg.psi:.1f}, μ={cfg.mu:.1f}, λ1 = {cfg.Mrate1:.1f}, λ2 = {cfg.Mrate2:.1f}"
+    if N:
+        title += f", #{N}"
+    return title
+
+def filename_to_title(filename):
+    return dict_to_title(filename_to_dotdict(filename))
+
+
 def uniform(a, b):
     loc = a
     scale = b-a
@@ -671,12 +686,11 @@ def plot_SIR_model_comparison(force_overwrite=False):
                 for legobj in leg.legendHandles:
                     legobj.set_linewidth(2.0)
                 
-                N0_str = human_format(cfg.N0)
-                title = f"N={N0_str}, β={cfg.beta:.4f}, γ={cfg.gamma:.1f}, σ={cfg.sigma:.1f},  α={cfg.alpha:.1f}, ψ={cfg.psi:.1f}, #{len(ID_files)}"
-
+                title = dict_to_title(cfg, len(ID_files))
                 ax.set(title=title, xlabel='Time', ylabel='I')
                 
                 pdf.savefig(fig)
+                plt.close('all')
 
 
 

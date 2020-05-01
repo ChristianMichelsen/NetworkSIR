@@ -31,11 +31,6 @@ if plot_SIR_comparison:
 
 #%%
 
-reload(extra_funcs)
-filenames_beta_rest_default = extra_funcs.get_filenames_different_than_default('beta')
-
-filenames_N0_rest_default = extra_funcs.get_filenames_different_than_default('N0')
-
 if do_animate:
 
     search_string = 'alpha_8_psi_0'
@@ -59,6 +54,8 @@ if __name__ == '__main__':
     all_fit_objects, discarded_files, N_refits_total = fit_results
     print(f"{N_refits_total=}, number of discarded files = {len(discarded_files)}\n\n", flush=True)
 
+
+    x=x
 
 #%%
 
@@ -130,8 +127,8 @@ if __name__ == '__main__':
 
             k_scale = 1
             # Edit the layout
-            N0_str = extra_funcs.human_format(d_parameters['N0'])
-            title = f"Histograms for N={N0_str}, Mrate1={d_parameters['Mrate1']:.1f}, Mrate2={d_parameters['Mrate2']:.1f}, beta={d_parameters['beta']:.1f}"
+            # N0_str = extra_funcs.human_format(d_parameters['N0'])
+            title = extra_funcs.dict_to_title(d_parameters)
             fig.update_layout(title=title, height=600*k_scale, width=800*k_scale)
 
             fig.show()
@@ -163,7 +160,8 @@ if __name__ == '__main__':
         k_scale = 1
 
         # Edit the layout
-        fig.update_layout(title=f'Simulation comparison',
+        title = extra_funcs.filename_to_title(filename)
+        fig.update_layout(title=title,
                         xaxis_title='Time',
                         yaxis_title='Count',
                         height=600*k_scale, width=800*k_scale,
@@ -331,12 +329,9 @@ if __name__ == '__main__':
         d_parameters = extra_funcs.string_to_dict(par_string)
 
         N_files = len(I_maxs_true)
-        N0_str = extra_funcs.human_format(d_parameters['N0'])
+        # N0_str = extra_funcs.human_format(d_parameters['N0'])
 
-        title = f"I_max fits and distribution for N={N0_str}, Mrate1={d_parameters['Mrate1']:.1f}, Mrate2={d_parameters['Mrate2']:.1f}, beta={d_parameters['beta']:.1f}, alpha={d_parameters['alpha']:.1f}, sigma={d_parameters['sigma']:.1f}, "
-        if 'psi' in d_parameters:
-            title += f" psi={d_parameters['psi']:.1f}, "
-        title += f"{N_files=}"
+        title = extra_funcs.dict_to_title(d_parameters, N_files)
 
         k_scale = 1
         fig.update_layout(title=title, width=2400*k_scale, height=600*k_scale, showlegend=False)
@@ -350,8 +345,20 @@ if __name__ == '__main__':
         fig.write_image(str(figname_png))
 
 
-
 # %%
 
 
     print("Finished running")
+
+
+
+
+
+
+# %%
+
+
+reload(extra_funcs)
+filenames_beta_rest_default = extra_funcs.get_filenames_different_than_default('beta')
+
+filenames_N0_rest_default = extra_funcs.get_filenames_different_than_default('N0')
