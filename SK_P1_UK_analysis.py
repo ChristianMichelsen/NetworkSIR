@@ -20,8 +20,148 @@ filenames = get_SK_P1_UK_filenames()
 filename = filenames[0]
 N_files = len(filenames)
 
+
+from copy import copy
+class SIRfile:
+
+    def __init__(self, filename):
+        self.filename = filename
+        print("Loading filename")
+        self.SK, self.P1, self.UK = joblib.load(filename)
+        self.N = len(self.SK)
+
+    def __call__(self, i):
+        self.i = i
+        return copy(self)
+
+    def to_df(self, i=None):
+        if i is None:
+            i = self.i
+
+        # categories = 'S, E, I, R'.split(', ')
+        mapping = {-1: 'S', 
+                    0: 'E', 1: 'E', 2:'E', 3: 'E',
+                    4: 'I', 5: 'I', 6:'I', 7: 'I',
+                    8: 'R'}
+
+        df = pd.DataFrame(self.P1, columns=['x', 'y'])
+        df['SK_num'] = self.SK[i]
+        df['UK_num'] = self.UK[i]
+        df["SK"] = df['SK_num'].replace(mapping).astype('category')
+        # self.df = df
+        return df
+
+
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+
+plt.style.use('matplotlibrc')
+colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+color_key = {str(label): col for col, label in zip(colors, ['S', 'E', 'I', 'R'])}
+
+
+import datashader as ds
+import datashader.transfer_functions as tf
+
+def df_to_fig(df, plot_width=1000, plot_height=1000, figsize=(10, 10), legend_fontsize=12, frameon=False):
+
+    canvas = ds.Canvas(plot_width=plot_width, plot_height=plot_height,
+                       x_range=(-1, 1), y_range=(-1, 1),
+                       x_axis_type='linear', y_axis_type='linear',
+                    )
+    agg = canvas.points(df, 'x', 'y', ds.count_cat('SK'))
+
+    # color_key = color_key_b_c_uds_g
+    # img = tf.shade(agg, color_key=color_key, how='log') # eq_hist
+    img = tf.shade(agg, color_key=color_key, how='eq_hist') # eq_hist
+    spread = tf.dynspread(img, threshold=0.9, max_px=1)
+    pil = spread.to_pil()
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    ax.imshow(np.array(pil))
+    ax.set_xticks([], [])
+    ax.set_yticks([], [])
+
+    legend_elements = [Line2D([0], [0], marker='o', color='white', markerfacecolor=val, label=key) for key, val in color_key.items()]
+    ax.legend(handles=legend_elements, loc='lower left', bbox_to_anchor=(-0.05, -0.05), fontsize=legend_fontsize, frameon=frameon)
+    return fig
+
+   
+def SIR_object_to_image(SIR_object):
+    df = SIR_object.to_df()
+    fig = df_to_fig(df)
+    figname = 'Figures_SK_P1_UK/animation_N'
+    figname += SIR_object.filename.strip('Data_SK_P1_UK/NetworkSimulation_').strip('.joblib')
+    figname += f'.{SIR_object.i:06d}.png'
+
+    Path(figname).parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(figname, dpi=75)
+    return None
+
+
+def animate_SIR_file(filename, num_cores_max=20, do_tqdm=True, remove_frames=True):
+
+    num_cores = mp.cpu_count() - 1
+    if num_cores >= num_cores_max:
+        num_cores = num_cores_max
+
+    SIR_base = SIRfile(filename)
+    N = SIR_base.N
+    SIR_objects = [SIR_base(i) for i in range(N)]
+    # SIR_object = SIR_objects[200]
+
+    for SIR_object in tqdm(SIR_objects, desc='Creating individual frames'):
+        SIR_object_to_image(SIR_object);
+
+    # with mp.Pool(num_cores) as p:
+    #     list(tqdm(p.imap_unordered(SIR_object_to_image, SIR_objects), total=N))
+
+    import imageio # conda install imageio
+    gifname = 'Figures_SK_P1_UK/animation_N' 
+    gifname += filename.strip('Data_SK_P1_UK/NetworkSimulation_').strip('.joblib') 
+    gifname += '.gif'
+
+    with imageio.get_writer(gifname, mode='I', duration=0.1) as writer:
+        it_frames = Path(gifname)
+        if do_tqdm:
+            it_frames = tqdm(it_frames, desc='Stitching frames to gif')
+        for i, figname in enumerate(it_frames):
+            image = imageio.imread(figname)
+            writer.append_data(image)
+
+            # if last frame add it N_last times           
+            if i+1 == len(it_frames):
+                N_last = 100
+                for j in range(N_last):
+                    writer.append_data(image)
+            
+            if remove_frames:
+                Path(figname).unlink() # delete file
+
+
+
+
+def SIRfiles_i_day_to_df(i_SIR_tuple):
+    i_day, (SIRfile_SK, SIRfile_P1, SIRfile_UK) = i_SIR_tuple
+
+    # categories = 'S, E, I, R'.split(', ')
+    mapping = {-1: 'S', 
+                0: 'E', 1: 'E', 2:'E', 3: 'E',
+                4: 'I', 5: 'I', 6:'I', 7: 'I',
+                8: 'R'}
+
+    df = pd.DataFrame(SIRfile_P1, columns=['x', 'y'])
+    df['SK_num'] = SIRfile_SK[i_day]
+    df['UK_num'] = SIRfile_UK[i_day]
+    df["SK"] = df['SK_num'].replace(mapping).astype('category')
+    return df
+
+
+import plotly.express as px
 def animate_single_file(filename, remove_frames=True, do_tqdm=False, plot_first_day=False):
     SIRfile_SK, SIRfile_P1, SIRfile_UK = joblib.load(filename)
+
     fignames = []
 
     # categories = 'S, E, I, R'.split(', ')
@@ -30,20 +170,18 @@ def animate_single_file(filename, remove_frames=True, do_tqdm=False, plot_first_
                 4: 'I', 5: 'I', 6:'I', 7: 'I',
                 8: 'R'}
 
-    it = SIRfile_SK
+    it = range(0, len(SIRfile_SK), 10)
     if do_tqdm:
         it = tqdm(it, desc='Creating individual frames')
-    for i_day, _ in enumerate(it):
 
-        df = pd.DataFrame(SIRfile_P1[i_day], columns=['x', 'y'])
+    for i_day in it:
+    # for i_day, _ in enumerate(it):
+
+        df = pd.DataFrame(SIRfile_P1, columns=['x', 'y'])
         df['SK_num'] = SIRfile_SK[i_day]
         df['UK_num'] = SIRfile_UK[i_day]
-        df["SK"] = df['SK_num'].replace(mapping)
-        # df.sort_values('SK_num', ascending=True, inplace=True)        
+        df["SK"] = df['SK_num'].replace(mapping).astype('category')
 
-
-
-        import plotly.express as px
 
         px_colors = px.colors.qualitative.D3
         discrete_colors = [px_colors[7], px_colors[0],  px_colors[3], px_colors[2]]
@@ -142,9 +280,8 @@ num_cores_max = 15
 if num_cores >= num_cores_max:
     num_cores = num_cores_max
 
-# x=x
-
-animate_single_file(filenames[2], remove_frames=True, do_tqdm=True)
+for filename in filenames:
+    animate_single_file(filename, remove_frames=True, do_tqdm=True)
 
 x=x
 
@@ -159,3 +296,4 @@ if __name__ == '__main__':
 
 # Do you want the application" orca.app to accept incoming network connections
 # https://github.com/plotly/orca/issues/269 
+

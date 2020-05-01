@@ -1,0 +1,76 @@
+axes.axisbelow: true
+axes.grid: true
+axes.linewidth: 3.0
+axes.titlesize : 24
+axes.labelsize : 20
+axes.labelcolor: black
+axes.edgecolor: white #f0f0f0
+#axes.facecolor: f0f0f0
+#axes.edgecolor: black
+axes.facecolor: white
+
+lines.linewidth : 4
+lines.markersize : 10
+lines.solid_capstyle: butt
+lines.color: C0
+lines.markeredgecolor: auto
+lines.markerfacecolor: auto
+
+xtick.labelsize : 16
+xtick.major.size: 0
+xtick.minor.size: 0
+
+ytick.labelsize : 16
+ytick.major.size: 0
+ytick.minor.size: 0
+
+legend.fancybox: true
+legend.edgecolor: 0.8
+legend.facecolor: inherit
+legend.fontsize: 16
+
+#axes.prop_cycle    : cycler('color', ['1f77b4', 'ff7f0e', '2ca02c', 'd62728', '9467bd', '8c564b', 'e377c2', '7f7f7f', 'bcbd22', '17becf'])
+axes.prop_cycle    : cycler('color', ['1f78b4', 'e31a1c', '33a02c', 'ff7f00', '6a3d9a', 'a6cee3', 'b2df8a', 'cab2d6', 'fb9a99', 'fdbf6f'])
+
+
+svg.fonttype: path
+
+grid.linestyle: -
+grid.linewidth: 0.5
+grid.color: cbcbcb
+
+font.size:14.0
+
+savefig.edgecolor: white
+savefig.facecolor: white
+
+figure.subplot.left: 0.08
+figure.subplot.right: 0.95
+figure.subplot.bottom: 0.07
+figure.edgecolor: white # (1, 1, 1, 0)
+figure.facecolor: white
+
+#hatch.color: black
+
+patch.edgecolor: black
+patch.facecolor: C0
+patch.force_edgecolor: False
+patch.linewidth: 2
+
+pdf.inheritcolor: False
+
+scatter.edgecolors: face
+
+text.color: black
+
+xtick.color: black
+
+ytick.color: black
+
+
+#### ERRORBAR PLOTS
+errorbar.capsize : 3             ## length of end cap on error bars in pixels
+
+# latex like font
+mathtext.fontset: cm
+

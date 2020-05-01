@@ -24,4 +24,5 @@ dependencies:
   - scikit-learn
   - psutil
   - plotly-orca
-  - natsort
+  #- natsort
+  - datashader
