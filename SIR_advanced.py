@@ -364,6 +364,8 @@ if __name__ == '__main__':
 reload(extra_funcs)
 extra_funcs.plot_variable_other_than_default('beta')
 extra_funcs.plot_variable_other_than_default('N0')
+extra_funcs.plot_variable_other_than_default('mu')
+extra_funcs.plot_variable_other_than_default('alpha')   
 
 
 # %%

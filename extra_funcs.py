@@ -250,7 +250,7 @@ def dict_to_title(d, N=None, exclude=None):
         title += f", #{N}"
 
     if exclude:
-        d_translate = {'beta': 'β', 'N0': 'N'}
+        d_translate = {'beta': 'β', 'N0': 'N', 'mu': 'μ', 'alpha': 'α'}
         new_title = ''
         for s in title.split():
             if not d_translate[exclude] in s:
