@@ -675,7 +675,7 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
 
                 # dfs = []
                 fig, ax = plt.subplots(figsize=(16, 10))
-                ax.set_rasterized(True)
+                
 
                 # filename_ID = ID_files[0]
                 Tmax = 0
@@ -712,6 +712,11 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
                 title = dict_to_title(cfg, len(ID_files))
                 ax.set(title=title, xlabel='Time', ylabel='I')
                 
+
+                ax.set_rasterized(True)
+                ax.set_rasterization_zorder(0)
+
+
                 pdf.savefig(fig, dpi=300)
                 plt.close('all')
 
