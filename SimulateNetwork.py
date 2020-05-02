@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
         if num_cores == 1:
             for filename in tqdm(filenames):
-                extra_funcs.single_run_and_save, filename)
+                extra_funcs.single_run_and_save(filename)
 
         else:
             with mp.Pool(num_cores) as p:
