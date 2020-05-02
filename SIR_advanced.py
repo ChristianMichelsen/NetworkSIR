@@ -16,7 +16,6 @@ import SimulateNetwork_extra_funcs
 
 num_cores_max = 38
 
-
 savefig = False
 do_animate = False
 save_and_show_all_plots = False
@@ -72,7 +71,7 @@ if __name__ == '__main__':
     # reload(extra_funcs)
     percentage1 = 5
     percentage2 = 95
-    Nbins = 50
+    Nbins = 100
     
     # save_and_show_all_plots = True
     if save_and_show_all_plots:

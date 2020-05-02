@@ -7,6 +7,7 @@ from scipy.stats import uniform as sp_uniform
 import plotly.graph_objects as go
 import SimulateNetwork_extra_funcs
 import matplotlib.pyplot as plt
+import pickle
 
 def get_filenames():
     filenames = Path('Data').rglob(f'*.csv')
@@ -541,30 +542,37 @@ def filename_to_par_string(filename):
 def get_fit_results(filenames, force_rerun=False, num_cores_max=20):
 
     output_filename = 'fit_results.joblib'
+    # out_pickle = output_filename.replace('joblib', 'pkl')
 
     if Path(output_filename).exists() and not force_rerun:
         print("Loading fit results")
-        return joblib.load(output_filename)
+        # return joblib.load(output_filename)
+        return pickle.load(open(out_pickle, "rb" ) )
 
     else:
         fit_results = calc_fit_results(filenames, num_cores_max=num_cores_max)
         print(f"Finished fitting, saving results to {output_filename}", flush=True)
         joblib.dump(fit_results, output_filename)
+        # pickle.dump(fit_results, open(out_pickle, "wb"))
         return fit_results
 
 
 def get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=20):
 
     output_filename = 'fit_Imax_results.joblib'
+    # out_pickle = output_filename.replace('joblib', 'pkl')
+
 
     if Path(output_filename).exists() and not force_rerun:
         print("Loading Imax fit results")
         return joblib.load(output_filename)
+        # return pickle.load(open(out_pickle, "rb" ) )
 
     else:
         fit_results = calc_fit_Imax_results(filenames, num_cores_max=num_cores_max)
         print(f"Finished Imax fitting, saving results to {output_filename}", flush=True)
         joblib.dump(fit_results, output_filename)
+        # pickle.dump(fit_results, open(out_pickle, "wb"))
         return fit_results
 
 
@@ -667,6 +675,8 @@ def plot_SIR_model_comparison(force_overwrite=False):
 
                 # dfs = []
                 fig, ax = plt.subplots(figsize=(16, 10))
+                ax.set_rasterized(True)
+
                 # filename_ID = ID_files[0]
                 Tmax = 0
                 lw = 0.5
@@ -699,7 +709,7 @@ def plot_SIR_model_comparison(force_overwrite=False):
                 title = dict_to_title(cfg, len(ID_files))
                 ax.set(title=title, xlabel='Time', ylabel='I')
                 
-                pdf.savefig(fig)
+                pdf.savefig(fig, dpi=300)
                 plt.close('all')
 
 
