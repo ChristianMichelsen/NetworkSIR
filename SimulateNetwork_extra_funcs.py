@@ -17,7 +17,7 @@ def is_local_computer(N_local_cores=8):
 def generate_filenames(d, N_loops=10, force_overwrite=False):
     filenames = []
     dict_in = dict(
-                    N0 = 10_000 if is_local_computer() else 50_000,
+                    N0 = 10_000 if is_local_computer() else 500_000,
                     mu = 20.0,  # Average number connections
                     alpha = 0.0, # Spatial parameter
                     psi = 0.0, # cluster effect
