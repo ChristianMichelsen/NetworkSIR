@@ -27,8 +27,13 @@ reload(extra_funcs)
 filenames = extra_funcs.get_filenames()
 N_files = len(filenames)
 
+
+x=x
+
 if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100)
+
+
 
 
 #%%
@@ -365,7 +370,7 @@ reload(extra_funcs)
 extra_funcs.plot_variable_other_than_default('beta')
 extra_funcs.plot_variable_other_than_default('N0')
 extra_funcs.plot_variable_other_than_default('mu')
-extra_funcs.plot_variable_other_than_default('alpha')   
+extra_funcs.plot_variable_other_than_default('alpha') 
 
 
 # %%

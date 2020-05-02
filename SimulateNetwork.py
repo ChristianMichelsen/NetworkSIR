@@ -44,7 +44,6 @@ if __name__ == '__main__':
         filenames.extend(extra_funcs.generate_filenames(d_simulation_parameters, N_loops))
     N_files = len(filenames)
 
-
     num_cores = mp.cpu_count() - 1
     if num_cores >= num_cores_max:
         num_cores = num_cores_max

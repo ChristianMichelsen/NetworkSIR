@@ -717,7 +717,7 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
                 ax.set_rasterization_zorder(0)
 
 
-                pdf.savefig(fig, dpi=300)
+                pdf.savefig(fig, dpi=100)
                 plt.close('all')
 
 
