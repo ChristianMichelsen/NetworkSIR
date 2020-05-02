@@ -9,7 +9,6 @@ num_cores_max = 38
 N_loops = 100
 
 
-
 if __name__ == '__main__':
 
     all_sim_pars = [
@@ -34,7 +33,7 @@ if __name__ == '__main__':
 
 
                     {
-                        'N0': [10_000, 50_000, 100_000, 500_000],
+                        'N0': [10_000, 50_000, 100_000, 500_000, 1_000_000],
                         },
 
                     ]
@@ -54,8 +53,14 @@ if __name__ == '__main__':
     if len(filenames) > 0:
         filename = filenames[0]
         print(f"Generating {N_files} network-based simulations with {num_cores} cores, please wait.", flush=True)
-        with mp.Pool(num_cores) as p:
-            list(tqdm(p.imap_unordered(extra_funcs.single_run_and_save, filenames), total=N_files))
+
+        if num_cores == 1:
+            for filename in tqdm(filenames):
+                extra_funcs.single_run_and_save, filename)
+
+        else:
+            with mp.Pool(num_cores) as p:
+                list(tqdm(p.imap_unordered(extra_funcs.single_run_and_save, filenames), total=N_files))
     else:
         print("No files to generate, everything already generated.")
 
