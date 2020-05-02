@@ -14,6 +14,9 @@ from importlib import reload
 import SimulateNetwork_extra_funcs
 # import NewSpeedImprove_extra_funcs as extra_funcs2
 
+num_cores_max = 38
+
+
 savefig = False
 do_animate = False
 save_and_show_all_plots = False
@@ -47,16 +50,14 @@ if do_animate:
 
 if __name__ == '__main__':
 
-    I_maxs_truth, fit_objects_Imax, bin_centers_Imax = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=30)
+    I_maxs_truth, fit_objects_Imax, bin_centers_Imax = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=num_cores_max)
     # bins = np.linspace(0, 1, extra_funcs.N_peak_fits+1)
     # bin_centers_Imax = (bins[1:] + bins[:-1])/2
 
-    fit_results = extra_funcs.get_fit_results(filenames, force_rerun=False, num_cores_max=30)
+    fit_results = extra_funcs.get_fit_results(filenames, force_rerun=False, num_cores_max=num_cores_max)
     all_fit_objects, discarded_files, N_refits_total = fit_results
     print(f"{N_refits_total=}, number of discarded files = {len(discarded_files)}\n\n", flush=True)
 
-
-    x=x
 
 #%%
 
