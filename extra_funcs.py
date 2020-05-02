@@ -648,7 +648,7 @@ def mask_df(df, cut_val):
 
 
 
-def plot_SIR_model_comparison(force_overwrite=False):
+def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
 
     pdf_name = f"Figures/SIR_comparison.pdf"
     Path(pdf_name).parent.mkdir(parents=True, exist_ok=True)
@@ -679,8 +679,11 @@ def plot_SIR_model_comparison(force_overwrite=False):
 
                 # filename_ID = ID_files[0]
                 Tmax = 0
-                lw = 0.5
-                for i, filename_ID in enumerate(ID_files):
+                lw = 0.1
+                
+                it = enumerate(ID_files[:max_N_plots]) if max_N_plots < len(ID_files) else enumerate(ID_files[:max_N_plots])
+
+                for i, filename_ID in it:
                     df = pandas_load_file(filename_ID, return_only_df=True)
                     label = 'Simulations' if i == 0 else None
                     # lw = 1 if i == 0 else 0.1
@@ -701,7 +704,7 @@ def plot_SIR_model_comparison(force_overwrite=False):
                 cols = ['S', 'E_sum', 'I_sum', 'R', 'Time', 'R0']
                 df_fit = pd.DataFrame(ODE_result_SIR, columns=cols).convert_dtypes()
 
-                ax.plot(time, I_SIR, lw=10*lw, color='red', label='SIR')
+                ax.plot(time, I_SIR, lw=15*lw, color='red', label='SIR')
                 leg = ax.legend(loc='upper right')
                 for legobj in leg.legendHandles:
                     legobj.set_linewidth(2.0)
