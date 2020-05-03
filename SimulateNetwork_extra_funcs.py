@@ -28,7 +28,7 @@ def generate_filenames(d, N_loops=10, force_overwrite=False):
                     gamma = 0.0, # Parameter for skewed connection shape
                     nts = 0.1, 
                     Nstates = 9,
-                    BB = 1,
+                    BB = 0,
                 )
 
     nameval_to_str = [[f'{name}_{x}' for x in lst] for (name, lst) in d.items()]

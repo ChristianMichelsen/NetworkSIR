@@ -18,7 +18,7 @@ num_cores_max = 30
 
 savefig = False
 do_animate = False
-save_and_show_all_plots = False
+save_and_show_all_plots = True
 plot_SIR_comparison = True if SimulateNetwork_extra_funcs.is_local_computer() else False
 
 #%%
