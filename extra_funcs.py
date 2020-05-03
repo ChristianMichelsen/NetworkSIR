@@ -546,8 +546,8 @@ def get_fit_results(filenames, force_rerun=False, num_cores_max=20):
 
     if Path(output_filename).exists() and not force_rerun:
         print("Loading fit results")
-        # return joblib.load(output_filename)
-        return pickle.load(open(out_pickle, "rb" ) )
+        return joblib.load(output_filename)
+        # return pickle.load(open(out_pickle, "rb" ) )
 
     else:
         fit_results = calc_fit_results(filenames, num_cores_max=num_cores_max)

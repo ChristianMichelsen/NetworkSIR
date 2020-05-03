@@ -14,7 +14,7 @@ from importlib import reload
 import SimulateNetwork_extra_funcs
 # import NewSpeedImprove_extra_funcs as extra_funcs2
 
-num_cores_max = 38
+num_cores_max = 30
 
 savefig = False
 do_animate = False
@@ -26,7 +26,6 @@ plot_SIR_comparison = True if SimulateNetwork_extra_funcs.is_local_computer() el
 reload(extra_funcs)
 filenames = extra_funcs.get_filenames()
 N_files = len(filenames)
-
 
 
 if plot_SIR_comparison:
