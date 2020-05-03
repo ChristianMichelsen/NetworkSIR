@@ -646,7 +646,7 @@ def mask_df(df, cut_val):
     return df.loc[:, mask]
 
 
-
+from pandas.errors import EmptyDataError
 
 def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
 
@@ -684,7 +684,12 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
                 it = enumerate(ID_files[:max_N_plots]) if max_N_plots < len(ID_files) else enumerate(ID_files[:max_N_plots])
 
                 for i, filename_ID in it:
-                    df = pandas_load_file(filename_ID, return_only_df=True)
+                    try:
+                        df = pandas_load_file(filename_ID, return_only_df=True)
+                    except EmptyDataError as e:
+                        print(f"Skipping {filename_ID} because empty file")
+                        continue
+                        # raise e
                     label = 'Simulations' if i == 0 else None
                     # lw = 1 if i == 0 else 0.1
                     ax.plot(df['Time'].values, df['I'].values, lw=lw, c='k', label=label)

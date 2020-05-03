@@ -439,7 +439,7 @@ def dict_to_filename_with_dir(dict_in, ID):
 def filename_to_dict(filename, normal_string=False):
     dict_in = {}
     if normal_string:
-        raise AssertionError('AssertionError')
+        # raise AssertionError('AssertionError')
         keyvals = filename.split('_')
     else:
         keyvals = filename.split('/')[2].split('_')
