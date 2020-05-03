@@ -55,6 +55,7 @@ if __name__ == '__main__':
     if num_cores >= num_cores_max:
         num_cores = num_cores_max
 
+
     # make sure path exists
     if len(filenames) > 0:
         filename = filenames[0]
