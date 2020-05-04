@@ -6,6 +6,9 @@ import joblib
 import multiprocessing as mp
 from itertools import product
 
+# conda install awkward
+# conda install -c conda-forge pyarrow
+import awkward
 
 def is_local_computer(N_local_cores=8):
     import platform
@@ -487,9 +490,6 @@ def filename_to_dict(filename, normal_string=False, SK_P1_UK=False):
     return cfg
 
 
-# conda install awkward
-# conda install -c conda-forge pyarrow
-import awkward
 
 def single_run_and_save(filename):
 

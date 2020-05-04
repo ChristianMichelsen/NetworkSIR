@@ -9,6 +9,7 @@ from plotly.subplots import make_subplots
 import joblib
 from tqdm import tqdm
 import multiprocessing as mp
+import awkward
 import extra_funcs
 
 
@@ -171,6 +172,9 @@ class SIRfile:
         self.filename = filename
         print("Loading filename")
         self.SK, self.P1, self.UK = joblib.load(filename)
+        filename_AK = filename.replace('SK_P1_UK.joblib', 'AK.parquet')
+        self.AK = awkward.fromparquet(filename_AK)
+
         self.N = len(self.SK)
         if i:
             self.i = i
@@ -451,3 +455,10 @@ tf.Images(rd_d,rd_b)
 
 
 # %%
+
+
+
+
+
+
+
