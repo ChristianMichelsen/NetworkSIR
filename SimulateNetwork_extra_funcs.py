@@ -524,8 +524,8 @@ def single_run_and_save(filename):
         joblib.dump([SIRfile_SK, SIRfile_P1, SIRfile_UK], filename_SK_P1_UK)
         # pickle.dump([SIRfile_SK, SIRfile_P1, SIRfile_UK], open(filename_SK_P1_UK.replace('joblib', 'pickle'), "wb"))
 
-        filename_AK = filename_SK_P1_UK.replace('SK_P1_UK.joblib', 'AK.parquet')
         SIRfile_AK = awkward.fromiter(SIRfile_AK)
+        filename_AK = filename_SK_P1_UK.replace('SK_P1_UK.joblib', 'AK.parquet')
         awkward.toparquet(filename_AK, SIRfile_AK)
 
     return None
