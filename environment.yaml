@@ -26,3 +26,5 @@ dependencies:
   - plotly-orca
   #- natsort
   - datashader
+  - awkward
+  - pyarrow

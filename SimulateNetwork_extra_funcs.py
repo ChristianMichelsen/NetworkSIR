@@ -53,18 +53,19 @@ def generate_filenames(d, N_loops=10, force_overwrite=False):
 @njit
 def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gamma, nts, Nstates, BB):
 
-    # N0 = 10_000 
-    # mu = 20.0  # Average number connections
-    # alpha = 0.0 # Spatial parameter
-    # psi = 0.0 # cluster effect
-    # beta = 0.01 # Mean rate
-    # sigma = 0.0 # Spread in rate
-    # Mrate1 = 1.0 # E->I
-    # Mrate2 = 1.0 # I->R
-    # gamma = 0.0 # Parameter for skewed connection shape
-    # nts = 0.1 
-    # Nstates = 9
-    # Ninit = int(N0 * 0.1 / 1000)
+    N0 = 10_000 
+    mu = 20.0  # Average number connections
+    alpha = 0.0 # Spatial parameter
+    psi = 0.0 # cluster effect
+    beta = 0.01 # Mean rate
+    sigma = 0.0 # Spread in rate
+    Mrate1 = 1.0 # E->I
+    Mrate2 = 1.0 # I->R
+    gamma = 0.0 # Parameter for skewed connection shape
+    nts = 0.1 
+    Nstates = 9
+    BB = 1
+    Ninit = int(N0 * 0.1 / 1000)
 
     NRe = N0
 
@@ -266,6 +267,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     SIRfile = []
     SIRfile_SK = []
     SIRfile_UK = []
+    SIRfile_AK = []
     SK_UK_counter = 0
 
 
@@ -380,7 +382,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
             SK_UK_counter += 1
 
             if SK_UK_counter >= 10:
-                # print(click, RT)
+                SK_UK_counter = 0
 
                 # deepcopy
                 SK_tmp = np.zeros(len(SK))
@@ -392,7 +394,26 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
                 for ix in range(len(SK)):
                     UK_tmp[ix] = UK[ix]
                 SIRfile_UK.append(UK_tmp)
-                SK_UK_counter = 0
+
+
+                # AK_tmp = np.zeros_like(AK)
+                # nn, mm = AK.shape
+                # for ix in range(nn):
+                #     for jx in range(mm):
+                #         AK_tmp[ix, jx] = AK[ix, jx]
+                # SIRfile_AK.append(AK_tmp)
+
+                outer = []
+                nn, mm = AK.shape
+                for ix in range(nn):
+                    inner = []
+                    for jx in range(mm):
+                        if AK[ix, jx] > -1:
+                            inner.append(AK[ix, jx])
+                    outer.append(inner)
+                SIRfile_AK.append(outer)
+
+                
 
             click += 1 
 
@@ -428,7 +449,8 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
             print(alpha, beta, gamma)
             on = 0 
     
-    return SIRfile, SIRfile_SK, P1, SIRfile_UK
+    return SIRfile, SIRfile_SK, P1, SIRfile_UK, SIRfile_AK
+
 
 
 
@@ -444,14 +466,16 @@ def dict_to_filename_with_dir(cfg, ID):
     return str(filename)
 
 
-def filename_to_dict(filename, normal_string=False):
+def filename_to_dict(filename, normal_string=False, SK_P1_UK=False):
     cfg = {}
     if normal_string:
-        # raise AssertionError('AssertionError')
         keyvals = filename.split('_')
+    elif SK_P1_UK:
+        keyvals = filename.split('/')[-1].split('_')[:-2]
     else:
+        # keyvals = filename.split('/')[2].split('_')
         keyvals = filename.split('/')[2].split('_')
-        # keyvals = filename.split('.csv')[0].split('_')[1:]
+
     keyvals_chunks = [keyvals[i:i + 2] for i in range(0, len(keyvals), 2)]
     ints = ['N0', 'Ninit', 'Nstates', 'BB']
     for key, val in keyvals_chunks:
@@ -462,10 +486,15 @@ def filename_to_dict(filename, normal_string=False):
                 cfg[key] = float(val)
     return cfg
 
+
+# conda install awkward
+# conda install -c conda-forge pyarrow
+import awkward
+
 def single_run_and_save(filename):
 
     cfg = filename_to_dict(filename)
-    out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK = single_run_numba(**cfg)
+    out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK, SIRfile_AK = single_run_numba(**cfg)
 
     header = ['Time', 
             'E1', 'E2', 'E3', 'E4', 
@@ -487,12 +516,18 @@ def single_run_and_save(filename):
         SIRfile_SK = np.array(SIRfile_SK, dtype=int)
         SIRfile_P1 = np.array(SIRfile_P1)
         SIRfile_UK = np.array(SIRfile_UK, dtype=int)
+        # SIRfile_AK = np.array(SIRfile_AK, dtype=int)
         
-        filename_SK_P1_UK = str(Path('Data_SK_P1_UK') / Path(filename).stem) + '.SK_P1_SK.joblib'
+        filename_SK_P1_UK = str(Path('Data_SK_P1_UK') / Path(filename).stem) + '.SK_P1_UK.joblib'
 
         Path(filename_SK_P1_UK).parent.mkdir(parents=True, exist_ok=True)
         joblib.dump([SIRfile_SK, SIRfile_P1, SIRfile_UK], filename_SK_P1_UK)
         # pickle.dump([SIRfile_SK, SIRfile_P1, SIRfile_UK], open(filename_SK_P1_UK.replace('joblib', 'pickle'), "wb"))
+
+        filename_AK = filename_SK_P1_UK.replace('SK_P1_UK.joblib', 'AK.parquet')
+        SIRfile_AK = awkward.fromiter(SIRfile_AK)
+        awkward.toparquet(filename_AK, SIRfile_AK)
+
     return None
 
 
@@ -523,8 +558,8 @@ class DotDict(dict):
         )
 
 
-def filename_to_dotdict(filename, normal_string=False):
-    return DotDict(filename_to_dict(filename, normal_string))
+def filename_to_dotdict(filename, normal_string=False, SK_P1_UK=False):
+    return DotDict(filename_to_dict(filename, normal_string=normal_string, SK_P1_UK=SK_P1_UK))
 
 
 def get_num_cores(num_cores_max):

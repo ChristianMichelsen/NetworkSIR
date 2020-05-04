@@ -50,11 +50,12 @@ all_sim_pars = [
 
 #%%
 
+# filename = 'Data/NetworkSimulation/N0_51000_mu_20.0_alpha_0.0_psi_0.0_beta_0.01_sigma_0.0_Mrate1_1.0_Mrate2_1.0_gamma_0.0_nts_0.1_Nstates_9_BB_1_Ninit_5/N0_51000_mu_20.0_alpha_0.0_psi_0.0_beta_0.01_sigma_0.0_Mrate1_1.0_Mrate2_1.0_gamma_0.0_nts_0.1_Nstates_9_BB_1_Ninit_5_ID_000.csv'
+
 if __name__ == '__main__':
 
     # filenames = []
     for d_simulation_parameters in all_sim_pars:
-
 
         N_loops = 1 if extra_funcs.is_local_computer() else N_loops
         filenames = extra_funcs.generate_filenames(d_simulation_parameters, N_loops)

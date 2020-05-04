@@ -232,11 +232,11 @@ def dict_to_str(d):
     return string[:-1]
 
 
-def filename_to_dotdict(filename):
-    return SimulateNetwork_extra_funcs.filename_to_dotdict(filename)
+def filename_to_dotdict(filename, SK_P1_UK=False):
+    return SimulateNetwork_extra_funcs.filename_to_dotdict(filename, SK_P1_UK=SK_P1_UK)
 
-def string_to_dict(string):
-    return SimulateNetwork_extra_funcs.filename_to_dotdict(string, normal_string=True)
+def string_to_dict(string, SK_P1_UK=False):
+    return SimulateNetwork_extra_funcs.filename_to_dotdict(string, normal_string=True, SK_P1_UK=SK_P1_UK)
 
 def dict_to_title(d, N=None, exclude=None):
 

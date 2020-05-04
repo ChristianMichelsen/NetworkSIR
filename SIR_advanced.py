@@ -32,8 +32,6 @@ if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100)
 
 
-
-
 #%%
 
 if do_animate:
@@ -60,6 +58,8 @@ if __name__ == '__main__':
     all_fit_objects, discarded_files, N_refits_total = fit_results
     print(f"{N_refits_total=}, number of discarded files = {len(discarded_files)}\n\n", flush=True)
 
+
+    x=x
 
 #%%
 
