@@ -1,4 +1,5 @@
 >> git clone https://github.com/ChristianMichelsen/NetworkSIR
+>> cd NetworkSIR
 >> conda env create -f environment.yaml
 >> conda activate NetworkSIR
 
