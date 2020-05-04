@@ -245,7 +245,7 @@ def dict_to_title(d, N=None, exclude=None):
     else:
         cfg = d
     N0_str = human_format(cfg.N0)
-    title = f"N={N0_str}, β={cfg.beta:.4f}, γ={cfg.gamma:.1f}, σ={cfg.sigma:.1f},  α={cfg.alpha:.1f}, ψ={cfg.psi:.1f}, μ={cfg.mu:.1f}, λ1 = {cfg.Mrate1:.1f}, λ2 = {cfg.Mrate2:.1f}, BB={cfg.BB}"
+    title = f"N={N0_str}, β={cfg.beta:.4f}, γ={cfg.gamma:.1f}, σ={cfg.sigma:.1f},  α={cfg.alpha:.1f}, ψ={cfg.psi:.1f}, μ={cfg.mu:.1f}, λ1 = {cfg.Mrate1:.1f}, λ2 = {cfg.Mrate2:.1f}, BB = {cfg.BB}"
     if N:
         title += f", #{N}"
 
@@ -674,7 +674,7 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
                 cfg = string_to_dict(sim_par)
 
                 # dfs = []
-                fig, ax = plt.subplots(figsize=(16, 10))
+                fig, ax = plt.subplots(figsize=(18, 10))
                 
 
                 # filename_ID = ID_files[0]

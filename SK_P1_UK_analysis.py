@@ -121,8 +121,8 @@ filename = filenames[0]
 N_files = len(filenames)
 
 # filename = filenames[0]
-for filename in filenames:
-    animate_single_file(filename, frac=0.1, remove_frames=True, do_tqdm=True)
+for filename in tqdm(filenames):
+    animate_single_file(filename, frac=0.01, remove_frames=True, do_tqdm=False)
 
 
 x=x
