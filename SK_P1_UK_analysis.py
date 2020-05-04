@@ -120,6 +120,8 @@ filenames = get_SK_P1_UK_filenames()
 filename = filenames[0]
 N_files = len(filenames)
 
+x=x
+
 # filename = filenames[0]
 for filename in tqdm(filenames):
     animate_single_file(filename, frac=0.01, remove_frames=True, do_tqdm=False)

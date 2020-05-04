@@ -16,7 +16,7 @@ def is_local_computer(N_local_cores=8):
 
 def generate_filenames(d, N_loops=10, force_overwrite=False):
     filenames = []
-    dict_in = dict(
+    cfg = dict(
                     N0 = 10_000 if is_local_computer() else 50_000,
                     mu = 20.0,  # Average number connections
                     alpha = 0.0, # Spatial parameter
@@ -28,7 +28,7 @@ def generate_filenames(d, N_loops=10, force_overwrite=False):
                     gamma = 0.0, # Parameter for skewed connection shape
                     nts = 0.1, 
                     Nstates = 9,
-                    BB = 0,
+                    BB = 1,
                 )
 
     nameval_to_str = [[f'{name}_{x}' for x in lst] for (name, lst) in d.items()]
@@ -38,12 +38,12 @@ def generate_filenames(d, N_loops=10, force_overwrite=False):
         for s in combination:
             name, val = s.split('_')
             val = float(val) if name != 'N0' else int(val)
-            dict_in[name] = val
+            cfg[name] = val
 
 
-        dict_in['Ninit'] = int(dict_in['N0'] * 0.1 / 1000) # Initial Infected, 1 permille        
+        cfg['Ninit'] = int(cfg['N0'] * 0.1 / 1000) # Initial Infected, 1 permille        
         for ID in range(N_loops):
-            filename = dict_to_filename_with_dir(dict_in, ID)
+            filename = dict_to_filename_with_dir(cfg, ID)
             if not Path(filename).exists() or force_overwrite:
                 filenames.append(filename)
         
@@ -266,6 +266,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     SIRfile = []
     SIRfile_SK = []
     SIRfile_UK = []
+    SK_UK_counter = 0
 
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -364,6 +365,9 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
         ################
 
         if nts*click < RT:
+
+            # print(click, RT)
+
             # click += 1 
 
             SIRfile_tmp = np.zeros(Nstates + 1)
@@ -373,8 +377,11 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
                 icount += 1
                 SIRfile_tmp[icount] = s #<< "\t"
             SIRfile.append(SIRfile_tmp)
+            SK_UK_counter += 1
 
-            if 10*nts*click < RT:
+            if SK_UK_counter >= 10:
+                # print(click, RT)
+
                 # deepcopy
                 SK_tmp = np.zeros(len(SK))
                 for ix in range(len(SK)):
@@ -385,6 +392,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
                 for ix in range(len(SK)):
                     UK_tmp[ix] = UK[ix]
                 SIRfile_UK.append(UK_tmp)
+                SK_UK_counter = 0
 
             click += 1 
 
@@ -394,7 +402,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
         if c > 10000000: 
-            on = 0 
+            on = 0
         
         if (TotInf + TotMov < 0.0001) and (TotMov + TotInf > -0.00001): 
             on = 0 
@@ -424,10 +432,10 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
 
 
 
-def dict_to_filename_with_dir(dict_in, ID):
+def dict_to_filename_with_dir(cfg, ID):
     filename = Path('Data') / 'NetworkSimulation' 
     file_string = ''
-    for key, val in dict_in.items():
+    for key, val in cfg.items():
         file_string += f"{key}_{val}_"
     file_string = file_string[:-1] # remove trailing _
     filename = filename / file_string
@@ -437,7 +445,7 @@ def dict_to_filename_with_dir(dict_in, ID):
 
 
 def filename_to_dict(filename, normal_string=False):
-    dict_in = {}
+    cfg = {}
     if normal_string:
         # raise AssertionError('AssertionError')
         keyvals = filename.split('_')
@@ -449,15 +457,15 @@ def filename_to_dict(filename, normal_string=False):
     for key, val in keyvals_chunks:
         if not key == 'ID':
             if key in ints:
-                dict_in[key] = int(val)
+                cfg[key] = int(val)
             else:
-                dict_in[key] = float(val)
-    return dict_in
+                cfg[key] = float(val)
+    return cfg
 
 def single_run_and_save(filename):
 
-    dict_in = filename_to_dict(filename)
-    out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK = single_run_numba(**dict_in)
+    cfg = filename_to_dict(filename)
+    out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK = single_run_numba(**cfg)
 
     header = ['Time', 
             'E1', 'E2', 'E3', 'E4', 
@@ -475,16 +483,16 @@ def single_run_and_save(filename):
     # save SK, P1, and UK, once for each set of parameters
     ID = filename_to_ID(filename)
     if ID == 0:
-        # SIRfile_SK, SIRfile_P1, SIRfile_UK = single_run_numba_SK_P1_UK(**dict_in)
+        # SIRfile_SK, SIRfile_P1, SIRfile_UK = single_run_numba_SK_P1_UK(**cfg)
         SIRfile_SK = np.array(SIRfile_SK, dtype=int)
         SIRfile_P1 = np.array(SIRfile_P1)
         SIRfile_UK = np.array(SIRfile_UK, dtype=int)
         
-        filename_SK_P1_UK = (Path('Data_SK_P1_UK') / Path(filename).stem).with_suffix('.SK_P1_SK.joblib')
+        filename_SK_P1_UK = str(Path('Data_SK_P1_UK') / Path(filename).stem) + '.SK_P1_SK.joblib'
 
         Path(filename_SK_P1_UK).parent.mkdir(parents=True, exist_ok=True)
-        joblib.dump([SIRfile_SK, SIRfile_P1, SIRfile_UK], str(filename_SK_P1_UK))
-
+        joblib.dump([SIRfile_SK, SIRfile_P1, SIRfile_UK], filename_SK_P1_UK)
+        # pickle.dump([SIRfile_SK, SIRfile_P1, SIRfile_UK], open(filename_SK_P1_UK.replace('joblib', 'pickle'), "wb"))
     return None
 
 
@@ -517,3 +525,10 @@ class DotDict(dict):
 
 def filename_to_dotdict(filename, normal_string=False):
     return DotDict(filename_to_dict(filename, normal_string))
+
+
+def get_num_cores(num_cores_max):
+    num_cores = mp.cpu_count() - 1
+    if num_cores >= num_cores_max:
+        num_cores = num_cores_max
+    return num_cores
