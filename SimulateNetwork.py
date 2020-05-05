@@ -11,7 +11,7 @@ N_loops = 100
 
 all_sim_pars = [
 
-                # {'N0': [50]},
+                {'N0': [50_000]},
 
                 {}, # d_sim_par 1
 
@@ -62,6 +62,7 @@ if __name__ == '__main__':
         N_loops = 1 if extra_funcs.is_local_computer() else N_loops
         filenames = extra_funcs.generate_filenames(d_simulation_parameters, N_loops, force_SK_P1_UK=True)
         N_files = len(filenames)
+        # filename = filenames[0]
 
         # x=x
 

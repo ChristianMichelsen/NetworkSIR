@@ -491,6 +491,40 @@ pos = nx.get_node_attributes(G, 'pos')
 nx.draw(G, pos, with_labels=True)
 
 
+#%%
+
+
+nodes = pd.DataFrame(SIR_base.P1, columns=['x', 'y'])
+# nodes.set_index('id', inplace=True)
+
+@njit
+def AK_day_to_edges(AK_day):
+    # edges = []
+    # N = len(AK_day)
+    # edges = np.zeros((N*N, 2), np.int_)
+    edges = [np.int_(x) for x in range(0)]
+    i = 0
+    for source, _ in enumerate(AK_day):
+        for target in AK_day[i]:
+            if source < target:
+                edges[i, :] = source, target
+            else:
+                edges[i, :] = target, source
+            i+= 1
+    return edges
+
+edges = AK_day_to_edges(AK_day)
+
+edges = pd.DataFrame(list(dict.fromkeys(edges)), columns=['source', 'target'])
+
+
+direct = connect_edges(nodes, edges)
+bundled_bw005 = hammer_bundle(nodes, edges)
+bundled_bw030 = hammer_bundle(nodes, edges, initial_bandwidth=0.30)
+
+graphplot(nodes, direct)
+graphplot(nodes, bundled_bw005, "Bundled bw=0.05")
+graphplot(nodes, bundled_bw030, "Bundled bw=0.30")
 
 # %%
 
@@ -612,3 +646,13 @@ def nx_plot(graph, name=""):
     return [graphplot(nodes, direct,         graph.name),
             graphplot(nodes, bundled_bw005, "Bundled bw=0.05"),
             graphplot(nodes, bundled_bw030, "Bundled bw=0.30")]
+
+
+# %%
+
+plots = nx_plot(G, name="")
+
+tf.Images(*chain.from_iterable(plots))
+
+
+# %%

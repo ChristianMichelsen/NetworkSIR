@@ -20,7 +20,7 @@ def is_local_computer(N_local_cores=8):
 def generate_filenames(d, N_loops=10, force_overwrite=False, force_SK_P1_UK=False):
     filenames = []
     cfg = dict(
-                    N0 = 10_000 if is_local_computer() else 50_000,
+                    N0 = 50_000 if is_local_computer() else 50_000,
                     mu = 20.0,  # Average number connections
                     alpha = 0.0, # Spatial parameter
                     psi = 0.0, # cluster effect
@@ -274,8 +274,8 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     SIRfile = []
     SIRfile_SK = []
     SIRfile_UK = []
-    SIRfile_AK = []
-    SIRfile_Rate = []
+    # SIRfile_AK = []
+    # SIRfile_Rate = []
     SK_UK_counter = 0
 
 
@@ -411,25 +411,25 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
                 #         AK_tmp[ix, jx] = AK[ix, jx]
                 # SIRfile_AK.append(AK_tmp)
 
-                outer = []
-                nn, mm = AK.shape
-                for ix in range(nn):
-                    inner = []
-                    for jx in range(mm):
-                        if AK[ix, jx] > -1:
-                            inner.append(int(AK[ix, jx]))
-                    outer.append(inner)
-                SIRfile_AK.append(outer)
+                # outer = []
+                # nn, mm = AK.shape
+                # for ix in range(nn):
+                #     inner = []
+                #     for jx in range(mm):
+                #         if AK[ix, jx] > -1:
+                #             inner.append(AK[ix, jx])
+                #     outer.append(inner)
+                # SIRfile_AK.append(outer)
 
-                outer = []
-                nn, mm = Rate.shape
-                for ix in range(nn):
-                    inner = []
-                    for jx in range(mm):
-                        if Rate[ix, jx] > -1:
-                            inner.append(Rate[ix, jx])
-                    outer.append(inner)
-                SIRfile_Rate.append(outer)
+                # outer = []
+                # nn, mm = Rate.shape
+                # for ix in range(nn):
+                #     inner = []
+                #     for jx in range(mm):
+                #         if Rate[ix, jx] > -1:
+                #             inner.append(Rate[ix, jx])
+                #     outer.append(inner)
+                # SIRfile_Rate.append(outer)
 
                 
 
@@ -467,7 +467,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
             print(alpha, beta, gamma)
             on = 0 
     
-    return SIRfile, SIRfile_SK, P1, SIRfile_UK, SIRfile_AK, SIRfile_Rate
+    return SIRfile, SIRfile_SK, P1, SIRfile_UK#, SIRfile_AK#, SIRfile_Rate
 
 
 
