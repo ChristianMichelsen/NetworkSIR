@@ -509,7 +509,8 @@ def filename_to_dict(filename, normal_string=False, SK_P1_UK=False):
 def single_run_and_save(filename):
 
     cfg = filename_to_dict(filename)
-    out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK, SIRfile_AK, SIRfile_Rate = single_run_numba(**cfg)
+    # out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK, SIRfile_AK, SIRfile_Rate = single_run_numba(**cfg)
+    out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK = single_run_numba(**cfg)
 
     header = ['Time', 
             'E1', 'E2', 'E3', 'E4', 
@@ -539,13 +540,15 @@ def single_run_and_save(filename):
         joblib.dump([SIRfile_SK, SIRfile_P1, SIRfile_UK], filename_SK_P1_UK)
         # pickle.dump([SIRfile_SK, SIRfile_P1, SIRfile_UK], open(filename_SK_P1_UK.replace('joblib', 'pickle'), "wb"))
 
-        SIRfile_AK = awkward.fromiter(SIRfile_AK).astype(np.int32)
-        filename_AK = filename_SK_P1_UK.replace('SK_P1_UK.joblib', 'AK.parquet')
-        awkward.toparquet(filename_AK, SIRfile_AK)
+        if False:
 
-        SIRfile_Rate = awkward.fromiter(SIRfile_Rate)
-        filename_Rate = filename_AK.replace('AK.parquet', 'Rate.parquet')
-        awkward.toparquet(filename_Rate, SIRfile_Rate)
+            SIRfile_AK = awkward.fromiter(SIRfile_AK).astype(np.int32)
+            filename_AK = filename_SK_P1_UK.replace('SK_P1_UK.joblib', 'AK.parquet')
+            awkward.toparquet(filename_AK, SIRfile_AK)
+
+            SIRfile_Rate = awkward.fromiter(SIRfile_Rate)
+            filename_Rate = filename_AK.replace('AK.parquet', 'Rate.parquet')
+            awkward.toparquet(filename_Rate, SIRfile_Rate)
 
     return None
 
