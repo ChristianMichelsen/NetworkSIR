@@ -12,6 +12,7 @@ import multiprocessing as mp
 import awkward
 import extra_funcs
 
+#%%
 
 def get_SK_P1_UK_filenames():
     filenames = Path('Data_SK_P1_UK').glob(f'*.joblib')
@@ -125,11 +126,12 @@ def animate_single_file(filename, frac=0, Nbins=100, remove_frames=True, do_tqdm
             if remove_frames:
                 Path(figname).unlink() # delete file
 
+#%%
 
 
 
 filenames = get_SK_P1_UK_filenames()
-filename = filenames[0]
+filename = filenames[1]
 N_files = len(filenames)
 
 x=x
@@ -163,29 +165,33 @@ if __name__ == '__main__':
 # Do you want the application" orca.app to accept incoming network connections
 # https://github.com/plotly/orca/issues/269 
 
-
+#%%
 
 from copy import copy
 class SIRfile:
 
-    def __init__(self, filename, i=None):
+    def __init__(self, filename, i_day=None):
         self.filename = filename
-        print("Loading filename")
+        print(f"Loading: \n{filename}")
         self.SK, self.P1, self.UK = joblib.load(filename)
         filename_AK = filename.replace('SK_P1_UK.joblib', 'AK.parquet')
         self.AK = awkward.fromparquet(filename_AK)
+        filename_Rate = filename_AK.replace('AK.parquet', 'Rate.parquet')
+        self.Rate = awkward.fromparquet(filename_Rate)
 
         self.N = len(self.SK)
-        if i:
-            self.i = i
+        if i_day is not None:
+            self.i_day = i_day
 
-    def __call__(self, i):
-        self.i = i
+    def __call__(self, i_day):
+        self.i_day = i_day
         return copy(self)
 
-    def to_df(self, i=None):
-        if i is None:
-            i = self.i
+    def to_df(self, i_day=None):
+        if i_day is None and self.i_day is None:
+            raise AssertionError(f'Both i_day and self.i_day is None, have to be defined')
+        if i_day is None:
+            i_day = self.i_day
 
         # categories = 'S, E, I, R'.split(', ')
         mapping = {-1: 'S', 
@@ -194,8 +200,8 @@ class SIRfile:
                     8: 'R'}
 
         df = pd.DataFrame(self.P1, columns=['x', 'y'])
-        df['SK_num'] = self.SK[i]
-        df['UK_num'] = self.UK[i]
+        df['SK_num'] = self.SK[i_day]
+        df['UK_num'] = self.UK[i_day]
         df["SK"] = df['SK_num'].replace(mapping).astype('category')
         # self.df = df
         return df
@@ -459,8 +465,8 @@ tf.Images(rd_d,rd_b)
 
 import networkx as nx
 
-filename = 'Data_SK_P1_UK/test.SK_P1_UK.joblib'
-SIR_base = SIRfile(filename, 10)
+filename = 'Data_SK_P1_UK/N0_50_mu_20.0_alpha_0.0_psi_0.0_beta_0.01_sigma_0.0_Mrate1_1.0_Mrate2_1.0_gamma_0.0_nts_0.1_Nstates_9_BB_1_Ninit_1_ID_000.SK_P1_UK.joblib'
+SIR_base = SIRfile(filename, 0)
 df = SIR_base.to_df()
 
 #%%
@@ -474,10 +480,11 @@ G=nx.Graph()
 for i, xy in enumerate(SIR_base.P1):
     G.add_node(i, pos=xy)
 
-
-for i, ak in enumerate(SIR_base.AK[i_day]):
-    for j in ak:
-        G.add_edge(i, j)
+AK_day = SIR_base.AK[i_day]
+Rate_day = SIR_base.Rate[i_day]
+for i, _ in enumerate(AK_day):
+    for j, _ in enumerate(AK_day[i]):
+        G.add_edge(i, AK_day[i][j], weight=Rate_day[i][j])
 
 pos = nx.get_node_attributes(G, 'pos')
 
@@ -494,3 +501,114 @@ nx.draw(G, pos, with_labels=True)
 
 
 
+#%%
+
+# https://plotly.com/python/network-graphs/
+
+edge_x = []
+edge_y = []
+for edge in G.edges():
+    x0, y0 = G.nodes[edge[0]]['pos']
+    x1, y1 = G.nodes[edge[1]]['pos']
+    edge_x.append(x0)
+    edge_x.append(x1)
+    edge_x.append(None)
+    edge_y.append(y0)
+    edge_y.append(y1)
+    edge_y.append(None)
+
+edge_trace = go.Scatter(
+    x=edge_x, y=edge_y,
+    line=dict(width=0.5, color='#888'),
+    hoverinfo='none',
+    mode='lines')
+
+node_x = []
+node_y = []
+for node in G.nodes():
+    x, y = G.nodes[node]['pos']
+    node_x.append(x)
+    node_y.append(y)
+
+node_trace = go.Scatter(
+    x=node_x, y=node_y,
+    mode='markers',
+    hoverinfo='text',
+    marker=dict(
+        showscale=True,
+        # colorscale options
+        #'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
+        #'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
+        #'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
+        colorscale='YlGnBu',
+        reversescale=True,
+        color=[],
+        size=10,
+        colorbar=dict(
+            thickness=15,
+            title='Node Connections',
+            xanchor='left',
+            titleside='right'
+        ),
+        line_width=2))
+
+
+# %%
+
+node_adjacencies = []
+node_text = []
+for node, adjacencies in enumerate(G.adjacency()):
+    node_adjacencies.append(len(adjacencies[1]))
+    node_text.append('# of connections: '+str(len(adjacencies[1])))
+
+node_trace.marker.color = node_adjacencies
+node_trace.text = node_text
+
+
+# %%
+
+fig = go.Figure(data=[edge_trace, node_trace],
+             layout=go.Layout(
+                title='<br>Network graph made with Python',
+                titlefont_size=16,
+                showlegend=False,
+                hovermode='closest',
+                margin=dict(b=20,l=5,r=5,t=40),
+                annotations=[ dict(
+                    text="Python code: <a href='https://plotly.com/ipython-notebooks/network-graphs/'> https://plotly.com/ipython-notebooks/network-graphs/</a>",
+                    showarrow=False,
+                    xref="paper", yref="paper",
+                    x=0.005, y=-0.002 ) ],
+                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+                )
+fig.show()
+
+
+# %%
+
+def ng(graph,name):
+    graph.name = name
+    return graph
+
+def nx_layout(graph):
+    layout = nx.circular_layout(graph)
+    data = [[node]+layout[node].tolist() for node in graph.nodes]
+
+    nodes = pd.DataFrame(data, columns=['id', 'x', 'y'])
+    nodes.set_index('id', inplace=True)
+
+    edges = pd.DataFrame(list(graph.edges), columns=['source', 'target'])
+    return nodes, edges
+
+def nx_plot(graph, name=""):
+    print(graph.name, len(graph.edges))
+    nodes, edges = nx_layout(graph)
+    
+    direct = connect_edges(nodes, edges)
+    bundled_bw005 = hammer_bundle(nodes, edges)
+    bundled_bw030 = hammer_bundle(nodes, edges, initial_bandwidth=0.30)
+
+    return [graphplot(nodes, direct,         graph.name),
+            graphplot(nodes, bundled_bw005, "Bundled bw=0.05"),
+            graphplot(nodes, bundled_bw030, "Bundled bw=0.30")]

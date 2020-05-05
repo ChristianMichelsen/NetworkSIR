@@ -417,7 +417,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
                     inner = []
                     for jx in range(mm):
                         if AK[ix, jx] > -1:
-                            inner.append(AK[ix, jx])
+                            inner.append(int(AK[ix, jx]))
                     outer.append(inner)
                 SIRfile_AK.append(outer)
 
@@ -539,7 +539,7 @@ def single_run_and_save(filename):
         joblib.dump([SIRfile_SK, SIRfile_P1, SIRfile_UK], filename_SK_P1_UK)
         # pickle.dump([SIRfile_SK, SIRfile_P1, SIRfile_UK], open(filename_SK_P1_UK.replace('joblib', 'pickle'), "wb"))
 
-        SIRfile_AK = awkward.fromiter(SIRfile_AK)
+        SIRfile_AK = awkward.fromiter(SIRfile_AK).astype(np.int32)
         filename_AK = filename_SK_P1_UK.replace('SK_P1_UK.joblib', 'AK.parquet')
         awkward.toparquet(filename_AK, SIRfile_AK)
 

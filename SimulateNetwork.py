@@ -63,6 +63,7 @@ if __name__ == '__main__':
         filenames = extra_funcs.generate_filenames(d_simulation_parameters, N_loops, force_SK_P1_UK=True)
         N_files = len(filenames)
 
+        # x=x
 
         if 'N0' in d_simulation_parameters.keys() and np.max(list(d_simulation_parameters.values())) > 100_000:
             num_cores = extra_funcs.get_num_cores(10)
