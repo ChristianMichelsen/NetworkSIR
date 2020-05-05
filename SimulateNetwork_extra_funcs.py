@@ -275,6 +275,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     SIRfile_SK = []
     SIRfile_UK = []
     SIRfile_AK = []
+    SIRfile_Rate = []
     SK_UK_counter = 0
 
 
@@ -420,6 +421,16 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
                     outer.append(inner)
                 SIRfile_AK.append(outer)
 
+                outer = []
+                nn, mm = Rate.shape
+                for ix in range(nn):
+                    inner = []
+                    for jx in range(mm):
+                        if Rate[ix, jx] > -1:
+                            inner.append(Rate[ix, jx])
+                    outer.append(inner)
+                SIRfile_Rate.append(outer)
+
                 
 
             click += 1 
@@ -456,7 +467,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
             print(alpha, beta, gamma)
             on = 0 
     
-    return SIRfile, SIRfile_SK, P1, SIRfile_UK, SIRfile_AK
+    return SIRfile, SIRfile_SK, P1, SIRfile_UK, SIRfile_AK, SIRfile_Rate
 
 
 
@@ -498,7 +509,7 @@ def filename_to_dict(filename, normal_string=False, SK_P1_UK=False):
 def single_run_and_save(filename):
 
     cfg = filename_to_dict(filename)
-    out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK, SIRfile_AK = single_run_numba(**cfg)
+    out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK, SIRfile_AK, SIRfile_Rate = single_run_numba(**cfg)
 
     header = ['Time', 
             'E1', 'E2', 'E3', 'E4', 
@@ -531,6 +542,10 @@ def single_run_and_save(filename):
         SIRfile_AK = awkward.fromiter(SIRfile_AK)
         filename_AK = filename_SK_P1_UK.replace('SK_P1_UK.joblib', 'AK.parquet')
         awkward.toparquet(filename_AK, SIRfile_AK)
+
+        SIRfile_Rate = awkward.fromiter(SIRfile_Rate)
+        filename_Rate = filename_AK.replace('AK.parquet', 'Rate.parquet')
+        awkward.toparquet(filename_Rate, SIRfile_Rate)
 
     return None
 

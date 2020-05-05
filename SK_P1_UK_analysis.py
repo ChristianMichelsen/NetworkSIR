@@ -350,7 +350,8 @@ if False:
     df = pd.DataFrame(dict(x=xs,y=ys))
 
 
-    SIR_base = SIRfile(filename, 100)
+    filename = 'Data_SK_P1_UK/test.SK_P1_UK.joblib'
+    SIR_base = SIRfile(filename, 10)
     df = SIR_base.to_df()
 
     opts = hv.opts.RGB(width=1000, height=1000)
@@ -456,9 +457,40 @@ tf.Images(rd_d,rd_b)
 
 # %%
 
+import networkx as nx
+
+filename = 'Data_SK_P1_UK/test.SK_P1_UK.joblib'
+SIR_base = SIRfile(filename, 10)
+df = SIR_base.to_df()
+
+#%%
+
+import matplotlib.pyplot as plt
+
+i_day = 1
+
+G=nx.Graph()
+
+for i, xy in enumerate(SIR_base.P1):
+    G.add_node(i, pos=xy)
+
+
+for i, ak in enumerate(SIR_base.AK[i_day]):
+    for j in ak:
+        G.add_edge(i, j)
+
+pos = nx.get_node_attributes(G, 'pos')
+
+nx.draw(G, pos, with_labels=True)
 
 
 
+# %%
+
+# G.add_nodes_from(pos.keys())
+
+# for n, p in pos.iteritems():
+#     G.node[n]['pos'] = p
 
 
 

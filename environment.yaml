@@ -28,3 +28,4 @@ dependencies:
   - datashader
   - awkward
   - pyarrow
+  - networkx
