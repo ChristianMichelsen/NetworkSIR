@@ -44,7 +44,7 @@ def generate_filenames(d, N_loops=10, force_overwrite=False, force_SK_P1_UK=Fals
             cfg[name] = val
 
 
-        cfg['Ninit'] = int(cfg['N0'] * 0.1 / 1000) # Initial Infected, 1 permille        
+        cfg['Ninit'] = max(1, int(cfg['N0'] * 0.1 / 1000)) # Initial Infected, 1 permille        
         for ID in range(N_loops):
             filename = dict_to_filename_with_dir(cfg, ID)
 
