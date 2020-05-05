@@ -54,11 +54,10 @@ all_sim_pars = [
 
 if __name__ == '__main__':
 
-    # filenames = []
     for d_simulation_parameters in all_sim_pars:
 
         N_loops = 1 if extra_funcs.is_local_computer() else N_loops
-        filenames = extra_funcs.generate_filenames(d_simulation_parameters, N_loops)
+        filenames = extra_funcs.generate_filenames(d_simulation_parameters, N_loops, force_SK_P1_UK=True)
         N_files = len(filenames)
 
         if 'N0' in d_simulation_parameters.keys() and np.max(list(d_simulation_parameters.values())) > 100_000:

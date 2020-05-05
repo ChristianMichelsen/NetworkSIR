@@ -17,7 +17,7 @@ def is_local_computer(N_local_cores=8):
     else:
         return False
 
-def generate_filenames(d, N_loops=10, force_overwrite=False):
+def generate_filenames(d, N_loops=10, force_overwrite=False, force_SK_P1_UK=False):
     filenames = []
     cfg = dict(
                     N0 = 10_000 if is_local_computer() else 50_000,
@@ -47,7 +47,11 @@ def generate_filenames(d, N_loops=10, force_overwrite=False):
         cfg['Ninit'] = int(cfg['N0'] * 0.1 / 1000) # Initial Infected, 1 permille        
         for ID in range(N_loops):
             filename = dict_to_filename_with_dir(cfg, ID)
-            if not Path(filename).exists() or force_overwrite:
+
+            if ID == 0 and force_SK_P1_UK:
+                filenames.append(filename)
+
+            elif not Path(filename).exists() or force_overwrite:
                 filenames.append(filename)
         
     return filenames
@@ -200,11 +204,11 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     else:
         for c in range(int(mu*NRe)):
             ra1 = np.random.rand()
-            id1 = np.searchsorted(PP,ra1);
+            id1 = np.searchsorted(PP, ra1) 
             accra = 0
             while accra == 0:
                 ra2 = np.random.rand()          
-                id2 = np.searchsorted(PP,ra2);
+                id2 = np.searchsorted(PP, ra2)
                 acc = 1
                 #  Make sure no element is present twice
                 for i1 in range(UK[id1]):               
