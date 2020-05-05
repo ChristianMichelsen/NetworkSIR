@@ -58,9 +58,57 @@ def generate_filenames(d, N_loops=10, force_overwrite=False, force_SK_P1_UK=Fals
 
 
 @njit
-def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gamma, nts, Nstates, BB):
+def deep_copy_1D_int(X):
+    outer = np.zeros(len(X), np.int_)
+    for ix in range(len(X)):
+        outer[ix] = X[ix]
+    return outer
 
-    # N0 = 10_000 
+@njit
+def deep_copy_2D_jagged_int(X, min_val=-1):
+    outer = []
+    n, m = X.shape
+    for ix in range(n):
+        inner = []
+        for jx in range(m):
+            if X[ix, jx] > min_val:
+                inner.append(int(X[ix, jx]))
+        outer.append(inner)
+    return outer
+
+
+@njit
+def deep_copy_2D_jagged(X, min_val=-1):
+    outer = []
+    n, m = X.shape
+    for ix in range(n):
+        inner = []
+        for jx in range(m):
+            if X[ix, jx] > min_val:
+                inner.append(X[ix, jx])
+        outer.append(inner)
+    return outer
+
+
+@njit
+def deep_copy_2D_int(X):
+    n, m = X.shape
+    outer = np.zeros((n, m), np.int_)
+    for ix in range(n):
+        for jx in range(m):
+            outer[ix, jx] = X[ix, jx]
+    return outer
+
+# @njit
+# def setdiff1d(X, Y):
+#     x_set = set(X)
+#     y_set = set(Y)
+#     return x_set - y_set
+
+@njit
+def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gamma, nts, Nstates, BB, ID=0):
+
+    # N0 = 1000
     # mu = 20.0  # Average number connections
     # alpha = 0.0 # Spatial parameter
     # psi = 0.0 # cluster effect
@@ -72,13 +120,18 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     # nts = 0.1 
     # Nstates = 9
     # BB = 1
-    # Ninit = int(N0 * 0.1 / 1000)
+    # Ninit = max(1, int(N0 * 0.1 / 1000))
+    # ID = 0
+
+    np.random.seed(ID+1)
 
     NRe = N0
 
+
+    N_AK_MAX = 1000
     # For generating Network
     P1 = np.zeros((N0, 2))
-    AK = -1*np.ones((N0, 1000), np.int_)
+    AK = -1*np.ones((N0, N_AK_MAX), np.int_)
     UK = np.zeros(N0, np.int_)
     UKRef = np.zeros(N0, np.int_)
     # DK = np.zeros(N0, np.int_)
@@ -86,8 +139,8 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     Sig = np.ones(N0)
     WMa = np.ones(N0)
     SK = -1*np.ones(N0, np.int_)
-    AKRef = -1*np.ones((N0, 1000), np.int_)
-    Rate = -1*np.ones((N0, 1000))
+    AKRef = -1*np.ones((N0, N_AK_MAX), np.int_)
+    Rate = -1*np.ones((N0, N_AK_MAX))
     SAK = -1*np.ones((Nstates, N0), np.int_)
     S = np.zeros(Nstates, np.int_)
     Par = np.zeros(Nstates)
@@ -183,7 +236,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
                 for i1 in range(UK[id1]):         #  Make sure no element is present twice
                     if AK[id1, i1] == id2:
                         acc = 0         
-                if (UK[id1] < 1000) and (UK[id2] < 1000) and (id1 != id2) and (acc == 1):
+                if (UK[id1] < N_AK_MAX) and (UK[id2] < N_AK_MAX) and (id1 != id2) and (acc == 1):
                     r = np.sqrt((P1[id1, 0] - P1[id2, 0])**2 + (P1[id1, 1] - P1[id2, 1])**2)
                     ra = np.random.rand()
                     if np.exp(-alpha*r/rD) > ra:
@@ -214,7 +267,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
                 for i1 in range(UK[id1]):               
                     if AK[id1, i1] == id2:
                         acc = 0
-                if (UK[id1] < 1000) and (UK[id2] < 1000) and (id1 != id2) and (acc == 1):
+                if (UK[id1] < N_AK_MAX) and (UK[id2] < N_AK_MAX) and (id1 != id2) and (acc == 1):
                     r = np.sqrt((P1[id1, 0] - P1[id2, 0])**2 + (P1[id1, 1] - P1[id2, 1])**2)
                     ra = np.random.rand()
                     if np.exp(-alpha*r/rD) > ra:
@@ -275,6 +328,11 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     SIRfile_SK = []
     SIRfile_UK = []
     # SIRfile_AK = []
+    # SIRfile_AK.append(deep_copy_2D_int(AK))
+    SIRfile_AK = deep_copy_2D_jagged_int(AK)
+    SIRfile_Rate = deep_copy_2D_jagged(Rate)
+    
+
     # SIRfile_Rate = []
     SK_UK_counter = 0
 
@@ -375,11 +433,6 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
         ################
 
         if nts*click < RT:
-
-            # print(click, RT)
-
-            # click += 1 
-
             SIRfile_tmp = np.zeros(Nstates + 1)
             icount = 0
             SIRfile_tmp[icount] = RT
@@ -393,45 +446,8 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
                 SK_UK_counter = 0
 
                 # deepcopy
-                SK_tmp = np.zeros(len(SK))
-                for ix in range(len(SK)):
-                    SK_tmp[ix] = SK[ix]
-                SIRfile_SK.append(SK_tmp)
-
-                UK_tmp = np.zeros(len(UK))
-                for ix in range(len(SK)):
-                    UK_tmp[ix] = UK[ix]
-                SIRfile_UK.append(UK_tmp)
-
-
-                # AK_tmp = np.zeros_like(AK)
-                # nn, mm = AK.shape
-                # for ix in range(nn):
-                #     for jx in range(mm):
-                #         AK_tmp[ix, jx] = AK[ix, jx]
-                # SIRfile_AK.append(AK_tmp)
-
-                # outer = []
-                # nn, mm = AK.shape
-                # for ix in range(nn):
-                #     inner = []
-                #     for jx in range(mm):
-                #         if AK[ix, jx] > -1:
-                #             inner.append(AK[ix, jx])
-                #     outer.append(inner)
-                # SIRfile_AK.append(outer)
-
-                # outer = []
-                # nn, mm = Rate.shape
-                # for ix in range(nn):
-                #     inner = []
-                #     for jx in range(mm):
-                #         if Rate[ix, jx] > -1:
-                #             inner.append(Rate[ix, jx])
-                #     outer.append(inner)
-                # SIRfile_Rate.append(outer)
-
-                
+                SIRfile_SK.append(deep_copy_1D_int(SK))
+                SIRfile_UK.append(deep_copy_1D_int(UK))
 
             click += 1 
 
@@ -467,7 +483,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
             print(alpha, beta, gamma)
             on = 0 
     
-    return SIRfile, SIRfile_SK, P1, SIRfile_UK#, SIRfile_AK#, SIRfile_Rate
+    return SIRfile, SIRfile_SK, P1, SIRfile_UK, SIRfile_AK, SIRfile_Rate
 
 
 
@@ -509,14 +525,25 @@ def filename_to_dict(filename, normal_string=False, SK_P1_UK=False):
 def single_run_and_save(filename):
 
     cfg = filename_to_dict(filename)
-    # out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK, SIRfile_AK, SIRfile_Rate = single_run_numba(**cfg)
-    out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK = single_run_numba(**cfg)
+    ID = filename_to_ID(filename)
+
+    res = single_run_numba(**cfg, ID=ID)
+    if len(res) == 1:
+        out_single_run = res
+    elif len(res) == 4:
+        out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK = res
+    elif len(res) == 5:
+        out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK, SIRfile_AK_initial = res
+    elif len(res) == 6:
+        out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK, SIRfile_AK_initial, SIRfile_Rate_initial = res
+    else:
+        raise AssertionError('Wrong result from single_run_numba')
+
 
     header = ['Time', 
             'E1', 'E2', 'E3', 'E4', 
             'I1', 'I2', 'I3', 'I4', 
             'R',
-            # 'NrDInf',
             ]
     df = pd.DataFrame(out_single_run, columns=header)
 
@@ -526,13 +553,10 @@ def single_run_and_save(filename):
     df.to_csv(filename, index=False)
 
     # save SK, P1, and UK, once for each set of parameters
-    ID = filename_to_ID(filename)
     if ID == 0:
-        # SIRfile_SK, SIRfile_P1, SIRfile_UK = single_run_numba_SK_P1_UK(**cfg)
         SIRfile_SK = np.array(SIRfile_SK, dtype=int)
         SIRfile_P1 = np.array(SIRfile_P1)
         SIRfile_UK = np.array(SIRfile_UK, dtype=int)
-        # SIRfile_AK = np.array(SIRfile_AK, dtype=int)
         
         filename_SK_P1_UK = str(Path('Data_SK_P1_UK') / Path(filename).stem) + '.SK_P1_UK.joblib'
 
@@ -540,15 +564,13 @@ def single_run_and_save(filename):
         joblib.dump([SIRfile_SK, SIRfile_P1, SIRfile_UK], filename_SK_P1_UK)
         # pickle.dump([SIRfile_SK, SIRfile_P1, SIRfile_UK], open(filename_SK_P1_UK.replace('joblib', 'pickle'), "wb"))
 
-        if False:
+        SIRfile_AK_initial = awkward.fromiter(SIRfile_AK_initial).astype(np.int32)
+        filename_AK = filename_SK_P1_UK.replace('SK_P1_UK.joblib', 'AK_initial.parquet')
+        awkward.toparquet(filename_AK, SIRfile_AK_initial)
 
-            SIRfile_AK = awkward.fromiter(SIRfile_AK).astype(np.int32)
-            filename_AK = filename_SK_P1_UK.replace('SK_P1_UK.joblib', 'AK.parquet')
-            awkward.toparquet(filename_AK, SIRfile_AK)
-
-            SIRfile_Rate = awkward.fromiter(SIRfile_Rate)
-            filename_Rate = filename_AK.replace('AK.parquet', 'Rate.parquet')
-            awkward.toparquet(filename_Rate, SIRfile_Rate)
+        SIRfile_Rate_initial = awkward.fromiter(SIRfile_Rate_initial)
+        filename_Rate = filename_AK.replace('AK_initial.parquet', 'Rate_initial.parquet')
+        awkward.toparquet(filename_Rate, SIRfile_Rate_initial)
 
     return None
 

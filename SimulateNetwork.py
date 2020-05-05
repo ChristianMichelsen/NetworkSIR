@@ -11,7 +11,7 @@ N_loops = 100
 
 all_sim_pars = [
 
-                {'N0': [50_000]},
+                {'N0': [10_000]},
 
                 {}, # d_sim_par 1
 
@@ -44,10 +44,6 @@ all_sim_pars = [
                     'N0': [10_000, 50_000, 100_000, 500_000, 1_000_000],
                     },
 
-                # {
-                #     'N0': [51_000],
-                #     },
-
                 ]
 
 
@@ -62,15 +58,12 @@ if __name__ == '__main__':
         N_loops = 1 if extra_funcs.is_local_computer() else N_loops
         filenames = extra_funcs.generate_filenames(d_simulation_parameters, N_loops, force_SK_P1_UK=True)
         N_files = len(filenames)
-        # filename = filenames[0]
-
-        # x=x
+        filename = filenames[0]
 
         if 'N0' in d_simulation_parameters.keys() and np.max(list(d_simulation_parameters.values())) > 100_000:
             num_cores = extra_funcs.get_num_cores(10)
         else:
             num_cores = extra_funcs.get_num_cores(num_cores_max)
-
 
         # make sure path exists
         if len(filenames) > 0:
@@ -90,8 +83,3 @@ if __name__ == '__main__':
     print("Finished simulating!")
 
 
-
-        # filenames.extend(extra_funcs.generate_filenames(d_simulation_parameters, N_loops))
-    # N_files = len(filenames)
-
-# %%
