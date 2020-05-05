@@ -56,19 +56,19 @@ def generate_filenames(d, N_loops=10, force_overwrite=False):
 @njit
 def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gamma, nts, Nstates, BB):
 
-    N0 = 10_000 
-    mu = 20.0  # Average number connections
-    alpha = 0.0 # Spatial parameter
-    psi = 0.0 # cluster effect
-    beta = 0.01 # Mean rate
-    sigma = 0.0 # Spread in rate
-    Mrate1 = 1.0 # E->I
-    Mrate2 = 1.0 # I->R
-    gamma = 0.0 # Parameter for skewed connection shape
-    nts = 0.1 
-    Nstates = 9
-    BB = 1
-    Ninit = int(N0 * 0.1 / 1000)
+    # N0 = 10_000 
+    # mu = 20.0  # Average number connections
+    # alpha = 0.0 # Spatial parameter
+    # psi = 0.0 # cluster effect
+    # beta = 0.01 # Mean rate
+    # sigma = 0.0 # Spread in rate
+    # Mrate1 = 1.0 # E->I
+    # Mrate2 = 1.0 # I->R
+    # gamma = 0.0 # Parameter for skewed connection shape
+    # nts = 0.1 
+    # Nstates = 9
+    # BB = 1
+    # Ninit = int(N0 * 0.1 / 1000)
 
     NRe = N0
 
