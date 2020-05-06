@@ -9,6 +9,8 @@ from importlib import reload
 import matplotlib.pyplot as plt
 from numba import njit#, set_num_threads
 import numba
+from numba.types import float32, float64, intp
+
 
 # numba.set_num_threads(7)
 
@@ -60,6 +62,9 @@ else:
 
 data = df.values
 
+np.random.seed(42)
+np.random.shuffle(data)
+
 # %%
 
 import datashader as ds
@@ -84,11 +89,10 @@ df_to_fig(df)
 
 # %%
 
-coords = data[:1_000]
+# coords = data[:1_000]
 
-haversine(*coords[0], *coords[1])
-
-haversine_2_inputs(coords[0], coords[1])
+haversine(*data[0], *data[1])
+haversine_2_inputs(data[0], data[1])
 
 
 # %%
@@ -134,12 +138,13 @@ def pairwise_dist(coords):
     N = len(coords)
     N_r = int(N*(N-1) / 2)
     indices = get_triangular_indices(N)
-    r = np.zeros(N_r)
+    r = np.zeros(N_r, float32)
     for k in prange(len(indices)):
         i, j = indices[k]
         r[k] = haversine_2_inputs(coords[i], coords[j])
     return r
 
+_ = pairwise_dist(data[:10])
 
 # @njit(parallel=True)
 # def pairwise_dist(coords):
@@ -153,21 +158,153 @@ def pairwise_dist(coords):
 #             k += 1
 #     return r
 
+#%%
+
+# from sys import getsizeof
+
+# @njit
+# def return_r_32(N):
+#     N_r = int(N*(N-1) / 2)
+#     r = np.zeros(N_r, float32)
+#     for i in range(N_r):
+#         r[i] = i*2.2*i
+#     return r
+
+# @njit
+# def return_r_64(N):
+#     N_r = int(N*(N-1) / 2)
+#     r = np.zeros(N_r, float64)
+#     for i in range(N_r):
+#         r[i] = i*2.2*i
+#     return r
+
+# # N = 100_000
+# # N = len(data)
+# # r_32 = return_r_32(N)
+# # r_64 = return_r_64(N)
+
+# # print(r_32.nbytes)
+# # print(r_64.nbytes)
+
+
+# def calc_size_in_gb(N, m):
+#     N_r = int(N*(N-1) / 2)
+#     if m == '32':
+#         m = 4
+#     elif m == '64': 
+#         m = 8
+#     return N_r * m / 1000 / 1000 / 1000
+
+
+# print(calc_size_in_gb(N, '32'))
+# print(calc_size_in_gb(N, '64'))
 
 #%%
 
-N = 20_000
-N = len(data)
+# a = [0] * 1024
+# b = np.array(a)
+# getsizeof(a)
 
+#%%
+
+
+@njit
+def get_bin_edges(a, bins):
+    bin_edges = np.zeros(bins+1)
+    a_min = a.min()
+    a_max = a.max()
+    delta = (a_max - a_min) / bins
+    for i in range(bin_edges.shape[0]):
+        bin_edges[i] = a_min + i * delta
+
+    bin_edges[-1] = a_max  # Avoid roundoff error on last point
+    return bin_edges
+
+
+@njit
+def compute_bin(x, bin_edges):
+    # assuming uniform bins for now
+    n = bin_edges.shape[0] - 1
+    a_min = bin_edges[0]
+    a_max = bin_edges[-1]
+
+    # special case to mirror NumPy behavior for last bin
+    if x == a_max:
+        return n - 1 # a_max always in last bin
+
+    bin = int(n * (x - a_min) / (a_max - a_min))
+
+    if bin < 0 or bin >= n:
+        return None
+    else:
+        return bin
+
+
+
+
+@njit
+def numba_histogram(a, bins):
+    hist = np.zeros(bins, np.int_)
+    bin_edges = get_bin_edges(a, bins)
+
+    for x in a.flat:
+        bin = compute_bin(x, bin_edges)
+        if bin is not None:
+            hist[int(bin)] += 1
+
+    return hist, bin_edges
+
+#%%
+
+import fast_histogram
+
+
+#%%
+
+@measure_time
+@njit
+def bin_pairwise_dists(coords, N_bins):
+    bins = np.linspace(0, 1000, N_bins+1)
+    r_dists = pairwise_dist(coords)
+    counts, bin_edges = numba_histogram(r_dists, bins)
+    return counts, bin_edges, bins
+
+N_bins = 100_000
+N = 100_000
+# N = len(data)
 
 print(f"Computing distances between {N} coordinates, please wait.", flush=True)
 
-# r = pairwise_dist(data[:10])
-r_dists = pairwise_dist(data[:N])
-r_dists
+@measure_time
+def bin_pairwise_dists_fast_histogram(coords, N_bins):
+    # bins = np.linspace(0, 1000, N_bins+1)
+    r_dists = pairwise_dist(coords)
+    H = fast_histogram.histogram1d(r_dists, bins=N_bins, range=(0, 1000))
+    return H
 
 
-print(f"Saving distances.", flush=True)
+@njit
+def hist1d(v,b,r):
+    return np.histogram(v, b, r)[0]
 
-np.save(f'./Data/r_dists_N_{N}.npy', r_dists)
+@measure_time
+def bin_pairwise_dists_numba(coords, N_bins):
+    # bins = np.linspace(0, 1000, N_bins+1)
+    r_dists = pairwise_dist(coords)
+    # H = fast_histogram.histogram1d(r_dists, bins=N_bins, range=(0, 1000))
+    H = hist1d(r_dists, N_bins, (0, 1000))
+    return H
 
+print("fast_histogram")
+H = bin_pairwise_dists_fast_histogram(data[:N], N_bins)
+print("numba")
+H = bin_pairwise_dists_numba(data[:N], N_bins)
+
+
+print(f"Saving Counts.", flush=True)
+np.save(f'./Data/H_N_{N}.npy', H)
+
+
+print("Finished!")
+
+# %%
