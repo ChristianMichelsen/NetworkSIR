@@ -28,6 +28,9 @@ filenames = extra_funcs.get_filenames()
 N_files = len(filenames)
 
 
+
+x=x
+
 if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100)
 

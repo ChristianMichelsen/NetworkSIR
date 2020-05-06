@@ -8,7 +8,7 @@
 >> conda env update --file environment.yaml
 
 Simulate data:
->> python SimulateNetwork.py
+>> python SimulateDenmark.py
 
 Analyse results
 >> python SIR_advanced.py

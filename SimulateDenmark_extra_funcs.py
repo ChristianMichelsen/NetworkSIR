@@ -5,10 +5,14 @@ from pathlib import Path
 import joblib
 import multiprocessing as mp
 from itertools import product
+import matplotlib.pyplot as plt
+
 
 # conda install awkward
 # conda install -c conda-forge pyarrow
 import awkward
+
+N_Denmark = 535_806
 
 def is_local_computer(N_local_cores=8):
     import platform
@@ -20,7 +24,7 @@ def is_local_computer(N_local_cores=8):
 def generate_filenames(d, N_loops=10, force_overwrite=False, force_SK_P1_UK=False):
     filenames = []
     cfg = dict(
-                    N0 = 50_000 if is_local_computer() else 50_000,
+                    N0 = 50_000 if is_local_computer() else N_Denmark,
                     mu = 20.0,  # Average number connections
                     alpha = 0.0, # Spatial parameter
                     psi = 0.0, # cluster effect
@@ -32,19 +36,22 @@ def generate_filenames(d, N_loops=10, force_overwrite=False, force_SK_P1_UK=Fals
                     nts = 0.1, 
                     Nstates = 9,
                     BB = 1,
+                    Ninit = 100, # 100 Initial Infected
                 )
 
     nameval_to_str = [[f'{name}_{x}' for x in lst] for (name, lst) in d.items()]
     all_combinations = list(product(*nameval_to_str))
 
+    ints = ['N0', 'BB']
+
     for combination in all_combinations:
         for s in combination:
             name, val = s.split('_')
-            val = float(val) if name != 'N0' else int(val)
+            val = int(val) if name in ints else float(val)
             cfg[name] = val
 
-
-        cfg['Ninit'] = max(1, int(cfg['N0'] * 0.1 / 1000)) # Initial Infected, 1 permille        
+        # cfg['Ninit'] = max(1, int(cfg['N0'] * 0.1 / 1000)) # Initial Infected, 1 permille        
+        # cfg['Ninit'] = 100 # 100 Initial Infected
         for ID in range(N_loops):
             filename = dict_to_filename_with_dir(cfg, ID)
 
@@ -99,14 +106,10 @@ def deep_copy_2D_int(X):
             outer[ix, jx] = X[ix, jx]
     return outer
 
-# @njit
-# def setdiff1d(X, Y):
-#     x_set = set(X)
-#     y_set = set(Y)
-#     return x_set - y_set
+
 
 @njit
-def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gamma, nts, Nstates, BB, ID=0):
+def single_run_numba(N0, mu, alpha, psi, beta, sigma, Mrate1, Mrate2, gamma, nts, Nstates, BB, Ninit, ID, P1, verbose=False):
 
     # N0 = 1000
     # mu = 20.0  # Average number connections
@@ -120,28 +123,29 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     # nts = 0.1 
     # Nstates = 9
     # BB = 1
-    # Ninit = max(1, int(N0 * 0.1 / 1000))
+    # Ninit = 100
     # ID = 0
+    # P1 = np.load('Data/GPS_coordinates.npy')[:N0]
+    # verbose = False
 
-    np.random.seed(ID+1)
+
+    np.random.seed(ID)
 
     NRe = N0
 
 
     N_AK_MAX = 1000
     # For generating Network
-    P1 = np.zeros((N0, 2))
-    AK = -1*np.ones((N0, N_AK_MAX), np.int_)
+    AK = -1*np.ones((N0, N_AK_MAX), np.uint16)
     UK = np.zeros(N0, np.int_)
     UKRef = np.zeros(N0, np.int_)
-    # DK = np.zeros(N0, np.int_)
     Prob = np.ones(N0)
     Sig = np.ones(N0)
     WMa = np.ones(N0)
-    SK = -1*np.ones(N0, np.int_)
-    AKRef = -1*np.ones((N0, N_AK_MAX), np.int_)
+    SK = -1*np.ones(N0, np.uint8)
+    AKRef = -1*np.ones((N0, N_AK_MAX), np.uint16)
     Rate = -1*np.ones((N0, N_AK_MAX))
-    SAK = -1*np.ones((Nstates, N0), np.int_)
+    SAK = -1*np.ones((Nstates, N0), np.uint16)
     S = np.zeros(Nstates, np.int_)
     Par = np.zeros(Nstates)
     csMov = np.zeros(Nstates)
@@ -163,17 +167,21 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     tnext = (1/np.random.random())**(1/(psi+psi_epsilon))-1
 
 
-    D0 = 0.01 
-    D = D0*100
+    # D0 = 0.01 
+    # D = D0*100
 
+    if verbose:
+        print("Make rates and connections")
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # # # # # # # # # # # RATES AND CONNECTIONS # # # # # # # # # # # # # # # # # # # # # 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-    dt = 0.01 
-    RT = 0
-    rD = np.sqrt(2*D0*dt*N0) / 10
+    # dt = 0.01 
+    # RT = 0
+    # rD = np.sqrt(2*D0*dt*N0) / 10
+    rD = 1
+
     for i in range(N0):
         ra = np.random.rand()
         if (ra < gamma):
@@ -191,39 +199,14 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     PC = np.cumsum(Prob);
     PP = PC/PT
 
-
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-    # # # # # # # # # # # SPATIAL # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-    
-    for i in range(NRe):
-        RT += dt
-        acc = 0;
-        while acc == 0:
-            if (RT > tnext):
-                dx = np.sqrt(2*D*dt)*np.random.normal()
-                dy = np.sqrt(2*D*dt)*np.random.normal()
-            else:
-                dx = np.sqrt(2*D0*dt)*np.random.normal()
-                dy = np.sqrt(2*D0*dt)*np.random.normal()
-            r = np.sqrt( (xx + dx)**2 + (yy + dy)**2)
-            if (r < rD):
-                acc = 1
-                xx += dx
-                yy += dy
-                if (RT > tnext):    
-                    ra = (1/np.random.random())**(1/(psi+psi_epsilon))-1  
-                    tnext = RT + ra
-
-        P1[i, 0] = xx
-        P1[i, 1] = yy
-
-
-
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # # # # # # # # # # # CONNECT NODES # # # # # # # # # # # # # # # # # # # # # # # # #
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     
+
+    if verbose:
+        print("CONNECT NODES")
+
     if (BB == 0):
         for c in range(int(mu*NRe)):
             accra = 0
@@ -237,7 +220,10 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
                     if AK[id1, i1] == id2:
                         acc = 0         
                 if (UK[id1] < N_AK_MAX) and (UK[id2] < N_AK_MAX) and (id1 != id2) and (acc == 1):
+                    
                     r = np.sqrt((P1[id1, 0] - P1[id2, 0])**2 + (P1[id1, 1] - P1[id2, 1])**2)
+
+
                     ra = np.random.rand()
                     if np.exp(-alpha*r/rD) > ra:
                         rat = -np.log(np.random.rand())*beta
@@ -287,11 +273,14 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
                         accra = 1
 
 
-
-
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # # # # # # # # # # # INITIAL INFECTIONS  # # # # # # # # # # # # # # # # # # # # # # # #
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
+
+
+    if verbose:
+        print("INITIAL INFECTIONS")
+
 
     on = 1  
     Tot = 0  
@@ -327,12 +316,10 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     SIRfile = []
     SIRfile_SK = []
     SIRfile_UK = []
-    # SIRfile_AK = []
     # SIRfile_AK.append(deep_copy_2D_int(AK))
     SIRfile_AK = deep_copy_2D_jagged_int(AK)
     SIRfile_Rate = deep_copy_2D_jagged(Rate)
     
-
     # SIRfile_Rate = []
     SK_UK_counter = 0
 
@@ -341,6 +328,9 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Ninit, Mrate1, Mrate2, gam
     # # # # # # # # # # # RUN SIMULATION  # # # # # # # # # # # # # # # # # # # # # # # #
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
+
+    if verbose:
+        print("RUN SIMULATION")
 
     # Run the simulation ################################
     while on == 1:
@@ -500,15 +490,18 @@ def dict_to_filename_with_dir(cfg, ID):
     return str(filename)
 
 
-def filename_to_dict(filename, normal_string=False, SK_P1_UK=False):
+def filename_to_dict(filename): # normal_string=False, SK_P1_UK=False
     cfg = {}
-    if normal_string:
-        keyvals = filename.split('_')
-    elif SK_P1_UK:
-        keyvals = filename.split('/')[-1].split('_')[:-2]
-    else:
+
+    keyvals = str(Path(filename).stem).split('_')
+
+    # if normal_string:
+    #     keyvals = filename.split('_')
+    # elif SK_P1_UK:
+    #     keyvals = filename.split('/')[-1].split('_')[:-2]
+    # else:
         # keyvals = filename.split('/')[2].split('_')
-        keyvals = filename.split('/')[2].split('_')
+        # keyvals = filename.split('/')[2].split('_')
 
     keyvals_chunks = [keyvals[i:i + 2] for i in range(0, len(keyvals), 2)]
     ints = ['N0', 'Ninit', 'Nstates', 'BB']
@@ -518,7 +511,7 @@ def filename_to_dict(filename, normal_string=False, SK_P1_UK=False):
                 cfg[key] = int(val)
             else:
                 cfg[key] = float(val)
-    return cfg
+    return DotDict(cfg)
 
 
 
@@ -527,17 +520,13 @@ def single_run_and_save(filename):
     cfg = filename_to_dict(filename)
     ID = filename_to_ID(filename)
 
-    res = single_run_numba(**cfg, ID=ID)
-    if len(res) == 1:
-        out_single_run = res
-    elif len(res) == 4:
-        out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK = res
-    elif len(res) == 5:
-        out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK, SIRfile_AK_initial = res
-    elif len(res) == 6:
-        out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK, SIRfile_AK_initial, SIRfile_Rate_initial = res
-    else:
-        raise AssertionError('Wrong result from single_run_numba')
+    P1 = np.load('Data/GPS_coordinates.npy')
+    if cfg.N0 > len(P1):
+        raise AssertionError("N0 cannot be larger than P1 (number of houses in DK)")
+    P1 = P1[:cfg.N0]
+
+    res = single_run_numba(**cfg, ID=ID, P1=P1)
+    out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK, SIRfile_AK_initial, SIRfile_Rate_initial = res
 
 
     header = ['Time', 
@@ -545,12 +534,14 @@ def single_run_and_save(filename):
             'I1', 'I2', 'I3', 'I4', 
             'R',
             ]
-    df = pd.DataFrame(out_single_run, columns=header)
+
+    df_raw = pd.DataFrame(out_single_run, columns=header)
+
 
     # make sure parent folder exists
     Path(filename).parent.mkdir(parents=True, exist_ok=True)
     # save csv file
-    df.to_csv(filename, index=False)
+    df_raw.to_csv(filename, index=False)
 
     # save SK, P1, and UK, once for each set of parameters
     if ID == 0:
@@ -611,3 +602,13 @@ def get_num_cores(num_cores_max):
     if num_cores >= num_cores_max:
         num_cores = num_cores_max
     return num_cores
+
+
+def convert_df(df_raw):
+
+    for state in ['E', 'I']:
+        df_raw[state] = sum([df_raw[col] for col in df_raw.columns if state in col and len(col) == 2])
+
+    # only keep relevant columns
+    df = df_raw[['Time', 'E', 'I', 'R']].copy()
+    return df

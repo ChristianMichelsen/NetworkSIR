@@ -3,14 +3,13 @@ import plotly.graph_objects as go
 import numpy as np
 from tqdm import tqdm
 import multiprocessing as mp
-import SimulateNetwork_extra_funcs as extra_funcs
 from pathlib import Path
 from importlib import reload
 import matplotlib.pyplot as plt
 from numba import njit#, set_num_threads
 import numba
 from numba.types import float32, float64, intp
-
+import matplotlib.pyplot as plt
 
 # numba.set_num_threads(7)
 
@@ -42,7 +41,9 @@ def haversine(lat1, lon1, lat2, lon2):
     km = 6371 * c
     return km
 
+
 #%%
+
 
 filename = 'Data/GPS_coordinates.csv'
 
@@ -56,14 +57,27 @@ else:
     df = pd.read_csv(filename_org_data, 
                      delimiter=',', 
                      usecols=cols)
+    df.columns = ['x', 'y']
     df = df.dropna().drop_duplicates()
+
+    # fig, ax = plt.subplots(figsize=(10, 10))
+    # ax.scatter(df['x'], df['y'], s=1)
+
+    df = df.query("(8<= x <= 13) & (54 <= y <= 58)")
+    # fig, ax = plt.subplots(figsize=(10, 10))
+    # ax.scatter(df['x'], df['y'], s=1)
+
+    df = df.sample(frac=1, random_state=42)
+
     print(f"Saving Housing Data to {filename}")
     df.to_csv(filename, index=False)
+    np.save(filename.replace('csv', 'npy'), df.values)
 
 data = df.values
 
 np.random.seed(42)
 np.random.shuffle(data)
+
 
 # %%
 
@@ -77,7 +91,7 @@ def df_to_fig(df, plot_width=1000, plot_height=1000):
                        y_range=[54.5, 57.8],
                        x_axis_type='linear', y_axis_type='linear',
                     )
-    agg = canvas.points(df, 'Sag_GisX_WGS84', 'Sag_GisY_WGS84') # ds.count_cat('SK')
+    agg = canvas.points(df, 'x', 'y') # ds.count_cat('SK')
 
     # color_key = color_key_b_c_uds_g
     # img = tf.shade(agg, color_key=color_key, how='log') # eq_hist
@@ -117,6 +131,7 @@ def measure_time(func):
     return _time_it
 
 
+
 #%%
 
 from numba import njit, prange
@@ -124,7 +139,7 @@ from numba import njit, prange
 @njit
 def get_triangular_indices(N):
     N_r = int(N*(N-1) / 2)
-    indices = np.zeros((N_r, 2), np.int_)
+    indices = np.zeros((N_r, 2), np.uint32)
     k = 0
     for i in range(N):
         for j in range(i+1, N):
@@ -132,19 +147,76 @@ def get_triangular_indices(N):
             k += 1
     return indices
 
-@measure_time
 @njit(parallel=True)
-def pairwise_dist(coords):
+def calc_dist(indices, coords, start, stop, do_log): 
+    L = stop - start
+    r_loop = np.zeros(L, float32)
+
+    for k in prange(L):
+        i, j = indices[k+start]
+        dist = haversine_2_inputs(coords[i], coords[j])
+        if do_log:
+            dist = np.log10(dist)
+        r_loop[k] = dist
+    return r_loop
+
+@njit
+def numba_hist(x, N_bins, r):
+    return np.histogram(x, N_bins, r)
+
+
+@measure_time
+# @njit(parallel=False)
+def pairwise_dist(coords, N_bins=100, max_GB=1, xminlog=-3, xmaxlog=3):
+
     N = len(coords)
     N_r = int(N*(N-1) / 2)
     indices = get_triangular_indices(N)
-    r = np.zeros(N_r, float32)
-    for k in prange(len(indices)):
-        i, j = indices[k]
-        r[k] = haversine_2_inputs(coords[i], coords[j])
-    return r
+    N_r_max = int(max_GB * 1000 * 1000 * 1000 / 8)
+    # N_r_max = 100
 
-_ = pairwise_dist(data[:10])
+    N_loops = int(np.ceil(N_r / N_r_max))
+    H_all = np.zeros((N_loops, N_bins), np.int_)
+
+    # print(N_loops)
+
+    i_counter = 0
+    for i_loop in tqdm(range(N_loops)):
+        # print(i_loop, N_loops)
+
+        start = i_counter
+        if i_loop != N_loops-1: # if not at last loop
+            stop = i_counter + N_r_max
+        else:
+            stop = N_r
+        
+        r_loop = calc_dist(indices, coords, start, stop, do_log=True)
+        i_counter += len(r_loop)
+
+        H = numba_hist(r_loop, N_bins, (xminlog, xmaxlog))[0]
+        H_all[i_loop] = H
+
+    H_out = np.sum(H_all, axis=0) 
+
+    return H_out
+
+N = 20_000
+
+x=x
+
+
+# coords = data[:N]
+
+print("Blabla", flush=True)
+pairwise_dist(data[:N], max_GB=1)
+
+
+
+print("Blabla", flush=True)
+pairwise_dist(data[:N], max_GB=2)
+
+
+x=x
 
 # @njit(parallel=True)
 # def pairwise_dist(coords):
@@ -208,51 +280,51 @@ _ = pairwise_dist(data[:10])
 #%%
 
 
-@njit
-def get_bin_edges(a, bins):
-    bin_edges = np.zeros(bins+1)
-    a_min = a.min()
-    a_max = a.max()
-    delta = (a_max - a_min) / bins
-    for i in range(bin_edges.shape[0]):
-        bin_edges[i] = a_min + i * delta
+# @njit
+# def get_bin_edges(a, bins):
+#     bin_edges = np.zeros(bins+1)
+#     a_min = a.min()
+#     a_max = a.max()
+#     delta = (a_max - a_min) / bins
+#     for i in range(bin_edges.shape[0]):
+#         bin_edges[i] = a_min + i * delta
 
-    bin_edges[-1] = a_max  # Avoid roundoff error on last point
-    return bin_edges
-
-
-@njit
-def compute_bin(x, bin_edges):
-    # assuming uniform bins for now
-    n = bin_edges.shape[0] - 1
-    a_min = bin_edges[0]
-    a_max = bin_edges[-1]
-
-    # special case to mirror NumPy behavior for last bin
-    if x == a_max:
-        return n - 1 # a_max always in last bin
-
-    bin = int(n * (x - a_min) / (a_max - a_min))
-
-    if bin < 0 or bin >= n:
-        return None
-    else:
-        return bin
+#     bin_edges[-1] = a_max  # Avoid roundoff error on last point
+#     return bin_edges
 
 
+# @njit
+# def compute_bin(x, bin_edges):
+#     # assuming uniform bins for now
+#     n = bin_edges.shape[0] - 1
+#     a_min = bin_edges[0]
+#     a_max = bin_edges[-1]
+
+#     # special case to mirror NumPy behavior for last bin
+#     if x == a_max:
+#         return n - 1 # a_max always in last bin
+
+#     bin = int(n * (x - a_min) / (a_max - a_min))
+
+#     if bin < 0 or bin >= n:
+#         return None
+#     else:
+#         return bin
 
 
-@njit
-def numba_histogram(a, bins):
-    hist = np.zeros(bins, np.int_)
-    bin_edges = get_bin_edges(a, bins)
 
-    for x in a.flat:
-        bin = compute_bin(x, bin_edges)
-        if bin is not None:
-            hist[int(bin)] += 1
 
-    return hist, bin_edges
+# @njit
+# def numba_histogram(a, bins):
+#     hist = np.zeros(bins, np.int_)
+#     bin_edges = get_bin_edges(a, bins)
+
+#     for x in a.flat:
+#         bin = compute_bin(x, bin_edges)
+#         if bin is not None:
+#             hist[int(bin)] += 1
+
+#     return hist, bin_edges
 
 #%%
 
@@ -270,7 +342,7 @@ def bin_pairwise_dists(coords, N_bins):
     return counts, bin_edges, bins
 
 N_bins = 100_000
-N = 100_000
+N = 10_000
 # N = len(data)
 
 print(f"Computing distances between {N} coordinates, please wait.", flush=True)
@@ -306,5 +378,19 @@ np.save(f'./Data/H_N_{N}.npy', H)
 
 
 print("Finished!")
+
+# %%
+
+bins = np.linspace(0, 1000, N_bins+1)
+bin_edges = (bins[1:] + bins[:-1]) / 2
+H = np.load('Data/H_N_100000.npy')
+
+#%%
+
+fig, ax = plt.subplots(figsize=(14, 8))
+ax.plot(bin_edges, H, '-')
+ax.set(title=f'Distribution of (all) distances between {N} randomly sampled houses/apartments', xlabel='km', ylabel='Counts', yscale='log')
+
+fig.savefig('Figures/House_distribution.pdf')
 
 # %%
