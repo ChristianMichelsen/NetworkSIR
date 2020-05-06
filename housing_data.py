@@ -91,6 +91,22 @@ from scipy.spatial import distance
 
 #%%
 
+from functools import wraps
+from time import time
+def measure_time(func):
+    @wraps(func)
+    def _time_it(*args, **kwargs):
+        start = int(round(time() * 1000))
+        try:
+            return func(*args, **kwargs)
+        finally:
+            end_ = int(round(time() * 1000)) - start
+            print(f"Total execution time: {end_/1000 if end_ > 0 else 0} s")
+    return _time_it
+
+
+#%%
+
 from numba import njit, prange
 
 @njit
@@ -104,7 +120,7 @@ def get_triangular_indices(N):
             k += 1
     return indices
 
-
+@measure_time
 @njit(parallel=True)
 def pairwise_dist(coords):
     N = len(coords)
@@ -130,16 +146,20 @@ def pairwise_dist(coords):
 #     return r
 
 
-
-
 #%%
 
 N = 20_000
 N = len(data)
 
-r = pairwise_dist(data[:10])
-%time r_dists = pairwise_dist(data[:N])
+
+print(f"Computing distances between {N} coordinates, please wait.", flush=True)
+
+# r = pairwise_dist(data[:10])
+r_dists = pairwise_dist(data[:N])
 r_dists
+
+
+print(f"Saving distances.", flush=True)
 
 np.save(f'./Data/r_dists_N_{N}.npy', r_dists)
 
