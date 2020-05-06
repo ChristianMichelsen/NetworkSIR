@@ -42,15 +42,23 @@ def haversine(lat1, lon1, lat2, lon2):
 
 #%%
 
-filename = 'Data/DW_NBI_2019_09_03.csv'
-cols = ['Sag_GisX_WGS84', 'Sag_GisY_WGS84']
+filename = 'Data/GPS_coordinates.csv'
 
-df = pd.read_csv(filename, delimiter=',', usecols=cols)
-df = df.dropna().drop_duplicates()
-# df.to_csv('Data/GPS_coordinates.csv', index=False)
+if Path(filename).exists():
+    print("Loading dataframe from file.")
+    df = pd.read_csv(filename)
+else:
+    print("Reading original Housing Data")
+    filename_org_data = 'Data/DW_NBI_2019_09_03.csv'
+    cols = ['Sag_GisX_WGS84', 'Sag_GisY_WGS84']
+    df = pd.read_csv(filename_org_data, 
+                     delimiter=',', 
+                     usecols=cols)
+    df = df.dropna().drop_duplicates()
+    print(f"Saving Housing Data to {filename}")
+    df.to_csv(filename, index=False)
 
 data = df.values
-np.save('Data/GPS_coordinates.npy', data)
 
 # %%
 
