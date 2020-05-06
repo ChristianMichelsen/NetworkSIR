@@ -7,7 +7,17 @@ import SimulateNetwork_extra_funcs as extra_funcs
 from pathlib import Path
 from importlib import reload
 import matplotlib.pyplot as plt
-from numba import njit
+from numba import njit#, set_num_threads
+import numba
+
+# numba.set_num_threads(7)
+
+#%%
+
+@njit
+def haversine_2_inputs(lat_lon1, lat_lon2):
+    lat1, lon1, lat2, lon2 = lat_lon1[0], lat_lon1[1], lat_lon2[0], lat_lon2[1]
+    return haversine(lat1, lon1, lat2, lon2)
 
 
 @njit
@@ -16,27 +26,32 @@ def haversine(lat1, lon1, lat2, lon2):
     Calculate the great circle distance between two points 
     on the earth (specified in decimal degrees)
     """
+
     # convert decimal degrees to radians 
     lon1, lat1 = np.radians(lon1), np.radians(lat1)
     lon2, lat2 = np.radians(lon2), np.radians(lat2)
     
     # haversine formula 
     dlon = lon2 - lon1 
-    dlat = lat2 - lat1 
+    dlat = lat2 - lat1
     
     a = np.sin(dlat/2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2)**2
     c = 2 * np.arcsin(np.sqrt(a)) 
     km = 6371 * c
     return km
 
+#%%
 
 filename = 'Data/DW_NBI_2019_09_03.csv'
 cols = ['Sag_GisX_WGS84', 'Sag_GisY_WGS84']
 
 df = pd.read_csv(filename, delimiter=',', usecols=cols)
 df = df.dropna().drop_duplicates()
+# df.to_csv('Data/GPS_coordinates.csv', index=False)
 
-# df.to_csv('housing.csv', index=False)
+data = df.values
+np.save('Data/GPS_coordinates.npy', data)
+
 # %%
 
 import datashader as ds
@@ -61,4 +76,70 @@ df_to_fig(df)
 
 # %%
 
-haversine(*df.iloc[0:2], *df.iloc[1:3])
+coords = data[:1_000]
+
+haversine(*coords[0], *coords[1])
+
+haversine_2_inputs(coords[0], coords[1])
+
+
+# %%
+
+from scipy.spatial import distance
+# %timeit distance.cdist(coords, coords, haversine_2_inputs)
+
+
+#%%
+
+from numba import njit, prange
+
+@njit
+def get_triangular_indices(N):
+    N_r = int(N*(N-1) / 2)
+    indices = np.zeros((N_r, 2), np.int_)
+    k = 0
+    for i in range(N):
+        for j in range(i+1, N):
+            indices[k] = (i, j)
+            k += 1
+    return indices
+
+
+@njit(parallel=True)
+def pairwise_dist(coords):
+    N = len(coords)
+    N_r = int(N*(N-1) / 2)
+    indices = get_triangular_indices(N)
+    r = np.zeros(N_r)
+    for k in prange(len(indices)):
+        i, j = indices[k]
+        r[k] = haversine_2_inputs(coords[i], coords[j])
+    return r
+
+
+# @njit(parallel=True)
+# def pairwise_dist(coords):
+#     N = len(coords)
+#     N_r = int(N*(N-1) / 2)
+#     r = np.zeros(N_r)
+#     k = 0
+#     for i in prange(N):
+#         for j in range(i+1, N):
+#             r[k] = haversine_2_inputs(coords[i], coords[j])
+#             k += 1
+#     return r
+
+
+
+
+#%%
+
+N = 20_000
+N = len(data)
+
+r = pairwise_dist(data[:10])
+%time r_dists = pairwise_dist(data[:N])
+r_dists
+
+np.save(f'./Data/r_dists_N_{N}.npy', r_dists)
+
