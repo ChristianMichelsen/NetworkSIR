@@ -24,7 +24,8 @@ def is_local_computer(N_local_cores=8):
 def generate_filenames(d, N_loops=10, force_overwrite=False, force_SK_P1_UK=False):
     filenames = []
     cfg = dict(
-                    N0 = 50_000 if is_local_computer() else N_Denmark,
+                    # N0 = 50_000 if is_local_computer() else N_Denmark,
+                    N0 = N_Denmark,
                     mu = 20.0,  # Average number connections
                     alpha = 0.0, # Spatial parameter
                     psi = 0.0, # cluster effect
@@ -490,18 +491,19 @@ def dict_to_filename_with_dir(cfg, ID):
     return str(filename)
 
 
-def filename_to_dict(filename): # normal_string=False, SK_P1_UK=False
+def filename_to_dict(filename, normal_string=False, SK_P1_UK=False): # , 
     cfg = {}
 
     keyvals = str(Path(filename).stem).split('_')
 
-    # if normal_string:
-    #     keyvals = filename.split('_')
-    # elif SK_P1_UK:
-    #     keyvals = filename.split('/')[-1].split('_')[:-2]
-    # else:
-        # keyvals = filename.split('/')[2].split('_')
-        # keyvals = filename.split('/')[2].split('_')
+    if normal_string:
+        keyvals = filename.split('_')
+    elif SK_P1_UK:
+        raise AssertionError('SK_P1_UK=True not implemented yet in filename_to_dict')
+        keyvals = filename.split('/')[-1].split('_')[:-2]
+    else:
+        keyvals = filename.split('/')[2].split('_')
+        keyvals = filename.split('/')[2].split('_')
 
     keyvals_chunks = [keyvals[i:i + 2] for i in range(0, len(keyvals), 2)]
     ints = ['N0', 'Ninit', 'Nstates', 'BB']

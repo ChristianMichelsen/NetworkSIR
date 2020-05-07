@@ -5,12 +5,12 @@ import pandas as pd
 from pathlib import Path
 from scipy.stats import uniform as sp_uniform
 import plotly.graph_objects as go
-import SimulateNetwork_extra_funcs
+import SimulateDenmark_extra_funcs
 import matplotlib.pyplot as plt
 import pickle
 
 def get_filenames():
-    filenames = Path('Data').rglob(f'*.csv')
+    filenames = Path('Data/NetworkSimulation').rglob(f'*.csv')
     return [str(file) for file in sorted(filenames)]
 
 
@@ -233,15 +233,15 @@ def dict_to_str(d):
 
 
 def filename_to_dotdict(filename, SK_P1_UK=False):
-    return SimulateNetwork_extra_funcs.filename_to_dotdict(filename, SK_P1_UK=SK_P1_UK)
+    return SimulateDenmark_extra_funcs.filename_to_dotdict(filename, SK_P1_UK=SK_P1_UK)
 
 def string_to_dict(string, SK_P1_UK=False):
-    return SimulateNetwork_extra_funcs.filename_to_dotdict(string, normal_string=True, SK_P1_UK=SK_P1_UK)
+    return SimulateDenmark_extra_funcs.filename_to_dotdict(string, normal_string=True, SK_P1_UK=SK_P1_UK)
 
 def dict_to_title(d, N=None, exclude=None):
 
     if type(d) == 'dict':
-        cfg = SimulateNetwork_extra_funcs.DotDict(d)
+        cfg = SimulateDenmark_extra_funcs.DotDict(d)
     else:
         cfg = d
     N0_str = human_format(cfg.N0)
@@ -597,7 +597,7 @@ def Imax_fits_to_df(Imax_res, filenames_to_use, I_maxs_times):
     df.columns = I_maxs_times
     df.loc['mean'] = df.mean()
     df.loc['std'] = df.std()
-    df.loc['sdom'] = df.std() / np.sqrt(len(df)-2)
+    df.loc['sdom'] = df.std() / np.sqrt(len(df)-1)
     # I_max_normed_by_pars[par_string] = df
     return df
 
@@ -624,6 +624,57 @@ def extract_relative_Imaxs(d_fit_objects_all_IDs, I_maxs_truth, filenames_to_use
         I_maxs_relative_res[filename] = (I_maxs_truth[filename]-I_maxs) / (I_maxs_truth[filename]-I_current_pos)
     df_I_maxs_relative = Imax_fits_to_df(I_maxs_relative_res, filenames_to_use, bin_centers_Imax)
     return df_I_maxs_relative
+
+def extract_relative_Imaxs_relative_I(d_fit_objects_all_IDs, I_maxs_truth, filenames_to_use):
+    
+    I_maxs_relative_res = {}
+    I_relative_res = {}
+    for filename, fit_objects in d_fit_objects_all_IDs.items():
+        # break
+        I_maxs = np.zeros(N_peak_fits)
+        I_current_pos = np.zeros(N_peak_fits)
+        I_rel = np.zeros(N_peak_fits)
+
+        for i_fit_object, fit_object in enumerate(fit_objects):
+            N0 = fit_object.y0[1]
+            I_rel[i_fit_object] = fit_object.y_truth[-1] / N0 # percent
+            I_maxs[i_fit_object] = fit_object.compute_I_max()
+            I_current_pos[i_fit_object] = fit_object.y_truth[-1]
+
+        I_maxs_relative_res[filename] = (I_maxs_truth[filename]-I_maxs) / (I_maxs_truth[filename]-I_current_pos)
+        I_relative_res[filename] = I_rel
+
+    x = np.stack(I_relative_res.values())
+    y = np.stack(I_maxs_relative_res.values())
+
+    x_flat = x.flatten()
+    y_flat = y.flatten()
+
+    # df_I_rel = pd.DataFrame.from_dict(I_relative_res).T
+    x_min = x.min()*0.99
+    x_max = x.max()*1.01
+    N_bins = N_peak_fits
+    bins = np.linspace(x_min, x_max, N_bins+1)
+    bin_centers = (bins[1:] + bins[:-1]) / 2
+
+    indices = np.digitize(x_flat, bins) - 1
+
+    df_xy = pd.DataFrame({'x': x_flat, 'y':y_flat, 'bin': indices, 'bin_center': bin_centers[indices]})
+    
+    def calc_binned_mean_sdom(df_group):
+        mean = np.mean(df_group['y'])
+        std = np.std(df_group['y'])
+        sdom = std / np.sqrt(len(df_group) -1)
+        d = {'x': df_group['bin_center'].iloc[0], 
+             'mean': mean,
+             'std': std,
+             'sdom': sdom}
+        return pd.Series(d)
+        # return d
+
+    df_binned = df_xy.groupby('bin').apply(calc_binned_mean_sdom)
+    return df_binned
+
 
 def extract_fit_parameter(par, d_fit_objects_all_IDs, filenames_to_use, bin_centers_Imax):
     par_tmp = {}
@@ -731,7 +782,6 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
 
 #%%
 
-
 def get_filenames_different_than_default(find_par):
 
     base_dir = Path('Data') / 'NetworkSimulation'
@@ -741,18 +791,21 @@ def get_filenames_different_than_default(find_par):
     df_sim_pars = pd.DataFrame.from_dict(all_sim_pars_as_dict, orient='index')
 
     default_pars = dict(
-                        N0 = 50_000,
-                        mu = 20.0,  # Average number connections
-                        alpha = 0.0, # Spatial parameter
-                        psi = 0.0, # cluster effect
-                        beta = 0.01, # Mean rate
-                        sigma = 0.0, # Spread in rate
-                        Mrate1 = 1.0, # E->I
-                        Mrate2 = 1.0, # I->R
-                        gamma = 0.0, # Parameter for skewed connection shape
-                        nts = 0.1, 
-                        Nstates = 9,
-                    )
+                    N0 = SimulateDenmark_extra_funcs.N_Denmark,
+                    mu = 20.0,  # Average number connections
+                    alpha = 0.0, # Spatial parameter
+                    psi = 0.0, # cluster effect
+                    beta = 0.01, # Mean rate
+                    sigma = 0.0, # Spread in rate
+                    Mrate1 = 1.0, # E->I
+                    Mrate2 = 1.0, # I->R
+                    gamma = 0.0, # Parameter for skewed connection shape
+                    nts = 0.1, 
+                    Nstates = 9,
+                    BB = 1,
+                    Ninit = 100, # 100 Initial Infected
+                )
+
 
     if isinstance(find_par, str):
         find_par = [find_par]
@@ -783,6 +836,7 @@ def plot_variable_other_than_default(par):
     sy = np.zeros_like(x)
     n = np.zeros_like(x)
 
+    # i_simpar, sim_par = 0, filenames_par_rest_default[0]
     for i_simpar, sim_par in enumerate(tqdm(filenames_par_rest_default)):
         filenames = [str(filename) for filename in base_dir.rglob('*.csv') if sim_par in str(filename)]
         N_files = len(filenames)

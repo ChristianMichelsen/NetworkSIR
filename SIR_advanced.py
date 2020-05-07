@@ -11,28 +11,24 @@ from collections import defaultdict
 import joblib
 import extra_funcs
 from importlib import reload
-import SimulateNetwork_extra_funcs
-# import NewSpeedImprove_extra_funcs as extra_funcs2
+import SimulateDenmark_extra_funcs
 
 num_cores_max = 30
 
 savefig = False
 do_animate = False
 save_and_show_all_plots = True
-plot_SIR_comparison = True if SimulateNetwork_extra_funcs.is_local_computer() else False
+plot_SIR_comparison = False if SimulateDenmark_extra_funcs.is_local_computer() else False
 
 #%%
 
 reload(extra_funcs)
 filenames = extra_funcs.get_filenames()
+# filename = filenames[0] 
 N_files = len(filenames)
 
-
-
-x=x
-
 if plot_SIR_comparison:
-    extra_funcs.plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100)
+    extra_funcs.plot_SIR_model_comparison(force_overwrite=True, max_N_plots=100)
 
 
 #%%
@@ -67,6 +63,7 @@ if __name__ == '__main__':
 #%%
 
     # reload(extra_funcs)
+
     fit_objects_by_pars = defaultdict(dict)
     for filename, fit_object in all_fit_objects.items():
         par_string = extra_funcs.filename_to_par_string(filename)
@@ -198,17 +195,21 @@ if __name__ == '__main__':
         par_string = extra_funcs.filename_to_par_string(filename)
         filenames_by_pars[par_string].append(filename)
 
-
     # reload(extra_funcs)
     I_max_truth_by_pars = {}
     I_max_normed_by_pars = {}
     I_max_relative_by_pars = {}
+    I_relative_by_pars = {}
+
     betas_by_pars = {}
     betas_std_by_pars = {}
 
     for par_string in tqdm(filenames_by_pars.keys(), desc='Splitting I_max fits by simulation parameters'):
         filenames_to_use = filenames_by_pars[par_string]
 
+
+        # cfg = extra_funcs.string_to_dict(par_string)
+        # N0 = cfg.N0
 
         # I max truths 
         I_true_tmp = {k: I_maxs_truth[k] for k in filenames_to_use}
@@ -234,6 +235,14 @@ if __name__ == '__main__':
         I_max_relative_by_pars[par_string] = df_I_maxs_relative
 
 
+        # relative I_max as func of relative I from fits
+        df_I_relative = extra_funcs.extract_relative_Imaxs_relative_I(d_fit_objects_all_IDs,
+                                                                      I_maxs_truth,
+                                                                      filenames_to_use)
+        I_relative_by_pars[par_string] = df_I_relative
+
+
+
         # extract betas
         df_betas, df_betas_std = extra_funcs.extract_fit_parameter('beta', d_fit_objects_all_IDs, filenames_to_use, bin_centers_Imax)
         betas_by_pars[par_string] = df_betas
@@ -244,19 +253,19 @@ if __name__ == '__main__':
 
     do_mask_I_rel = True
 
-
     for par_string in tqdm(I_max_truth_by_pars.keys(), desc='Make Imax figures'):
 
         I_maxs_normed = I_max_normed_by_pars[par_string]
         I_maxs_relative = I_max_relative_by_pars[par_string]
         I_maxs_true = I_max_truth_by_pars[par_string]
+        I_rel = I_relative_by_pars[par_string]
         df_betas = betas_by_pars[par_string]
         df_betas_std = betas_std_by_pars[par_string]
         
 
-        fig = make_subplots(rows=1, cols=5, 
-                            subplot_titles=['Normalized Imax', 'Relative Imax', 'Beta', 'Beta std','Truth distriution'], 
-                            column_widths=[0.225, 0.225, 0.225, 0.225, 0.1])
+        fig = make_subplots(rows=1, cols=6, 
+                            subplot_titles=['Normalized Imax', 'Relative Imax', 'Relative Imax Relative I', 'Beta', 'Beta std','Truth distriution'], 
+                            column_widths=[0.18, 0.18, 0.18, 0.18, 0.18, 0.1])
 
         I_maxs_normed = extra_funcs.mask_df(I_maxs_normed, 5)
         # subplot 1 - Normalized Imax
@@ -295,6 +304,28 @@ if __name__ == '__main__':
         fig.update_yaxes(title_text=f"Imax relative", row=1, col=2)
 
 
+
+        # I_rel = extra_funcs.mask_df(I_rel, 5)
+        # subplot 2  Relative Imax
+        fig.add_trace(
+            go.Scatter( x=I_rel['x'], 
+                        y=I_rel['mean'],
+                        error_y=dict(
+                            type='data', # value of error bar given in data coordinates
+                            array=I_rel['sdom'],
+                            visible=True
+                            ),
+                        mode="markers",
+                        ),
+            row=1, col=3,
+            )
+        fig.update_xaxes(title_text=f"'I / N0'", row=1, col=3)
+        fig.update_yaxes(title_text=f"Imax relative", row=1, col=3)
+
+
+
+
+
         # subplot 3
         fig.add_trace(
             go.Scatter( x=df_betas.columns, 
@@ -306,10 +337,10 @@ if __name__ == '__main__':
                             ),
                         mode="markers",
                         ),
-            row=1, col=3,
+            row=1, col=4,
             )
-        fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=3)
-        fig.update_yaxes(title_text=f"Beta", row=1, col=3)
+        fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=4)
+        fig.update_yaxes(title_text=f"Beta", row=1, col=4)
 
 
         df_betas_std = extra_funcs.mask_df(df_betas_std, 5)
@@ -324,19 +355,19 @@ if __name__ == '__main__':
                             ),
                         mode="markers",
                         ),
-            row=1, col=4,
+            row=1, col=5,
             )
-        fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=4)
-        fig.update_yaxes(title_text=f"Beta std", row=1, col=4)
+        fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=5)
+        fig.update_yaxes(title_text=f"Beta std", row=1, col=5)
 
 
         # subplot 5
         fig.add_trace(
             go.Histogram(x=I_maxs_true),
-            row=1, col=5,
+            row=1, col=6,
             )
-        fig.update_xaxes(title_text=f"I_max_truth", row=1, col=5)
-        fig.update_yaxes(title_text=f"Counts", row=1, col=5)
+        fig.update_xaxes(title_text=f"I_max_truth", row=1, col=6)
+        fig.update_yaxes(title_text=f"Counts", row=1, col=6)
 
         
         cfg = extra_funcs.string_to_dict(par_string)
@@ -359,13 +390,10 @@ if __name__ == '__main__':
 
 
 # %%
-
-
     print("Finished running")
 
 
 # %%
-
 
 reload(extra_funcs)
 extra_funcs.plot_variable_other_than_default('beta')
