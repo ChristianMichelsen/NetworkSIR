@@ -494,16 +494,15 @@ def dict_to_filename_with_dir(cfg, ID):
 def filename_to_dict(filename, normal_string=False, SK_P1_UK=False): # , 
     cfg = {}
 
-    keyvals = str(Path(filename).stem).split('_')
-
     if normal_string:
         keyvals = filename.split('_')
     elif SK_P1_UK:
-        raise AssertionError('SK_P1_UK=True not implemented yet in filename_to_dict')
-        keyvals = filename.split('/')[-1].split('_')[:-2]
+        # raise AssertionError('SK_P1_UK=True not implemented yet in filename_to_dict')
+        keyvals = filename.split('/')[-1].split('.SK_P1_UK')[0].split('_')
     else:
-        keyvals = filename.split('/')[2].split('_')
-        keyvals = filename.split('/')[2].split('_')
+        keyvals = str(Path(filename).stem).split('_')
+        # keyvals = filename.split('/')[2].split('_')
+        # keyvals = filename.split('/')[2].split('_')
 
     keyvals_chunks = [keyvals[i:i + 2] for i in range(0, len(keyvals), 2)]
     ints = ['N0', 'Ninit', 'Nstates', 'BB']

@@ -13,7 +13,7 @@ import extra_funcs
 from importlib import reload
 import SimulateDenmark_extra_funcs
 
-num_cores_max = 30
+num_cores_max = 10
 
 savefig = False
 do_animate = False
@@ -29,6 +29,7 @@ N_files = len(filenames)
 
 if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison(force_overwrite=True, max_N_plots=100)
+
 
 
 #%%

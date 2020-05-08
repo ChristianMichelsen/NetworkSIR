@@ -2,7 +2,7 @@
 /Data/
 *.zip
 /Data_SK_P1_UK/
-/Figures_SK_P1_UK/
+#/Figures_SK_P1_UK/
 *.joblib
 *.pickle
 
