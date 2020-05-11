@@ -497,8 +497,6 @@ def calc_fit_Imax_results(filenames, num_cores_max=30):
     # postprocess results from multiprocessing:
     # I_maxs_net = {}
     fit_objects = {}
-    bins = np.linspace(0, 1, N_peak_fits+1)
-    bin_centers = (bins[1:] + bins[:-1])/2
 
     # filename, times_maxs_normalized, I_max_net, fit_objects_Imax = results[0]
     for filename, fit_object in results:
@@ -510,7 +508,7 @@ def calc_fit_Imax_results(filenames, num_cores_max=30):
             # betas[filename] = beta
             # betas_std[filename] = beta_std
         
-    return fit_objects, bin_centers
+    return fit_objects 
     # return I_maxs_net, fit_objects, bin_centers
 
 
@@ -540,23 +538,42 @@ def get_fit_results(filenames, force_rerun=False, num_cores_max=20):
         return fit_results
 
 
+
+def filenames_to_subgroups(filenames):
+    cfg_str = defaultdict(list)
+    for filename in sorted(filenames):
+        s = dict_to_str(filename_to_dotdict(filename))
+        cfg_str[s].append(filename)
+    return cfg_str
+
+
 def get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=20):
 
-    output_filename = 'fit_Imax_results.joblib'
-    # out_pickle = output_filename.replace('joblib', 'pkl')
 
+    bins = np.linspace(0, 1, N_peak_fits+1)
+    bin_centers = (bins[1:] + bins[:-1])/2
 
-    if Path(output_filename).exists() and not force_rerun:
-        print("Loading Imax fit results")
-        return joblib.load(output_filename)
-        # return pickle.load(open(out_pickle, "rb" ) )
+    all_Imax_fits = {}
 
-    else:
-        fit_results = calc_fit_Imax_results(filenames, num_cores_max=num_cores_max)
-        print(f"Finished Imax fitting, saving results to {output_filename}", flush=True)
-        joblib.dump(fit_results, output_filename)
-        # pickle.dump(fit_results, open(out_pickle, "wb"))
-        return fit_results
+    cfg_str = filenames_to_subgroups(filenames)
+    for sim_pars, files in tqdm(cfg_str.items()):
+
+        output_filename = Path('Data/fits') / f'Imax_fits_{sim_pars}.joblib'
+        output_filename.parent.mkdir(parents=True, exist_ok=True)
+
+        if output_filename.exists() and not force_rerun:
+            # print("Loading Imax fit results")
+            all_Imax_fits[sim_pars] = joblib.load(output_filename)
+
+        else:
+            fit_results = calc_fit_Imax_results(filenames, num_cores_max=num_cores_max)
+            # print(f"Finished Imax fitting, saving results to {output_filename}", flush=True)
+            joblib.dump(fit_results, output_filename)
+            # pickle.dump(fit_results, open(out_pickle, "wb"))
+            all_Imax_fits[sim_pars] = fit_results
+            # return fit_results
+
+    return all_Imax_fits, bin_centers
 
 
 def cut_percentiles(x, p1, p2=None):
@@ -754,7 +771,6 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
 
                 ax.set_rasterized(True)
                 ax.set_rasterization_zorder(0)
-
 
                 pdf.savefig(fig, dpi=100)
                 plt.close('all')
