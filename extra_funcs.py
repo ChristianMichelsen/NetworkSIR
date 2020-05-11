@@ -490,9 +490,9 @@ def calc_fit_Imax_results(filenames, num_cores_max=30):
     if num_cores >= num_cores_max:
         num_cores = num_cores_max
 
-    print(f"Fitting I_max for {N_files} network-based simulations with {num_cores} cores, please wait.", flush=True)
     with mp.Pool(num_cores) as p:
-        results = list(tqdm(p.imap_unordered(fit_single_file_Imax, filenames), total=N_files))
+        # results = list(tqdm(p.imap_unordered(fit_single_file_Imax, filenames), total=N_files))
+        results = list(p.imap_unordered(fit_single_file_Imax, filenames))
 
     # postprocess results from multiprocessing:
     # I_maxs_net = {}
@@ -556,6 +556,9 @@ def get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=20):
     all_Imax_fits = {}
 
     cfg_str = filenames_to_subgroups(filenames)
+
+    print(f"Fitting I_max for {len(filenames)} simulations with spaced on {len(cfg_str.items())} different runs, please wait.", flush=True)
+
     for sim_pars, files in tqdm(cfg_str.items()):
 
         output_filename = Path('Data/fits') / f'Imax_fits_{sim_pars}.joblib'
