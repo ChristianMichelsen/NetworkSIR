@@ -81,7 +81,7 @@ if __name__ == '__main__':
         N_files = len(filenames)
         # filename = filenames[0]
 
-        # print(d_simulation_parameters, N_files)
+        print(d_simulation_parameters, N_files)
         # continue
 
         if 'N0' in d_simulation_parameters.keys() and np.max(d_simulation_parameters['N0']) > 100_000:
@@ -93,7 +93,6 @@ if __name__ == '__main__':
         if len(filenames) > 0:
             filename = filenames[0]
             print(f"Generating {N_files} network-based simulations with {num_cores} cores based on {d_simulation_parameters}, please wait.", flush=True)
-
 
             if num_cores == 1:
                 for filename in tqdm(filenames):

@@ -284,7 +284,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Mrate1, Mrate2, gamma, nts
                         UKRef[id1] += 1
                         UKRef[id2] += 1
                         accra = 1
-                        print(c)
+                        # print(c)
 
                         
     if verbose:
