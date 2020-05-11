@@ -21,7 +21,7 @@ all_sim_pars = [
                 },
 
                 { 
-                    'alpha': [1, 2, 4, 6, 8],
+                    'alpha': [1, 2, 4, 6, 8, 15, 20],
                     'BB': [0, 1],
                 },
 
@@ -61,12 +61,12 @@ if __name__ == '__main__':
 
         N_loops = 1 if extra_funcs.is_local_computer() else N_loops
         # N_loops = 100 if extra_funcs.is_local_computer() else N_loops
-        filenames = extra_funcs.generate_filenames(d_simulation_parameters, N_loops, force_SK_P1_UK=True)
+        filenames = extra_funcs.generate_filenames(d_simulation_parameters, N_loops, force_SK_P1_UK=False)
         N_files = len(filenames)
         # filename = filenames[0]
 
-        print(d_simulation_parameters, N_files)
-        continue
+        # print(d_simulation_parameters, N_files)
+        # continue
 
         if 'N0' in d_simulation_parameters.keys() and np.max(d_simulation_parameters['N0']) > 100_000:
             num_cores = extra_funcs.get_num_cores(10)

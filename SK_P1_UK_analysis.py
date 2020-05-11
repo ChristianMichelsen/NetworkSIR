@@ -148,9 +148,12 @@ N_files = len(filenames)
 # animate_single_file(filename, frac=0, remove_frames=True, do_tqdm=True)
 # x=x
 
+
 # filename = filenames[0]
-filename = 'Data_SK_P1_UK/N0_535806_mu_20.0_alpha_2.0_psi_0.0_beta_0.01_sigma_0.0_Mrate1_1.0_Mrate2_1.0_gamma_0.0_nts_0.1_Nstates_9_BB_0_Ninit_100_ID_000.SK_P1_UK.joblib'
-animate_single_file(filename, frac=0, remove_frames=True, do_tqdm=True)
+# filename = 'Data_SK_P1_UK/N0_535806_mu_20.0_alpha_6.0_psi_0.0_beta_0.01_sigma_0.0_Mrate1_1.0_Mrate2_1.0_gamma_0.0_nts_0.1_Nstates_9_BB_0_Ninit_100_ID_000.SK_P1_UK.joblib'
+# animate_single_file(filename, frac=0, remove_frames=True, do_tqdm=True)
+
+
 
 
 # # for filename in tqdm(filenames):
@@ -176,161 +179,169 @@ animate_single_file(filename, frac=0, remove_frames=True, do_tqdm=True)
 
 # #%%
 
-# from copy import copy
-# class SIRfile:
+from copy import copy
+class SIRfile:
 
-#     def __init__(self, filename, i_day=None):
-#         self.filename = filename
-#         print(f"Loading: \n{filename}")
-#         self.SK, self.P1, self.UK = joblib.load(filename)
-#         filename_AK = filename.replace('SK_P1_UK.joblib', 'AK_initial.parquet')
-#         self.AK = awkward.fromparquet(filename_AK)
-#         filename_Rate = filename_AK.replace('AK_initial.parquet', 'Rate_initial.parquet')
-#         self.Rate = awkward.fromparquet(filename_Rate)
+    def __init__(self, filename, i_day=None):
+        self.filename = filename
+        print(f"Loading: \n{filename}")
+        self.SK, self.P1, self.UK = joblib.load(filename)
+        filename_AK = filename.replace('SK_P1_UK.joblib', 'AK_initial.parquet')
+        self.AK = awkward.fromparquet(filename_AK)
+        filename_Rate = filename_AK.replace('AK_initial.parquet', 'Rate_initial.parquet')
+        self.Rate = awkward.fromparquet(filename_Rate)
 
-#         self.N = len(self.SK)
-#         if i_day is not None:
-#             self.i_day = i_day
+        self.N = len(self.SK)
+        if i_day is not None:
+            self.i_day = i_day
 
-#     def __call__(self, i_day):
-#         self.i_day = i_day
-#         return copy(self)
+    def __call__(self, i_day):
+        self.i_day = i_day
+        return copy(self)
 
-#     def to_df(self, i_day=None):
-#         if i_day is None and self.i_day is None:
-#             raise AssertionError(f'Both i_day and self.i_day is None, have to be defined')
-#         if i_day is None:
-#             i_day = self.i_day
+    def to_df(self, i_day=None):
+        if i_day is None and self.i_day is None:
+            raise AssertionError(f'Both i_day and self.i_day is None, have to be defined')
+        if i_day is None:
+            i_day = self.i_day
 
-#         # categories = 'S, E, I, R'.split(', ')
-#         mapping = {-1: 'S', 
-#                     0: 'E', 1: 'E', 2:'E', 3: 'E',
-#                     4: 'I', 5: 'I', 6:'I', 7: 'I',
-#                     8: 'R'}
+        # categories = 'S, E, I, R'.split(', ')
+        mapping = {-1: 'S', 
+                    0: 'E', 1: 'E', 2:'E', 3: 'E',
+                    4: 'I', 5: 'I', 6:'I', 7: 'I',
+                    8: 'R'}
 
-#         df = pd.DataFrame(self.P1, columns=['x', 'y'])
-#         df['SK_num'] = self.SK[i_day]
-#         df['UK_num'] = self.UK[i_day]
-#         df["SK"] = df['SK_num'].replace(mapping).astype('category')
-#         # self.df = df
-#         return df
-
-
-# import matplotlib.pyplot as plt
-# from matplotlib.lines import Line2D
-
-# plt.style.use('matplotlibrc')
-# colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
-# color_key = {str(label): col for col, label in zip(colors, ['S', 'E', 'I', 'R'])}
+        df = pd.DataFrame(self.P1, columns=['x', 'y'])
+        df['SK_num'] = self.SK[i_day]
+        df['UK_num'] = self.UK[i_day]
+        df["SK"] = df['SK_num'].replace(mapping).astype('category')
+        # self.df = df
+        return df
 
 
-# import datashader as ds
-# import datashader.transfer_functions as tf
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 
-# def df_to_fig(df, plot_width=1000, plot_height=1000, figsize=(6, 6), legend_fontsize=12, frameon=False):
+plt.style.use('matplotlibrc')
+colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+color_key = {str(label): col for col, label in zip(colors, ['S', 'E', 'I', 'R'])}
 
-#     canvas = ds.Canvas(plot_width=plot_width, plot_height=plot_height,
-#                        x_range=[df['x'].min(), df['x'].max()], 
-#                        y_range=[df['y'].min(), df['y'].max()],
-#                        x_axis_type='linear', y_axis_type='linear',
-#                     )
-#     agg = canvas.points(df, 'x', 'y', ds.count_cat('SK'))
 
-#     # color_key = color_key_b_c_uds_g
-#     # img = tf.shade(agg, color_key=color_key, how='log') # eq_hist
-#     img = tf.shade(agg, color_key=color_key, how='eq_hist') # eq_hist
-#     spread = tf.dynspread(img, threshold=0.9, max_px=1)
-#     pil = spread.to_pil()
+import datashader as ds
+import datashader.transfer_functions as tf
 
-#     fig, ax = plt.subplots(figsize=figsize)
+def df_to_fig(df, plot_width=1000, plot_height=1000, figsize=(6, 6), legend_fontsize=12, frameon=False):
 
-#     ax.imshow(np.array(pil))
-#     ax.set_xticks([], [])
-#     ax.set_yticks([], [])
+    canvas = ds.Canvas(plot_width=plot_width, plot_height=plot_height,
+                       x_range=[df['x'].min(), df['x'].max()], 
+                       y_range=[df['y'].min(), df['y'].max()],
+                       x_axis_type='linear', y_axis_type='linear',
+                    )
+    aggc = canvas.points(df, 'x', 'y', ds.count_cat('SK'))
 
-#     legend_elements = [Line2D([0], [0], marker='o', color='white', markerfacecolor=val, label=key) for key, val in color_key.items()]
-#     ax.legend(handles=legend_elements, loc='lower left', bbox_to_anchor=(-0.1, -0.05), fontsize=legend_fontsize, frameon=frameon)
-#     return fig
+    # agg_I_E=aggc.sel(SK=['I', 'E']).sum(dim='SK')
+
+    img_I = tf.shade(aggc.sel(SK='I'), name="I", how='log')
+    img_E = tf.shade(aggc.sel(SK='E'), name="E", how='log')
+
+    spread_I = tf.dynspread(img_I, threshold=0.9, max_px=1)
+    spread_E = tf.dynspread(img_E, threshold=0.9, max_px=1)
+
+    # color_key = color_key_b_c_uds_g
+    # img = tf.shade(agg, color_key=color_key, how='log') # eq_hist
+    img = tf.shade(aggc, color_key=color_key, how='eq_hist') # eq_hist
+    spread = tf.dynspread(img, threshold=0.9, max_px=1)
+    pil = spread.to_pil()
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    ax.imshow(np.array(pil))
+    ax.set_xticks([], [])
+    ax.set_yticks([], [])
+
+    legend_elements = [Line2D([0], [0], marker='o', color='white', markerfacecolor=val, label=key) for key, val in color_key.items()]
+    ax.legend(handles=legend_elements, loc='lower left', bbox_to_anchor=(-0.1, -0.05), fontsize=legend_fontsize, frameon=frameon)
+    return fig
 
    
-# def SIR_object_to_image(SIR_object):
-#     df = SIR_object.to_df()
-#     fig = df_to_fig(df);
-#     i_day = SIR_object.i_day
+def SIR_object_to_image(SIR_object):
+    df = SIR_object.to_df()
+    fig = df_to_fig(df);
+    i_day = SIR_object.i_day
 
-#     ax = fig.axes[0]
-#     ax.text(0.05, 0.95, f"{i_day=}", 
-#                     horizontalalignment='center',
-#                     verticalalignment='center', 
-#                     transform=ax.transAxes)
+    ax = fig.axes[0]
+    ax.text(0.05, 0.95, f"{i_day=}", 
+                    horizontalalignment='center',
+                    verticalalignment='center', 
+                    transform=ax.transAxes)
 
-#     figname = 'Figures_SK_P1_UK/animation_N'
-#     figname += SIR_object.filename.strip('Data_SK_P1_UK/NetworkSimulation_').strip('.joblib')
-#     figname += f'.{SIR_object.i_day:06d}.png'
+    figname = 'Figures_SK_P1_UK/animation_N'
+    figname += SIR_object.filename.strip('Data_SK_P1_UK/NetworkSimulation_').strip('.joblib')
+    figname += f'.{SIR_object.i_day:06d}.png'
 
-#     Path(figname).parent.mkdir(parents=True, exist_ok=True)
-#     fig.savefig(figname, dpi=75)
-#     plt.close(fig)
-#     plt.close('all')
-#     return None
+    Path(figname).parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(figname, dpi=75)
+    plt.close(fig)
+    plt.close('all')
+    return None
 
 
-# def animate_SIR_file(filename, num_cores_max=20, do_tqdm=True, remove_frames=True):
+def animate_SIR_file(filename, num_cores_max=20, do_tqdm=True, remove_frames=True):
 
-#     num_cores = mp.cpu_count() - 1
-#     if num_cores >= num_cores_max:
-#         num_cores = num_cores_max
+    num_cores = mp.cpu_count() - 1
+    if num_cores >= num_cores_max:
+        num_cores = num_cores_max
 
-#     SIR_base = SIRfile(filename)
-#     N = SIR_base.N
-#     SIR_objects = [SIR_base(i) for i in range(N)]
-#     # SIR_object = SIR_objects(200)
+    SIR_base = SIRfile(filename)
+    N = SIR_base.N
+    SIR_objects = [SIR_base(i) for i in range(N)]
+    # SIR_object = SIR_objects(200)
 
-#     for SIR_object in tqdm(SIR_objects, desc='Creating individual frames'):
-#         SIR_object_to_image(SIR_object);
+    for SIR_object in tqdm(SIR_objects, desc='Creating individual frames'):
+        SIR_object_to_image(SIR_object);
 
-#     # with mp.Pool(num_cores) as p:
-#     #     list(tqdm(p.imap_unordered(SIR_object_to_image, SIR_objects), total=N))
+    # with mp.Pool(num_cores) as p:
+    #     list(tqdm(p.imap_unordered(SIR_object_to_image, SIR_objects), total=N))
 
-#     import imageio # conda install imageio
-#     gifname = 'Figures_SK_P1_UK/animation_N' 
-#     gifname += filename.strip('Data_SK_P1_UK/NetworkSimulation_').strip('.joblib') 
-#     gifname += '.gif'
+    import imageio # conda install imageio
+    gifname = 'Figures_SK_P1_UK/animation_N' 
+    gifname += filename.strip('Data_SK_P1_UK/NetworkSimulation_').strip('.joblib') 
+    gifname += '.gif'
 
-#     it_frames = sorted(Path(gifname).parent.rglob(f"{Path(gifname).stem}*.png"))
-#     with imageio.get_writer(gifname, mode='I', duration=0.1) as writer:
-#         if do_tqdm:
-#             it_frames = tqdm(it_frames, desc='Stitching frames to gif')
-#         for i, figname in enumerate(it_frames):
-#             image = imageio.imread(figname)
-#             writer.append_data(image)
+    it_frames = sorted(Path(gifname).parent.rglob(f"{Path(gifname).stem}*.png"))
+    with imageio.get_writer(gifname, mode='I', duration=0.1) as writer:
+        if do_tqdm:
+            it_frames = tqdm(it_frames, desc='Stitching frames to gif')
+        for i, figname in enumerate(it_frames):
+            image = imageio.imread(figname)
+            writer.append_data(image)
 
-#             # if last frame add it N_last times           
-#             if i+1 == len(it_frames):
-#                 N_last = 100
-#                 for j in range(N_last):
-#                     writer.append_data(image)
+            # if last frame add it N_last times           
+            if i+1 == len(it_frames):
+                N_last = 100
+                for j in range(N_last):
+                    writer.append_data(image)
             
-#             if remove_frames:
-#                 Path(figname).unlink() # delete file
+            if remove_frames:
+                Path(figname).unlink() # delete file
 
 
 
 
-# def SIRfiles_i_day_to_df(i_SIR_tuple):
-#     i_day, (SIRfile_SK, SIRfile_P1, SIRfile_UK) = i_SIR_tuple
+def SIRfiles_i_day_to_df(i_SIR_tuple):
+    i_day, (SIRfile_SK, SIRfile_P1, SIRfile_UK) = i_SIR_tuple
 
-#     # categories = 'S, E, I, R'.split(', ')
-#     mapping = {-1: 'S', 
-#                 0: 'E', 1: 'E', 2:'E', 3: 'E',
-#                 4: 'I', 5: 'I', 6:'I', 7: 'I',
-#                 8: 'R'}
+    # categories = 'S, E, I, R'.split(', ')
+    mapping = {-1: 'S', 
+                0: 'E', 1: 'E', 2:'E', 3: 'E',
+                4: 'I', 5: 'I', 6:'I', 7: 'I',
+                8: 'R'}
 
-#     df = pd.DataFrame(SIRfile_P1, columns=['x', 'y'])
-#     df['SK_num'] = SIRfile_SK[i_day]
-#     df['UK_num'] = SIRfile_UK[i_day]
-#     df["SK"] = df['SK_num'].replace(mapping).astype('category')
-#     return df
+    df = pd.DataFrame(SIRfile_P1, columns=['x', 'y'])
+    df['SK_num'] = SIRfile_SK[i_day]
+    df['UK_num'] = SIRfile_UK[i_day]
+    df["SK"] = df['SK_num'].replace(mapping).astype('category')
+    return df
 
 
 
