@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import pickle
 
 def get_filenames():
-    filenames = Path('Data/NetworkSimulation').rglob(f'*.csv')
+    filenames = Path('Data/networkSimulation').rglob(f'*.csv')
     return [str(file) for file in sorted(filenames)]
 
 
@@ -63,10 +63,10 @@ def ODE_integrate(y0, Tmax, dt, ts, mu0, Mrate1, Mrate2, beta):
 
     # mu0 = 1
 
-    S, N0, E1, E2, E3, E4, I1, I2, I3, I4, R, R0 = y0
+    S, N0, E1, E2, E3, E4, I1, I2, I3, I4, R = y0
 
     click = 0
-    ODE_result_SIR = np.zeros((int(Tmax/ts)+1, 6))
+    ODE_result_SIR = np.zeros((int(Tmax/ts)+1, 5))
     Times = np.linspace(0, Tmax, int(Tmax/dt)+1)
 
     for Time in Times:
@@ -83,7 +83,7 @@ def ODE_integrate(y0, Tmax, dt, ts, mu0, Mrate1, Mrate2, beta):
         dI3 = Mrate2*I2 - Mrate2*I3
         dI4 = Mrate2*I3 - Mrate2*I4
 
-        R0  += dt*beta*mu0/N0*(I1+I2+I3+I4)*S
+        # R0  += dt*beta*mu0/N0*(I1+I2+I3+I4)*S
 
         dR  = Mrate2*I4
 
@@ -107,13 +107,14 @@ def ODE_integrate(y0, Tmax, dt, ts, mu0, Mrate1, Mrate2, beta):
                             I1+I2+I3+I4,
                             R,
                             Time, # RT
-                            R0,
+                            # R0,
                             ]
             click += 1
     return ODE_result_SIR
 
 
 
+from functools import lru_cache
 
 
 from iminuit.util import make_func_code
@@ -123,8 +124,6 @@ class CustomChi2:  # override the class with a better one
     
     def __init__(self, t_interpolated, y_truth, y0, Tmax, dt, ts, mu0, y_min=10):
         
-        # self.f = f  # model predicts y for given x
-        # self.time = time
         self.t_interpolated = t_interpolated
         self.y_truth = y_truth#.to_numpy(int)
         self.y0 = y0
@@ -135,7 +134,6 @@ class CustomChi2:  # override the class with a better one
         self.sy = np.sqrt(self.y_truth) #if sy is None else sy
         self.y_min = y_min
         self.N = sum(self.y_truth > self.y_min)
-        # self.func_code = make_func_code(describe(self._calc_yhat_interpolated))
 
     def __call__(self, Mrate1, Mrate2, beta, tau):  # par are a variable number of model parameters
         # compute the function value
@@ -150,9 +148,11 @@ class CustomChi2:  # override the class with a better one
     def __repr__(self):
         return f'CustomChi2(\n\t{self.t_interpolated=}, \n\t{self.y_truth=}, \n\t{self.y0=}, \n\t{self.Tmax=}, \n\t{self.dt=}, \n\t{self.ts=}, \n\t{self.mu0=}, \n\t{self.y_min=},\n\t)'.replace('=', ' = ').replace('array(', '').replace('])', ']')
 
-    def _calc_ODE_result_SIR(self, Mrate1, Mrate2, beta, ts=None):
+    @lru_cache(maxsize=None)
+    def _calc_ODE_result_SIR(self, Mrate1, Mrate2, beta, ts=None, Tmax=None):
         ts = ts if ts is not None else self.ts
-        return ODE_integrate(self.y0, self.Tmax, self.dt, ts, self.mu0, Mrate1, Mrate2, beta)
+        Tmax = Tmax if Tmax is not None else self.Tmax
+        return ODE_integrate(self.y0, Tmax, self.dt, ts, self.mu0, Mrate1, Mrate2, beta)
 
     def _calc_yhat_interpolated(self, Mrate1, Mrate2, beta, tau):
         ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, Mrate2, beta)
@@ -202,15 +202,15 @@ class CustomChi2:  # override the class with a better one
                             index=self.parameters, 
                             columns=self.parameters)
 
-    def calc_df_fit(self, ts=0.01, values=None):
+    def calc_df_fit(self, ts=0.01, values=None, Tmax=None):
         if values is None:
             values = self.values
         Mrate1, Mrate2, beta, tau = values
-        ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, Mrate2, beta, ts=ts)
-        cols = ['S', 'E_sum', 'I_sum', 'R', 'Time', 'R0']
+        ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, Mrate2, beta, ts=ts, Tmax=Tmax)
+        cols = ['S', 'E', 'I', 'R', 'Time']
         df_fit = pd.DataFrame(ODE_result_SIR, columns=cols).convert_dtypes()
         df_fit['Time'] -= tau
-        df_fit['N'] = df_fit[['S', 'E_sum', 'I_sum', 'R']].sum(axis=1)
+        df_fit['N'] = df_fit[['S', 'E', 'I', 'R']].sum(axis=1)
         if df_fit.iloc[-1]['R'] == 0:
             df_fit = df_fit.iloc[:-1]
         return df_fit
@@ -222,6 +222,15 @@ class CustomChi2:  # override the class with a better one
         ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, Mrate2, beta, ts=ts)
         I_max = np.max(ODE_result_SIR[:, 2])
         return I_max
+
+    
+    def compute_R_inf(self, ts=0.1, values=None, Tmax=None):
+        if values is None:
+            values = self.values
+        Mrate1, Mrate2, beta, tau = values
+        ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, Mrate2, beta, ts=ts, Tmax=Tmax)
+        R_inf = ODE_result_SIR[-1, 3]
+        return R_inf
 
 
 
@@ -306,8 +315,8 @@ def fit_single_file(filename, ts=0.1, dt=0.01, FIT_MAX=100):
     y_truth = df_interpolated['I'].to_numpy(int)
     Tmax = int(time.max())+1 # max number of days
     N0 = cfg.N0
-    # y0 =  S, N0,                E1,E2,E3,E4,  I1,I2,I3,I4,  R, R0
-    y0 = N0-cfg.Ninit,N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
+    # y0 =  S, N0,                E1,E2,E3,E4,  I1,I2,I3,I4,  R
+    y0 = N0-cfg.Ninit,N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0
 
     # reload(extra_funcs)
     fit_object = CustomChi2(t_interpolated, y_truth, y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
@@ -349,20 +358,28 @@ def fit_single_file(filename, ts=0.1, dt=0.01, FIT_MAX=100):
 
 
 
+@lru_cache(maxsize=None)
+def calc_Imax_R_inf_deterministic(mu, Mrate1, Mrate2, beta, y0, Tmax, dt, ts):
+    ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu, Mrate1, Mrate2, beta)
+    I_max = np.max(ODE_result_SIR[:, 2])
+    R_inf = ODE_result_SIR[-1, 3]
+    return I_max, R_inf
+
+
 N_peak_fits = 20
-def fit_single_file_Imax(filename, ts=0.1, dt=0.01, for_animation=False):
+def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
 
     # ts = 0.1 # frequency of "observations". Now 1 pr. day
     # dt = 0.01 # stepsize in integration
 
     cfg = filename_to_dotdict(filename)
-    parameters_as_string = dict_to_str(cfg)
 
     df = pandas_load_file(filename, return_only_df=True)
-    # y_truth = df_interpolated['I'].to_numpy(int)
+    R_inf_net = df['R'].iloc[-1]
+
     Tmax = int(df['Time'].max())+1 # max number of days
     N0 = cfg.N0
-    y0 = N0-cfg.Ninit, N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
+    y0 = N0-cfg.Ninit, N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0#, cfg.Ninit
 
     I = df['I'].to_numpy(int)
     Time = df['Time'].to_numpy()
@@ -377,35 +394,44 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01, for_animation=False):
     df_prefit = df.iloc[indices]
 
     # Time from beginning to peak
-    I_time_duration = Time[iloc_max] - Time[iloc_min]
+    # I_time_duration = Time[iloc_max] - Time[iloc_min]
 
     t_interpolated = df_prefit['Time'].to_numpy()
     y_truth = df_prefit['I'].to_numpy(int)
 
-    Tmax = Time[iloc_max]*1.1
+    I_max_det, R_inf_det = calc_Imax_R_inf_deterministic(cfg.mu, cfg.Mrate1, cfg.Mrate2, cfg.beta, y0, Tmax*2, dt, ts)
 
+    Tmax_peak = Time[iloc_max]*1.1
 
     # reload(extra_funcs)
-    I_max_truth = np.max(I)
-    times_maxs = t_interpolated[1:] - Time[iloc_min]
-    times_maxs_normalized = times_maxs / I_time_duration
-    fit_objects_Imax = []
+    I_max_net = np.max(I)
+    # times_maxs = t_interpolated[1:] - Time[iloc_min]
+    # times_maxs_normalized = times_maxs / I_time_duration
+    fit_objects = []
     for imax in range(N_peak_fits):
-        fit_object = CustomChi2(t_interpolated[:imax+2], y_truth[:imax+2], y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
+        fit_object = CustomChi2(t_interpolated[:imax+2], y_truth[:imax+2], y0, Tmax_peak, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
         minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
         minuit.migrad()
         fit_object.set_minuit(minuit)
-        fit_objects_Imax.append(fit_object)
 
-    if not for_animation:
-        return filename, times_maxs_normalized, I_max_truth, fit_objects_Imax
-    else:
-        return t_interpolated, y_truth, fit_objects_Imax
+        fit_object.filename = filename
+        # fit_object.times_maxs_normalized = times_maxs_normalized
+        fit_object.I_max_net = I_max_net
+        fit_object.I_max_hat = fit_object.compute_I_max()
+        fit_object.I_max_det = I_max_det
+        
+        fit_object.R_inf_net = R_inf_net
+        fit_object.R_inf_hat = fit_object.compute_R_inf()
+        fit_object.R_inf_det = R_inf_det
+
+        fit_objects.append(fit_object)
+
+    return filename, fit_objects
 
 
     # reload(extra_funcs)
     # N_peak_fits = N_peak_fits
-    # I_max_truth = np.max(I)
+    # I_max_net = np.max(I)
     # I_maxs = np.zeros(N_peak_fits)
     # betas = np.zeros(N_peak_fits)
     # betas_std = np.zeros(N_peak_fits)
@@ -413,53 +439,9 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01, for_animation=False):
         # I_maxs[imax] = I_max
         # betas[imax] = fit_object.fit_values['beta']
         # betas_std[imax] = fit_object.fit_errors['beta']
-    # return filename, times_maxs_normalized, I_maxs, I_max_truth, betas, betas_std
+    # return filename, times_maxs_normalized, I_maxs, I_max_net, betas, betas_std
 
 
-
-def animate_Imax_fit_filename(filename):
-
-    t_interpolated, y_truth, fit_objects_Imax = fit_single_file_Imax(filename, ts=0.1, dt=0.01, for_animation=True)
-
-    df = pandas_load_file(filename, return_only_df=True)
-    fignames = []
-    for imax in tqdm(range(N_peak_fits)):
-
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df['Time'], y=df['I'], name=f'Simulation', line=dict(color='black', width=2)))
-
-        df_fit = fit_objects_Imax[imax].calc_df_fit(ts=0.01)
-        fig.add_trace(go.Scatter(x=df_fit['Time'], y=df_fit['I_sum'], name=f'Fit'))
-
-        fig.add_trace(go.Scatter(x=t_interpolated[:imax+2], y=y_truth[:imax+2], name=f'Data', mode='markers', marker=dict(size=10, color=1)))
-
-        fig.update_xaxes(range=[df['Time'].min(), df['Time'].max()])
-        fig.update_yaxes(range=[0, df['I'].max()*1.1])
-
-        # Edit the layout
-        fig.update_layout(title=f'Simulation comparison, {imax=}',
-                        xaxis_title='Time',
-                        yaxis_title='Count',
-                        height=600, width=800,
-                        # showlegend=False,
-                        )
-
-        fig.update_yaxes(rangemode="tozero")
-        # fig.show()
-        figname = f"Figures/.tmp_{imax}.png"
-        fig.write_image(figname)
-        fignames.append(figname)
-
-    import imageio # conda install imageio
-    gifname = 'Figures/Imax_animation_N' + filename.strip('Data/NetworkSimulation_').strip('.csv') + '.gif'
-    with imageio.get_writer(gifname, mode='I', duration=0.5) as writer:
-        for figname in fignames:
-            image = imageio.imread(figname)
-            writer.append_data(image)
-            Path(figname).unlink() # delete file
-    
-
-    return None
 
 
 #%%
@@ -513,22 +495,23 @@ def calc_fit_Imax_results(filenames, num_cores_max=30):
         results = list(tqdm(p.imap_unordered(fit_single_file_Imax, filenames), total=N_files))
 
     # postprocess results from multiprocessing:
-    I_maxs_truth = {}
+    # I_maxs_net = {}
     fit_objects = {}
     bins = np.linspace(0, 1, N_peak_fits+1)
     bin_centers = (bins[1:] + bins[:-1])/2
 
-    # filename, times_maxs_normalized, I_max_truth, fit_objects_Imax = results[0]
-    for filename, times_maxs_normalized, I_max_truth, fit_objects_Imax in results:
+    # filename, times_maxs_normalized, I_max_net, fit_objects_Imax = results[0]
+    for filename, fit_object in results:
         # if one fit in each bin:
-        if np.all(1 == np.histogram(times_maxs_normalized, bins)[0]):
-            I_maxs_truth[filename] = I_max_truth
-            fit_objects[filename] = fit_objects_Imax
-            # I_maxs_normed[filename] = I_maxs / I_max_truth
+        # if np.all(1 == np.histogram(fit_object.times_maxs_normalized, bins)[0]):
+            # I_maxs_net[fit_object.filename] = fit_object.I_max_net
+        fit_objects[filename] = fit_object#.fit_objects_Imax
+            # I_maxs_normed[filename] = I_maxs / I_max_net
             # betas[filename] = beta
             # betas_std[filename] = beta_std
         
-    return I_maxs_truth, fit_objects, bin_centers
+    return fit_objects, bin_centers
+    # return I_maxs_net, fit_objects, bin_centers
 
 
 
@@ -602,18 +585,18 @@ def Imax_fits_to_df(Imax_res, filenames_to_use, I_maxs_times):
     return df
 
 
-def extract_normalized_Imaxs(d_fit_objects_all_IDs, I_maxs_truth, filenames_to_use, bin_centers_Imax):
+def extract_normalized_Imaxs(d_fit_objects_all_IDs, I_maxs_net, filenames_to_use, bin_centers_Imax):
     I_maxs_normed_res = {}
     for filename, fit_objects in d_fit_objects_all_IDs.items():
         I_maxs = np.zeros(N_peak_fits)
         for i_fit_object, fit_object in enumerate(fit_objects):
             I_maxs[i_fit_object]  = fit_object.compute_I_max()
-        I_maxs_normed_res[filename] = I_maxs / I_maxs_truth[filename]
+        I_maxs_normed_res[filename] = I_maxs / I_maxs_net[filename]
     df_I_maxs_normed = Imax_fits_to_df(I_maxs_normed_res, filenames_to_use, bin_centers_Imax)
     return df_I_maxs_normed
 
 
-def extract_relative_Imaxs(d_fit_objects_all_IDs, I_maxs_truth, filenames_to_use, bin_centers_Imax):
+def extract_relative_Imaxs(d_fit_objects_all_IDs, I_maxs_net, filenames_to_use, bin_centers_Imax):
     I_maxs_relative_res = {}
     for filename, fit_objects in d_fit_objects_all_IDs.items():
         I_maxs = np.zeros(N_peak_fits)
@@ -621,11 +604,11 @@ def extract_relative_Imaxs(d_fit_objects_all_IDs, I_maxs_truth, filenames_to_use
         for i_fit_object, fit_object in enumerate(fit_objects):
             I_maxs[i_fit_object] = fit_object.compute_I_max()
             I_current_pos[i_fit_object] = fit_object.y_truth[-1]
-        I_maxs_relative_res[filename] = (I_maxs_truth[filename]-I_maxs) / (I_maxs_truth[filename]-I_current_pos)
+        I_maxs_relative_res[filename] = (I_maxs_net[filename]-I_maxs) / (I_maxs_net[filename]-I_current_pos)
     df_I_maxs_relative = Imax_fits_to_df(I_maxs_relative_res, filenames_to_use, bin_centers_Imax)
     return df_I_maxs_relative
 
-def extract_relative_Imaxs_relative_I(d_fit_objects_all_IDs, I_maxs_truth, filenames_to_use):
+def extract_relative_Imaxs_relative_I(d_fit_objects_all_IDs, I_maxs_net, filenames_to_use):
     
     I_maxs_relative_res = {}
     I_relative_res = {}
@@ -641,7 +624,7 @@ def extract_relative_Imaxs_relative_I(d_fit_objects_all_IDs, I_maxs_truth, filen
             I_maxs[i_fit_object] = fit_object.compute_I_max()
             I_current_pos[i_fit_object] = fit_object.y_truth[-1]
 
-        I_maxs_relative_res[filename] = (I_maxs_truth[filename]-I_maxs) / (I_maxs_truth[filename]-I_current_pos)
+        I_maxs_relative_res[filename] = (I_maxs_net[filename]-I_maxs) / (I_maxs_net[filename]-I_current_pos)
         I_relative_res[filename] = I_rel
 
     x = np.stack(I_relative_res.values())
@@ -712,7 +695,7 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
 
         from matplotlib.backends.backend_pdf import PdfPages
 
-        base_dir = Path('Data') / 'NetworkSimulation'
+        base_dir = Path('Data') / 'networkSimulation'
         all_sim_pars = sorted([str(x.name) for x in base_dir.glob('*') if str(x.name) != '.DS_Store'])
 
         with PdfPages(pdf_name) as pdf:
@@ -749,7 +732,7 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
 
                 Tmax = max(Tmax, 50)
 
-                y0 = cfg.N0-cfg.Ninit, cfg.N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
+                y0 = cfg.N0-cfg.Ninit, cfg.N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0#, cfg.Ninit
                 dt = 0.01
                 ts = 0.1
 
@@ -757,7 +740,7 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
                 # print(y0, Tmax, dt, ts, cfg)
                 I_SIR = ODE_result_SIR[:, 2]
                 time = ODE_result_SIR[:, 4]
-                cols = ['S', 'E_sum', 'I_sum', 'R', 'Time', 'R0']
+                cols = ['S', 'E_sum', 'I_sum', 'R', 'Time']
                 df_fit = pd.DataFrame(ODE_result_SIR, columns=cols).convert_dtypes()
 
                 ax.plot(time, I_SIR, lw=15*lw, color='red', label='SIR')
@@ -784,7 +767,7 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
 
 def get_filenames_different_than_default(find_par):
 
-    base_dir = Path('Data') / 'NetworkSimulation'
+    base_dir = Path('Data') / 'networkSimulation'
     all_sim_pars = sorted([str(x.name) for x in base_dir.glob('*') if str(x.name) != '.DS_Store'])
 
     all_sim_pars_as_dict = {s: string_to_dict(s) for s in all_sim_pars}
@@ -828,7 +811,7 @@ def plot_variable_other_than_default(par):
 
     filenames_par_rest_default = get_filenames_different_than_default(par)
 
-    base_dir = Path('Data') / 'NetworkSimulation'
+    base_dir = Path('Data') / 'networkSimulation'
     # I_max_rel = {}
 
     x = np.zeros(len(filenames_par_rest_default))
@@ -841,22 +824,22 @@ def plot_variable_other_than_default(par):
         filenames = [str(filename) for filename in base_dir.rglob('*.csv') if sim_par in str(filename)]
         N_files = len(filenames)
 
-        I_max_Net = np.zeros(N_files)
+        I_max_net = np.zeros(N_files)
         for i_filename, filename in enumerate(filenames):
             cfg = filename_to_dotdict(filename)
             df = pandas_load_file(filename, return_only_df=True)
-            I_max_Net[i_filename] = df['I'].max()
+            I_max_net[i_filename] = df['I'].max()
 
         Tmax = df['Time'].max()*1.2
-        y0 = cfg.N0-cfg.Ninit, cfg.N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0, cfg.Ninit
+        y0 = cfg.N0-cfg.Ninit, cfg.N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0#, cfg.Ninit
         dt = 0.01
         ts = 0.1
         ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu0=cfg.mu, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta)
         # print(y0, Tmax, dt, ts, cfg)
         I_SIR = ODE_result_SIR[:, 2]
         I_max_SIR = np.max(I_SIR)
-        z_rel = I_max_Net / I_max_SIR
-        # I_max_rel[cfg[par]] = I_max_Net / I_max_SIR
+        z_rel = I_max_net / I_max_SIR
+        # I_max_rel[cfg[par]] = I_max_net / I_max_SIR
         x[i_simpar] = cfg[par]
         y[i_simpar] = np.mean(z_rel)
         sy[i_simpar] = np.std(z_rel) / np.sqrt(len(z_rel))
@@ -868,7 +851,7 @@ def plot_variable_other_than_default(par):
     fig = go.Figure(data=go.Scatter(x=x, y=y, text=n_text, mode='markers', error_y=dict(array=sy)))
     fig.update_layout(title=title,
                     xaxis_title=par,
-                    yaxis_title='I_max_Net / I_max_SIR',
+                    yaxis_title='I_max_net / I_max_SIR',
                     height=600, width=800,
                     showlegend=False,
                     )

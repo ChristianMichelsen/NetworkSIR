@@ -30,20 +30,20 @@ N_files = len(filenames)
 if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison(force_overwrite=True, max_N_plots=100)
 
-
 #%%
 
 if __name__ == '__main__':
 
-    I_maxs_truth, fit_objects_Imax, bin_centers_Imax = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=num_cores_max)
+    fit_objects, bin_centers_Imax = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=num_cores_max)
     # bins = np.linspace(0, 1, extra_funcs.N_peak_fits+1)
-    # bin_centers_Imax = (bins[1:] + bins[:-1])/2
+    # bin_centers_Imax = (bins[1:] + bins[:-1])/26
 
     fit_results = extra_funcs.get_fit_results(filenames, force_rerun=False, num_cores_max=num_cores_max)
     all_fit_objects, discarded_files, N_refits_total = fit_results
     print(f"{N_refits_total=}, number of discarded files = {len(discarded_files)}\n\n", flush=True)
 
 
+    x=x
 
 #%%
 
