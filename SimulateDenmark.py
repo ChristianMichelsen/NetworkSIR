@@ -69,8 +69,7 @@ all_sim_pars = [
 
 # x=x
 
-
-reload(extra_funcs)
+# reload(extra_funcs)
 
 if __name__ == '__main__':
 
