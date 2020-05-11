@@ -31,21 +31,6 @@ if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison(force_overwrite=True, max_N_plots=100)
 
 
-
-#%%
-
-if do_animate:
-
-    search_string = 'alpha_8_psi_0'
-    filename_alpha_20 = [filename for filename in filenames if search_string in filename]
-
-    for filename in filenames:
-        if search_string in filename:
-            break
-
-    extra_funcs.animate_Imax_fit_filename(filename)
-
-
 #%%
 
 if __name__ == '__main__':
@@ -59,7 +44,6 @@ if __name__ == '__main__':
     print(f"{N_refits_total=}, number of discarded files = {len(discarded_files)}\n\n", flush=True)
 
 
-    x=x
 
 #%%
 
@@ -280,6 +264,7 @@ if __name__ == '__main__':
                             ),
                         mode="markers",
                         ),
+                    
             row=1, col=1,
             )
         fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=1)

@@ -19,7 +19,7 @@ def get_SK_P1_UK_filenames():
     return [str(file) for file in sorted(filenames)]
 
 import plotly.express as px
-def animate_single_file(filename, frac=0, Nbins=100, remove_frames=True, do_tqdm=True, plot_first_day=False, force_rerun=False):
+def animate_single_file(filename, frac=0, Nbins=100, remove_frames=True, do_tqdm=False, plot_first_day=False, force_rerun=False):
     
     name = 'animation_' + Path(filename).stem + '.gif'
     gifname = str(Path('Figures_SK_P1_UK') /  name)
@@ -144,15 +144,17 @@ filenames = get_SK_P1_UK_filenames()
 filename = filenames[0]
 N_files = len(filenames)
 
+# print(filenames)
 # animate_single_file(filename, frac=0, remove_frames=True, do_tqdm=True)
 # x=x
 
 # filename = filenames[0]
-# animate_single_file(filename, frac=0, remove_frames=True, do_tqdm=True)
-for filename in tqdm(filenames):
-    animate_single_file(filename, frac=0, remove_frames=True, do_tqdm=True)
+filename = 'Data_SK_P1_UK/N0_535806_mu_20.0_alpha_2.0_psi_0.0_beta_0.01_sigma_0.0_Mrate1_1.0_Mrate2_1.0_gamma_0.0_nts_0.1_Nstates_9_BB_0_Ninit_100_ID_000.SK_P1_UK.joblib'
+animate_single_file(filename, frac=0, remove_frames=True, do_tqdm=True)
 
-# x=x
+
+# # for filename in tqdm(filenames):
+# #     animate_single_file(filename, frac=0, remove_frames=True, do_tqdm=True)
 
 # num_cores = mp.cpu_count() - 1
 # num_cores_max = 15
