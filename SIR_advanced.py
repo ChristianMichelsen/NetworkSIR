@@ -32,6 +32,7 @@ if plot_SIR_comparison:
 
 #%%
 
+
 if __name__ == '__main__':
 
     fit_objects, bin_centers_Imax = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=num_cores_max)
