@@ -566,12 +566,10 @@ def get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=20):
             all_Imax_fits[sim_pars] = joblib.load(output_filename)
 
         else:
-            fit_results = calc_fit_Imax_results(filenames, num_cores_max=num_cores_max)
+            fit_results = calc_fit_Imax_results(files, num_cores_max=num_cores_max)
             # print(f"Finished Imax fitting, saving results to {output_filename}", flush=True)
             joblib.dump(fit_results, output_filename)
-            # pickle.dump(fit_results, open(out_pickle, "wb"))
             all_Imax_fits[sim_pars] = fit_results
-            # return fit_results
 
     return all_Imax_fits, bin_centers
 
