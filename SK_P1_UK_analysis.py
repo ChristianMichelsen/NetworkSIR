@@ -145,7 +145,7 @@ filename = filenames[0]
 N_files = len(filenames)
 
 # print(filenames)
-# animate_single_file(filename, frac=0, remove_frames=True, do_tqdm=True)
+animate_single_file(filename, frac=0, remove_frames=True, do_tqdm=True)
 # x=x
 
 

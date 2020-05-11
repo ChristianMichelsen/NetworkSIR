@@ -43,7 +43,7 @@ def generate_filenames(d, N_loops=10, force_overwrite=False, force_SK_P1_UK=Fals
     nameval_to_str = [[f'{name}_{x}' for x in lst] for (name, lst) in d.items()]
     all_combinations = list(product(*nameval_to_str))
 
-    ints = ['N0', 'BB']
+    ints = ['N0', 'BB', 'Ninit']
 
     for combination in all_combinations:
         for s in combination:
