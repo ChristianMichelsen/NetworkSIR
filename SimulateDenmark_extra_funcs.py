@@ -51,8 +51,6 @@ def generate_filenames(d, N_loops=10, force_overwrite=False, force_SK_P1_UK=Fals
             val = int(val) if name in ints else float(val)
             cfg[name] = val
 
-        # cfg['Ninit'] = max(1, int(cfg['N0'] * 0.1 / 1000)) # Initial Infected, 1 permille        
-        # cfg['Ninit'] = 100 # 100 Initial Infected
         for ID in range(N_loops):
             filename = dict_to_filename_with_dir(cfg, ID)
 
@@ -242,7 +240,8 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Mrate1, Mrate2, gamma, nts
                         UKRef[id2] += 1
                         accra = 1                    
     else:
-        N_cac = 10_000
+        N_cac = 10
+        num_prints = 0
         for c in range(int(mu*NRe)):
             ra1 = np.random.rand()
             id1 = np.searchsorted(PP, ra1) 
@@ -259,7 +258,9 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Mrate1, Mrate2, gamma, nts
                     cac = 0
                     ra1 = np.random.rand()
                     id1 = np.searchsorted(PP, ra1) 
-                     
+                    num_prints += 1
+                    if verbose and num_prints < 100:
+                        print("got here", id1, c) 
 
                 #  Make sure no element is present twice
                 for i1 in range(UK[id1]):               
@@ -283,9 +284,11 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Mrate1, Mrate2, gamma, nts
                         UKRef[id1] += 1
                         UKRef[id2] += 1
                         accra = 1
+                        print(c)
 
                         
-
+    if verbose:
+        print(cac, num_prints)
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # # # # # # # # # # # INITIAL INFECTIONS  # # # # # # # # # # # # # # # # # # # # # # # #

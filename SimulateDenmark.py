@@ -7,7 +7,9 @@ from importlib import reload
 
 num_cores_max = 8
 N_loops = 100
-# N_Denmark = extra_funcs.N_Denmark # 535_806
+N_Denmark = extra_funcs.N_Denmark # 535_806
+
+# x=x
 
 all_sim_pars = [
 
@@ -19,6 +21,12 @@ all_sim_pars = [
                     'gamma': [0.0, 0.5, 1.0],
                     'BB': [0, 1],
                 },
+
+                {   'N0': [N_Denmark, N_Denmark//10],
+                    'Ninit': [10, 100, 1000],
+                    'BB': [0, 1],
+                }, 
+
 
                 { 
                     'alpha': [1, 2, 4, 6, 8, 15, 20],
@@ -55,6 +63,15 @@ all_sim_pars = [
 
 #%%
 
+# filename = 'Data/NetworkSimulation/N0_535806_mu_20.0_alpha_20.0_psi_0.0_beta_0.01_sigma_0.0_Mrate1_1.0_Mrate2_1.0_gamma_0.0_nts_0.1_Nstates_9_BB_1_Ninit_100/N0_535806_mu_20.0_alpha_20.0_psi_0.0_beta_0.01_sigma_0.0_Mrate1_1.0_Mrate2_1.0_gamma_0.0_nts_0.1_Nstates_9_BB_1_Ninit_100_ID_000.csv'
+
+# extra_funcs.single_run_and_save(filename)
+
+# x=x
+
+
+reload(extra_funcs)
+
 if __name__ == '__main__':
 
     for d_simulation_parameters in all_sim_pars:
@@ -77,6 +94,7 @@ if __name__ == '__main__':
         if len(filenames) > 0:
             filename = filenames[0]
             print(f"Generating {N_files} network-based simulations with {num_cores} cores based on {d_simulation_parameters}, please wait.", flush=True)
+
 
             if num_cores == 1:
                 for filename in tqdm(filenames):
