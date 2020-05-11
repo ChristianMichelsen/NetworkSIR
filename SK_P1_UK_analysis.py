@@ -247,6 +247,9 @@ def df_to_fig(df, plot_width=1000, plot_height=1000, figsize=(6, 6), legend_font
     spread_I = tf.dynspread(img_I, threshold=0.9, max_px=1)
     spread_E = tf.dynspread(img_E, threshold=0.9, max_px=1)
 
+    images = tf.Images(spread_I, spread_E)
+
+
     # color_key = color_key_b_c_uds_g
     # img = tf.shade(agg, color_key=color_key, how='log') # eq_hist
     img = tf.shade(aggc, color_key=color_key, how='eq_hist') # eq_hist
@@ -295,7 +298,7 @@ def animate_SIR_file(filename, num_cores_max=20, do_tqdm=True, remove_frames=Tru
     SIR_base = SIRfile(filename)
     N = SIR_base.N
     SIR_objects = [SIR_base(i) for i in range(N)]
-    # SIR_object = SIR_objects(200)
+    # SIR_object = SIR_objects[100]
 
     for SIR_object in tqdm(SIR_objects, desc='Creating individual frames'):
         SIR_object_to_image(SIR_object);

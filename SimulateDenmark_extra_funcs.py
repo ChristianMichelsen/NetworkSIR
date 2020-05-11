@@ -242,14 +242,25 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Mrate1, Mrate2, gamma, nts
                         UKRef[id2] += 1
                         accra = 1                    
     else:
+        N_cac = 10_000
         for c in range(int(mu*NRe)):
             ra1 = np.random.rand()
             id1 = np.searchsorted(PP, ra1) 
             accra = 0
+            cac = 0
+
             while accra == 0:
                 ra2 = np.random.rand()          
                 id2 = np.searchsorted(PP, ra2)
                 acc = 1
+                cac += 1
+
+                if cac > N_cac:
+                    cac = 0
+                    ra1 = np.random.rand()
+                    id1 = np.searchsorted(PP, ra1) 
+                     
+
                 #  Make sure no element is present twice
                 for i1 in range(UK[id1]):               
                     if AK[id1, i1] == id2:
@@ -272,6 +283,8 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Mrate1, Mrate2, gamma, nts
                         UKRef[id1] += 1
                         UKRef[id2] += 1
                         accra = 1
+
+                        
 
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
