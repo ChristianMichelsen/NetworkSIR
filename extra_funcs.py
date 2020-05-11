@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import pickle
 
 def get_filenames():
-    filenames = Path('Data/networkSimulation').rglob(f'*.csv')
+    filenames = Path('Data/NetworkSimulation').rglob(f'*.csv')
     return [str(file) for file in sorted(filenames)]
 
 
@@ -695,7 +695,7 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
 
         from matplotlib.backends.backend_pdf import PdfPages
 
-        base_dir = Path('Data') / 'networkSimulation'
+        base_dir = Path('Data') / 'NetworkSimulation'
         all_sim_pars = sorted([str(x.name) for x in base_dir.glob('*') if str(x.name) != '.DS_Store'])
 
         with PdfPages(pdf_name) as pdf:
@@ -767,7 +767,7 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
 
 def get_filenames_different_than_default(find_par):
 
-    base_dir = Path('Data') / 'networkSimulation'
+    base_dir = Path('Data') / 'NetworkSimulation'
     all_sim_pars = sorted([str(x.name) for x in base_dir.glob('*') if str(x.name) != '.DS_Store'])
 
     all_sim_pars_as_dict = {s: string_to_dict(s) for s in all_sim_pars}
@@ -811,7 +811,7 @@ def plot_variable_other_than_default(par):
 
     filenames_par_rest_default = get_filenames_different_than_default(par)
 
-    base_dir = Path('Data') / 'networkSimulation'
+    base_dir = Path('Data') / 'NetworkSimulation'
     # I_max_rel = {}
 
     x = np.zeros(len(filenames_par_rest_default))
