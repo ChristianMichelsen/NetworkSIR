@@ -84,10 +84,10 @@ if __name__ == '__main__':
         print(d_simulation_parameters, N_files)
         # continue
 
-        if 'N0' in d_simulation_parameters.keys() and np.max(d_simulation_parameters['N0']) > 100_000:
-            num_cores = extra_funcs.get_num_cores(10)
-        else:
-            num_cores = extra_funcs.get_num_cores(num_cores_max)
+        # if 'N0' in d_simulation_parameters.keys() and np.max(d_simulation_parameters['N0']) > 100_000:
+        #     num_cores = extra_funcs.get_num_cores(10)
+        # else:
+        num_cores = extra_funcs.get_num_cores(num_cores_max)
 
         # make sure path exists
         if len(filenames) > 0:
