@@ -8,8 +8,7 @@ from importlib import reload
 num_cores_max = 7
 N_loops = 100
 N_Denmark = extra_funcs.N_Denmark # 535_806
-
-# x=x
+force_SK_P1_UK = True
 
 all_sim_pars = [
 
@@ -26,12 +25,6 @@ all_sim_pars = [
                     'Ninit': [10, 100, 1000],
                     'BB': [0, 1],
                 }, 
-
-
-                { 
-                    'alpha': [1, 2, 4, 6, 8, 15, 20],
-                    'BB': [0, 1],
-                },
 
                 {
                     'beta': [0.005, 0.01, 0.02, 0.05, 0.1],
@@ -58,30 +51,73 @@ all_sim_pars = [
                     'BB': [0, 1],
                 },
 
+
+                { 
+                    'alpha': [1, 2, 4, 6, 8, 15, 20],
+                    'BB': [0, 1],
+                },
+
                 ]
 
 
 #%%
 
+# x=x
+
+# def get_filenames_iter(all_sim_pars, force_SK_P1_UK, N_loops):
+#     all_filenames = []
+#     if not force_SK_P1_UK:
+#         for d_simulation_parameters in all_sim_pars:
+#             filenames = extra_funcs.generate_filenames(d_simulation_parameters, N_loops, force_SK_P1_UK=force_SK_P1_UK)
+#             all_filenames.append(filenames)
+#     else:
+#         for d_simulation_parameters in all_sim_pars:
+#             all_filenames.extend(extra_funcs.generate_filenames(d_simulation_parameters, N_loops, force_SK_P1_UK=False))
+#     return all_filenames
+
+# all_filenames = get_filenames_iter(all_sim_pars, False, N_loops)
+# len(all_filenames)
+# len(all_filenames[0])
+
 
 # reload(extra_funcs)
 if __name__ == '__main__':
 
-    for d_simulation_parameters in all_sim_pars:
+    num_cores = extra_funcs.get_num_cores(num_cores_max)
+    N_loops = 1 if extra_funcs.is_local_computer() else N_loops
 
-        N_loops = 1 if extra_funcs.is_local_computer() else N_loops
-        # N_loops = 100 if extra_funcs.is_local_computer() else N_loops
-        filenames = extra_funcs.generate_filenames(d_simulation_parameters, N_loops, force_SK_P1_UK=True)
+    if not force_SK_P1_UK:
+ 
+        for d_simulation_parameters in all_sim_pars:
+            
+            filenames = extra_funcs.generate_filenames(d_simulation_parameters, N_loops, force_SK_P1_UK=force_SK_P1_UK)
+            N_files = len(filenames)
+            # filename = filenames[0]
+
+            print(d_simulation_parameters, N_files)
+            # continue
+
+            # make sure path exists
+            if len(filenames) > 0:
+                filename = filenames[0]
+                print(f"Generating {N_files} network-based simulations with {num_cores} cores based on {d_simulation_parameters}, please wait.", flush=True)
+
+                if num_cores == 1:
+                    for filename in tqdm(filenames):
+                        extra_funcs.single_run_and_save(filename)
+
+                else:
+                    with mp.Pool(num_cores) as p:
+                        list(tqdm(p.imap_unordered(extra_funcs.single_run_and_save, filenames), total=N_files))
+            else:
+                print("No files to generate, everything already generated.")
+
+    else:
+
+        filenames = []
+        for d_simulation_parameters in all_sim_pars:
+            filenames.extend(extra_funcs.generate_filenames(d_simulation_parameters, N_loops, force_SK_P1_UK=force_SK_P1_UK))
         N_files = len(filenames)
-        # filename = filenames[0]
-
-        print(d_simulation_parameters, N_files)
-        # continue
-
-        # if 'N0' in d_simulation_parameters.keys() and np.max(d_simulation_parameters['N0']) > 100_000:
-        #     num_cores = extra_funcs.get_num_cores(10)
-        # else:
-        num_cores = extra_funcs.get_num_cores(num_cores_max)
 
         # make sure path exists
         if len(filenames) > 0:
