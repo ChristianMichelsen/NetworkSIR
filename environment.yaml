@@ -33,3 +33,4 @@ dependencies:
   - astropy
   - pip:
     - mpl-scatter-density
+    - pygifsicle
