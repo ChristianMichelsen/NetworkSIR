@@ -254,7 +254,7 @@ def dict_to_title(d, N=None, exclude=None):
     else:
         cfg = d
     N0_str = human_format(cfg.N0)
-    title = f"N={N0_str}, β={cfg.beta:.4f}, γ={cfg.gamma:.1f}, σ={cfg.sigma:.1f},  α={cfg.alpha:.1f}, ψ={cfg.psi:.1f}, μ={cfg.mu:.1f}, λ1 = {cfg.Mrate1:.1f}, λ2 = {cfg.Mrate2:.1f}, Ninit = {cfg.Ninit}, BB = {cfg.BB}"
+    title = f"N={N0_str}, β={cfg.beta:.4f}, γ={cfg.gamma:.1f}, σ={cfg.sigma:.1f},  α={cfg.alpha:.1f}, ψ={cfg.psi:.1f}, μ={cfg.mu:.1f}, λ1={cfg.Mrate1:.1f}, λ2={cfg.Mrate2:.1f}, Ninit={cfg.Ninit}, BB={cfg.BB}"
     if N:
         title += f", #{N}"
 

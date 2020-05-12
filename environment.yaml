@@ -30,3 +30,6 @@ dependencies:
   - pyarrow
   - networkx
   - fast-histogram
+  - astropy
+  - pip:
+    - mpl-scatter-density
