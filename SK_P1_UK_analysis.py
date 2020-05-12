@@ -175,7 +175,8 @@ def animate_SIR_file(filename, num_cores_max=20, do_tqdm=False, remove_frames=Tr
         SIR_objects = [SIR_base(i) for i in range(N)]
         UK_max = SIR_objects[0].to_df()['UK_num'].max()
 
-        for SIR_object in tqdm(SIR_objects, desc='Creating individual frames'):
+        # for SIR_object in tqdm(SIR_objects, desc='Creating individual frames'):
+        for SIR_object in SIR_objects:
             plot_SIRfile(SIR_object, UK_max=UK_max);
 
         # print(f"Generating frames using {num_cores} cores, please wait", flush=True)
@@ -224,12 +225,12 @@ print("start", flush=True)
 # for filename in tqdm(filenames):
 #     animate_SIR_file(filename, do_tqdm=True, remove_frames=True)
 
-print(f"Generating frames using {num_cores} cores, please wait", flush=True)
-with mp.Pool(num_cores) as p:
-    list(tqdm(p.imap_unordered(animate_SIR_file, filenames), total=N_files))
+if __name__ == '__main__':
+    
+    print(f"Generating frames using {num_cores} cores, please wait", flush=True)
+    with mp.Pool(num_cores) as p:
+        list(tqdm(p.imap_unordered(animate_SIR_file, filenames), total=N_files))
 
-# if __name__ == '__main__':
-#     animate_SIR_file(filename, num_cores_max=20, do_tqdm=True, remove_frames=True)
 
 #%%
 
