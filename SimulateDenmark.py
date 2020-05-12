@@ -5,7 +5,7 @@ import SimulateDenmark_extra_funcs as extra_funcs
 from pathlib import Path
 from importlib import reload
 
-num_cores_max = 8
+num_cores_max = 7
 N_loops = 100
 N_Denmark = extra_funcs.N_Denmark # 535_806
 
@@ -63,21 +63,15 @@ all_sim_pars = [
 
 #%%
 
-# filename = 'Data/NetworkSimulation/N0_535806_mu_20.0_alpha_20.0_psi_0.0_beta_0.01_sigma_0.0_Mrate1_1.0_Mrate2_1.0_gamma_0.0_nts_0.1_Nstates_9_BB_1_Ninit_100/N0_535806_mu_20.0_alpha_20.0_psi_0.0_beta_0.01_sigma_0.0_Mrate1_1.0_Mrate2_1.0_gamma_0.0_nts_0.1_Nstates_9_BB_1_Ninit_100_ID_000.csv'
-
-# extra_funcs.single_run_and_save(filename)
-
-# x=x
 
 # reload(extra_funcs)
-
 if __name__ == '__main__':
 
     for d_simulation_parameters in all_sim_pars:
 
         N_loops = 1 if extra_funcs.is_local_computer() else N_loops
         # N_loops = 100 if extra_funcs.is_local_computer() else N_loops
-        filenames = extra_funcs.generate_filenames(d_simulation_parameters, N_loops, force_SK_P1_UK=False)
+        filenames = extra_funcs.generate_filenames(d_simulation_parameters, N_loops, force_SK_P1_UK=True)
         N_files = len(filenames)
         # filename = filenames[0]
 
