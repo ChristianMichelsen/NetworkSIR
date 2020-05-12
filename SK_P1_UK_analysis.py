@@ -210,7 +210,7 @@ def animate_SIR_file(filename, num_cores_max=20, do_tqdm=False, remove_frames=Tr
 
 # %%
 
-num_cores_max = 20
+num_cores_max = 15
 num_cores = mp.cpu_count() - 1
 if num_cores >= num_cores_max:
     num_cores = num_cores_max
