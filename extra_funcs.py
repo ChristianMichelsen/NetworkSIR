@@ -460,7 +460,7 @@ def calc_fit_results(filenames, num_cores_max=20):
     if num_cores >= num_cores_max:
         num_cores = num_cores_max
 
-    print(f"Fitting {N_files} network-based simulations with {num_cores} cores, please wait.", flush=True)
+    # print(f"Fitting {N_files} network-based simulations with {num_cores} cores, please wait.", flush=True)
     with mp.Pool(num_cores) as p:
         # results = list(tqdm(p.imap_unordered(fit_single_file, filenames), total=N_files))
         results = list(p.imap_unordered(fit_single_file, filenames))
@@ -641,13 +641,21 @@ def Imax_fits_to_df(Imax_res, filenames_to_use, I_maxs_times):
     return df
 
 
+def get_filenames_to_use_Imax(par_string):
+    filenames_to_use = Path(f'Data/NetworkSimulation/{par_string}').glob(f"*.csv")
+    filenames_to_use = [str(s) for s in filenames_to_use]
+    return sorted(filenames_to_use)
+
+
+
 def extract_normalized_Imaxs(d_fit_objects_all_IDs, I_maxs_net, filenames_to_use, bin_centers_Imax):
     I_maxs_normed_res = {}
     for filename, fit_objects in d_fit_objects_all_IDs.items():
         I_maxs = np.zeros(N_peak_fits)
         for i_fit_object, fit_object in enumerate(fit_objects):
             I_maxs[i_fit_object]  = fit_object.compute_I_max()
-        I_maxs_normed_res[filename] = I_maxs / I_maxs_net[filename]
+        ID = filename_to_ID(filename)
+        I_maxs_normed_res[filename] = I_maxs / I_maxs_net[ID]
     df_I_maxs_normed = Imax_fits_to_df(I_maxs_normed_res, filenames_to_use, bin_centers_Imax)
     return df_I_maxs_normed
 
@@ -660,7 +668,8 @@ def extract_relative_Imaxs(d_fit_objects_all_IDs, I_maxs_net, filenames_to_use, 
         for i_fit_object, fit_object in enumerate(fit_objects):
             I_maxs[i_fit_object] = fit_object.compute_I_max()
             I_current_pos[i_fit_object] = fit_object.y_truth[-1]
-        I_maxs_relative_res[filename] = (I_maxs_net[filename]-I_maxs) / (I_maxs_net[filename]-I_current_pos)
+        ID = filename_to_ID(filename)
+        I_maxs_relative_res[filename] = (I_maxs_net[ID]-I_maxs) / (I_maxs_net[ID]-I_current_pos)
     df_I_maxs_relative = Imax_fits_to_df(I_maxs_relative_res, filenames_to_use, bin_centers_Imax)
     return df_I_maxs_relative
 
@@ -680,7 +689,8 @@ def extract_relative_Imaxs_relative_I(d_fit_objects_all_IDs, I_maxs_net, filenam
             I_maxs[i_fit_object] = fit_object.compute_I_max()
             I_current_pos[i_fit_object] = fit_object.y_truth[-1]
 
-        I_maxs_relative_res[filename] = (I_maxs_net[filename]-I_maxs) / (I_maxs_net[filename]-I_current_pos)
+        ID = filename_to_ID(filename)
+        I_maxs_relative_res[filename] = (I_maxs_net[ID]-I_maxs) / (I_maxs_net[ID]-I_current_pos)
         I_relative_res[filename] = I_rel
 
     x = np.stack(I_relative_res.values())
@@ -748,7 +758,6 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
         return None
     
     else:
-
         from matplotlib.backends.backend_pdf import PdfPages
 
         base_dir = Path('Data') / 'NetworkSimulation'
@@ -764,7 +773,7 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
                 cfg = string_to_dict(sim_par)
 
                 # dfs = []
-                fig, ax = plt.subplots(figsize=(18, 10))
+                fig, ax = plt.subplots(figsize=(20, 10))
                 
 
                 # filename_ID = ID_files[0]

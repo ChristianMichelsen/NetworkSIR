@@ -240,7 +240,7 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Mrate1, Mrate2, gamma, nts
                         UKRef[id2] += 1
                         accra = 1                    
     else:
-        N_cac = 10
+        N_cac = 100
         num_prints = 0
         for c in range(int(mu*NRe)):
             ra1 = np.random.rand()

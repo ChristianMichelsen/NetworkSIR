@@ -31,16 +31,14 @@ N_files = len(filenames)
 if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison(force_overwrite=True, max_N_plots=100)
 
-# x=x
+x=x
 
 #%%
 
 
 if __name__ == '__main__':
 
-    Imax_fits, bin_centers = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=num_cores_max)
-    # bins = np.linspace(0, 1, extra_funcs.N_peak_fits+1)
-    # bin_centers_Imax = (bins[1:] + bins[:-1])/26
+    Imax_fits, bin_centers_Imax = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=num_cores_max)
 
     print("bla")
 
@@ -178,14 +176,6 @@ if __name__ == '__main__':
 # %%
 
     # reload(extra_funcs)
-
-    # first sort filenames into groups based on similar simulation parameters
-    filenames_by_pars = defaultdict(list)
-    for filename in I_maxs_truth.keys():
-        par_string = extra_funcs.filename_to_par_string(filename)
-        filenames_by_pars[par_string].append(filename)
-
-    # reload(extra_funcs)
     I_max_truth_by_pars = {}
     I_max_normed_by_pars = {}
     I_max_relative_by_pars = {}
@@ -194,32 +184,29 @@ if __name__ == '__main__':
     betas_by_pars = {}
     betas_std_by_pars = {}
 
-    for par_string in tqdm(filenames_by_pars.keys(), desc='Splitting I_max fits by simulation parameters'):
-        filenames_to_use = filenames_by_pars[par_string]
-
-
-        # cfg = extra_funcs.string_to_dict(par_string)
-        # N0 = cfg.N0
+    for par_string, Imax_fit in tqdm(Imax_fits.items(), desc='Splitting I_max fits by simulation parameters'):
+        
+        filenames_to_use = extra_funcs.get_filenames_to_use_Imax(par_string)
 
         # I max truths 
-        I_true_tmp = {k: I_maxs_truth[k] for k in filenames_to_use}
-        I_maxs_true = extra_funcs.fix_and_sort_index(pd.Series(I_true_tmp))
-        I_max_truth_by_pars[par_string] = I_maxs_true
+        I_max_net_tmp = {k: Imax_fit[k][0].I_max_net for k in filenames_to_use}
+        I_maxs_net = extra_funcs.fix_and_sort_index(pd.Series(I_max_net_tmp))
+        I_max_truth_by_pars[par_string] = I_maxs_net
 
         # fit_objects by par_string (contains all IDs)
-        d_fit_objects_all_IDs = {k: fit_objects_Imax[k] for k in filenames_to_use}
+        d_fit_objects_all_IDs = {k: Imax_fit[k] for k in filenames_to_use}
         
         # normalized I_max from fits
         df_I_maxs_normed = extra_funcs.extract_normalized_Imaxs(d_fit_objects_all_IDs, 
-                                                              I_maxs_truth, 
-                                                              filenames_to_use, 
-                                                              bin_centers_Imax)
+                                                                I_maxs_net, 
+                                                                filenames_to_use, 
+                                                                bin_centers_Imax)
         I_max_normed_by_pars[par_string] = df_I_maxs_normed
 
 
         # relative I_max from fits
         df_I_maxs_relative = extra_funcs.extract_relative_Imaxs(d_fit_objects_all_IDs, 
-                                                              I_maxs_truth, 
+                                                              I_maxs_net, 
                                                               filenames_to_use, 
                                                               bin_centers_Imax)
         I_max_relative_by_pars[par_string] = df_I_maxs_relative
@@ -227,7 +214,7 @@ if __name__ == '__main__':
 
         # relative I_max as func of relative I from fits
         df_I_relative = extra_funcs.extract_relative_Imaxs_relative_I(d_fit_objects_all_IDs,
-                                                                      I_maxs_truth,
+                                                                      I_maxs_net,
                                                                       filenames_to_use)
         I_relative_by_pars[par_string] = df_I_relative
 
