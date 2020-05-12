@@ -140,7 +140,7 @@ class SIRfile:
 
 def plot_SIRfile(SIR_object, UK_max=100):
     df = SIR_object.to_df()
-    filename = SIR_object.filename()
+    filename = SIR_object.filename
     fig, ax = plot_df(df, filename, UK_max=UK_max);
     
     i_day = SIR_object.i_day
