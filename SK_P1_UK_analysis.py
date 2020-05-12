@@ -32,7 +32,7 @@ import matplotlib.patches as mpatches
 from matplotlib.lines import Line2D
 # import matplotlib.patches as patches
 
-def plot_df(df, dpi=75, UK_max=100):
+def plot_df(df, filename, dpi=75, UK_max=100):
 
     discrete_colors = ['#7F7F7F', '#1F77B4', '#D62728', '#2CA02C']
 
@@ -138,10 +138,10 @@ class SIRfile:
         return df
 
 
-   
 def plot_SIRfile(SIR_object, UK_max=100):
     df = SIR_object.to_df()
-    fig, ax = plot_df(df, UK_max=UK_max);
+    filename = SIR_object.filename()
+    fig, ax = plot_df(df, filename, UK_max=UK_max);
     
     i_day = SIR_object.i_day
 
@@ -223,10 +223,9 @@ N_files = len(filenames)
 print("start", flush=True)
 
 # for filename in tqdm(filenames):
-#     animate_SIR_file(filename, do_tqdm=True, remove_frames=True)
+#     animate_SIR_file(filenames[10], do_tqdm=True, remove_frames=True)
 
 if __name__ == '__main__':
-    
     print(f"Generating frames using {num_cores} cores, please wait", flush=True)
     with mp.Pool(num_cores) as p:
         list(tqdm(p.imap_unordered(animate_SIR_file, filenames), total=N_files))
