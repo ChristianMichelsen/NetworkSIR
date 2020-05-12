@@ -139,9 +139,9 @@ class SIRfile:
 
 
    
-def plot_SIRfile(SIR_object):
+def plot_SIRfile(SIR_object, UK_max=100):
     df = SIR_object.to_df()
-    fig, ax = plot_df(df);
+    fig, ax = plot_df(df, UK_max=UK_max);
     
     i_day = SIR_object.i_day
 
@@ -159,7 +159,7 @@ def plot_SIRfile(SIR_object):
 
 
 import imageio # conda install imageio
-def animate_SIR_file(filename, num_cores_max=20, do_tqdm=True, remove_frames=True, force_rerun=False):
+def animate_SIR_file(filename, num_cores_max=20, do_tqdm=False, remove_frames=True, force_rerun=False):
 
     name = 'animation_' + Path(filename).stem + '.gif'
     gifname = str(Path('Figures_SK_P1_UK') /  name)
@@ -173,10 +173,10 @@ def animate_SIR_file(filename, num_cores_max=20, do_tqdm=True, remove_frames=Tru
         SIR_base = SIRfile(filename)
         N = SIR_base.N
         SIR_objects = [SIR_base(i) for i in range(N)]
-        SIR_object = SIR_objects[100]
+        UK_max = SIR_objects[0].to_df()['UK_num'].max()
 
         for SIR_object in tqdm(SIR_objects, desc='Creating individual frames'):
-            plot_SIRfile(SIR_object);
+            plot_SIRfile(SIR_object, UK_max=UK_max);
 
         # print(f"Generating frames using {num_cores} cores, please wait", flush=True)
         # with mp.Pool(num_cores) as p:
@@ -202,21 +202,31 @@ def animate_SIR_file(filename, num_cores_max=20, do_tqdm=True, remove_frames=Tru
                     Path(figname).unlink() # delete file
 
         # pip install pygifsicle
-        from pygifsicle import optimize
-        # print("Optimizing gif")
-        optimize(gifname, colors=256)
+        if False:
+            from pygifsicle import optimize
+            optimize(gifname, colors=256)
 
 
 # %%
 
+num_cores_max = 20
+num_cores = mp.cpu_count() - 1
+if num_cores >= num_cores_max:
+    num_cores = num_cores_max
+
+
 filenames = get_SK_P1_UK_filenames()
 filename = filenames[1]
-N_files = len(filenames)
+N_files = len(filenames)                
 
 print("start", flush=True)
 
-for filename in tqdm(filenames):
-    animate_SIR_file(filename, do_tqdm=True, remove_frames=True)
+# for filename in tqdm(filenames):
+#     animate_SIR_file(filename, do_tqdm=True, remove_frames=True)
+
+print(f"Generating frames using {num_cores} cores, please wait", flush=True)
+with mp.Pool(num_cores) as p:
+    list(tqdm(p.imap_unordered(animate_SIR_file, filenames), total=N_files))
 
 # if __name__ == '__main__':
 #     animate_SIR_file(filename, num_cores_max=20, do_tqdm=True, remove_frames=True)
