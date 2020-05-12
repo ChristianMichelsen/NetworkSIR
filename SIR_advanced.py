@@ -31,7 +31,7 @@ N_files = len(filenames)
 if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison(force_overwrite=True, max_N_plots=100)
 
-x=x
+# x=x
 
 #%%
 
@@ -44,8 +44,8 @@ if __name__ == '__main__':
 
     print("bla")
 
-    fit_results = extra_funcs.get_fit_results(filenames, force_rerun=False, num_cores_max=num_cores_max)
-    all_fit_objects, discarded_files, N_refits_total = fit_results
+    normal_fits = extra_funcs.get_fit_normal_results(filenames, force_rerun=False, num_cores_max=num_cores_max)
+    all_normal_fit_objects, discarded_files, N_refits_total = normal_fits
     print(f"{N_refits_total=}, number of discarded files = {len(discarded_files)}\n\n", flush=True)
 
     x=x

@@ -254,7 +254,7 @@ def dict_to_title(d, N=None, exclude=None):
     else:
         cfg = d
     N0_str = human_format(cfg.N0)
-    title = f"N={N0_str}, β={cfg.beta:.4f}, γ={cfg.gamma:.1f}, σ={cfg.sigma:.1f},  α={cfg.alpha:.1f}, ψ={cfg.psi:.1f}, μ={cfg.mu:.1f}, λ1 = {cfg.Mrate1:.1f}, λ2 = {cfg.Mrate2:.1f}, BB = {cfg.BB}"
+    title = f"N={N0_str}, β={cfg.beta:.4f}, γ={cfg.gamma:.1f}, σ={cfg.sigma:.1f},  α={cfg.alpha:.1f}, ψ={cfg.psi:.1f}, μ={cfg.mu:.1f}, λ1 = {cfg.Mrate1:.1f}, λ2 = {cfg.Mrate2:.1f}, Ninit = {cfg.Ninit}, BB = {cfg.BB}"
     if N:
         title += f", #{N}"
 
@@ -520,22 +520,22 @@ def filename_to_par_string(filename):
     return dict_to_str(filename_to_dotdict(filename))
 
 
-def get_fit_results(filenames, force_rerun=False, num_cores_max=20):
+# def get_fit_results(filenames, force_rerun=False, num_cores_max=20):
 
-    output_filename = 'fit_results.joblib'
-    # out_pickle = output_filename.replace('joblib', 'pkl')
+#     output_filename = 'fit_results.joblib'
+#     # out_pickle = output_filename.replace('joblib', 'pkl')
 
-    if Path(output_filename).exists() and not force_rerun:
-        print("Loading fit results")
-        return joblib.load(output_filename)
-        # return pickle.load(open(out_pickle, "rb" ) )
+#     if Path(output_filename).exists() and not force_rerun:
+#         print("Loading fit results")
+#         return joblib.load(output_filename)
+#         # return pickle.load(open(out_pickle, "rb" ) )
 
-    else:
-        fit_results = calc_fit_results(filenames, num_cores_max=num_cores_max)
-        print(f"Finished fitting, saving results to {output_filename}", flush=True)
-        joblib.dump(fit_results, output_filename)
-        # pickle.dump(fit_results, open(out_pickle, "wb"))
-        return fit_results
+#     else:
+#         fit_results = calc_fit_results(filenames, num_cores_max=num_cores_max)
+#         print(f"Finished fitting, saving results to {output_filename}", flush=True)
+#         joblib.dump(fit_results, output_filename)
+#         # pickle.dump(fit_results, open(out_pickle, "wb"))
+#         return fit_results
 
 
 
@@ -547,34 +547,71 @@ def filenames_to_subgroups(filenames):
     return cfg_str
 
 
+def get_fit_normal_results(filenames, force_rerun=False, num_cores_max=20):
+
+
+    all_fits_file = 'fits_normal.joblib'
+
+    if Path(all_fits_file).exists() and not force_rerun:
+        print("Loading all normal fits", flush=True)
+        return joblib.load(all_fits_file)
+
+    else:
+
+        all_normal_fits = {}
+        cfg_str = filenames_to_subgroups(filenames)
+        print(f"Fitting normal for {len(filenames)} simulations spaced on {len(cfg_str.items())} different runs, please wait.", flush=True)
+
+        for sim_pars, files in tqdm(cfg_str.items()):
+            output_filename = Path('Data/fits_normal') / f'normal_fits_{sim_pars}.joblib'
+            output_filename.parent.mkdir(parents=True, exist_ok=True)
+
+            if output_filename.exists() and not force_rerun:
+                all_normal_fits[sim_pars] = joblib.load(output_filename)
+
+            else:
+                fit_results = calc_fit_results(filenames, num_cores_max=num_cores_max)
+                joblib.dump(fit_results, output_filename)
+                all_normal_fits[sim_pars] = fit_results
+
+        joblib.dump(all_normal_fits, all_fits_file)
+        return all_normal_fits
+
+
+
 def get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=20):
 
 
     bins = np.linspace(0, 1, N_peak_fits+1)
     bin_centers = (bins[1:] + bins[:-1])/2
 
-    all_Imax_fits = {}
+    all_fits_file = 'fits_Imax.joblib'
 
-    cfg_str = filenames_to_subgroups(filenames)
+    if Path(all_fits_file).exists() and not force_rerun:
+        print("Loading all Imax fits", flush=True)
+        all_Imax_fits = joblib.load(all_fits_file)
+        return all_Imax_fits, bin_centers
 
-    print(f"Fitting I_max for {len(filenames)} simulations with spaced on {len(cfg_str.items())} different runs, please wait.", flush=True)
+    else:
 
-    for sim_pars, files in tqdm(cfg_str.items()):
+        all_Imax_fits = {}
+        cfg_str = filenames_to_subgroups(filenames)
+        print(f"Fitting I_max for {len(filenames)} simulations spaced on {len(cfg_str.items())} different runs, please wait.", flush=True)
 
-        output_filename = Path('Data/fits') / f'Imax_fits_{sim_pars}.joblib'
-        output_filename.parent.mkdir(parents=True, exist_ok=True)
+        for sim_pars, files in tqdm(cfg_str.items()):
+            output_filename = Path('Data/fits_Imax') / f'Imax_fits_{sim_pars}.joblib'
+            output_filename.parent.mkdir(parents=True, exist_ok=True)
 
-        if output_filename.exists() and not force_rerun:
-            # print("Loading Imax fit results")
-            all_Imax_fits[sim_pars] = joblib.load(output_filename)
+            if output_filename.exists() and not force_rerun:
+                all_Imax_fits[sim_pars] = joblib.load(output_filename)
 
-        else:
-            fit_results = calc_fit_Imax_results(files, num_cores_max=num_cores_max)
-            # print(f"Finished Imax fitting, saving results to {output_filename}", flush=True)
-            joblib.dump(fit_results, output_filename)
-            all_Imax_fits[sim_pars] = fit_results
+            else:
+                fit_results = calc_fit_Imax_results(files, num_cores_max=num_cores_max)
+                joblib.dump(fit_results, output_filename)
+                all_Imax_fits[sim_pars] = fit_results
 
-    return all_Imax_fits, bin_centers
+        joblib.dump(all_Imax_fits, all_fits_file)
+        return all_Imax_fits, bin_centers
 
 
 def cut_percentiles(x, p1, p2=None):
