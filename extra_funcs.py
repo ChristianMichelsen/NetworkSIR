@@ -462,7 +462,8 @@ def calc_fit_results(filenames, num_cores_max=20):
 
     print(f"Fitting {N_files} network-based simulations with {num_cores} cores, please wait.", flush=True)
     with mp.Pool(num_cores) as p:
-        results = list(tqdm(p.imap_unordered(fit_single_file, filenames), total=N_files))
+        # results = list(tqdm(p.imap_unordered(fit_single_file, filenames), total=N_files))
+        results = list(p.imap_unordered(fit_single_file, filenames))
 
     # modify results from multiprocessing
 
@@ -570,7 +571,7 @@ def get_fit_normal_results(filenames, force_rerun=False, num_cores_max=20):
                 all_normal_fits[sim_pars] = joblib.load(output_filename)
 
             else:
-                fit_results = calc_fit_results(filenames, num_cores_max=num_cores_max)
+                fit_results = calc_fit_results(files, num_cores_max=num_cores_max)
                 joblib.dump(fit_results, output_filename)
                 all_normal_fits[sim_pars] = fit_results
 
