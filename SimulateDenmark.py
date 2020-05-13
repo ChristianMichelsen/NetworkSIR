@@ -92,7 +92,7 @@ if __name__ == '__main__':
         # filenames = extra_funcs.generate_filenames(d_simulation_parameters, N_loops, force_SK_P1_UK=force_SK_P1_UK)
         # filename = filenames[0]
 
-        print(d_simulation_parameters, N_files)
+        # print(d_simulation_parameters, N_files)
         # continue
 
         # make sure path exists
