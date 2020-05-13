@@ -25,19 +25,19 @@ def generate_filenames(d, N_loops=10, force_overwrite=False, force_SK_P1_UK=Fals
     filenames = []
     cfg = dict(
                     # N0 = 50_000 if is_local_computer() else N_Denmark,
-                    N0 = N_Denmark,
-                    mu = 20.0,  # Average number connections
-                    alpha = 0.0, # Spatial parameter
-                    psi = 0.0, # cluster effect
-                    beta = 0.01, # Mean rate
-                    sigma = 0.0, # Spread in rate
-                    Mrate1 = 1.0, # E->I
-                    Mrate2 = 1.0, # I->R
-                    gamma = 0.0, # Parameter for skewed connection shape
-                    nts = 0.1, 
+                    N0 = N_Denmark, # Total number of nodes!
+                    mu = 20.0,  # Average number of connections of a node (init: 20)
+                    alpha = 0.0, # Spacial dependency. higher alpha -> #connections goes down :  prob = exp(-alpha r_ij / R0))
+                    psi = 0.0, # Degree of clustering, random walk with power law of exponent psi - allows long jumps)
+                    beta = 0.01, # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N0)* betaSIR)
+                    sigma = 0.0, # Spread in rates, beta (beta_eff = beta - sigma+2*sigma*rand[0,1])... could be exponential?
+                    Mrate1 = 1.0, # E->I, Lambda(from E states)
+                    Mrate2 = 1.0, # I->R, Lambda(from I states)
+                    gamma = 0.0, # Spread (skewness) in N connections
+                    nts = 0.1, # Time step (0.1 - ten times a day)
                     Nstates = 9,
-                    BB = 1,
-                    Ninit = 100, # 100 Initial Infected
+                    BB = 1, # node connection algorithm
+                    Ninit = 100, # Initial Infected
                 )
 
     nameval_to_str = [[f'{name}_{x}' for x in lst] for (name, lst) in d.items()]
@@ -109,29 +109,26 @@ def deep_copy_2D_int(X):
 
 @njit
 def single_run_numba(N0, mu, alpha, psi, beta, sigma, Mrate1, Mrate2, gamma, nts, Nstates, BB, Ninit, ID, P1, verbose=False):
-
-    # N0 = 1000
-    # mu = 20.0  # Average number connections
-    # alpha = 0.0 # Spatial parameter
-    # psi = 0.0 # cluster effect
-    # beta = 0.01 # Mean rate
-    # sigma = 0.0 # Spread in rate
-    # Mrate1 = 1.0 # E->I
-    # Mrate2 = 1.0 # I->R
-    # gamma = 0.0 # Parameter for skewed connection shape
-    # nts = 0.1 
-    # Nstates = 9
-    # BB = 1
-    # Ninit = 100
+    # N0 = 10_000, # Total number of nodes!
+    # mu = 20.0,  # Average number of connections of a node (init: 20)
+    # alpha = 0.0, # Spacial dependency. higher alpha -> #connections goes down :  prob = exp(-alpha r_ij / R0))
+    # psi = 0.0, # Degree of clustering, random walk with power law of exponent psi - allows long jumps)
+    # beta = 0.01, # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N0)* betaSIR)
+    # sigma = 0.0, # Spread in rates, beta (beta_eff = beta - sigma+2*sigma*rand[0,1])... could be exponential?
+    # Mrate1 = 1.0, # E->I, Lambda(from E states)
+    # Mrate2 = 1.0, # I->R, Lambda(from I states)
+    # gamma = 0.0, # Spread (skewness) in N connections
+    # nts = 0.1, # Time step (0.1 - ten times a day)
+    # Nstates = 9,
+    # BB = 1, # node connection algorithm
+    # Ninit = 100, # Initial Infected
     # ID = 0
     # P1 = np.load('Data/GPS_coordinates.npy')[:N0]
     # verbose = False
 
-
     np.random.seed(ID)
 
     NRe = N0
-
 
     N_AK_MAX = 1000
     # For generating Network

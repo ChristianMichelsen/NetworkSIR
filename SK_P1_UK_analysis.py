@@ -32,7 +32,7 @@ from astropy.visualization import LogStretch
 from astropy.visualization.mpl_normalize import ImageNormalize
 import matplotlib.patches as mpatches
 from matplotlib.lines import Line2D
-# import matplotlib.patches as patches
+
 
 #%%
 import shutil
