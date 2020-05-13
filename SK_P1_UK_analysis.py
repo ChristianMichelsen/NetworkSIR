@@ -202,8 +202,7 @@ def animate_SIR_file(filename, num_cores_max=20, do_tqdm=False, remove_frames=Tr
                 if remove_frames:
                     Path(figname).unlink() # delete file
 
-    # pip install pygifsicle
-    if True:
+        # pip install pygifsicle
         from pygifsicle import optimize
         print("Optimize gif")
         optimize(gifname, colors=256)
@@ -223,15 +222,14 @@ N_files = len(filenames)
 
 print("start", flush=True)
 
-x=x
 
-for filename in tqdm(filenames):
-    animate_SIR_file(filename, do_tqdm=False, remove_frames=True)
+# for filename in tqdm(filenames):
+#     animate_SIR_file(filename, do_tqdm=False, remove_frames=True)
 
-# if __name__ == '__main__':
-#     print(f"Generating frames using {num_cores} cores, please wait", flush=True)
-#     with mp.Pool(num_cores) as p:
-#         list(tqdm(p.imap_unordered(animate_SIR_file, filenames), total=N_files))
+if __name__ == '__main__':
+    print(f"Generating frames using {num_cores} cores, please wait", flush=True)
+    with mp.Pool(num_cores) as p:
+        list(tqdm(p.imap_unordered(animate_SIR_file, filenames), total=N_files))
 
 
 #%%

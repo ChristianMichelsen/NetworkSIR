@@ -89,9 +89,6 @@ if __name__ == '__main__':
 
     for filenames, d_simulation_parameters in zip(*all_filenames):
         N_files = len(filenames)
-        # filenames = extra_funcs.generate_filenames(d_simulation_parameters, N_loops, force_SK_P1_UK=force_SK_P1_UK)
-        # filename = filenames[0]
-
         # print(d_simulation_parameters, N_files)
         # continue
 
@@ -99,8 +96,7 @@ if __name__ == '__main__':
         if len(filenames) > 0:
             filename = filenames[0]
             print(f"Generating {N_files} network-based simulations with {num_cores} cores based on {d_simulation_parameters}, please wait.", flush=True)
-            # print(f"Generating {N_files} network-based simulations with {num_cores} cores, please wait.", flush=True)
-
+            
             if num_cores == 1:
                 for filename in tqdm(filenames):
                     extra_funcs.single_run_and_save(filename)
