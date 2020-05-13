@@ -55,7 +55,8 @@ class AnimateSIR:
         # self.Rate = awkward.fromparquet(filename_Rate)
         self.N = len(self.SK)
         self.mapping = {-1: 'S', 
-                         0: 'E', 1: 'E', 2:'E', 3: 'E',
+                        #  0: 'E', 1: 'E', 2:'E', 3: 'E',
+                         0: 'I', 1: 'I', 2:'I', 3: 'I',
                          4: 'I', 5: 'I', 6:'I', 7: 'I',
                          8: 'R',
                         }
@@ -74,13 +75,15 @@ class AnimateSIR:
 
     def _init_plot(self):
 
-        self.colors = ['#7F7F7F', '#1F77B4', '#D62728', '#2CA02C']
+        # self.colors = ['#7F7F7F', '#1F77B4', '#D62728', '#2CA02C']
+        self.colors = ['#7F7F7F', '#D62728', '#2CA02C']
 
         self.norm_1000 = ImageNormalize(vmin=0., vmax=1000, stretch=LogStretch())
         self.norm_100 = ImageNormalize(vmin=0., vmax=100, stretch=LogStretch())
         self.norm_10 = ImageNormalize(vmin=0., vmax=10, stretch=LogStretch())
 
-        self.states = ['S', 'E', 'I', 'R']
+        # self.states = ['S', 'E', 'I', 'R']
+        self.states = ['S', 'I', 'R']
         return None
 
     def _plot_df_i_day(self, i_day, dpi):
@@ -96,11 +99,11 @@ class AnimateSIR:
         if len(dfs['S']) > 0:
             ax.scatter_density(dfs['S']['x'], dfs['S']['y'], color=self.colors[0], alpha=0.2, norm=self.norm_1000, dpi=dpi)
         if len(dfs['R']) > 0:
-            ax.scatter_density(dfs['R']['x'], dfs['R']['y'], color=self.colors[3], alpha=0.3, norm=self.norm_100, dpi=dpi)
-        if len(dfs['E']) > 0:
-            ax.scatter_density(dfs['E']['x'], dfs['E']['y'], color=self.colors[1], norm=self.norm_10, dpi=dpi)
+            ax.scatter_density(dfs['R']['x'], dfs['R']['y'], color=self.colors[2], alpha=0.3, norm=self.norm_100, dpi=dpi)
+        # if len(dfs['E']) > 0:
+            # ax.scatter_density(dfs['E']['x'], dfs['E']['y'], color=self.colors[1], norm=self.norm_10, dpi=dpi)
         if len(dfs['I']) > 0:
-            ax.scatter_density(dfs['I']['x'], dfs['I']['y'], color=self.colors[2], norm=self.norm_10, dpi=dpi)
+            ax.scatter_density(dfs['I']['x'], dfs['I']['y'], color=self.colors[1], norm=self.norm_10, dpi=dpi)
         ax.set(xlim=(8, 13.7), ylim=(54.52, 58.2))
 
         kw_args_circle = dict(xdata=[0], ydata=[0], marker='o', color='w', markersize=12)
