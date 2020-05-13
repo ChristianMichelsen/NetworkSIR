@@ -243,7 +243,7 @@ animate_file(filename, do_tqdm=True)
 # for filename in tqdm(filenames):
 #     animate_file(filename)
 
-# if __name__ == '__main__':
-#     print(f"Generating frames using {num_cores} cores, please wait", flush=True)
-#     with mp.Pool(num_cores) as p:
-#         list(tqdm(p.imap_unordered(animate_SIR_file, filenames), total=N_files))
+if __name__ == '__main__':
+    print(f"Generating frames using {num_cores} cores, please wait", flush=True)
+    with mp.Pool(num_cores) as p:
+        list(tqdm(p.imap_unordered(animate_file, filenames), total=N_files))
