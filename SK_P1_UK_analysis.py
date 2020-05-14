@@ -126,7 +126,7 @@ class AnimateSIR:
         dfs = {s: df.query("SK == @s") for s in self.states}
 
         # Main plot
-        k_scale = 1.2
+        k_scale = 1.5
         fig = plt.figure(figsize=(10*k_scale, 13*k_scale))
         ax = fig.add_subplot(1, 1, 1, projection='scatter_density')
 
@@ -197,7 +197,7 @@ class AnimateSIR:
         gifname = str(Path('Figures_SK_P1_UK') / name)
 
         if not Path(gifname).exists() or force_rerun:
-            if self.verbose:
+            if self.verbose and not self.do_tqdm:
                 print("\nMake individual frames", flush=True)
             self._make_png_files(dpi, self.do_tqdm)
 
@@ -305,9 +305,9 @@ N_files = len(filenames)
 
 
 # for filename in tqdm(filenames):
-#     animate_file(filename)
+#     animate_file(filename, do_tqdm=True, verbose=True, force_rerun=True)
 
-if __name__ == '__main__':
-    print(f"Generating frames using {num_cores} cores, please wait", flush=True)
-    with mp.Pool(num_cores) as p:
-        list(tqdm(p.imap_unordered(animate_file, filenames), total=N_files))
+# if __name__ == '__main__':
+#     print(f"Generating frames using {num_cores} cores, please wait", flush=True)
+#     with mp.Pool(num_cores) as p:
+#         list(tqdm(p.imap_unordered(animate_file, filenames), total=N_files))
