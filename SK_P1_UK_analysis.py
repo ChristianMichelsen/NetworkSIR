@@ -133,7 +133,7 @@ class AnimateSIR:
         df_R_t = pd.DataFrame({'t': x_interpolated, 'R_t': y_interpolated})
         return df_R_t
 
-    def _calc_infection_rate_R_t(self, time_delay=1, laplace_factor=10):
+    def _calc_infection_rate_R_t(self, time_delay=1, laplace_factor=0):
         df_counts = self.df_counts
         I = df_counts['I']
         R = df_counts['R']
@@ -143,7 +143,10 @@ class AnimateSIR:
         for i in range(time_delay, N):
             num = I.iloc[i] - I.iloc[i-time_delay] + laplace_factor
             den = R.iloc[i] - R.iloc[i-time_delay] + laplace_factor
-            R_t[i] = num / den + 1
+            if den != 0:
+                R_t[i] = num / den + 1
+            else:
+                R_t[i] = np.nan
         # df_R_t = pd.Series(R_t)
         # plt.plot(R_t)
         # df_R_t.rolling(window=10).median().plot()
