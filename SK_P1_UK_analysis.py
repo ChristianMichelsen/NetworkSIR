@@ -128,12 +128,12 @@ class AnimateSIR:
         x = np.arange(N)
         y = R_t 
         f = interp1d(x, y, bounds_error=False, fill_value="extrapolate")
-        x_interpolated = np.linspace(0, N-1, 1000)
+        x_interpolated = np.linspace(0, N-1, 10_000)
         y_interpolated = f(x_interpolated)
         df_R_t = pd.DataFrame({'t': x_interpolated, 'R_t': y_interpolated})
         return df_R_t
 
-    def _calc_infection_rate_R_t(self, time_delay=3):
+    def _calc_infection_rate_R_t(self, time_delay=1, laplace_factor=10):
         df_counts = self.df_counts
         I = df_counts['I']
         R = df_counts['R']
@@ -141,8 +141,8 @@ class AnimateSIR:
         R_t = np.zeros(N)
         R_t[:time_delay] = np.nan
         for i in range(time_delay, N):
-            num = I.iloc[i] - I.iloc[i-time_delay] + 1
-            den = R.iloc[i] - R.iloc[i-time_delay] + 1 
+            num = I.iloc[i] - I.iloc[i-time_delay] + laplace_factor
+            den = R.iloc[i] - R.iloc[i-time_delay] + laplace_factor
             R_t[i] = num / den + 1
         # df_R_t = pd.Series(R_t)
         # plt.plot(R_t)
@@ -174,7 +174,7 @@ class AnimateSIR:
 
         cfg = extra_funcs.filename_to_dotdict(self.filename, SK_P1_UK=True)
         title = extra_funcs.dict_to_title(cfg)
-        ax.set_title(title, pad=50, fontsize=19)
+        ax.set_title(title, pad=50, fontsize=22)
 
         # secondary plots:
 
