@@ -61,8 +61,6 @@ def interpolate_dataframe(df, time, t_interpolated, cols_to_interpolate):
 @njit
 def ODE_integrate(y0, Tmax, dt, ts, mu0, Mrate1, Mrate2, beta): 
 
-    # mu0 = 1
-
     S, N0, E1, E2, E3, E4, I1, I2, I3, I4, R = y0
 
     click = 0
@@ -134,6 +132,7 @@ class CustomChi2:  # override the class with a better one
         self.sy = np.sqrt(self.y_truth) #if sy is None else sy
         self.y_min = y_min
         self.N = sum(self.y_truth > self.y_min)
+        self.N_refits = 0
 
     def __call__(self, Mrate1, Mrate2, beta, tau):  # par are a variable number of model parameters
         # compute the function value
@@ -222,7 +221,6 @@ class CustomChi2:  # override the class with a better one
         ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, Mrate2, beta, ts=ts)
         I_max = np.max(ODE_result_SIR[:, 2])
         return I_max
-
     
     def compute_R_inf(self, ts=0.1, values=None, Tmax=None):
         if values is None:
@@ -297,64 +295,63 @@ from pathlib import Path
 from iminuit import Minuit
 
 
-def fit_single_file(filename, ts=0.1, dt=0.01, FIT_MAX=100):
+# def fit_single_file(filename, ts=0.1, dt=0.01, FIT_MAX=100):
 
+#     # ts = 0.1 # frequency of "observations". Now 1 pr. day
+#     # dt = 0.01 # stepsize in integration
+#     # FIT_MAX = 100
 
-    # ts = 0.1 # frequency of "observations". Now 1 pr. day
-    # dt = 0.01 # stepsize in integration
-    # FIT_MAX = 100
+#     N_refits = 0
+#     discarded_files = []
 
-    N_refits = 0
-    discarded_files = []
+#     cfg = filename_to_dotdict(str(filename))
+#     parameters_as_string = dict_to_str(cfg)
+#     # d = extra_funcs.string_to_dict(parameters_as_string)
 
-    cfg = filename_to_dotdict(str(filename))
-    parameters_as_string = dict_to_str(cfg)
-    # d = extra_funcs.string_to_dict(parameters_as_string)
+#     df, df_interpolated, time, t_interpolated = pandas_load_file(filename)
+#     y_truth = df_interpolated['I'].to_numpy(int)
+#     Tmax = int(time.max())+1 # max number of days
+#     N0 = cfg.N0
+#     # y0 =  S, N0,                E1,E2,E3,E4,  I1,I2,I3,I4,  R
+#     y0 = N0-cfg.Ninit,N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0
 
-    df, df_interpolated, time, t_interpolated = pandas_load_file(filename)
-    y_truth = df_interpolated['I'].to_numpy(int)
-    Tmax = int(time.max())+1 # max number of days
-    N0 = cfg.N0
-    # y0 =  S, N0,                E1,E2,E3,E4,  I1,I2,I3,I4,  R
-    y0 = N0-cfg.Ninit,N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0
+#     # reload(extra_funcs)
+#     fit_object = CustomChi2(t_interpolated, y_truth, y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
 
-    # reload(extra_funcs)
-    fit_object = CustomChi2(t_interpolated, y_truth, y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
+#     minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
 
-    minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
+#     minuit.migrad()
+#     fit_object.set_chi2(minuit)
 
-    minuit.migrad()
-    fit_object.set_chi2(minuit)
+#     i_fit = 0
+#     # if (not minuit.get_fmin().is_valid) :
+#     if fit_object.chi2 / fit_object.N > 100:
 
-    i_fit = 0
-    # if (not minuit.get_fmin().is_valid) :
-    if fit_object.chi2 / fit_object.N > 100:
+#         continue_fit = True
+#         while continue_fit:
+#             i_fit += 1
+#             N_refits += 1
 
-        continue_fit = True
-        while continue_fit:
-            i_fit += 1
-            N_refits += 1
+#             param_grid = {'Mrate1': uniform(0.1, 10), 
+#                         'Mrate2': uniform(0.1, 10), 
+#                         'beta': uniform(0.1/20, 20/20), 
+#                         'tau': uniform(-10, 10),
+#                         }
+#             param_list = list(ParameterSampler(param_grid, n_iter=1))[0]
+#             minuit = Minuit(fit_object, pedantic=False, print_level=0, **param_list)
+#             minuit.migrad()
+#             fit_object.set_minuit(minuit)
 
-            param_grid = {'Mrate1': uniform(0.1, 10), 
-                        'Mrate2': uniform(0.1, 10), 
-                        'beta': uniform(0.1, 20), 
-                        'tau': uniform(-10, 10),
-                        }
-            param_list = list(ParameterSampler(param_grid, n_iter=1))[0]
-            minuit = Minuit(fit_object, pedantic=False, print_level=0, **param_list)
-            minuit.migrad()
-            fit_object.set_minuit(minuit)
-
-            if fit_object.chi2 / fit_object.N <= 10 or i_fit>FIT_MAX:
-                continue_fit = False
+#             if fit_object.chi2 / fit_object.N <= 10 or i_fit>FIT_MAX:
+#                 continue_fit = False
             
-    if i_fit <= FIT_MAX:
-        fit_object.set_minuit(minuit)
-        return filename, fit_object, N_refits
+#     if i_fit <= FIT_MAX:
+#         fit_object.set_minuit(minuit)
+#         return filename, fit_object, N_refits
 
-    else:
-        print(f"\n\n{filename} was discarded\n", flush=True)
-        return filename, None, N_refits
+#     else:
+#         print(f"\n\n{filename} was discarded\n", flush=True)
+#         return filename, None, N_refits
 
 
 
@@ -365,8 +362,31 @@ def calc_Imax_R_inf_deterministic(mu, Mrate1, Mrate2, beta, y0, Tmax, dt, ts):
     R_inf = ODE_result_SIR[-1, 3]
     return I_max, R_inf
 
+# N_peak_fits = 20
+dark_figure = 40
+I_lockdown_DK = 350*dark_figure
+I_lockdown_rel = I_lockdown_DK / 5_824_857
 
-N_peak_fits = 20
+def try_refit(fit_object, cfg, FIT_MAX):
+    N_refits = 0
+    # if (not minuit.get_fmin().is_valid) :
+    continue_fit = True
+    while continue_fit:
+        N_refits += 1
+        param_grid = {'Mrate1': uniform(cfg.Mrate1/10, cfg.Mrate1*5), 
+                    'Mrate2': uniform(cfg.Mrate2/10, cfg.Mrate2*5), 
+                    'beta': uniform(cfg.beta/10, cfg.beta*5), 
+                    'tau': uniform(-10, 10),
+                    }
+        param_list = list(ParameterSampler(param_grid, n_iter=1))[0]
+        minuit = Minuit(fit_object, pedantic=False, print_level=0, **param_list)
+        minuit.migrad()
+        fit_object.set_minuit(minuit)
+        if (0.001 <= fit_object.chi2 / fit_object.N <= 10) or N_refits > FIT_MAX:
+            continue_fit = False
+    return fit_object, N_refits
+
+
 def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
 
     # ts = 0.1 # frequency of "observations". Now 1 pr. day
@@ -374,59 +394,61 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
 
     cfg = filename_to_dotdict(filename)
 
-    df = pandas_load_file(filename, return_only_df=True)
+    df, df_interpolated, time, t_interpolated = pandas_load_file(filename, return_only_df=False)
     R_inf_net = df['R'].iloc[-1]
 
     Tmax = int(df['Time'].max())+1 # max number of days
     N0 = cfg.N0
     y0 = N0-cfg.Ninit, N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0#, cfg.Ninit
 
-    I = df['I'].to_numpy(int)
-    Time = df['Time'].to_numpy()
+    I_min = 100
+    I_lockdown = I_lockdown_rel * cfg.N0 # percent
+    iloc_start = np.argmax(I_min <= df_interpolated['I'])
+    iloc_lockdown = np.argmax(I_lockdown <= df_interpolated['I']) + 1
     
-    I_cut_min = 0.2 / 1000 * cfg.N0 # percent
-    # I_cut_min = 0.05 / 100 * I.max() # percent
-    iloc_min = np.argmax(I > I_cut_min)
-    iloc_max = np.argmax(I) 
+    #return None if simulation never reaches minimum requirements
+    if I_lockdown < I_min:
+        print(f"\nI_lockdown < I_min ({I_lockdown:.1f} < {I_min}) for file: \n{cfg}\n")
+        return filename, None
+    if df_interpolated['I'].max() < I_min:
+        print(f"Never reached I_min={I_min}, only {df_interpolated['I'].max():.1f} for file: \n{cfg}\n", flush=True)
+        return filename, None
+    if df_interpolated['I'].max() < I_lockdown:
+        print(f"Never reached I_lockdown={I_lockdown:.1f}, only {df_interpolated['I'].max():.1f} for file: \n{cfg}\n", flush=True)
+        return filename, None
 
-    delta_iloc = (iloc_max - iloc_min) // N_peak_fits
-    indices = np.linspace(iloc_min, iloc_max, N_peak_fits+1).astype(int) - delta_iloc // 2
-    df_prefit = df.iloc[indices]
-
-    # Time from beginning to peak
-    # I_time_duration = Time[iloc_max] - Time[iloc_min]
-
-    t_interpolated = df_prefit['Time'].to_numpy()
-    y_truth = df_prefit['I'].to_numpy(int)
-
+    y_truth_interpolated = df_interpolated['I']
     I_max_det, R_inf_det = calc_Imax_R_inf_deterministic(cfg.mu, cfg.Mrate1, cfg.Mrate2, cfg.beta, y0, Tmax*2, dt, ts)
+    Tmax_peak = df_interpolated['I'].argmax()*1.2
+    I_max_net = np.max(df['I'])
 
-    Tmax_peak = Time[iloc_max]*1.1
+    fit_object = CustomChi2(t_interpolated[iloc_start:iloc_lockdown], y_truth_interpolated.to_numpy(int)[iloc_start:iloc_lockdown], y0, Tmax_peak, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
 
-    # reload(extra_funcs)
-    I_max_net = np.max(I)
-    # times_maxs = t_interpolated[1:] - Time[iloc_min]
-    # times_maxs_normalized = times_maxs / I_time_duration
-    fit_objects = []
-    for imax in range(N_peak_fits):
-        fit_object = CustomChi2(t_interpolated[:imax+2], y_truth[:imax+2], y0, Tmax_peak, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
-        minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
-        minuit.migrad()
-        fit_object.set_minuit(minuit)
+    minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
 
-        fit_object.filename = filename
-        # fit_object.times_maxs_normalized = times_maxs_normalized
-        fit_object.I_max_net = I_max_net
-        fit_object.I_max_hat = fit_object.compute_I_max()
-        fit_object.I_max_det = I_max_det
-        
-        fit_object.R_inf_net = R_inf_net
-        fit_object.R_inf_hat = fit_object.compute_R_inf()
-        fit_object.R_inf_det = R_inf_det
+    minuit.migrad()
+    fit_object.set_chi2(minuit)
 
-        fit_objects.append(fit_object)
+    if fit_object.chi2 / fit_object.N > 100:
+        FIT_MAX = 100
+        fit_object, N_refits = try_refit(fit_object, cfg, FIT_MAX)
+        fit_object.N_refits = N_refits
+        if N_refits > FIT_MAX:
+            print(f"\n\n{filename} was discarded after {N_refits} tries\n", flush=True)
+            return filename, None
 
-    return filename, fit_objects
+    fit_object.set_minuit(minuit)
+
+    fit_object.filename = filename
+    fit_object.I_max_net = I_max_net
+    fit_object.I_max_hat = fit_object.compute_I_max()
+    fit_object.I_max_det = I_max_det
+    
+    fit_object.R_inf_net = R_inf_net
+    fit_object.R_inf_hat = fit_object.compute_R_inf(Tmax=Tmax*2)
+    fit_object.R_inf_det = R_inf_det
+
+    return filename, fit_object
 
 
     # reload(extra_funcs)
@@ -452,34 +474,34 @@ import multiprocessing as mp
 from tqdm import tqdm
 
 
-def calc_fit_results(filenames, num_cores_max=20):
+# def calc_fit_results(filenames, num_cores_max=20):
 
-    N_files = len(filenames)
+#     N_files = len(filenames)
 
-    num_cores = mp.cpu_count() - 1
-    if num_cores >= num_cores_max:
-        num_cores = num_cores_max
+#     num_cores = mp.cpu_count() - 1
+#     if num_cores >= num_cores_max:
+#         num_cores = num_cores_max
 
-    # print(f"Fitting {N_files} network-based simulations with {num_cores} cores, please wait.", flush=True)
-    with mp.Pool(num_cores) as p:
-        # results = list(tqdm(p.imap_unordered(fit_single_file, filenames), total=N_files))
-        results = list(p.imap_unordered(fit_single_file, filenames))
+#     # print(f"Fitting {N_files} network-based simulations with {num_cores} cores, please wait.", flush=True)
+#     with mp.Pool(num_cores) as p:
+#         # results = list(tqdm(p.imap_unordered(fit_single_file, filenames), total=N_files))
+#         results = list(p.imap_unordered(fit_single_file, filenames))
 
-    # modify results from multiprocessing
+#     # modify results from multiprocessing
 
-    N_refits_total = 0
-    discarded_files = []
-    all_fit_objects = {}
-    for filename, fit_object, N_refits in results:
+#     N_refits_total = 0
+#     discarded_files = []
+#     all_fit_objects = {}
+#     for filename, fit_object, N_refits in results:
         
-        if fit_object is None:
-            discarded_files.append(filename)
-        else:
-            all_fit_objects[filename] = fit_object
+#         if fit_object is None:
+#             discarded_files.append(filename)
+#         else:
+#             all_fit_objects[filename] = fit_object
         
-        N_refits_total += N_refits
+#         N_refits_total += N_refits
 
-    return all_fit_objects, discarded_files, N_refits_total
+#     return all_fit_objects, discarded_files, N_refits_total
 
 
 
@@ -496,21 +518,11 @@ def calc_fit_Imax_results(filenames, num_cores_max=30):
         results = list(p.imap_unordered(fit_single_file_Imax, filenames))
 
     # postprocess results from multiprocessing:
-    # I_maxs_net = {}
     fit_objects = {}
-
-    # filename, times_maxs_normalized, I_max_net, fit_objects_Imax = results[0]
     for filename, fit_object in results:
-        # if one fit in each bin:
-        # if np.all(1 == np.histogram(fit_object.times_maxs_normalized, bins)[0]):
-            # I_maxs_net[fit_object.filename] = fit_object.I_max_net
-        fit_objects[filename] = fit_object#.fit_objects_Imax
-            # I_maxs_normed[filename] = I_maxs / I_max_net
-            # betas[filename] = beta
-            # betas_std[filename] = beta_std
-        
+        if fit_object:
+            fit_objects[filename] = fit_object#.fit_objects_Imax
     return fit_objects 
-    # return I_maxs_net, fit_objects, bin_centers
 
 
 
@@ -519,25 +531,6 @@ def filename_to_ID(filename):
 
 def filename_to_par_string(filename):
     return dict_to_str(filename_to_dotdict(filename))
-
-
-# def get_fit_results(filenames, force_rerun=False, num_cores_max=20):
-
-#     output_filename = 'fit_results.joblib'
-#     # out_pickle = output_filename.replace('joblib', 'pkl')
-
-#     if Path(output_filename).exists() and not force_rerun:
-#         print("Loading fit results")
-#         return joblib.load(output_filename)
-#         # return pickle.load(open(out_pickle, "rb" ) )
-
-#     else:
-#         fit_results = calc_fit_results(filenames, num_cores_max=num_cores_max)
-#         print(f"Finished fitting, saving results to {output_filename}", flush=True)
-#         joblib.dump(fit_results, output_filename)
-#         # pickle.dump(fit_results, open(out_pickle, "wb"))
-#         return fit_results
-
 
 
 def filenames_to_subgroups(filenames):
@@ -583,15 +576,14 @@ def get_fit_normal_results(filenames, force_rerun=False, num_cores_max=20):
 def get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=20):
 
 
-    bins = np.linspace(0, 1, N_peak_fits+1)
-    bin_centers = (bins[1:] + bins[:-1])/2
+    # bins = np.linspace(0, 1, N_peak_fits+1)
+    # bin_centers = (bins[1:] + bins[:-1])/2
 
     all_fits_file = 'fits_Imax.joblib'
 
     if Path(all_fits_file).exists() and not force_rerun:
         print("Loading all Imax fits", flush=True)
-        all_Imax_fits = joblib.load(all_fits_file)
-        return all_Imax_fits, bin_centers
+        return joblib.load(all_fits_file)
 
     else:
 
@@ -612,7 +604,7 @@ def get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=20):
                 all_Imax_fits[sim_pars] = fit_results
 
         joblib.dump(all_Imax_fits, all_fits_file)
-        return all_Imax_fits, bin_centers
+        return all_Imax_fits
 
 
 def cut_percentiles(x, p1, p2=None):
