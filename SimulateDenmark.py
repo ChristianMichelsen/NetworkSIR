@@ -65,16 +65,6 @@ all_sim_pars = [
 
 #%%
 
-# import time
-# for N0 in [10_000, 100_000, 1_000_000]:
-#     print(N0)
-#     filename = f'Data/NetworkSimulation/N0_{N0}_mu_20.0_alpha_0.0_beta_0.01_sigma_0.0_Mrate1_1.0_Mrate2_1.0_gamma_0.0_nts_0.1_Nstates_9_BB_1_Ninit_100/N0_{N0}_mu_20.0_alpha_0.0_beta_0.01_sigma_0.0_Mrate1_1.0_Mrate2_1.0_gamma_0.0_nts_0.1_Nstates_9_BB_1_Ninit_100_ID_000.csv'
-#     start_time = time.time()
-#     extra_funcs.single_run_and_save(filename)
-#     print("--- %s seconds ---" % (time.time() - start_time))
-
-# x=x
-
 # reload(extra_funcs)
 if __name__ == '__main__':
 
