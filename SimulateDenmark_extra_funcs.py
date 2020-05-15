@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 # conda install -c conda-forge pyarrow
 import awkward
 
-N_Denmark = 535_806
+# N_Denmark = 535_806
 
 def is_local_computer(N_local_cores=8):
     import platform
@@ -24,11 +24,10 @@ def is_local_computer(N_local_cores=8):
 def generate_filenames(d, N_loops=10, force_overwrite=False, force_SK_P1_UK=False):
     filenames = []
     cfg = dict(
-                    # N0 = 50_000 if is_local_computer() else N_Denmark,
-                    N0 = N_Denmark, # Total number of nodes!
+                    N0 = 50_000 if is_local_computer() else 500_000,
+                    # N0 = 500_000, # Total number of nodes!
                     mu = 20.0,  # Average number of connections of a node (init: 20)
                     alpha = 0.0, # Spacial dependency. higher alpha -> #connections goes down :  prob = exp(-alpha r_ij / R0))
-                    psi = 0.0, # Degree of clustering, random walk with power law of exponent psi - allows long jumps)
                     beta = 0.01, # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N0)* betaSIR)
                     sigma = 0.0, # Spread in rates, beta (beta_eff = beta - sigma+2*sigma*rand[0,1])... could be exponential?
                     Mrate1 = 1.0, # E->I, Lambda(from E states)
@@ -61,6 +60,23 @@ def generate_filenames(d, N_loops=10, force_overwrite=False, force_SK_P1_UK=Fals
                 filenames.append(filename)
         
     return filenames
+
+
+def get_filenames_iter(all_sim_pars, force_SK_P1_UK, N_loops):
+    all_filenames = []
+    if not force_SK_P1_UK:
+        d_sim_pars = []
+        for d_simulation_parameters in all_sim_pars:
+            filenames = generate_filenames(d_simulation_parameters, N_loops, force_SK_P1_UK=force_SK_P1_UK)
+            all_filenames.append(filenames)
+            d_sim_pars.append(d_simulation_parameters)
+    else:
+        for d_simulation_parameters in all_sim_pars:
+            all_filenames.extend(generate_filenames(d_simulation_parameters, N_loops, force_SK_P1_UK=force_SK_P1_UK))
+        all_filenames = [all_filenames]
+        d_sim_pars = ['all configurations']
+    return all_filenames, d_sim_pars
+
 
 
 @njit
@@ -108,11 +124,10 @@ def deep_copy_2D_int(X):
 
 
 @njit
-def single_run_numba(N0, mu, alpha, psi, beta, sigma, Mrate1, Mrate2, gamma, nts, Nstates, BB, Ninit, ID, P1, verbose=False):
+def single_run_numba(N0, mu, alpha, beta, sigma, Mrate1, Mrate2, gamma, nts, Nstates, BB, Ninit, ID, P1, verbose=False):
     # N0 = 10_000, # Total number of nodes!
     # mu = 20.0,  # Average number of connections of a node (init: 20)
     # alpha = 0.0, # Spacial dependency. higher alpha -> #connections goes down :  prob = exp(-alpha r_ij / R0))
-    # psi = 0.0, # Degree of clustering, random walk with power law of exponent psi - allows long jumps)
     # beta = 0.01, # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N0)* betaSIR)
     # sigma = 0.0, # Spread in rates, beta (beta_eff = beta - sigma+2*sigma*rand[0,1])... could be exponential?
     # Mrate1 = 1.0, # E->I, Lambda(from E states)
@@ -157,10 +172,10 @@ def single_run_numba(N0, mu, alpha, psi, beta, sigma, Mrate1, Mrate2, gamma, nts
     Par[4:8] = Mrate2
 
     # Here we initialize the system
-    xx = 0.0 
-    yy = 0.0 
-    psi_epsilon = 1e-2
-    tnext = (1/np.random.random())**(1/(psi+psi_epsilon))-1
+    # xx = 0.0 
+    # yy = 0.0 
+    # psi_epsilon = 1e-2
+    # tnext = (1/np.random.random())**(1/(psi+psi_epsilon))-1
 
 
     # D0 = 0.01 
@@ -510,12 +525,9 @@ def filename_to_dict(filename, normal_string=False, SK_P1_UK=False): # ,
     if normal_string:
         keyvals = filename.split('_')
     elif SK_P1_UK:
-        # raise AssertionError('SK_P1_UK=True not implemented yet in filename_to_dict')
         keyvals = filename.split('/')[-1].split('.SK_P1_UK')[0].split('_')
     else:
         keyvals = str(Path(filename).stem).split('_')
-        # keyvals = filename.split('/')[2].split('_')
-        # keyvals = filename.split('/')[2].split('_')
 
     keyvals_chunks = [keyvals[i:i + 2] for i in range(0, len(keyvals), 2)]
     ints = ['N0', 'Ninit', 'Nstates', 'BB']
@@ -537,11 +549,14 @@ def single_run_and_save(filename):
     P1 = np.load('Data/GPS_coordinates.npy')
     if cfg.N0 > len(P1):
         raise AssertionError("N0 cannot be larger than P1 (number of houses in DK)")
-    P1 = P1[:cfg.N0]
+
+    np.random.seed(ID)
+    index = np.arange(len(P1))
+    index_subset = np.random.choice(index, cfg.N0, replace=False)
+    P1 = P1[index_subset]
 
     res = single_run_numba(**cfg, ID=ID, P1=P1)
     out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK, SIRfile_AK_initial, SIRfile_Rate_initial = res
-
 
     header = ['Time', 
             'E1', 'E2', 'E3', 'E4', 
@@ -549,8 +564,7 @@ def single_run_and_save(filename):
             'R',
             ]
 
-    df_raw = pd.DataFrame(out_single_run, columns=header)
-
+    df_raw = pd.DataFrame(out_single_run, columns=header).convert_dtypes()
 
     # make sure parent folder exists
     Path(filename).parent.mkdir(parents=True, exist_ok=True)

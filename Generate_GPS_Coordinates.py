@@ -79,5 +79,3 @@ GPS_filename_out = 'Data/GPS_coordinates'
 np.save(GPS_filename_out+'.npy', P1_out)
 np.savetxt(GPS_filename_out+'.csv', P1_out)
 
-
-# %%
