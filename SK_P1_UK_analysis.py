@@ -333,10 +333,71 @@ N_files = len(filenames)
 # for filename in tqdm(filenames):
 #     animate_file(filename, do_tqdm=True, verbose=True, force_rerun=True)
 
-if __name__ == '__main__':
-    print(f"Generating frames using {num_cores} cores, please wait", flush=True)
-    with mp.Pool(num_cores) as p:
-        list(tqdm(p.imap_unordered(animate_file, filenames), total=N_files))
+# if __name__ == '__main__':
+#     print(f"Generating frames using {num_cores} cores, please wait", flush=True)
+#     with mp.Pool(num_cores) as p:
+#         list(tqdm(p.imap_unordered(animate_file, filenames), total=N_files))
 
+
+# %%
+
+SK, P1, UK = joblib.load(filename)
+from sklearn.neighbors import KernelDensity
+N = len(P1)
+# P1 = P1[:100_000]
+
+#%%
+
+from matplotlib.patches import Rectangle
+from matplotlib.backends.backend_pdf import PdfPages
+dpi = 75
+
+pdf_name = 'fig_generated_data_example.pdf'
+with PdfPages(pdf_name) as pdf:
+
+    for bw in tqdm([0.1, 0.01, 0.001, 0.0005, 0.0001]):
+
+        fig = plt.figure(figsize=(16, 20))
+
+        ax00 = fig.add_subplot(2, 2, 1, projection='scatter_density')
+        ax00.scatter_density(P1[:, 0], P1[:, 1], color='k', dpi=dpi)
+        ax00.set(title="Original Data")
+
+        # # Create a Rectangle patch
+        # rect = Rectangle((50,100),40,30,linewidth=1,edgecolor='r',facecolor='none')
+        # # Add the patch to the Axes
+        # ax.add_patch(rect)
+
+        ax01 = fig.add_subplot(2, 2, 3, projection='scatter_density')
+        ax01.scatter_density(P1[:, 0], P1[:, 1], color='k', dpi=dpi/2)
+        ax01.set_xlim(12.4, 12.7)
+        ax01.set_ylim(55.6, 55.8)
+        ax01.set(title="Original Data: Zoom")
+
+        #%%
+        kde = KernelDensity(kernel='gaussian', bandwidth=bw, metric='haversine').fit(P1) # 
+        P1_gen = kde.sample(N, random_state=42)
+
+        # fig = plt.figure(figsize=(10, 13))
+        ax10 = fig.add_subplot(2, 2, 2, projection='scatter_density')
+        ax10.scatter_density(P1_gen[:, 0], P1_gen[:, 1], color='k', dpi=dpi)
+        ax10.set(title="Generated Data")
+
+        ax11 = fig.add_subplot(2, 2, 4, projection='scatter_density')
+        ax11.scatter_density(P1_gen[:, 0], P1_gen[:, 1], color='k', dpi=dpi/2)
+        ax11.set_xlim(12.4, 12.7)
+        ax11.set_ylim(55.6, 55.8)
+        ax11.set(title="Generated Data: Zoom")
+
+        fig.suptitle(f'bw={bw}', fontsize=30)
+        pdf.savefig(fig, dpi=600)
+
+        plt.close('all')
+
+
+# %%
+# https://github.com/syrte/ndtest/blob/master/ndtest.py
+import KS_test_2d as KS_test
+KS_test.ks2d2s(*P1[:10_000].T, *P1_gen[:10_000].T, extra=True, nboot=None)
 
 # %%
