@@ -51,7 +51,7 @@ all_sim_pars = [
                 },
 
                 {
-                    'N0': [1_000_000],
+                    'N0': [1_000_000, 2_000_000, 5_000_000],
                 },
 
                 ]
@@ -103,31 +103,31 @@ if __name__ == '__main__':
 
 
 
-    filename = 'Data/NetworkSimulation/N0_2000000_mu_20.0_alpha_0.0_beta_0.01_sigma_0.0_Mrate1_1.0_Mrate2_1.0_gamma_0.0_nts_0.1_Nstates_9_BB_1_Ninit_100/N0_2000000_mu_20.0_alpha_0.0_beta_0.01_sigma_0.0_Mrate1_1.0_Mrate2_1.0_gamma_0.0_nts_0.1_Nstates_9_BB_1_Ninit_100_ID_000.csv'
+    # filename = 'Data/NetworkSimulation/N0_2000000_mu_20.0_alpha_0.0_beta_0.01_sigma_0.0_Mrate1_1.0_Mrate2_1.0_gamma_0.0_nts_0.1_Nstates_9_BB_1_Ninit_100/N0_2000000_mu_20.0_alpha_0.0_beta_0.01_sigma_0.0_Mrate1_1.0_Mrate2_1.0_gamma_0.0_nts_0.1_Nstates_9_BB_1_Ninit_100_ID_000.csv'
 
 
-    cfg = extra_funcs.filename_to_dict(filename)
-    ID = extra_funcs.filename_to_ID(filename)
+    # cfg = extra_funcs.filename_to_dict(filename)
+    # ID = extra_funcs.filename_to_ID(filename)
 
-    P1 = np.load('Data/GPS_coordinates.npy')
-    if cfg.N0 > len(P1):
-        raise AssertionError("N0 cannot be larger than P1 (number of houses in DK)")
+    # P1 = np.load('Data/GPS_coordinates.npy')
+    # if cfg.N0 > len(P1):
+    #     raise AssertionError("N0 cannot be larger than P1 (number of houses in DK)")
 
-    np.random.seed(ID)
-    index = np.arange(len(P1))
-    index_subset = np.random.choice(index, cfg.N0, replace=False)
-    P1 = P1[index_subset]
+    # np.random.seed(ID)
+    # index = np.arange(len(P1))
+    # index_subset = np.random.choice(index, cfg.N0, replace=False)
+    # P1 = P1[index_subset]
 
-    res = extra_funcs.single_run_numba(**cfg, ID=ID, P1=P1, verbose=True)
-    out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK, SIRfile_AK_initial, SIRfile_Rate_initial = res
+    # res = extra_funcs.single_run_numba(**cfg, ID=ID, P1=P1, verbose=True)
+    # out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK, SIRfile_AK_initial, SIRfile_Rate_initial = res
 
-    header = ['Time', 
-            'E1', 'E2', 'E3', 'E4', 
-            'I1', 'I2', 'I3', 'I4', 
-            'R',
-            ]
+    # header = ['Time', 
+    #         'E1', 'E2', 'E3', 'E4', 
+    #         'I1', 'I2', 'I3', 'I4', 
+    #         'R',
+    #         ]
 
-    import pandas as pd
-    df_raw = pd.DataFrame(out_single_run, columns=header).convert_dtypes()
+    # import pandas as pd
+    # df_raw = pd.DataFrame(out_single_run, columns=header).convert_dtypes()
 
-    df_raw.to_csv('test_2_000_000.csv', index=False) 
+    # df_raw.to_csv('test_2_000_000.csv', index=False) 
