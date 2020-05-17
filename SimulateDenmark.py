@@ -51,7 +51,11 @@ all_sim_pars = [
                 },
 
                 {
-                    'N0': [1_000_000, 2_000_000, 5_000_000],
+                    'N0': [1_000_000, 2_000_000],
+                },
+
+                {
+                    'N0': [5_000_000],
                 },
 
                 ]
@@ -60,6 +64,21 @@ all_sim_pars = [
 # x=x
 
 #%%
+
+def get_num_cores_N0_specific(d_simulation_parameters, num_cores_max):
+    num_cores = extra_funcs.get_num_cores(num_cores_max)
+
+    if isinstance(d_simulation_parameters, dict) and 'N0' in d_simulation_parameters.keys():
+        if max(d_simulation_parameters['N0']) > 2_000_000:
+            num_cores = 1
+        elif 600_000 <= max(d_simulation_parameters['N0']) <= 2_000_000:
+            num_cores = 2
+            
+    elif isinstance(d_simulation_parameters, str):
+        num_cores = 1
+    
+    return num_cores
+
 
 # reload(extra_funcs)
 if __name__ == '__main__':
@@ -75,14 +94,9 @@ if __name__ == '__main__':
         # make sure path exists
         if len(filenames) > 0:
             # filename = filenames[0]
-            
-            if isinstance(d_simulation_parameters, dict) and 'N0' in d_simulation_parameters.keys() and max(d_simulation_parameters['N0']) > 600_000:
-                num_cores = 1
-            elif isinstance(d_simulation_parameters, str):
-                num_cores = 1
-            else:
-                num_cores = extra_funcs.get_num_cores(num_cores_max)
 
+            num_cores = get_num_cores_N0_specific(d_simulation_parameters, num_cores_max)
+            
             print(f"Generating {N_files:3d} network-based simulations with {num_cores} cores based on {d_simulation_parameters}, please wait.", flush=True)
 
             # if 'N0' in d_simulation_parameters.keys():
