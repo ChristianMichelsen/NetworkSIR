@@ -377,6 +377,11 @@ if __name__ == '__main__':
     extra_funcs.plot_variable_other_than_default('N0')
     extra_funcs.plot_variable_other_than_default('mu')
     extra_funcs.plot_variable_other_than_default('alpha') 
+    extra_funcs.plot_variable_other_than_default('Ninit') 
+    extra_funcs.plot_variable_other_than_default('sigma') 
+    extra_funcs.plot_variable_other_than_default('gamma') 
+
+
 
 
 # %%

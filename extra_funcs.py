@@ -257,7 +257,7 @@ def dict_to_title(d, N=None, exclude=None):
         title += f", #{N}"
 
     if exclude:
-        d_translate = {'beta': 'β', 'N0': 'N', 'mu': 'μ', 'alpha': 'α'}
+        d_translate = {'beta': 'β', 'N0': 'N', 'mu': 'μ', 'alpha': 'α', 'Ninit': 'Ninit', 'sigma': 'σ', 'gamma': 'γ'}
         new_title = ''
         for s in title.split():
             if not d_translate[exclude] in s:
@@ -838,7 +838,7 @@ def get_filenames_different_than_default(find_par):
     df_sim_pars = pd.DataFrame.from_dict(all_sim_pars_as_dict, orient='index')
 
     default_pars = dict(
-                    N0 = SimulateDenmark_extra_funcs.N_Denmark,
+                    N0 = 500_000,
                     mu = 20.0,  # Average number connections
                     alpha = 0.0, # Spatial parameter
                     beta = 0.01, # Mean rate
