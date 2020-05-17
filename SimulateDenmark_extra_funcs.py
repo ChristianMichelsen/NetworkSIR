@@ -475,15 +475,19 @@ def single_run_numba(N0, mu, alpha, beta, sigma, Mrate1, Mrate2, gamma, nts, Nst
         # # # # # # # # # # # BUG CHECK  # # # # # # # # # # # # # # # # # # # # # # # #
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-        if c > 10000000: 
+        if c > 100_000_000: 
+            if verbose:
+                print("c > 100_000_000")
             on = 0
         
         if (TotInf + TotMov < 0.0001) and (TotMov + TotInf > -0.00001): 
             on = 0 
-            # print("Equilibrium")
+            if verbose:
+                print("Equilibrium")
         
         if S[Nstates-1] > N0-10:      
-            # print("2/3 through")
+            if verbose:
+                print("2/3 through")
             on = 0
 
         # Check for bugs
