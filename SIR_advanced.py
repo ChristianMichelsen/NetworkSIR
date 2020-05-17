@@ -29,9 +29,9 @@ N_files = len(filenames)
 if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison(force_overwrite=True, max_N_plots=100)
 
+x=x
+
 #%%
-
-
 
 
 if __name__ == '__main__':

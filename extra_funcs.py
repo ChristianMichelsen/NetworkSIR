@@ -389,6 +389,8 @@ def try_refit(fit_object, cfg, FIT_MAX):
 
 def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
 
+    # print(filename)
+
     # ts = 0.1 # frequency of "observations". Now 1 pr. day
     # dt = 0.01 # stepsize in integration
 
@@ -426,7 +428,11 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
 
     minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
 
-    minuit.migrad()
+    try:
+        minuit.migrad()
+    except: 
+        print(filename)
+        raise ValueError()
     fit_object.set_chi2(minuit)
 
     if fit_object.chi2 / fit_object.N > 100:
@@ -541,35 +547,35 @@ def filenames_to_subgroups(filenames):
     return cfg_str
 
 
-def get_fit_normal_results(filenames, force_rerun=False, num_cores_max=20):
+# def get_fit_normal_results(filenames, force_rerun=False, num_cores_max=20):
 
 
-    all_fits_file = 'fits_normal.joblib'
+#     all_fits_file = 'fits_normal.joblib'
 
-    if Path(all_fits_file).exists() and not force_rerun:
-        print("Loading all normal fits", flush=True)
-        return joblib.load(all_fits_file)
+#     if Path(all_fits_file).exists() and not force_rerun:
+#         print("Loading all normal fits", flush=True)
+#         return joblib.load(all_fits_file)
 
-    else:
+#     else:
 
-        all_normal_fits = {}
-        cfg_str = filenames_to_subgroups(filenames)
-        print(f"Fitting normal for {len(filenames)} simulations spaced on {len(cfg_str.items())} different runs, please wait.", flush=True)
+#         all_normal_fits = {}
+#         cfg_str = filenames_to_subgroups(filenames)
+#         print(f"Fitting normal for {len(filenames)} simulations spaced on {len(cfg_str.items())} different runs, please wait.", flush=True)
 
-        for sim_pars, files in tqdm(cfg_str.items()):
-            output_filename = Path('Data/fits_normal') / f'normal_fits_{sim_pars}.joblib'
-            output_filename.parent.mkdir(parents=True, exist_ok=True)
+#         for sim_pars, files in tqdm(cfg_str.items()):
+#             output_filename = Path('Data/fits_normal') / f'normal_fits_{sim_pars}.joblib'
+#             output_filename.parent.mkdir(parents=True, exist_ok=True)
 
-            if output_filename.exists() and not force_rerun:
-                all_normal_fits[sim_pars] = joblib.load(output_filename)
+#             if output_filename.exists() and not force_rerun:
+#                 all_normal_fits[sim_pars] = joblib.load(output_filename)
 
-            else:
-                fit_results = calc_fit_results(files, num_cores_max=num_cores_max)
-                joblib.dump(fit_results, output_filename)
-                all_normal_fits[sim_pars] = fit_results
+#             else:
+#                 fit_results = calc_fit_results(files, num_cores_max=num_cores_max)
+#                 joblib.dump(fit_results, output_filename)
+#                 all_normal_fits[sim_pars] = fit_results
 
-        joblib.dump(all_normal_fits, all_fits_file)
-        return all_normal_fits
+#         joblib.dump(all_normal_fits, all_fits_file)
+#         return all_normal_fits
 
 
 
@@ -592,16 +598,22 @@ def get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=20):
         print(f"Fitting I_max for {len(filenames)} simulations spaced on {len(cfg_str.items())} different runs, please wait.", flush=True)
 
         for sim_pars, files in tqdm(cfg_str.items()):
+            # print(sim_pars)
             output_filename = Path('Data/fits_Imax') / f'Imax_fits_{sim_pars}.joblib'
             output_filename.parent.mkdir(parents=True, exist_ok=True)
 
-            if output_filename.exists() and not force_rerun:
-                all_Imax_fits[sim_pars] = joblib.load(output_filename)
+            try:
 
-            else:
-                fit_results = calc_fit_Imax_results(files, num_cores_max=num_cores_max)
-                joblib.dump(fit_results, output_filename)
-                all_Imax_fits[sim_pars] = fit_results
+                if output_filename.exists() and not force_rerun:
+                    all_Imax_fits[sim_pars] = joblib.load(output_filename)
+
+                else:
+                    fit_results = calc_fit_Imax_results(files, num_cores_max=num_cores_max)
+                    joblib.dump(fit_results, output_filename)
+                    all_Imax_fits[sim_pars] = fit_results
+
+            except:
+                print(f"{sim_pars} has error, skipping for now") # TODO FIXME
 
         joblib.dump(all_Imax_fits, all_fits_file)
         return all_Imax_fits
@@ -753,7 +765,7 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
         from matplotlib.backends.backend_pdf import PdfPages
 
         base_dir = Path('Data') / 'NetworkSimulation'
-        all_sim_pars = sorted([str(x.name) for x in base_dir.glob('*') if str(x.name) != '.DS_Store'])
+        all_sim_pars = sorted([str(x.name) for x in base_dir.glob('*') if '.DS' not in str(x.name)])
 
         with PdfPages(pdf_name) as pdf:
 
@@ -764,11 +776,8 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
 
                 cfg = string_to_dict(sim_par)
 
-                # dfs = []
                 fig, ax = plt.subplots(figsize=(20, 10))
-                
 
-                # filename_ID = ID_files[0]
                 Tmax = 0
                 lw = 0.1
                 
@@ -808,7 +817,6 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
                 title = dict_to_title(cfg, len(ID_files))
                 ax.set(title=title, xlabel='Time', ylabel='I')
                 
-
                 ax.set_rasterized(True)
                 ax.set_rasterization_zorder(0)
 
