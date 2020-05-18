@@ -78,6 +78,20 @@ def get_filenames_iter(all_sim_pars, force_SK_P1_UK, N_loops):
     return all_filenames, d_sim_pars
 
 
+def get_num_cores_N0_specific(d_simulation_parameters, num_cores_max):
+    num_cores = get_num_cores(num_cores_max)
+
+    if isinstance(d_simulation_parameters, dict) and 'N0' in d_simulation_parameters.keys():
+        if max(d_simulation_parameters['N0']) > 2_000_000:
+            num_cores = 1
+        elif 600_000 <= max(d_simulation_parameters['N0']) <= 2_000_000:
+            num_cores = 2
+            
+    elif isinstance(d_simulation_parameters, str):
+        num_cores = 1
+    
+    return num_cores
+
 
 @njit
 def deep_copy_1D_int(X):
@@ -333,12 +347,18 @@ def single_run_numba(N0, mu, alpha, beta, sigma, Mrate1, Mrate2, gamma, nts, Nst
     ##  Now make initial infectious
     for iin in range(Ninit):
         idx = iin*10
-        SK[idx] = 0  
-        SAK[0, S[0]] = idx
-        S[0] += 1  
+        # SK[idx] = 0
+        new_state = np.random.randint(0, 4)
+        # new_state = 0
+        if verbose:
+            print("new_state", new_state)
+        SK[idx] = new_state
+
+        SAK[new_state, S[new_state]] = idx
+        S[new_state] += 1  
         # DK[idx] = 1  
-        TotMov += Par[0]
-        csMov[:] += Par[0]
+        TotMov += Par[new_state]
+        csMov[new_state:] += Par[new_state]
         for i1 in range(UKRef[idx]):
             Af = AKRef[idx, i1]
             for i2 in range(UK[Af]):
@@ -438,7 +458,7 @@ def single_run_numba(N0, mu, alpha, beta, sigma, Mrate1, Mrate2, gamma, nts, Nst
                         SAK[0, S[0]] = idx	      
                         S[0] += 1
                         TotMov += Par[0]	      
-                        csMov[:] += Par[0]
+                        csMov += Par[0]
                         AC = 1
                         break                    
                 if AC == 1:
@@ -555,7 +575,7 @@ def filename_to_dict(filename, normal_string=False, SK_P1_UK=False): # ,
 
 
 
-def single_run_and_save(filename):
+def single_run_and_save(filename, verbose=False):
 
     cfg = filename_to_dict(filename)
     ID = filename_to_ID(filename)
@@ -569,7 +589,7 @@ def single_run_and_save(filename):
     index_subset = np.random.choice(index, cfg.N0, replace=False)
     P1 = P1[index_subset]
 
-    res = single_run_numba(**cfg, ID=ID, P1=P1)
+    res = single_run_numba(**cfg, ID=ID, P1=P1, verbose=verbose)
     out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK, SIRfile_AK_initial, SIRfile_Rate_initial = res
 
     header = ['Time', 

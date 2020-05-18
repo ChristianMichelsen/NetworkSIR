@@ -6,14 +6,14 @@ from pathlib import Path
 from importlib import reload
 
 num_cores_max = 10
-N_loops = 100
+N_loops = 10
 force_SK_P1_UK = False
 
 #%%
 
 all_sim_pars = [
 
-                {   'BB': [0, 1],
+                {   'BB': [1, 0],
                 }, 
 
                 {
@@ -25,13 +25,32 @@ all_sim_pars = [
                     'gamma': [0.0, 0.5, 1.0],
                 },
 
-                {   'N0': [50_000, 500_000],
-                    'Ninit': [10, 100, 1000],
+                {   'N0': [500_000],
+                    'Ninit': [1, 5, 50, 500, 5_000],
+                }, 
+
+                {   'N0': [100_000],
+                    'Ninit': [1, 10, 100, 1_000],
                 }, 
 
                 {
                     'beta': [0.005, 0.01, 0.02, 0.05, 0.1],
                 },
+
+                {
+                    'beta': [0.01*2, 0.01*4],
+                    'mu': [20/2, 20/4],
+                    'gamma': [0, 1],
+                    'sigma': [0, 1],
+                },
+
+                {
+                    'beta': [0.01*2, 0.01*4],
+                    'Mrate2': [1*2, 1*4],
+                    'gamma': [0, 1],
+                    'sigma': [0, 1],
+                },
+                
 
                 {
                     'mu': [5, 10, 15, 20, 30, 40, 60, 80],
@@ -65,19 +84,8 @@ all_sim_pars = [
 
 #%%
 
-def get_num_cores_N0_specific(d_simulation_parameters, num_cores_max):
-    num_cores = extra_funcs.get_num_cores(num_cores_max)
 
-    if isinstance(d_simulation_parameters, dict) and 'N0' in d_simulation_parameters.keys():
-        if max(d_simulation_parameters['N0']) > 2_000_000:
-            num_cores = 1
-        elif 600_000 <= max(d_simulation_parameters['N0']) <= 2_000_000:
-            num_cores = 2
-            
-    elif isinstance(d_simulation_parameters, str):
-        num_cores = 1
-    
-    return num_cores
+# x=x
 
 
 # reload(extra_funcs)
@@ -95,12 +103,14 @@ if __name__ == '__main__':
         if len(filenames) > 0:
             # filename = filenames[0]
 
-            num_cores = get_num_cores_N0_specific(d_simulation_parameters, num_cores_max)
+            num_cores = extra_funcs.get_num_cores_N0_specific(d_simulation_parameters, num_cores_max)
             
             print(f"Generating {N_files:3d} network-based simulations with {num_cores} cores based on {d_simulation_parameters}, please wait.", flush=True)
 
             # if 'N0' in d_simulation_parameters.keys():
                 # break
+
+            # break
 
             if num_cores == 1:
                 for filename in tqdm(filenames):

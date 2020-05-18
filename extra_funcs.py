@@ -120,7 +120,7 @@ from iminuit import describe
 
 class CustomChi2:  # override the class with a better one
     
-    def __init__(self, t_interpolated, y_truth, y0, Tmax, dt, ts, mu0, y_min=10):
+    def __init__(self, t_interpolated, y_truth, y0, Tmax, dt, ts, mu0, y_min=100):
         
         self.t_interpolated = t_interpolated
         self.y_truth = y_truth#.to_numpy(int)
@@ -426,7 +426,7 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
     Tmax_peak = df_interpolated['I'].argmax()*1.2
     I_max_net = np.max(df['I'])
 
-    fit_object = CustomChi2(t_interpolated[iloc_start:iloc_lockdown], y_truth_interpolated.to_numpy(float)[iloc_start:iloc_lockdown], y0, Tmax_peak, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
+    fit_object = CustomChi2(t_interpolated[iloc_start:iloc_lockdown], y_truth_interpolated.to_numpy(float)[iloc_start:iloc_lockdown], y0, Tmax_peak, dt=dt, ts=ts, mu0=cfg.mu, y_min=I_min)
 
     minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
 
@@ -746,9 +746,9 @@ def mask_df(df, cut_val):
 
 from pandas.errors import EmptyDataError
 
-def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
+def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=100):
 
-    pdf_name = f"Figures/SIR_comparison.pdf"
+    pdf_name = f"Figures/SIR_comparison_{parameter}.pdf"
     Path(pdf_name).parent.mkdir(parents=True, exist_ok=True)
 
     if Path(pdf_name).exists() and not force_overwrite:
@@ -786,7 +786,7 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
                         # raise e
                     label = 'Simulations' if i == 0 else None
                     # lw = 1 if i == 0 else 0.1
-                    ax.plot(df['Time'].values, df['I'].values, lw=lw, c='k', label=label)
+                    ax.plot(df['Time'].values, df[parameter].values, lw=lw, c='k', label=label)
                     if df['Time'].max() > Tmax:
                         Tmax = df['Time'].max() 
 
@@ -798,18 +798,19 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
 
                 ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu0=cfg.mu, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta)
                 # print(y0, Tmax, dt, ts, cfg)
-                I_SIR = ODE_result_SIR[:, 2]
-                time = ODE_result_SIR[:, 4]
-                cols = ['S', 'E_sum', 'I_sum', 'R', 'Time']
+                # I_SIR = ODE_result_SIR[:, 2]
+                # R_SIR = ODE_result_SIR[:, 3]
+                # time = ODE_result_SIR[:, 4]
+                cols = ['S', 'E', 'I', 'R', 'Time']
                 df_fit = pd.DataFrame(ODE_result_SIR, columns=cols).convert_dtypes()
 
-                ax.plot(time, I_SIR, lw=15*lw, color='red', label='SIR')
+                ax.plot(df_fit['Time'], df_fit[parameter], lw=15*lw, color='red', label='SIR')
                 leg = ax.legend(loc='upper right')
                 for legobj in leg.legendHandles:
                     legobj.set_linewidth(2.0)
                 
                 title = dict_to_title(cfg, len(ID_files))
-                ax.set(title=title, xlabel='Time', ylabel='I')
+                ax.set(title=title, xlabel='Time', ylabel=parameter)
                 
                 ax.set_rasterized(True)
                 ax.set_rasterization_zorder(0)
