@@ -202,12 +202,12 @@ def single_run_numba(N0, mu, alpha, beta, sigma, Mrate1, Mrate2, gamma, nts, Nst
         ra = np.random.rand()
         if (ra < sigma):
             rat = -np.log(np.random.rand())*beta
-            Sig[i] = rat;
+            Sig[i] = rat
         else:
-            Sig[i] = beta;
+            Sig[i] = beta
 
     PT = np.sum(Prob)
-    PC = np.cumsum(Prob);
+    PC = np.cumsum(Prob)
     PP = PC/PT
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -252,7 +252,7 @@ def single_run_numba(N0, mu, alpha, beta, sigma, Mrate1, Mrate2, gamma, nts, Nst
                         UKRef[id2] += 1
                         accra = 1                    
     else:
-        N_cac = 100
+        # N_cac = 100
         num_prints = 0
         for c in range(int(mu*NRe)):
             ra1 = np.random.rand()
@@ -260,19 +260,29 @@ def single_run_numba(N0, mu, alpha, beta, sigma, Mrate1, Mrate2, gamma, nts, Nst
             accra = 0
             cac = 0
 
+            epsilon_alpha = 0.01
+            ra_alpha = np.random.rand()
+            if ra_alpha >= epsilon_alpha:
+                alpha_tmp = alpha
+            else:
+                alpha_tmp = 0
+
             while accra == 0:
                 ra2 = np.random.rand()          
                 id2 = np.searchsorted(PP, ra2)
                 acc = 1
                 cac += 1
 
-                if cac > N_cac:
-                    cac = 0
-                    ra1 = np.random.rand()
-                    id1 = np.searchsorted(PP, ra1) 
-                    num_prints += 1
-                    if verbose and num_prints < 100:
-                        print("got here", id1, c) 
+                alpha_tmp *= 0.9995
+
+                # if cac > N_cac:
+                    # cac = 0
+                    # alpha_tmp *= 0.95
+                    # ra1 = np.random.rand()
+                    # id1 = np.searchsorted(PP, ra1) 
+                    # num_prints += 1
+                    # if verbose and num_prints < 100:
+                        # print("got here", id1, c) 
 
                 #  Make sure no element is present twice
                 for i1 in range(UK[id1]):               
@@ -281,7 +291,7 @@ def single_run_numba(N0, mu, alpha, beta, sigma, Mrate1, Mrate2, gamma, nts, Nst
                 if (UK[id1] < N_AK_MAX) and (UK[id2] < N_AK_MAX) and (id1 != id2) and (acc == 1):
                     r = np.sqrt((P1[id1, 0] - P1[id2, 0])**2 + (P1[id1, 1] - P1[id2, 1])**2)
                     ra = np.random.rand()
-                    if np.exp(-alpha*r/rD) > ra:
+                    if np.exp(-alpha_tmp*r/rD) > ra:
                         rat = -np.log(np.random.rand())*beta
                         Rate[id1, UK[id1]] = Sig[id1]
                         Rate[id2, UK[id2]] = Sig[id1]

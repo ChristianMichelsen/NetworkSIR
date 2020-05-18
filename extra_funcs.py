@@ -155,6 +155,8 @@ class CustomChi2:  # override the class with a better one
 
     def _calc_yhat_interpolated(self, Mrate1, Mrate2, beta, tau):
         ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, Mrate2, beta)
+        if ODE_result_SIR[-1, 3] == 0:
+            ODE_result_SIR = ODE_result_SIR[:-1]
         I_SIR = ODE_result_SIR[:, 2]
         time = ODE_result_SIR[:, 4]
         y_hat = interpolate_array(I_SIR, time, self.t_interpolated+tau)
@@ -424,15 +426,11 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
     Tmax_peak = df_interpolated['I'].argmax()*1.2
     I_max_net = np.max(df['I'])
 
-    fit_object = CustomChi2(t_interpolated[iloc_start:iloc_lockdown], y_truth_interpolated.to_numpy(int)[iloc_start:iloc_lockdown], y0, Tmax_peak, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
+    fit_object = CustomChi2(t_interpolated[iloc_start:iloc_lockdown], y_truth_interpolated.to_numpy(float)[iloc_start:iloc_lockdown], y0, Tmax_peak, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
 
     minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
 
-    try:
-        minuit.migrad()
-    except: 
-        print(filename)
-        raise ValueError()
+    minuit.migrad()
     fit_object.set_chi2(minuit)
 
     if fit_object.chi2 / fit_object.N > 100:
@@ -602,18 +600,14 @@ def get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=20):
             output_filename = Path('Data/fits_Imax') / f'Imax_fits_{sim_pars}.joblib'
             output_filename.parent.mkdir(parents=True, exist_ok=True)
 
-            try:
+            if output_filename.exists() and not force_rerun:
+                all_Imax_fits[sim_pars] = joblib.load(output_filename)
 
-                if output_filename.exists() and not force_rerun:
-                    all_Imax_fits[sim_pars] = joblib.load(output_filename)
+            else:
+                fit_results = calc_fit_Imax_results(files, num_cores_max=num_cores_max)
+                joblib.dump(fit_results, output_filename)
+                all_Imax_fits[sim_pars] = fit_results
 
-                else:
-                    fit_results = calc_fit_Imax_results(files, num_cores_max=num_cores_max)
-                    joblib.dump(fit_results, output_filename)
-                    all_Imax_fits[sim_pars] = fit_results
-
-            except:
-                print(f"{sim_pars} has error, skipping for now") # TODO FIXME
 
         joblib.dump(all_Imax_fits, all_fits_file)
         return all_Imax_fits

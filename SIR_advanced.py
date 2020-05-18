@@ -29,10 +29,7 @@ N_files = len(filenames)
 if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison(force_overwrite=True, max_N_plots=100)
 
-x=x
-
 #%%
-
 
 if __name__ == '__main__':
 
@@ -47,7 +44,6 @@ if __name__ == '__main__':
     x=x
 
 #%%
-
     # # reload(extra_funcs)
 
     # fit_objects_by_pars = defaultdict(dict)
@@ -171,199 +167,199 @@ if __name__ == '__main__':
 
 
 
-# %%
+# # %%
 
-    # reload(extra_funcs)
-    I_max_truth_by_pars = {}
-    I_max_normed_by_pars = {}
-    I_max_relative_by_pars = {}
-    I_relative_by_pars = {}
+#     # reload(extra_funcs)
+#     I_max_truth_by_pars = {}
+#     I_max_normed_by_pars = {}
+#     I_max_relative_by_pars = {}
+#     I_relative_by_pars = {}
 
-    betas_by_pars = {}
-    betas_std_by_pars = {}
+#     betas_by_pars = {}
+#     betas_std_by_pars = {}
 
-    for par_string, Imax_fit in tqdm(Imax_fits.items(), desc='Splitting I_max fits by simulation parameters'):
+#     for par_string, Imax_fit in tqdm(Imax_fits.items(), desc='Splitting I_max fits by simulation parameters'):
         
-        filenames_to_use = extra_funcs.get_filenames_to_use_Imax(par_string)
+#         filenames_to_use = extra_funcs.get_filenames_to_use_Imax(par_string)
 
-        # I max truths 
-        I_max_net_tmp = {k: Imax_fit[k][0].I_max_net for k in filenames_to_use}
-        I_maxs_net = extra_funcs.fix_and_sort_index(pd.Series(I_max_net_tmp))
-        I_max_truth_by_pars[par_string] = I_maxs_net
+#         # I max truths 
+#         I_max_net_tmp = {k: Imax_fit[k][0].I_max_net for k in filenames_to_use}
+#         I_maxs_net = extra_funcs.fix_and_sort_index(pd.Series(I_max_net_tmp))
+#         I_max_truth_by_pars[par_string] = I_maxs_net
 
-        # fit_objects by par_string (contains all IDs)
-        d_fit_objects_all_IDs = {k: Imax_fit[k] for k in filenames_to_use}
+#         # fit_objects by par_string (contains all IDs)
+#         d_fit_objects_all_IDs = {k: Imax_fit[k] for k in filenames_to_use}
         
-        # normalized I_max from fits
-        df_I_maxs_normed = extra_funcs.extract_normalized_Imaxs(d_fit_objects_all_IDs, 
-                                                                I_maxs_net, 
-                                                                filenames_to_use, 
-                                                                bin_centers_Imax)
-        I_max_normed_by_pars[par_string] = df_I_maxs_normed
+#         # normalized I_max from fits
+#         df_I_maxs_normed = extra_funcs.extract_normalized_Imaxs(d_fit_objects_all_IDs, 
+#                                                                 I_maxs_net, 
+#                                                                 filenames_to_use, 
+#                                                                 bin_centers_Imax)
+#         I_max_normed_by_pars[par_string] = df_I_maxs_normed
 
 
-        # relative I_max from fits
-        df_I_maxs_relative = extra_funcs.extract_relative_Imaxs(d_fit_objects_all_IDs, 
-                                                              I_maxs_net, 
-                                                              filenames_to_use, 
-                                                              bin_centers_Imax)
-        I_max_relative_by_pars[par_string] = df_I_maxs_relative
+#         # relative I_max from fits
+#         df_I_maxs_relative = extra_funcs.extract_relative_Imaxs(d_fit_objects_all_IDs, 
+#                                                               I_maxs_net, 
+#                                                               filenames_to_use, 
+#                                                               bin_centers_Imax)
+#         I_max_relative_by_pars[par_string] = df_I_maxs_relative
 
 
-        # relative I_max as func of relative I from fits
-        df_I_relative = extra_funcs.extract_relative_Imaxs_relative_I(d_fit_objects_all_IDs,
-                                                                      I_maxs_net,
-                                                                      filenames_to_use)
-        I_relative_by_pars[par_string] = df_I_relative
+#         # relative I_max as func of relative I from fits
+#         df_I_relative = extra_funcs.extract_relative_Imaxs_relative_I(d_fit_objects_all_IDs,
+#                                                                       I_maxs_net,
+#                                                                       filenames_to_use)
+#         I_relative_by_pars[par_string] = df_I_relative
 
 
 
-        # extract betas
-        df_betas, df_betas_std = extra_funcs.extract_fit_parameter('beta', d_fit_objects_all_IDs, filenames_to_use, bin_centers_Imax)
-        betas_by_pars[par_string] = df_betas
-        betas_std_by_pars[par_string] = df_betas_std
+#         # extract betas
+#         df_betas, df_betas_std = extra_funcs.extract_fit_parameter('beta', d_fit_objects_all_IDs, filenames_to_use, bin_centers_Imax)
+#         betas_by_pars[par_string] = df_betas
+#         betas_std_by_pars[par_string] = df_betas_std
 
 
-#%%
+# #%%
 
-    do_mask_I_rel = True
+#     do_mask_I_rel = True
 
-    for par_string in tqdm(I_max_truth_by_pars.keys(), desc='Make Imax figures'):
+#     for par_string in tqdm(I_max_truth_by_pars.keys(), desc='Make Imax figures'):
 
-        I_maxs_normed = I_max_normed_by_pars[par_string]
-        I_maxs_relative = I_max_relative_by_pars[par_string]
-        I_maxs_true = I_max_truth_by_pars[par_string]
-        I_rel = I_relative_by_pars[par_string]
-        df_betas = betas_by_pars[par_string]
-        df_betas_std = betas_std_by_pars[par_string]
+#         I_maxs_normed = I_max_normed_by_pars[par_string]
+#         I_maxs_relative = I_max_relative_by_pars[par_string]
+#         I_maxs_true = I_max_truth_by_pars[par_string]
+#         I_rel = I_relative_by_pars[par_string]
+#         df_betas = betas_by_pars[par_string]
+#         df_betas_std = betas_std_by_pars[par_string]
         
 
-        fig = make_subplots(rows=1, cols=6, 
-                            subplot_titles=['Normalized Imax', 'Relative Imax', 'Relative Imax Relative I', 'Beta', 'Beta std','Truth distriution'], 
-                            column_widths=[0.18, 0.18, 0.18, 0.18, 0.18, 0.1])
+#         fig = make_subplots(rows=1, cols=6, 
+#                             subplot_titles=['Normalized Imax', 'Relative Imax', 'Relative Imax Relative I', 'Beta', 'Beta std','Truth distriution'], 
+#                             column_widths=[0.18, 0.18, 0.18, 0.18, 0.18, 0.1])
 
-        I_maxs_normed = extra_funcs.mask_df(I_maxs_normed, 5)
-        # subplot 1 - Normalized Imax
-        fig.add_trace(
-            go.Scatter( x=I_maxs_normed.columns, 
-                        y=I_maxs_normed.loc['mean'],
-                        error_y=dict(
-                            type='data', # value of error bar given in data coordinates
-                            array=I_maxs_normed.loc['sdom'],
-                            visible=True
-                            ),
-                        mode="markers",
-                        ),
+#         I_maxs_normed = extra_funcs.mask_df(I_maxs_normed, 5)
+#         # subplot 1 - Normalized Imax
+#         fig.add_trace(
+#             go.Scatter( x=I_maxs_normed.columns, 
+#                         y=I_maxs_normed.loc['mean'],
+#                         error_y=dict(
+#                             type='data', # value of error bar given in data coordinates
+#                             array=I_maxs_normed.loc['sdom'],
+#                             visible=True
+#                             ),
+#                         mode="markers",
+#                         ),
                     
-            row=1, col=1,
-            )
-        fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=1)
-        fig.update_yaxes(title_text=f"I_max / I_max_truth", row=1, col=1)
+#             row=1, col=1,
+#             )
+#         fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=1)
+#         fig.update_yaxes(title_text=f"I_max / I_max_truth", row=1, col=1)
 
 
 
         
-        I_maxs_relative = extra_funcs.mask_df(I_maxs_relative, 5)
-        # subplot 2  Relative Imax
-        fig.add_trace(
-            go.Scatter( x=I_maxs_relative.columns, 
-                        y=I_maxs_relative.loc['mean'],
-                        error_y=dict(
-                            type='data', # value of error bar given in data coordinates
-                            array=I_maxs_relative.loc['sdom'],
-                            visible=True
-                            ),
-                        mode="markers",
-                        ),
-            row=1, col=2,
-            )
-        fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=2)
-        fig.update_yaxes(title_text=f"Imax relative", row=1, col=2)
+#         I_maxs_relative = extra_funcs.mask_df(I_maxs_relative, 5)
+#         # subplot 2  Relative Imax
+#         fig.add_trace(
+#             go.Scatter( x=I_maxs_relative.columns, 
+#                         y=I_maxs_relative.loc['mean'],
+#                         error_y=dict(
+#                             type='data', # value of error bar given in data coordinates
+#                             array=I_maxs_relative.loc['sdom'],
+#                             visible=True
+#                             ),
+#                         mode="markers",
+#                         ),
+#             row=1, col=2,
+#             )
+#         fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=2)
+#         fig.update_yaxes(title_text=f"Imax relative", row=1, col=2)
 
 
 
-        # I_rel = extra_funcs.mask_df(I_rel, 5)
-        # subplot 2  Relative Imax
-        fig.add_trace(
-            go.Scatter( x=I_rel['x'], 
-                        y=I_rel['mean'],
-                        error_y=dict(
-                            type='data', # value of error bar given in data coordinates
-                            array=I_rel['sdom'],
-                            visible=True
-                            ),
-                        mode="markers",
-                        ),
-            row=1, col=3,
-            )
-        fig.update_xaxes(title_text=f"'I / N0'", row=1, col=3)
-        fig.update_yaxes(title_text=f"Imax relative", row=1, col=3)
+#         # I_rel = extra_funcs.mask_df(I_rel, 5)
+#         # subplot 2  Relative Imax
+#         fig.add_trace(
+#             go.Scatter( x=I_rel['x'], 
+#                         y=I_rel['mean'],
+#                         error_y=dict(
+#                             type='data', # value of error bar given in data coordinates
+#                             array=I_rel['sdom'],
+#                             visible=True
+#                             ),
+#                         mode="markers",
+#                         ),
+#             row=1, col=3,
+#             )
+#         fig.update_xaxes(title_text=f"'I / N0'", row=1, col=3)
+#         fig.update_yaxes(title_text=f"Imax relative", row=1, col=3)
 
 
 
 
 
-        # subplot 3
-        fig.add_trace(
-            go.Scatter( x=df_betas.columns, 
-                        y=df_betas.loc['mean'],
-                        error_y=dict(
-                            type='data', # value of error bar given in data coordinates
-                            array=df_betas.loc['sdom'],
-                            visible=True
-                            ),
-                        mode="markers",
-                        ),
-            row=1, col=4,
-            )
-        fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=4)
-        fig.update_yaxes(title_text=f"Beta", row=1, col=4)
+#         # subplot 3
+#         fig.add_trace(
+#             go.Scatter( x=df_betas.columns, 
+#                         y=df_betas.loc['mean'],
+#                         error_y=dict(
+#                             type='data', # value of error bar given in data coordinates
+#                             array=df_betas.loc['sdom'],
+#                             visible=True
+#                             ),
+#                         mode="markers",
+#                         ),
+#             row=1, col=4,
+#             )
+#         fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=4)
+#         fig.update_yaxes(title_text=f"Beta", row=1, col=4)
 
 
-        df_betas_std = extra_funcs.mask_df(df_betas_std, 5)
-        # subplot 4
-        fig.add_trace(
-            go.Scatter( x=df_betas_std.columns, 
-                        y=df_betas_std.loc['mean'],
-                        error_y=dict(
-                            type='data', # value of error bar given in data coordinates
-                            array=df_betas_std.loc['sdom'],
-                            visible=True
-                            ),
-                        mode="markers",
-                        ),
-            row=1, col=5,
-            )
-        fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=5)
-        fig.update_yaxes(title_text=f"Beta std", row=1, col=5)
+#         df_betas_std = extra_funcs.mask_df(df_betas_std, 5)
+#         # subplot 4
+#         fig.add_trace(
+#             go.Scatter( x=df_betas_std.columns, 
+#                         y=df_betas_std.loc['mean'],
+#                         error_y=dict(
+#                             type='data', # value of error bar given in data coordinates
+#                             array=df_betas_std.loc['sdom'],
+#                             visible=True
+#                             ),
+#                         mode="markers",
+#                         ),
+#             row=1, col=5,
+#             )
+#         fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=5)
+#         fig.update_yaxes(title_text=f"Beta std", row=1, col=5)
 
 
-        # subplot 5
-        fig.add_trace(
-            go.Histogram(x=I_maxs_true),
-            row=1, col=6,
-            )
-        fig.update_xaxes(title_text=f"I_max_truth", row=1, col=6)
-        fig.update_yaxes(title_text=f"Counts", row=1, col=6)
+#         # subplot 5
+#         fig.add_trace(
+#             go.Histogram(x=I_maxs_true),
+#             row=1, col=6,
+#             )
+#         fig.update_xaxes(title_text=f"I_max_truth", row=1, col=6)
+#         fig.update_yaxes(title_text=f"Counts", row=1, col=6)
 
         
-        cfg = extra_funcs.string_to_dict(par_string)
+#         cfg = extra_funcs.string_to_dict(par_string)
 
-        N_files = len(I_maxs_true)
-        # N0_str = extra_funcs.human_format(cfg['N0'])
+#         N_files = len(I_maxs_true)
+#         # N0_str = extra_funcs.human_format(cfg['N0'])
 
-        title = extra_funcs.dict_to_title(cfg, N_files)
+#         title = extra_funcs.dict_to_title(cfg, N_files)
 
-        k_scale = 1
-        fig.update_layout(title=title, width=2400*k_scale, height=600*k_scale, showlegend=False)
+#         k_scale = 1
+#         fig.update_layout(title=title, width=2400*k_scale, height=600*k_scale, showlegend=False)
 
-        # fig.show()
-        figname_html = Path(f"Figures/Imax_fits/html/fits_Imax_{par_string}.html")
-        figname_png = Path(f"Figures/Imax_fits/png/fits_Imax_{par_string}.png")
-        Path(figname_html).parent.mkdir(parents=True, exist_ok=True)
-        Path(figname_png).parent.mkdir(parents=True, exist_ok=True)
-        fig.write_html(str(figname_html))
-        fig.write_image(str(figname_png))
+#         # fig.show()
+#         figname_html = Path(f"Figures/Imax_fits/html/fits_Imax_{par_string}.html")
+#         figname_png = Path(f"Figures/Imax_fits/png/fits_Imax_{par_string}.png")
+#         Path(figname_html).parent.mkdir(parents=True, exist_ok=True)
+#         Path(figname_png).parent.mkdir(parents=True, exist_ok=True)
+#         fig.write_html(str(figname_html))
+#         fig.write_image(str(figname_png))
 
 
 # %%
