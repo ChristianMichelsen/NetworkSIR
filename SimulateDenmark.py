@@ -5,7 +5,7 @@ import SimulateDenmark_extra_funcs as extra_funcs
 from pathlib import Path
 from importlib import reload
 
-num_cores_max = 13
+num_cores_max = 12
 N_loops = 10
 force_SK_P1_UK = False
 dry_run = False
