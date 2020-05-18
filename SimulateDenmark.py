@@ -8,6 +8,7 @@ from importlib import reload
 num_cores_max = 10
 N_loops = 10
 force_SK_P1_UK = False
+dry_run = False
 
 #%%
 
@@ -17,7 +18,7 @@ all_sim_pars = [
                 }, 
 
                 {
-                    'N0': [50_000, 100_000, 200_000, 500_000],
+                    'N0': [100_000, 200_000, 500_000],
                 },
 
                 { 
@@ -53,7 +54,8 @@ all_sim_pars = [
                 
 
                 {
-                    'mu': [5, 10, 15, 20, 30, 40, 60, 80],
+                    # 'mu': [5, 10, 15, 20, 30, 40, 60, 80],
+                    'mu': [5, 10, 20, 40, 80],
                 },
 
                 {
@@ -66,7 +68,7 @@ all_sim_pars = [
 
                 { 
                     'alpha': [0, 1, 2, 4, 6, 8, 10, 15, 20],
-                    'BB': [0, 1],
+                    # 'BB': [1],
                 },
 
                 {
@@ -88,6 +90,7 @@ all_sim_pars = [
 # x=x
 
 
+N_files_all = 0
 # reload(extra_funcs)
 if __name__ == '__main__':
 
@@ -98,6 +101,7 @@ if __name__ == '__main__':
 
     for filenames, d_simulation_parameters in zip(*all_filenames):
         N_files = len(filenames)
+        N_files_all += N_files
 
         # make sure path exists
         if len(filenames) > 0:
@@ -106,6 +110,9 @@ if __name__ == '__main__':
             num_cores = extra_funcs.get_num_cores_N0_specific(d_simulation_parameters, num_cores_max)
             
             print(f"Generating {N_files:3d} network-based simulations with {num_cores} cores based on {d_simulation_parameters}, please wait.", flush=True)
+
+            if dry_run:
+                continue
 
             # if 'N0' in d_simulation_parameters.keys():
                 # break
@@ -122,4 +129,5 @@ if __name__ == '__main__':
         else:
             print("No files to generate, everything already generated.")
 
+    print(f"Total: {N_files_all}")
     print("Finished simulating!")
