@@ -373,6 +373,7 @@ if __name__ == '__main__':
 # %%
 
     reload(extra_funcs)
+    par = 'Ninit'
     extra_funcs.plot_variable_other_than_default('beta')
     extra_funcs.plot_variable_other_than_default('N0')
     extra_funcs.plot_variable_other_than_default('mu')
@@ -380,7 +381,6 @@ if __name__ == '__main__':
     extra_funcs.plot_variable_other_than_default('Ninit') 
     extra_funcs.plot_variable_other_than_default('sigma') 
     extra_funcs.plot_variable_other_than_default('gamma') 
-
 
 
 

@@ -832,7 +832,7 @@ def plot_SIR_model_comparison(force_overwrite=False, max_N_plots=100):
 def get_filenames_different_than_default(find_par):
 
     base_dir = Path('Data') / 'NetworkSimulation'
-    all_sim_pars = sorted([str(x.name) for x in base_dir.glob('*') if str(x.name) != '.DS_Store'])
+    all_sim_pars = sorted([str(x.name) for x in base_dir.glob('*') if '.DS' not in str(x.name)])
 
     all_sim_pars_as_dict = {s: string_to_dict(s) for s in all_sim_pars}
     df_sim_pars = pd.DataFrame.from_dict(all_sim_pars_as_dict, orient='index')
@@ -875,7 +875,6 @@ def plot_variable_other_than_default(par):
     filenames_par_rest_default = get_filenames_different_than_default(par)
 
     base_dir = Path('Data') / 'NetworkSimulation'
-    # I_max_rel = {}
 
     x = np.zeros(len(filenames_par_rest_default))
     y = np.zeros_like(x)
@@ -884,7 +883,7 @@ def plot_variable_other_than_default(par):
 
     # i_simpar, sim_par = 0, filenames_par_rest_default[0]
     for i_simpar, sim_par in enumerate(tqdm(filenames_par_rest_default)):
-        filenames = [str(filename) for filename in base_dir.rglob('*.csv') if sim_par in str(filename)]
+        filenames = [str(filename) for filename in base_dir.rglob('*.csv') if f"{sim_par}/" in str(filename)]
         N_files = len(filenames)
 
         I_max_net = np.zeros(N_files)
