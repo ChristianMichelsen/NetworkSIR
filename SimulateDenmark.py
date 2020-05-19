@@ -7,7 +7,7 @@ from importlib import reload
 
 num_cores_max = 12
 N_loops = 10
-force_SK_P1_UK = False
+force_SK_P1_UK = True
 dry_run = False
 
 #%%

@@ -6,6 +6,8 @@ import joblib
 import multiprocessing as mp
 from itertools import product
 import matplotlib.pyplot as plt
+import rc_params
+rc_params.set_rc_params()
 
 
 # conda install awkward

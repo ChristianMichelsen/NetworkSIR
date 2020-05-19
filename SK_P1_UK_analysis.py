@@ -12,6 +12,8 @@ import multiprocessing as mp
 import awkward
 import extra_funcs
 from importlib import reload
+import rc_params
+rc_params.set_rc_params()
 
 num_cores_max = 15
 

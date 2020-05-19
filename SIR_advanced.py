@@ -13,6 +13,9 @@ from matplotlib.backends.backend_pdf import PdfPages
 import extra_funcs
 from importlib import reload
 import SimulateDenmark_extra_funcs
+import matplotlib.patches as mpatches
+import rc_params
+rc_params.set_rc_params()
 
 num_cores_max = 10
 
@@ -28,30 +31,39 @@ filenames = extra_funcs.get_filenames()
 N_files = len(filenames)
 
 if plot_SIR_comparison:
+
     extra_funcs.plot_SIR_model_comparison('I', force_overwrite=True, max_N_plots=100)
     extra_funcs.plot_SIR_model_comparison('R', force_overwrite=True, max_N_plots=100)
-
-# x=x
 
 
 #%%
 
 if __name__ == '__main__':
 
-    fit_objects_all = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=num_cores_max)
+    fit_objects_all = extra_funcs.get_fit_Imax_results(filenames, force_rerun=True, num_cores_max=num_cores_max)
 
-    # print("bla")
-
-    # normal_fits = extra_funcs.get_fit_normal_results(filenames, force_rerun=False, num_cores_max=num_cores_max)
-    # all_normal_fit_objects, discarded_files, N_refits_total = normal_fits
-    # print(f"{N_refits_total=}, number of discarded files = {len(discarded_files)}\n\n", flush=True)
-
-    x=x
 
 
 #%%
 
-    def plot_fit_simulation_SIR_comparison(force_overwrite=False, verbose=False, do_log=True):
+    # reload(extra_funcs)
+    # par = 'Ninit'
+    # do_log = True
+
+    # TODO add R ratio as well
+
+    extra_funcs.plot_variable_other_than_default('beta')
+    extra_funcs.plot_variable_other_than_default('N0', do_log=True)
+    extra_funcs.plot_variable_other_than_default('mu')
+    extra_funcs.plot_variable_other_than_default('alpha') 
+    extra_funcs.plot_variable_other_than_default('Ninit', do_log=True) 
+    extra_funcs.plot_variable_other_than_default('sigma') 
+    extra_funcs.plot_variable_other_than_default('gamma') 
+
+
+#%%
+
+    def plot_fit_simulation_SIR_comparison(fit_objects_all, force_overwrite=False, verbose=False, do_log=True):
 
         pdf_name = f"Figures/Fits_IR.pdf"
         Path(pdf_name).parent.mkdir(parents=True, exist_ok=True)
@@ -62,6 +74,7 @@ if __name__ == '__main__':
 
         with PdfPages(pdf_name) as pdf:
 
+            # sim_par, fit_objects = list(fit_objects_all.items())[0]
             for sim_par, fit_objects in tqdm(fit_objects_all.items()):
                 # break
 
@@ -72,13 +85,21 @@ if __name__ == '__main__':
 
                 cfg = extra_funcs.string_to_dict(sim_par)
 
-                k_scale = 1.5
-                fig, axes = plt.subplots(ncols=2, figsize=(10*k_scale, 5*k_scale), constrained_layout=True)
+                fig, axes = plt.subplots(ncols=2, figsize=(18, 8), constrained_layout=True)
                 fig.subplots_adjust(top=0.9)
 
                 leg_loc = {'I': 'upper right', 'R': 'lower right'}
+                d_ylabel = {'I': 'Infected', 'R': 'Recovered'}
+
+                fit_values = defaultdict(list)
+                fit_errors = defaultdict(list)
                 max_y = defaultdict(int)
                 for i, (filename, fit_object) in enumerate(fit_objects.items()):
+                    
+                    for fit_par in fit_object.parameters:
+                        fit_values[fit_par].append(fit_object.fit_values[fit_par])
+                        fit_errors[fit_par].append(fit_object.fit_errors[fit_par])
+
                     df = extra_funcs.pandas_load_file(filename, return_only_df=True)
                     T = df['Time'].values
                     Tmax = max(T)*1.5
@@ -121,7 +142,7 @@ if __name__ == '__main__':
                     if do_log:
                         ax.set_yscale('log', nonposy='clip')
 
-                    ax.set(xlabel='Time', ylabel=y)
+                    ax.set(xlabel='Time', ylabel=d_ylabel[y])
                     ax.set_rasterized(True)
                     ax.set_rasterization_zorder(0)
 
@@ -131,7 +152,20 @@ if __name__ == '__main__':
                         legobj.set_alpha(1.0)
 
                 title = extra_funcs.dict_to_title(cfg, len(fit_objects))
-                fig.suptitle(title, fontsize=20)
+                fig.suptitle(title, fontsize=24)
+
+
+
+                # # These are in unitless percentages of the figure size. (0,0 is bottom left)
+                # left, bottom, width, height = [0.62, 0.76, 0.3*0.95, 0.08*0.9]
+
+                # # background_box = [(0.51, 0.61), 0.47, 0.36]
+                # # ax.add_patch(mpatches.Rectangle(*background_box, facecolor='white', edgecolor='lightgray', transform=ax.transAxes))
+
+                # # delta_width = 0 * width / 100
+                # ax2 = fig.add_axes([left, bottom, width, height])
+                # ax2.hist(fit_values['beta'])
+
             
                 pdf.savefig(fig, dpi=100)
                 plt.close('all')
@@ -139,329 +173,9 @@ if __name__ == '__main__':
 
     plot_fit_simulation_SIR_comparison(force_overwrite=True)
 
-#%%
-
-
 
 
 #%%
-    # # reload(extra_funcs)
-
-    # fit_objects_by_pars = defaultdict(dict)
-    # for filename, fit_object in all_fit_objects.items():
-    #     par_string = extra_funcs.filename_to_par_string(filename)
-    #     ID = extra_funcs.filename_to_ID(filename)
-    #     fit_objects_by_pars[par_string][ID] = fit_object
-
-
-    # # reload(extra_funcs)
-    # percentage1 = 5
-    # percentage2 = 95
-    # Nbins = 100
-    
-    # # save_and_show_all_plots = True
-    # if save_and_show_all_plots:
-
-    #     for fit_pars_as_string, fit_objects_by_ID in tqdm(fit_objects_by_pars.items()):
-
-    #         N_fits_for_parameter = len(fit_objects_by_ID)
-    #         cfg = extra_funcs.string_to_dict(fit_pars_as_string)
-    #         fit_pars =list(fit_objects_by_ID.values())[0].parameters
-    #         sim_pars = {'Mrate1': cfg.Mrate1, 'Mrate2': cfg.Mrate2, 'beta': cfg.beta, 'tau': 0}
-
-
-    #         fig = make_subplots(rows=3, cols=len(fit_pars), subplot_titles=fit_pars)
-
-    #         for i_fit_par, fit_par in enumerate(fit_pars, 1): # start enumerate at 1
-
-    #             means = np.zeros(N_fits_for_parameter)
-    #             stds = np.zeros(N_fits_for_parameter)
-
-    #             for i_fit_object, fit_object in enumerate(fit_objects_by_ID.values()):
-    #                 means[i_fit_object], stds[i_fit_object] = fit_object.get_fit_par(fit_par)
-
-    #             z_pull =  (means - sim_pars[fit_par]) / stds
-
-    #             fig.add_trace(go.Histogram(x=extra_funcs.cut_percentiles(means, percentage1, percentage2), 
-    #                                     nbinsx=Nbins,
-    #                                     histnorm='probability', 
-    #                                     ),
-    #                             row=1, col=i_fit_par)
-
-
-    #             fig.add_trace(go.Histogram(x=extra_funcs.cut_percentiles(stds, percentage1, percentage2),
-    #                                     nbinsx=Nbins,
-    #                                     histnorm='probability', 
-    #                                     ),
-    #                             row=2, col=i_fit_par)
-
-    #             fig.add_trace(go.Histogram(x=extra_funcs.cut_percentiles(z_pull, percentage1, percentage2),
-    #                                         nbinsx=Nbins,
-    #                                     # xbins=dict( # bins used for histogram
-    #                                     #         start=-20.0,
-    #                                     #         end=25.0,
-    #                                     #         size=2,
-    #                                     #         ),
-    #                                     histnorm='probability', 
-    #                                     ),
-    #                             row=3, col=i_fit_par)
-                
-
-    #         fig.update_yaxes(title_text=f"Mu", row=1, col=1)
-    #         fig.update_yaxes(title_text=f"Std", row=2, col=1)
-    #         fig.update_yaxes(title_text=f'Pull', row=3, col=1)
-
-    #         fig.update_layout(showlegend=False)
-
-    #         k_scale = 1
-    #         # Edit the layout
-    #         # N0_str = extra_funcs.human_format(cfg['N0'])
-    #         title = extra_funcs.dict_to_title(cfg, N_fits_for_parameter)
-    #         fig.update_layout(title=title, height=600*k_scale, width=800*k_scale)
-
-    #         # fig.show()
-    #         figname = f"Figures/fit_to_all/fits_{fit_pars_as_string}"
-    #         figname_html = figname.replace('fit_to_all', 'fit_to_all/html')
-    #         figname_png = figname.replace('fit_to_all', 'fit_to_all/png')
-    #         Path(figname_html).parent.mkdir(parents=True, exist_ok=True)
-    #         Path(figname_png).parent.mkdir(parents=True, exist_ok=True)
-    #         fig.write_html(figname_html+".html")
-    #         fig.write_image(figname_png+".png")
-
-
-#%%
-
-
-    # if save_and_show_all_plots:
-
-    #     filename = filenames[0]
-
-    #     fig = go.Figure()
-
-    #     # reload(extra_funcs)
-    #     fit_object = all_fit_objects[filename]
-
-    #     df_fit = fit_object.calc_df_fit(ts=0.01)
-    #     df, df_interpolated, time, t_interpolated = extra_funcs.pandas_load_file(filename)
-
-
-    #     for s in ['E', 'I', 'R']:
-    #         fig.add_trace(go.Scatter(x=df['Time'], y=df[s], name=f'{s} raw network'))
-    #         ss = f'{s}_sum' if s != 'R' else s
-    #         fig.add_trace(go.Scatter(x=df_fit['Time'], y=df_fit[ss], name=f'{s} FIT'))
-
-    #     k_scale = 1
-
-    #     # Edit the layout
-    #     title = extra_funcs.filename_to_title(filename)
-    #     fig.update_layout(title=title,
-    #                     xaxis_title='Time',
-    #                     yaxis_title='Count',
-    #                     height=600*k_scale, width=800*k_scale,
-    #                     )
-
-    #     fig.update_yaxes(rangemode="tozero")
-
-    #     fig.show()
-    #     # if savefig:
-    #     #     fig.write_html(f"Figures/{filename.stem}.html")
-
-
-
-# # %%
-
-#     # reload(extra_funcs)
-#     I_max_truth_by_pars = {}
-#     I_max_normed_by_pars = {}
-#     I_max_relative_by_pars = {}
-#     I_relative_by_pars = {}
-
-#     betas_by_pars = {}
-#     betas_std_by_pars = {}
-
-#     for par_string, Imax_fit in tqdm(Imax_fits.items(), desc='Splitting I_max fits by simulation parameters'):
-        
-#         filenames_to_use = extra_funcs.get_filenames_to_use_Imax(par_string)
-
-#         # I max truths 
-#         I_max_net_tmp = {k: Imax_fit[k][0].I_max_net for k in filenames_to_use}
-#         I_maxs_net = extra_funcs.fix_and_sort_index(pd.Series(I_max_net_tmp))
-#         I_max_truth_by_pars[par_string] = I_maxs_net
-
-#         # fit_objects by par_string (contains all IDs)
-#         d_fit_objects_all_IDs = {k: Imax_fit[k] for k in filenames_to_use}
-        
-#         # normalized I_max from fits
-#         df_I_maxs_normed = extra_funcs.extract_normalized_Imaxs(d_fit_objects_all_IDs, 
-#                                                                 I_maxs_net, 
-#                                                                 filenames_to_use, 
-#                                                                 bin_centers_Imax)
-#         I_max_normed_by_pars[par_string] = df_I_maxs_normed
-
-
-#         # relative I_max from fits
-#         df_I_maxs_relative = extra_funcs.extract_relative_Imaxs(d_fit_objects_all_IDs, 
-#                                                               I_maxs_net, 
-#                                                               filenames_to_use, 
-#                                                               bin_centers_Imax)
-#         I_max_relative_by_pars[par_string] = df_I_maxs_relative
-
-
-#         # relative I_max as func of relative I from fits
-#         df_I_relative = extra_funcs.extract_relative_Imaxs_relative_I(d_fit_objects_all_IDs,
-#                                                                       I_maxs_net,
-#                                                                       filenames_to_use)
-#         I_relative_by_pars[par_string] = df_I_relative
-
-
-
-#         # extract betas
-#         df_betas, df_betas_std = extra_funcs.extract_fit_parameter('beta', d_fit_objects_all_IDs, filenames_to_use, bin_centers_Imax)
-#         betas_by_pars[par_string] = df_betas
-#         betas_std_by_pars[par_string] = df_betas_std
-
-
-# #%%
-
-#     do_mask_I_rel = True
-
-#     for par_string in tqdm(I_max_truth_by_pars.keys(), desc='Make Imax figures'):
-
-#         I_maxs_normed = I_max_normed_by_pars[par_string]
-#         I_maxs_relative = I_max_relative_by_pars[par_string]
-#         I_maxs_true = I_max_truth_by_pars[par_string]
-#         I_rel = I_relative_by_pars[par_string]
-#         df_betas = betas_by_pars[par_string]
-#         df_betas_std = betas_std_by_pars[par_string]
-        
-
-#         fig = make_subplots(rows=1, cols=6, 
-#                             subplot_titles=['Normalized Imax', 'Relative Imax', 'Relative Imax Relative I', 'Beta', 'Beta std','Truth distriution'], 
-#                             column_widths=[0.18, 0.18, 0.18, 0.18, 0.18, 0.1])
-
-#         I_maxs_normed = extra_funcs.mask_df(I_maxs_normed, 5)
-#         # subplot 1 - Normalized Imax
-#         fig.add_trace(
-#             go.Scatter( x=I_maxs_normed.columns, 
-#                         y=I_maxs_normed.loc['mean'],
-#                         error_y=dict(
-#                             type='data', # value of error bar given in data coordinates
-#                             array=I_maxs_normed.loc['sdom'],
-#                             visible=True
-#                             ),
-#                         mode="markers",
-#                         ),
-                    
-#             row=1, col=1,
-#             )
-#         fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=1)
-#         fig.update_yaxes(title_text=f"I_max / I_max_truth", row=1, col=1)
-
-
-
-        
-#         I_maxs_relative = extra_funcs.mask_df(I_maxs_relative, 5)
-#         # subplot 2  Relative Imax
-#         fig.add_trace(
-#             go.Scatter( x=I_maxs_relative.columns, 
-#                         y=I_maxs_relative.loc['mean'],
-#                         error_y=dict(
-#                             type='data', # value of error bar given in data coordinates
-#                             array=I_maxs_relative.loc['sdom'],
-#                             visible=True
-#                             ),
-#                         mode="markers",
-#                         ),
-#             row=1, col=2,
-#             )
-#         fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=2)
-#         fig.update_yaxes(title_text=f"Imax relative", row=1, col=2)
-
-
-
-#         # I_rel = extra_funcs.mask_df(I_rel, 5)
-#         # subplot 2  Relative Imax
-#         fig.add_trace(
-#             go.Scatter( x=I_rel['x'], 
-#                         y=I_rel['mean'],
-#                         error_y=dict(
-#                             type='data', # value of error bar given in data coordinates
-#                             array=I_rel['sdom'],
-#                             visible=True
-#                             ),
-#                         mode="markers",
-#                         ),
-#             row=1, col=3,
-#             )
-#         fig.update_xaxes(title_text=f"'I / N0'", row=1, col=3)
-#         fig.update_yaxes(title_text=f"Imax relative", row=1, col=3)
-
-
-
-
-
-#         # subplot 3
-#         fig.add_trace(
-#             go.Scatter( x=df_betas.columns, 
-#                         y=df_betas.loc['mean'],
-#                         error_y=dict(
-#                             type='data', # value of error bar given in data coordinates
-#                             array=df_betas.loc['sdom'],
-#                             visible=True
-#                             ),
-#                         mode="markers",
-#                         ),
-#             row=1, col=4,
-#             )
-#         fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=4)
-#         fig.update_yaxes(title_text=f"Beta", row=1, col=4)
-
-
-#         df_betas_std = extra_funcs.mask_df(df_betas_std, 5)
-#         # subplot 4
-#         fig.add_trace(
-#             go.Scatter( x=df_betas_std.columns, 
-#                         y=df_betas_std.loc['mean'],
-#                         error_y=dict(
-#                             type='data', # value of error bar given in data coordinates
-#                             array=df_betas_std.loc['sdom'],
-#                             visible=True
-#                             ),
-#                         mode="markers",
-#                         ),
-#             row=1, col=5,
-#             )
-#         fig.update_xaxes(title_text=f"'Normalized Time'", row=1, col=5)
-#         fig.update_yaxes(title_text=f"Beta std", row=1, col=5)
-
-
-#         # subplot 5
-#         fig.add_trace(
-#             go.Histogram(x=I_maxs_true),
-#             row=1, col=6,
-#             )
-#         fig.update_xaxes(title_text=f"I_max_truth", row=1, col=6)
-#         fig.update_yaxes(title_text=f"Counts", row=1, col=6)
-
-        
-#         cfg = extra_funcs.string_to_dict(par_string)
-
-#         N_files = len(I_maxs_true)
-#         # N0_str = extra_funcs.human_format(cfg['N0'])
-
-#         title = extra_funcs.dict_to_title(cfg, N_files)
-
-#         k_scale = 1
-#         fig.update_layout(title=title, width=2400*k_scale, height=600*k_scale, showlegend=False)
-
-#         # fig.show()
-#         figname_html = Path(f"Figures/Imax_fits/html/fits_Imax_{par_string}.html")
-#         figname_png = Path(f"Figures/Imax_fits/png/fits_Imax_{par_string}.png")
-#         Path(figname_html).parent.mkdir(parents=True, exist_ok=True)
-#         Path(figname_png).parent.mkdir(parents=True, exist_ok=True)
-#         fig.write_html(str(figname_html))
-#         fig.write_image(str(figname_png))
-
 
     # %%
     print("Finished running")
@@ -469,17 +183,6 @@ if __name__ == '__main__':
 
     # %%
 
-    reload(extra_funcs)
-    par = 'Ninit'
-    extra_funcs.plot_variable_other_than_default('beta')
-    extra_funcs.plot_variable_other_than_default('N0')
-    extra_funcs.plot_variable_other_than_default('mu')
-    extra_funcs.plot_variable_other_than_default('alpha') 
-    extra_funcs.plot_variable_other_than_default('Ninit') 
-    extra_funcs.plot_variable_other_than_default('sigma') 
-    extra_funcs.plot_variable_other_than_default('gamma') 
+    import matplotlib as mpl
+    mpl.rcParams
 
-
-
-
-# %%

@@ -8,6 +8,8 @@ import plotly.graph_objects as go
 import SimulateDenmark_extra_funcs
 import matplotlib.pyplot as plt
 import pickle
+import rc_params
+rc_params.set_rc_params()
 
 def get_filenames():
     filenames = Path('Data/NetworkSimulation').rglob(f'*.csv')
@@ -391,8 +393,6 @@ def try_refit(fit_object, cfg, FIT_MAX):
 
 def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
 
-    # print(filename)
-
     # ts = 0.1 # frequency of "observations". Now 1 pr. day
     # dt = 0.01 # stepsize in integration
 
@@ -419,6 +419,9 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
         return filename, None
     if df_interpolated['I'].max() < I_lockdown:
         print(f"Never reached I_lockdown={I_lockdown:.1f}, only {df_interpolated['I'].max():.1f} for file: \n{filename}\n", flush=True)
+        return filename, None
+    if iloc_lockdown - iloc_start < 10:
+        print(f"Fit period less than 10 days, only ={iloc_lockdown - iloc_start:.1f}, for file: \n{filename}\n", flush=True)
         return filename, None
 
     y_truth_interpolated = df_interpolated['I']
@@ -749,6 +752,10 @@ from pandas.errors import EmptyDataError
 
 def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=100):
 
+    d_ylabel = {'I': 'Infected',
+                 'R': 'Recovered'}
+    d_label_loc = {'I': 'upper right', 'R': 'lower right'}
+
     pdf_name = f"Figures/SIR_comparison_{parameter}.pdf"
     Path(pdf_name).parent.mkdir(parents=True, exist_ok=True)
 
@@ -806,12 +813,12 @@ def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=
                 df_fit = pd.DataFrame(ODE_result_SIR, columns=cols).convert_dtypes()
 
                 ax.plot(df_fit['Time'], df_fit[parameter], lw=15*lw, color='red', label='SIR')
-                leg = ax.legend(loc='upper right')
+                leg = ax.legend(loc=d_label_loc[parameter])
                 for legobj in leg.legendHandles:
                     legobj.set_linewidth(2.0)
                 
                 title = dict_to_title(cfg, len(ID_files))
-                ax.set(title=title, xlabel='Time', ylabel=parameter)
+                ax.set(title=title, xlabel='Time', ylim=(0, None), ylabel=d_ylabel[parameter])
                 
                 ax.set_rasterized(True)
                 ax.set_rasterization_zorder(0)
@@ -866,9 +873,18 @@ def get_filenames_different_than_default(find_par):
 
 #%%
 
-def plot_variable_other_than_default(par):
+def plot_variable_other_than_default(par, do_log=False):
 
     filenames_par_rest_default = get_filenames_different_than_default(par)
+
+    d_par_pretty = {'beta': r'$\beta$', 
+                    'N0': r"$N_0$",
+                    'mu': r"$\mu$",
+                    'alpha': r"$\alpha$",
+                    'Ninit': r'$N_\mathrm{init}$', 
+                    'sigma': r"$\sigma$",
+                    'gamma': r"$\gamma$",
+                    }
 
     base_dir = Path('Data') / 'NetworkSimulation'
 
@@ -907,6 +923,22 @@ def plot_variable_other_than_default(par):
 
     title = dict_to_title(cfg, exclude=par)
 
+    fig, ax = plt.subplots() # 
+    ax.errorbar(x, y, sy, fmt='.', color='black', ecolor='black', elinewidth=1, capsize=10) # , 
+    ax.set_xlabel(d_par_pretty[par]) # fontsize=fs
+    ax.set_ylabel(r'$I_\mathrm{max}^\mathrm{ABN} \, / \,\, I_\mathrm{max}^\mathrm{SIR}$') #labelpad=10 fontsize=fs
+    ax.set_title(title) # pad=20 fontsize=16*k_scale
+    if do_log:
+        ax.set_xscale('log')
+    fig.tight_layout()
+    
+    figname_pdf = Path(f"Figures/par_SIR_network_relative/png/par_SIR_network_relative_{par}.pdf")
+    Path(figname_pdf).parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(figname_pdf) # bbox_inches='tight', pad_inches=0.3
+    plt.close('all')
+
+
+
     n_text = [f"n = {int(ni)}" for ni in n]
     fig = go.Figure(data=go.Scatter(x=x, y=y, text=n_text, mode='markers', error_y=dict(array=sy)))
     fig.update_layout(title=title,
@@ -915,13 +947,8 @@ def plot_variable_other_than_default(par):
                     height=600, width=800,
                     showlegend=False,
                     )
-    # fig.show()
-
     figname_html = Path(f"Figures/par_SIR_network_relative/html/par_SIR_network_relative_{par}.html")
-    figname_png = Path(f"Figures/par_SIR_network_relative/png/par_SIR_network_relative_{par}.png")
     Path(figname_html).parent.mkdir(parents=True, exist_ok=True)
-    Path(figname_png).parent.mkdir(parents=True, exist_ok=True)
     fig.write_html(str(figname_html))
-    fig.write_image(str(figname_png))
 
 
