@@ -31,6 +31,9 @@ if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison('I', force_overwrite=True, max_N_plots=100)
     extra_funcs.plot_SIR_model_comparison('R', force_overwrite=True, max_N_plots=100)
 
+# x=x
+
+
 #%%
 
 if __name__ == '__main__':
@@ -48,93 +51,93 @@ if __name__ == '__main__':
 
 #%%
 
-def plot_fit_simulation_SIR_comparison(force_overwrite=False, verbose=False, do_log=True):
+    def plot_fit_simulation_SIR_comparison(force_overwrite=False, verbose=False, do_log=True):
 
-    pdf_name = f"Figures/Fits_IR.pdf"
-    Path(pdf_name).parent.mkdir(parents=True, exist_ok=True)
+        pdf_name = f"Figures/Fits_IR.pdf"
+        Path(pdf_name).parent.mkdir(parents=True, exist_ok=True)
 
-    if Path(pdf_name).exists() and not force_overwrite:
-        print(f"{pdf_name} already exists")
-        return None
+        if Path(pdf_name).exists() and not force_overwrite:
+            print(f"{pdf_name} already exists")
+            return None
 
-    with PdfPages(pdf_name) as pdf:
+        with PdfPages(pdf_name) as pdf:
 
-        for sim_par, fit_objects in tqdm(fit_objects_all.items()):
-            # break
+            for sim_par, fit_objects in tqdm(fit_objects_all.items()):
+                # break
 
-            if len(fit_objects) == 0:
-                if verbose:
-                    print(f"Skipping {sim_par}")
-                continue
+                if len(fit_objects) == 0:
+                    if verbose:
+                        print(f"Skipping {sim_par}")
+                    continue
 
-            cfg = extra_funcs.string_to_dict(sim_par)
+                cfg = extra_funcs.string_to_dict(sim_par)
 
-            k_scale = 1.5
-            fig, axes = plt.subplots(ncols=2, figsize=(10*k_scale, 5*k_scale), constrained_layout=True)
-            fig.subplots_adjust(top=0.9)
+                k_scale = 1.5
+                fig, axes = plt.subplots(ncols=2, figsize=(10*k_scale, 5*k_scale), constrained_layout=True)
+                fig.subplots_adjust(top=0.9)
 
-            leg_loc = {'I': 'upper right', 'R': 'lower right'}
-            max_y = defaultdict(int)
-            for i, (filename, fit_object) in enumerate(fit_objects.items()):
-                df = extra_funcs.pandas_load_file(filename, return_only_df=True)
-                T = df['Time'].values
-                Tmax = max(T)*1.5
-                df_fit = fit_object.calc_df_fit(ts=0.1, Tmax=Tmax)
-                
-                
-                T_min = fit_object.t_interpolated.min()
-                T_max = fit_object.t_interpolated.max()
-
-                lw = 0.1
-                for y, ax in zip(['I', 'R'], axes):
+                leg_loc = {'I': 'upper right', 'R': 'lower right'}
+                max_y = defaultdict(int)
+                for i, (filename, fit_object) in enumerate(fit_objects.items()):
+                    df = extra_funcs.pandas_load_file(filename, return_only_df=True)
+                    T = df['Time'].values
+                    Tmax = max(T)*1.5
+                    df_fit = fit_object.calc_df_fit(ts=0.1, Tmax=Tmax)
                     
-                    label = 'Simulations' if i == 0 else None
-                    ax.plot(T, df[y].to_numpy(int), 'k-', lw=lw, label=label)
-                    max_y[y] = max(max_y[y], max(df[y].to_numpy(int)))
+                    
+                    T_min = fit_object.t_interpolated.min()
+                    T_max = fit_object.t_interpolated.max()
 
-                    label_min = 'Min/Max' if i == 0 else None
-                    ax.axvline(T_min, lw=lw, alpha=0.2, label=label_min)
-                    ax.axvline(T_max, lw=lw, alpha=0.2)
+                    lw = 0.1
+                    for y, ax in zip(['I', 'R'], axes):
+                        
+                        label = 'Simulations' if i == 0 else None
+                        ax.plot(T, df[y].to_numpy(int), 'k-', lw=lw, label=label)
+                        max_y[y] = max(max_y[y], max(df[y].to_numpy(int)))
 
-                    label = 'Fits' if i == 0 else None
-                    ax.plot(df_fit['Time'], df_fit[y], lw=lw, color='green', label=label)
-                    max_y[y] = max(max_y[y], max(df_fit[y].to_numpy(int)))
+                        label_min = 'Min/Max' if i == 0 else None
+                        ax.axvline(T_min, lw=lw, alpha=0.2, label=label_min)
+                        ax.axvline(T_max, lw=lw, alpha=0.2)
 
-            SIR_values = cfg.Mrate1, cfg.Mrate2, cfg.beta, 0
-            df_SIR = fit_object.calc_df_fit(values=SIR_values, ts=0.1, Tmax=Tmax)
+                        label = 'Fits' if i == 0 else None
+                        ax.plot(df_fit['Time'], df_fit[y], lw=lw, color='green', label=label)
+                        max_y[y] = max(max_y[y], max(df_fit[y].to_numpy(int)))
 
-            # where I SIR is less than 50 and after the peak
-            x_max = np.argmax((df_SIR['I'] < 50) & (np.argmax(df_SIR['I']) < df_SIR.index))
-            x_max = df_SIR['Time'].iloc[x_max] * 1.5
+                SIR_values = cfg.Mrate1, cfg.Mrate2, cfg.beta, 0
+                df_SIR = fit_object.calc_df_fit(values=SIR_values, ts=0.1, Tmax=Tmax)
 
-            for y, ax in zip(['I', 'R'], axes):
+                # where I SIR is less than 50 and after the peak
+                x_max = np.argmax((df_SIR['I'] < 50) & (np.argmax(df_SIR['I']) < df_SIR.index))
+                x_max = df_SIR['Time'].iloc[x_max] * 1.5
 
-                ax.plot(df_SIR['Time'], df_SIR[y], lw=lw*30, color='red', label='SIR')
+                for y, ax in zip(['I', 'R'], axes):
 
-                ax.set(ylim=(50, max_y[y]*2), 
-                    #    xlim=(0, x_max),
-                       )
+                    ax.plot(df_SIR['Time'], df_SIR[y], lw=lw*30, color='red', label='SIR')
 
-                if do_log:
-                    ax.set_yscale('log', nonposy='clip')
+                    ax.set(ylim=(50, max_y[y]*2), 
+                        #    xlim=(0, x_max),
+                        )
 
-                ax.set(xlabel='Time', ylabel=y)
-                ax.set_rasterized(True)
-                ax.set_rasterization_zorder(0)
+                    if do_log:
+                        ax.set_yscale('log', nonposy='clip')
 
-                leg = ax.legend(loc=leg_loc[y])
-                for legobj in leg.legendHandles:
-                    legobj.set_linewidth(2.0)
-                    legobj.set_alpha(1.0)
+                    ax.set(xlabel='Time', ylabel=y)
+                    ax.set_rasterized(True)
+                    ax.set_rasterization_zorder(0)
 
-            title = extra_funcs.dict_to_title(cfg, len(fit_objects))
-            fig.suptitle(title, fontsize=20)
-        
-            pdf.savefig(fig, dpi=100)
-            plt.close('all')
+                    leg = ax.legend(loc=leg_loc[y])
+                    for legobj in leg.legendHandles:
+                        legobj.set_linewidth(2.0)
+                        legobj.set_alpha(1.0)
+
+                title = extra_funcs.dict_to_title(cfg, len(fit_objects))
+                fig.suptitle(title, fontsize=20)
+            
+                pdf.savefig(fig, dpi=100)
+                plt.close('all')
 
 
-plot_fit_simulation_SIR_comparison(force_overwrite=True)
+    plot_fit_simulation_SIR_comparison(force_overwrite=True)
 
 #%%
 
@@ -460,11 +463,11 @@ plot_fit_simulation_SIR_comparison(force_overwrite=True)
 #         fig.write_image(str(figname_png))
 
 
-# %%
+    # %%
     print("Finished running")
 
 
-# %%
+    # %%
 
     reload(extra_funcs)
     par = 'Ninit'
@@ -475,6 +478,7 @@ plot_fit_simulation_SIR_comparison(force_overwrite=True)
     extra_funcs.plot_variable_other_than_default('Ninit') 
     extra_funcs.plot_variable_other_than_default('sigma') 
     extra_funcs.plot_variable_other_than_default('gamma') 
+
 
 
 

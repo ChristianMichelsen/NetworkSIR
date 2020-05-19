@@ -412,13 +412,13 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
     
     #return None if simulation never reaches minimum requirements
     if I_lockdown < I_min:
-        print(f"\nI_lockdown < I_min ({I_lockdown:.1f} < {I_min}) for file: \n{cfg}\n")
+        print(f"\nI_lockdown < I_min ({I_lockdown:.1f} < {I_min}) for file: \n{filename}\n")
         return filename, None
     if df_interpolated['I'].max() < I_min:
-        print(f"Never reached I_min={I_min}, only {df_interpolated['I'].max():.1f} for file: \n{cfg}\n", flush=True)
+        print(f"Never reached I_min={I_min}, only {df_interpolated['I'].max():.1f} for file: \n{filename}\n", flush=True)
         return filename, None
     if df_interpolated['I'].max() < I_lockdown:
-        print(f"Never reached I_lockdown={I_lockdown:.1f}, only {df_interpolated['I'].max():.1f} for file: \n{cfg}\n", flush=True)
+        print(f"Never reached I_lockdown={I_lockdown:.1f}, only {df_interpolated['I'].max():.1f} for file: \n{filename}\n", flush=True)
         return filename, None
 
     y_truth_interpolated = df_interpolated['I']
@@ -596,6 +596,7 @@ def get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=20):
         print(f"Fitting I_max for {len(filenames)} simulations spaced on {len(cfg_str.items())} different runs, please wait.", flush=True)
 
         for sim_pars, files in tqdm(cfg_str.items()):
+            # break
             # print(sim_pars)
             output_filename = Path('Data/fits_Imax') / f'Imax_fits_{sim_pars}.joblib'
             output_filename.parent.mkdir(parents=True, exist_ok=True)
