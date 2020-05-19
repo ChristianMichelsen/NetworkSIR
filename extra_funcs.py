@@ -629,115 +629,115 @@ def fix_and_sort_index(df):
     df.index = df.index.map(filename_to_ID)
     return df.sort_index(ascending=True, inplace=False)
 
-def Imax_fits_to_df(Imax_res, filenames_to_use, I_maxs_times):
-    res_tmp = {k: Imax_res[k] for k in filenames_to_use}
-    df = fix_and_sort_index(pd.DataFrame(res_tmp).T)
-    df.columns = I_maxs_times
-    df.loc['mean'] = df.mean()
-    df.loc['std'] = df.std()
-    df.loc['sdom'] = df.std() / np.sqrt(len(df)-1)
-    # I_max_normed_by_pars[par_string] = df
-    return df
+# def Imax_fits_to_df(Imax_res, filenames_to_use, I_maxs_times):
+#     res_tmp = {k: Imax_res[k] for k in filenames_to_use}
+#     df = fix_and_sort_index(pd.DataFrame(res_tmp).T)
+#     df.columns = I_maxs_times
+#     df.loc['mean'] = df.mean()
+#     df.loc['std'] = df.std()
+#     df.loc['sdom'] = df.std() / np.sqrt(len(df)-1)
+#     # I_max_normed_by_pars[par_string] = df
+#     return df
 
 
-def get_filenames_to_use_Imax(par_string):
-    filenames_to_use = Path(f'Data/NetworkSimulation/{par_string}').glob(f"*.csv")
-    filenames_to_use = [str(s) for s in filenames_to_use]
-    return sorted(filenames_to_use)
+# def get_filenames_to_use_Imax(par_string):
+#     filenames_to_use = Path(f'Data/NetworkSimulation/{par_string}').glob(f"*.csv")
+#     filenames_to_use = [str(s) for s in filenames_to_use]
+#     return sorted(filenames_to_use)
 
 
 
-def extract_normalized_Imaxs(d_fit_objects_all_IDs, I_maxs_net, filenames_to_use, bin_centers_Imax):
-    I_maxs_normed_res = {}
-    for filename, fit_objects in d_fit_objects_all_IDs.items():
-        I_maxs = np.zeros(N_peak_fits)
-        for i_fit_object, fit_object in enumerate(fit_objects):
-            I_maxs[i_fit_object]  = fit_object.compute_I_max()
-        ID = filename_to_ID(filename)
-        I_maxs_normed_res[filename] = I_maxs / I_maxs_net[ID]
-    df_I_maxs_normed = Imax_fits_to_df(I_maxs_normed_res, filenames_to_use, bin_centers_Imax)
-    return df_I_maxs_normed
+# def extract_normalized_Imaxs(d_fit_objects_all_IDs, I_maxs_net, filenames_to_use, bin_centers_Imax):
+#     I_maxs_normed_res = {}
+#     for filename, fit_objects in d_fit_objects_all_IDs.items():
+#         I_maxs = np.zeros(N_peak_fits)
+#         for i_fit_object, fit_object in enumerate(fit_objects):
+#             I_maxs[i_fit_object]  = fit_object.compute_I_max()
+#         ID = filename_to_ID(filename)
+#         I_maxs_normed_res[filename] = I_maxs / I_maxs_net[ID]
+#     df_I_maxs_normed = Imax_fits_to_df(I_maxs_normed_res, filenames_to_use, bin_centers_Imax)
+#     return df_I_maxs_normed
 
 
-def extract_relative_Imaxs(d_fit_objects_all_IDs, I_maxs_net, filenames_to_use, bin_centers_Imax):
-    I_maxs_relative_res = {}
-    for filename, fit_objects in d_fit_objects_all_IDs.items():
-        I_maxs = np.zeros(N_peak_fits)
-        I_current_pos = np.zeros(N_peak_fits)
-        for i_fit_object, fit_object in enumerate(fit_objects):
-            I_maxs[i_fit_object] = fit_object.compute_I_max()
-            I_current_pos[i_fit_object] = fit_object.y_truth[-1]
-        ID = filename_to_ID(filename)
-        I_maxs_relative_res[filename] = (I_maxs_net[ID]-I_maxs) / (I_maxs_net[ID]-I_current_pos)
-    df_I_maxs_relative = Imax_fits_to_df(I_maxs_relative_res, filenames_to_use, bin_centers_Imax)
-    return df_I_maxs_relative
+# def extract_relative_Imaxs(d_fit_objects_all_IDs, I_maxs_net, filenames_to_use, bin_centers_Imax):
+#     I_maxs_relative_res = {}
+#     for filename, fit_objects in d_fit_objects_all_IDs.items():
+#         I_maxs = np.zeros(N_peak_fits)
+#         I_current_pos = np.zeros(N_peak_fits)
+#         for i_fit_object, fit_object in enumerate(fit_objects):
+#             I_maxs[i_fit_object] = fit_object.compute_I_max()
+#             I_current_pos[i_fit_object] = fit_object.y_truth[-1]
+#         ID = filename_to_ID(filename)
+#         I_maxs_relative_res[filename] = (I_maxs_net[ID]-I_maxs) / (I_maxs_net[ID]-I_current_pos)
+#     df_I_maxs_relative = Imax_fits_to_df(I_maxs_relative_res, filenames_to_use, bin_centers_Imax)
+#     return df_I_maxs_relative
 
-def extract_relative_Imaxs_relative_I(d_fit_objects_all_IDs, I_maxs_net, filenames_to_use):
+# def extract_relative_Imaxs_relative_I(d_fit_objects_all_IDs, I_maxs_net, filenames_to_use):
     
-    I_maxs_relative_res = {}
-    I_relative_res = {}
-    for filename, fit_objects in d_fit_objects_all_IDs.items():
-        # break
-        I_maxs = np.zeros(N_peak_fits)
-        I_current_pos = np.zeros(N_peak_fits)
-        I_rel = np.zeros(N_peak_fits)
+#     I_maxs_relative_res = {}
+#     I_relative_res = {}
+#     for filename, fit_objects in d_fit_objects_all_IDs.items():
+#         # break
+#         I_maxs = np.zeros(N_peak_fits)
+#         I_current_pos = np.zeros(N_peak_fits)
+#         I_rel = np.zeros(N_peak_fits)
 
-        for i_fit_object, fit_object in enumerate(fit_objects):
-            N0 = fit_object.y0[1]
-            I_rel[i_fit_object] = fit_object.y_truth[-1] / N0 # percent
-            I_maxs[i_fit_object] = fit_object.compute_I_max()
-            I_current_pos[i_fit_object] = fit_object.y_truth[-1]
+#         for i_fit_object, fit_object in enumerate(fit_objects):
+#             N0 = fit_object.y0[1]
+#             I_rel[i_fit_object] = fit_object.y_truth[-1] / N0 # percent
+#             I_maxs[i_fit_object] = fit_object.compute_I_max()
+#             I_current_pos[i_fit_object] = fit_object.y_truth[-1]
 
-        ID = filename_to_ID(filename)
-        I_maxs_relative_res[filename] = (I_maxs_net[ID]-I_maxs) / (I_maxs_net[ID]-I_current_pos)
-        I_relative_res[filename] = I_rel
+#         ID = filename_to_ID(filename)
+#         I_maxs_relative_res[filename] = (I_maxs_net[ID]-I_maxs) / (I_maxs_net[ID]-I_current_pos)
+#         I_relative_res[filename] = I_rel
 
-    x = np.stack(I_relative_res.values())
-    y = np.stack(I_maxs_relative_res.values())
+#     x = np.stack(I_relative_res.values())
+#     y = np.stack(I_maxs_relative_res.values())
 
-    x_flat = x.flatten()
-    y_flat = y.flatten()
+#     x_flat = x.flatten()
+#     y_flat = y.flatten()
 
-    # df_I_rel = pd.DataFrame.from_dict(I_relative_res).T
-    x_min = x.min()*0.99
-    x_max = x.max()*1.01
-    N_bins = N_peak_fits
-    bins = np.linspace(x_min, x_max, N_bins+1)
-    bin_centers = (bins[1:] + bins[:-1]) / 2
+#     # df_I_rel = pd.DataFrame.from_dict(I_relative_res).T
+#     x_min = x.min()*0.99
+#     x_max = x.max()*1.01
+#     N_bins = N_peak_fits
+#     bins = np.linspace(x_min, x_max, N_bins+1)
+#     bin_centers = (bins[1:] + bins[:-1]) / 2
 
-    indices = np.digitize(x_flat, bins) - 1
+#     indices = np.digitize(x_flat, bins) - 1
 
-    df_xy = pd.DataFrame({'x': x_flat, 'y':y_flat, 'bin': indices, 'bin_center': bin_centers[indices]})
+#     df_xy = pd.DataFrame({'x': x_flat, 'y':y_flat, 'bin': indices, 'bin_center': bin_centers[indices]})
     
-    def calc_binned_mean_sdom(df_group):
-        mean = np.mean(df_group['y'])
-        std = np.std(df_group['y'])
-        sdom = std / np.sqrt(len(df_group) -1)
-        d = {'x': df_group['bin_center'].iloc[0], 
-             'mean': mean,
-             'std': std,
-             'sdom': sdom}
-        return pd.Series(d)
-        # return d
+#     def calc_binned_mean_sdom(df_group):
+#         mean = np.mean(df_group['y'])
+#         std = np.std(df_group['y'])
+#         sdom = std / np.sqrt(len(df_group) -1)
+#         d = {'x': df_group['bin_center'].iloc[0], 
+#              'mean': mean,
+#              'std': std,
+#              'sdom': sdom}
+#         return pd.Series(d)
+#         # return d
 
-    df_binned = df_xy.groupby('bin').apply(calc_binned_mean_sdom)
-    return df_binned
+#     df_binned = df_xy.groupby('bin').apply(calc_binned_mean_sdom)
+#     return df_binned
 
 
-def extract_fit_parameter(par, d_fit_objects_all_IDs, filenames_to_use, bin_centers_Imax):
-    par_tmp = {}
-    par_std_tmp = {}
-    for filename, fit_objects in d_fit_objects_all_IDs.items():
-        pars = np.zeros(N_peak_fits)
-        pars_std = np.zeros(N_peak_fits)
-        for i_fit_object, fit_object in enumerate(fit_objects):
-            pars[i_fit_object]  = fit_object.fit_values[par]
-            pars_std[i_fit_object]  = fit_object.fit_errors[par]
-        par_tmp[filename] = pars 
-        par_std_tmp[filename] = pars_std 
-    df_par = Imax_fits_to_df(par_tmp, filenames_to_use, bin_centers_Imax)
-    df_par_std = Imax_fits_to_df(par_std_tmp, filenames_to_use, bin_centers_Imax)
-    return df_par, df_par_std
+# def extract_fit_parameter(par, d_fit_objects_all_IDs, filenames_to_use, bin_centers_Imax):
+#     par_tmp = {}
+#     par_std_tmp = {}
+#     for filename, fit_objects in d_fit_objects_all_IDs.items():
+#         pars = np.zeros(N_peak_fits)
+#         pars_std = np.zeros(N_peak_fits)
+#         for i_fit_object, fit_object in enumerate(fit_objects):
+#             pars[i_fit_object]  = fit_object.fit_values[par]
+#             pars_std[i_fit_object]  = fit_object.fit_errors[par]
+#         par_tmp[filename] = pars 
+#         par_std_tmp[filename] = pars_std 
+#     df_par = Imax_fits_to_df(par_tmp, filenames_to_use, bin_centers_Imax)
+#     df_par_std = Imax_fits_to_df(par_std_tmp, filenames_to_use, bin_centers_Imax)
+#     return df_par, df_par_std
 
 
 def mask_df(df, cut_val):
