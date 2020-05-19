@@ -888,7 +888,7 @@ def plot_variable_other_than_default(par):
             df = pandas_load_file(filename, return_only_df=True)
             I_max_net[i_filename] = df['I'].max()
 
-        Tmax = df['Time'].max()*1.2
+        Tmax = max(df['Time'].max()*1.2, 300)
         y0 = cfg.N0-cfg.Ninit, cfg.N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0#, cfg.Ninit
         dt = 0.01
         ts = 0.1
@@ -896,7 +896,9 @@ def plot_variable_other_than_default(par):
         # print(y0, Tmax, dt, ts, cfg)
         I_SIR = ODE_result_SIR[:, 2]
         I_max_SIR = np.max(I_SIR)
+        I_mask = (I_max_net > 10)
         z_rel = I_max_net / I_max_SIR
+        z_rel = z_rel[I_mask]
         # I_max_rel[cfg[par]] = I_max_net / I_max_SIR
         x[i_simpar] = cfg[par]
         y[i_simpar] = np.mean(z_rel)
