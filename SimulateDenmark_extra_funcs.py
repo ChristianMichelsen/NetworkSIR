@@ -31,7 +31,7 @@ cfg_default = dict(
                     sigma_mu = 0.0, # Spread (skewness) in N connections
                     rho = rho_inf, # Spacial dependency. Average distance to connect with.
                     beta = 0.01, # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
-                    sigma_beta = 0.0, # Spread in rates, beta (beta_eff = beta - sigma_beta+2*sigma_beta*rand[0,1])... could be exponential?
+                    sigma_beta = 0.0, # Spread in rates, beta
                     lambda_E = 1.0, # E->I, Lambda(from E states)
                     lambda_I = 1.0, # I->R, Lambda(from I states)
                     connect_algo = 1, # node connection algorithm
@@ -110,10 +110,10 @@ def filename_to_dict(filename, normal_string=False, animation=False): # ,
     return DotDict(cfg)
 
 
-def generate_filenames(d, N_loops=10, force_overwrite=False, force_animation=False):
+def generate_filenames(d_sim_pars, N_loops=10, force_overwrite=False):
     filenames = []
 
-    nameval_to_str = [[f'{name}__{x}' for x in lst] for (name, lst) in d.items()]
+    nameval_to_str = [[f'{name}__{x}' for x in lst] for (name, lst) in d_sim_pars.items()]
     all_combinations = list(product(*nameval_to_str))
 
     ints = ['N_tot', 'N_init', 'connect_algo']
@@ -124,30 +124,30 @@ def generate_filenames(d, N_loops=10, force_overwrite=False, force_animation=Fal
             val = int(val) if name in ints else float(val)
             cfg_default[name] = val
 
+        # ID = 0
         for ID in range(N_loops):
             filename = dict_to_filename_with_dir(cfg_default, ID)
 
             not_existing = (not Path(filename).exists())
-            force_animation = (ID == 0 and force_animation)
-            if not_existing or force_animation or force_overwrite:
+            if not_existing or force_overwrite: 
                 filenames.append(filename)
     return filenames
 
 
-def get_filenames_iter(all_sim_pars, force_animation, N_loops):
-    all_filenames = []
-    if not force_animation:
-        d_sim_pars = []
-        for d_simulation_parameters in all_sim_pars:
-            filenames = generate_filenames(d_simulation_parameters, N_loops, force_animation=force_animation)
-            all_filenames.append(filenames)
-            d_sim_pars.append(d_simulation_parameters)
-    else:
-        for d_simulation_parameters in all_sim_pars:
-            all_filenames.extend(generate_filenames(d_simulation_parameters, N_loops, force_animation=force_animation))
-        all_filenames = [all_filenames]
-        d_sim_pars = ['all configurations']
-    return all_filenames, d_sim_pars
+# def get_filenames_iter(all_sim_pars, force_animation, N_loops):
+#     all_filenames = []
+#     if not force_animation:
+#         d_sim_pars = []
+#         for d_simulation_parameters in all_sim_pars:
+#             filenames = generate_filenames(d_simulation_parameters, N_loops, force_animation=force_animation)
+#             all_filenames.append(filenames)
+#             d_sim_pars.append(d_simulation_parameters)
+#     else:
+#         for d_simulation_parameters in all_sim_pars:
+#             all_filenames.extend(generate_filenames(d_simulation_parameters, N_loops, force_animation=force_animation))
+#         all_filenames = [all_filenames]
+#         d_sim_pars = ['all configurations']
+#     return all_filenames, d_sim_pars
 
 
 def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max):
@@ -238,6 +238,7 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
 
     nts = 0.1 # Time step (0.1 - ten times a day)
     N_states = 9 # number of states
+    rho_scale = 1000 # scale factor of rho
 
     N_AK_MAX = 1000
 
@@ -307,9 +308,6 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
     if verbose:
         print("CONNECT NODES")
     
-    if rho >= rho_inf:
-        rho = np.inf
-
     if (connect_algo == 2):
         for c in range(int(mu*N_tot)):
             accra = 0
@@ -328,7 +326,7 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
                     r = haversine(coordinates[id1, 0], coordinates[id1, 1], coordinates[id2, 0], coordinates[id2, 1])
 
                     ra = np.random.rand()
-                    if np.exp(-r/rho) > ra:
+                    if np.exp(-r*rho/rho_scale) > ra:
                         individual_rates[id1, N_connections[id1]] = infection_rate[id1]
                         individual_rates[id2, N_connections[id2]] = infection_rate[id1]
 
@@ -355,7 +353,7 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
             if ra_rho >= epsilon_rho:
                 rho_tmp = rho
             else:
-                rho_tmp = np.inf
+                rho_tmp = 0
 
             while accra == 0:
                 ra2 = np.random.rand()          
@@ -363,7 +361,7 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
                 acc = 1
                 cac += 1
 
-                rho_tmp *= 1.0005 # 0.9995
+                rho_tmp *= 0.9995 # 1.0005 # 
 
                 #  Make sure no element is present twice
                 for i1 in range(N_connections[id1]):               
@@ -374,7 +372,7 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
                     r = haversine(coordinates[id1, 0], coordinates[id1, 1], coordinates[id2, 0], coordinates[id2, 1])
 
                     ra = np.random.rand()
-                    if np.exp(-r/rho) > ra:
+                    if np.exp(-r*rho/rho_scale) > ra:
                     
                         individual_rates[id1, N_connections[id1]] = infection_rate[id1]
                         individual_rates[id2, N_connections[id2]] = infection_rate[id1]

@@ -5,23 +5,23 @@ import SimulateDenmark_extra_funcs as extra_funcs
 from pathlib import Path
 from importlib import reload
 
-num_cores_max = 12
-N_loops = 1
-force_animation = False
+num_cores_max = 8
+N_loops = 10
 dry_run = False
+force_overwrite = False
 
 #%%
 
 all_sim_pars = [
 
                 { 
-                    'rho': [50, 500, 5000, 5_000_000],
+                    'rho': [0, 1, 2, 5, 10, 15, 20],
                     'connect_algo': [1, 2],
                 },
 
                 {
                     'epsilon_rho': [0, 0.5, 1, 2, 5],
-                    'rho': [50],
+                    'rho': [20],
                 },
 
                 {   'connect_algo': [1, 2],
@@ -61,7 +61,6 @@ all_sim_pars = [
                     'sigma_mu': [0, 1],
                     'sigma_beta': [0, 1],
                 },
-                
 
                 {
                     'mu': [5, 10, 20, 40, 80],
@@ -88,20 +87,16 @@ all_sim_pars = [
 
 #%%
 
-
 # x=x
 
-
 N_files_all = 0
-# reload(extra_funcs)
+reload(extra_funcs)
 if __name__ == '__main__':
 
-    # num_cores = extra_funcs.get_num_cores(num_cores_max)
-    N_loops = 1 if extra_funcs.is_local_computer() else N_loops
+    for d_sim_pars in all_sim_pars:
+        # break
+        filenames = extra_funcs.generate_filenames(d_sim_pars, N_loops, force_overwrite=force_overwrite)
 
-    all_filenames = extra_funcs.get_filenames_iter(all_sim_pars, force_animation, N_loops)
-
-    for filenames, d_simulation_parameters in zip(*all_filenames):
         N_files = len(filenames)
         N_files_all += N_files
 
@@ -109,9 +104,9 @@ if __name__ == '__main__':
         if len(filenames) > 0:
             # filename = filenames[0]
 
-            num_cores = extra_funcs.get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max)
+            num_cores = extra_funcs.get_num_cores_N_tot_specific(d_sim_pars, num_cores_max)
             
-            print(f"Generating {N_files:3d} network-based simulations with {num_cores} cores based on {d_simulation_parameters}, please wait.", flush=True)
+            print(f"\nGenerating {N_files:3d} network-based simulations with {num_cores} cores based on {d_sim_pars}, please wait.", flush=True)
 
             if dry_run:
                 continue
@@ -126,5 +121,5 @@ if __name__ == '__main__':
         else:
             print("No files to generate, everything already generated.")
 
-    print(f"Total: {N_files_all}")
+    print(f"\nIn total: {N_files_all} files generated")
     print("Finished simulating!")

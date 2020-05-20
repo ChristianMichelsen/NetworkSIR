@@ -60,7 +60,7 @@ def interpolate_dataframe(df, time, t_interpolated, cols_to_interpolate):
     return df_interpolated
 
 @njit
-def ODE_integrate(y0, Tmax, dt, ts, mu0, Mrate1, lambda_I, beta): 
+def ODE_integrate(y0, Tmax, dt, ts, mu0, lambda_E, lambda_I, beta): 
 
     S, N_tot, E1, E2, E3, E4, I1, I2, I3, I4, R = y0
 
@@ -71,13 +71,13 @@ def ODE_integrate(y0, Tmax, dt, ts, mu0, Mrate1, lambda_I, beta):
     for Time in Times:
 
         dS  = -beta*mu0*2/N_tot*(I1+I2+I3+I4)*S
-        dE1 = beta*mu0*2/N_tot*(I1+I2+I3+I4)*S - Mrate1*E1
+        dE1 = beta*mu0*2/N_tot*(I1+I2+I3+I4)*S - lambda_E*E1
 
-        dE2 = Mrate1*E1 - Mrate1*E2
-        dE3 = Mrate1*E2 - Mrate1*E3
-        dE4 = Mrate1*E3 - Mrate1*E4
+        dE2 = lambda_E*E1 - lambda_E*E2
+        dE3 = lambda_E*E2 - lambda_E*E3
+        dE4 = lambda_E*E3 - lambda_E*E4
 
-        dI1 = Mrate1*E4 - lambda_I*I1
+        dI1 = lambda_E*E4 - lambda_I*I1
         dI2 = lambda_I*I1 - lambda_I*I2
         dI3 = lambda_I*I2 - lambda_I*I3
         dI4 = lambda_I*I3 - lambda_I*I4
@@ -133,9 +133,9 @@ class CustomChi2:  # override the class with a better one
         self.N = sum(self.y_truth > self.y_min)
         self.N_refits = 0
 
-    def __call__(self, Mrate1, lambda_I, beta, tau):  # par are a variable number of model parameters
+    def __call__(self, lambda_E, lambda_I, beta, tau):  # par are a variable number of model parameters
         # compute the function value
-        y_hat = self._calc_yhat_interpolated(Mrate1, lambda_I, beta, tau)
+        y_hat = self._calc_yhat_interpolated(lambda_E, lambda_I, beta, tau)
         mask = (self.y_truth > self.y_min)
         # compute the chi2-value
         chi2 = np.sum((self.y_truth[mask] - y_hat[mask])**2/self.sy[mask]**2)
@@ -147,13 +147,13 @@ class CustomChi2:  # override the class with a better one
         return f'CustomChi2(\n\t{self.t_interpolated=}, \n\t{self.y_truth=}, \n\t{self.y0=}, \n\t{self.Tmax=}, \n\t{self.dt=}, \n\t{self.ts=}, \n\t{self.mu0=}, \n\t{self.y_min=},\n\t)'.replace('=', ' = ').replace('array(', '').replace('])', ']')
 
     @lru_cache(maxsize=None)
-    def _calc_ODE_result_SIR(self, Mrate1, lambda_I, beta, ts=None, Tmax=None):
+    def _calc_ODE_result_SIR(self, lambda_E, lambda_I, beta, ts=None, Tmax=None):
         ts = ts if ts is not None else self.ts
         Tmax = Tmax if Tmax is not None else self.Tmax
-        return ODE_integrate(self.y0, Tmax, self.dt, ts, self.mu0, Mrate1, lambda_I, beta)
+        return ODE_integrate(self.y0, Tmax, self.dt, ts, self.mu0, lambda_E, lambda_I, beta)
 
-    def _calc_yhat_interpolated(self, Mrate1, lambda_I, beta, tau):
-        ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, lambda_I, beta)
+    def _calc_yhat_interpolated(self, lambda_E, lambda_I, beta, tau):
+        ODE_result_SIR = self._calc_ODE_result_SIR(lambda_E, lambda_I, beta)
         if ODE_result_SIR[-1, 3] == 0:
             ODE_result_SIR = ODE_result_SIR[:-1]
         I_SIR = ODE_result_SIR[:, 2]
@@ -205,8 +205,8 @@ class CustomChi2:  # override the class with a better one
     def calc_df_fit(self, ts=0.01, values=None, Tmax=None):
         if values is None:
             values = self.values
-        Mrate1, lambda_I, beta, tau = values
-        ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, lambda_I, beta, ts=ts, Tmax=Tmax)
+        lambda_E, lambda_I, beta, tau = values
+        ODE_result_SIR = self._calc_ODE_result_SIR(lambda_E, lambda_I, beta, ts=ts, Tmax=Tmax)
         cols = ['S', 'E', 'I', 'R', 'Time']
         df_fit = pd.DataFrame(ODE_result_SIR, columns=cols).convert_dtypes()
         df_fit['Time'] -= tau
@@ -218,16 +218,16 @@ class CustomChi2:  # override the class with a better one
     def compute_I_max(self, ts=0.1, values=None):
         if values is None:
             values = self.values
-        Mrate1, lambda_I, beta, tau = values
-        ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, lambda_I, beta, ts=ts)
+        lambda_E, lambda_I, beta, tau = values
+        ODE_result_SIR = self._calc_ODE_result_SIR(lambda_E, lambda_I, beta, ts=ts)
         I_max = np.max(ODE_result_SIR[:, 2])
         return I_max
     
     def compute_R_inf(self, ts=0.1, values=None, Tmax=None):
         if values is None:
             values = self.values
-        Mrate1, lambda_I, beta, tau = values
-        ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, lambda_I, beta, ts=ts, Tmax=Tmax)
+        lambda_E, lambda_I, beta, tau = values
+        ODE_result_SIR = self._calc_ODE_result_SIR(lambda_E, lambda_I, beta, ts=ts, Tmax=Tmax)
         R_inf = ODE_result_SIR[-1, 3]
         return R_inf
 
@@ -253,12 +253,12 @@ def dict_to_title(d, N=None, exclude=None):
     else:
         cfg = d
     N_tot_str = human_format(cfg.N_tot)
-    title = f"N={N_tot_str}, β={cfg.beta:.4f}, γ={cfg.gamma:.1f}, σ={cfg.sigma:.1f},  α={cfg.rho:.1f}, μ={cfg.mu:.1f}, λ1={cfg.Mrate1:.1f}, λ2={cfg.lambda_I:.1f}, Ninit={cfg.Ninit}, BB={cfg.BB}"
+    title = f"N={N_tot_str}, β={cfg.beta:.4f}, sigma_mu={cfg.sigma_mu:.1f}, sigma_beta={cfg.sigma_beta:.1f},  rho={cfg.rho:.1f}, μ={cfg.mu:.1f}, λE={cfg.lambda_E:.1f}, λI={cfg.lambda_I:.1f}, N_init={cfg.N_init}, connect_algo={cfg.connect_algo}, epsilon_rho={cfg.epsilon_rho}, frac_02={cfg.frac_02}"
     if N:
         title += f", #{N}"
 
     if exclude:
-        d_translate = {'beta': 'β', 'N_tot': 'N', 'mu': 'μ', 'rho': 'α', 'Ninit': 'Ninit', 'sigma': 'σ', 'gamma': 'γ'}
+        d_translate = {'beta': 'β', 'N_tot': 'N', 'mu': 'μ', 'rho': 'rho', 'N_init': 'N_init', 'sigma_beta': 'sigma_beta', 'sigma_mu': 'sigma_mu', 'epsilon_rho': 'epsilon_rho', 'frac_02': 'frac_02'}
         new_title = ''
         for s in title.split():
             if not d_translate[exclude] in s:
@@ -286,7 +286,6 @@ def human_format(num):
     return '{}{}'.format('{:f}'.format(num).rstrip('0').rstrip('.'), ['', 'K', 'M', 'B', 'T'][magnitude])
 
 
-
 # %%%%
 
 from collections import defaultdict
@@ -296,8 +295,8 @@ from pathlib import Path
 from iminuit import Minuit
 
 @lru_cache(maxsize=None)
-def calc_Imax_R_inf_deterministic(mu, Mrate1, lambda_I, beta, y0, Tmax, dt, ts):
-    ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu, Mrate1, lambda_I, beta)
+def calc_Imax_R_inf_deterministic(mu, lambda_E, lambda_I, beta, y0, Tmax, dt, ts):
+    ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu, lambda_E, lambda_I, beta)
     I_max = np.max(ODE_result_SIR[:, 2])
     R_inf = ODE_result_SIR[-1, 3]
     return I_max, R_inf
@@ -313,7 +312,7 @@ def try_refit(fit_object, cfg, FIT_MAX):
     continue_fit = True
     while continue_fit:
         N_refits += 1
-        param_grid = {'lambda_E': uniform(cfg.Mrate1/10, cfg.Mrate1*5), 
+        param_grid = {'lambda_E': uniform(cfg.lambda_E/10, cfg.lambda_E*5), 
                       'lambda_I': uniform(cfg.lambda_I/10, cfg.lambda_I*5), 
                        'beta': uniform(cfg.beta/10, cfg.beta*5), 
                        'tau': uniform(-10, 10),
@@ -336,7 +335,7 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
 
     Tmax = int(df['Time'].max())+1 # max number of days
     N_tot = cfg.N_tot
-    y0 = N_tot-cfg.Ninit, N_tot,   cfg.Ninit,0,0,0,      0,0,0,0,   0#, cfg.Ninit
+    y0 = N_tot-cfg.N_init, N_tot,   cfg.N_init,0,0,0,      0,0,0,0,   0#, cfg.N_init
 
     I_min = 100
     I_lockdown = I_lockdown_rel * cfg.N_tot # percent
@@ -733,7 +732,7 @@ def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=
 
                 Tmax = max(Tmax, 50)
 
-                y0 = cfg.N_tot-cfg.Ninit, cfg.N_tot,   cfg.Ninit,0,0,0,      0,0,0,0,   0#, cfg.Ninit
+                y0 = cfg.N_tot-cfg.N_init, cfg.N_tot,   cfg.N_init,0,0,0,      0,0,0,0,   0#, cfg.N_init
                 dt = 0.01
                 ts = 0.1
 
@@ -804,9 +803,9 @@ def plot_variable_other_than_default(par, do_log=False):
                     'N_tot': r"$N_0$",
                     'mu': r"$\mu$",
                     'rho': r"$\rho$",
-                    'Ninit': r'$N_\mathrm{init}$', 
-                    'sigma': r"$\sigma$",
-                    'gamma': r"$\gamma$",
+                    'N_init': r'$N_\mathrm{init}$', 
+                    'sigma_beta': r"$\sigma_beta$",
+                    'sigma_mu': r"$\sigma_mu$",
                     }
 
     base_dir = Path('Data') / 'ABN'
@@ -828,10 +827,10 @@ def plot_variable_other_than_default(par, do_log=False):
             I_max_net[i_filename] = df['I'].max()
 
         Tmax = max(df['Time'].max()*1.2, 300)
-        y0 = cfg.N_tot-cfg.Ninit, cfg.N_tot,   cfg.Ninit,0,0,0,      0,0,0,0,   0#, cfg.Ninit
+        y0 = cfg.N_tot-cfg.N_init, cfg.N_tot,   cfg.N_init,0,0,0,      0,0,0,0,   0#, cfg.N_init
         dt = 0.01
         ts = 0.1
-        ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu0=cfg.mu, Mrate1=cfg.Mrate1, lambda_I=cfg.lambda_I, beta=cfg.beta)
+        ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu0=cfg.mu, lambda_E=cfg.lambda_E, lambda_I=cfg.lambda_I, beta=cfg.beta)
         # print(y0, Tmax, dt, ts, cfg)
         I_SIR = ODE_result_SIR[:, 2]
         I_max_SIR = np.max(I_SIR)

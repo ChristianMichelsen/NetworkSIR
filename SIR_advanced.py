@@ -35,6 +35,8 @@ if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison('I', force_overwrite=True, max_N_plots=100)
     extra_funcs.plot_SIR_model_comparison('R', force_overwrite=True, max_N_plots=100)
 
+x=x
+
 
 #%%
 
