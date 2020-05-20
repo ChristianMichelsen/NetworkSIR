@@ -124,19 +124,40 @@ def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=
 
 def dict_to_title(d, N=None, exclude=None):
 
-    if type(d) == 'dict':
-        cfg = SimulateDenmark_extra_funcs.DotDict(d)
-    else:
-        cfg = d
+    # important to make a copy since overwriting below
+    cfg = SimulateDenmark_extra_funcs.DotDict(d)
 
-    N_tot_str = human_format(cfg.N_tot)
-    title = f"N={N_tot_str}, beta={cfg.beta:.4f}, sigma_mu={cfg.sigma_mu:.1f}, sigma_beta={cfg.sigma_beta:.1f},  rho={cfg.rho:.1f}, mu={cfg.mu:.1f}, lambda_E={cfg.lambda_E:.1f}, lambda_I={cfg.lambda_I:.1f}, N_init={cfg.N_init}, epsilon_rho={cfg.epsilon_rho}, frac_02={cfg.frac_02}, connect_algo={cfg.connect_algo}"
+    cfg.N_tot = human_format(cfg.N_tot)
+    cfg.N_init = human_format(cfg.N_init)
+
+    d_translate = { 'N_tot': r'N',
+                    'N_init': r'N_\mathrm{init}',
+                    'mu': r'\mu',
+                    'sigma_mu': r'\sigma_\mu',
+                    'rho': r'\rho', 
+                    'beta': r'\beta', 
+                    'sigma_beta': r'\sigma_\beta',  
+                    'lambda_E': r'\lambda_E',
+                    'lambda_I': r'\lambda_I',
+                    'epsilon_rho': r'\epsilon_\rho', 
+                    'frac_02': r'f_{02}',
+                    'connect_algo': r'\mathrm{connect}_\mathrm{algo}'
+                    }
+
+    title = "$"
+    for sim_par, val in cfg.items():
+        title += f"{d_translate[sim_par]} = {val}, \," 
+
+    # title = f"$N={N_tot_str}, beta={cfg.beta}, sigma_mu={cfg.sigma_mu}, sigma_beta={cfg.sigma_beta},  rho={cfg.rho}, mu={cfg.mu}, lambda_E={cfg.lambda_E}, lambda_I={cfg.lambda_I}, N_init={cfg.N_init}, epsilon_rho={cfg.epsilon_rho}, frac_02={cfg.frac_02}, connect_algo={cfg.connect_algo}"
 
     if N:
-        title += f", #{N}"
+        title += r"\#" + f"{N}, \,"
+
+    title = title[:-4] + '$'
+
 
     if exclude:
-        d_translate = {'beta': 'β', 'N_tot': 'N', 'mu': 'μ', 'rho': 'rho', 'N_init': 'N_init', 'sigma_beta': 'sigma_beta', 'sigma_mu': 'sigma_mu', 'epsilon_rho': 'epsilon_rho', 'frac_02': 'frac_02'}
+        raise AssertionError("Exclude not implemented yet")
         new_title = ''
         for s in title.split():
             if not d_translate[exclude] in s:

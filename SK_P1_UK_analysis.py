@@ -325,17 +325,17 @@ def get_num_cores(num_cores_max, subtract_cores=1):
 num_cores = get_num_cores(num_cores_max)
 
 filenames = get_animation_filenames()
-filename = filenames[1]
+filename = filenames[0]
 N_files = len(filenames)           
 
-# animate_file(filename, do_tqdm=True, verbose=True, force_rerun=True)
+animate_file(filename, do_tqdm=True, verbose=True, force_rerun=True)
 
 #%%
 
 # for filename in tqdm(filenames):
 #     animate_file(filename, do_tqdm=True, verbose=True, force_rerun=True)
 
-if __name__ == '__main__':
-    print(f"Generating frames using {num_cores} cores, please wait", flush=True)
-    with mp.Pool(num_cores) as p:
-        list(tqdm(p.imap_unordered(animate_file, filenames), total=N_files))
+# if __name__ == '__main__':
+#     print(f"Generating frames using {num_cores} cores, please wait", flush=True)
+#     with mp.Pool(num_cores) as p:
+#         list(tqdm(p.imap_unordered(animate_file, filenames), total=N_files))
