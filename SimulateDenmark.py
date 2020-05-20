@@ -90,7 +90,7 @@ all_sim_pars = [
 N_loops = 2 if extra_funcs.is_local_computer() else N_loops
 
 N_files_all = 0
-reload(extra_funcs)
+# reload(extra_funcs)
 if __name__ == '__main__':
 
     for d_sim_pars in all_sim_pars:

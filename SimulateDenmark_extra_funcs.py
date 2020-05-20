@@ -39,7 +39,7 @@ def get_cfg_default():
                     )
     return cfg_default
 
-sim_pars_ints = ['N_tot', 'N_init', 'connect_algo']
+sim_pars_ints = ('N_tot', 'N_init', 'connect_algo')
 
 
 def filename_to_ID(filename):
