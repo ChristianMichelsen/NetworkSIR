@@ -22,7 +22,8 @@ def is_local_computer(N_local_cores=8):
     else:
         return False
 
-cfg_default = dict(
+def get_cfg_default():
+    cfg_default = dict(
                     N_tot = 50_000 if is_local_computer() else 500_000, # Total number of nodes!
                     N_init = 100, # Initial Infected
                     mu = 20.0,  # Average number of connections of a node (init: 20)
@@ -36,6 +37,8 @@ cfg_default = dict(
                     frac_02 = 0.0, # 0: as normal, 1: half of all (beta)rates are set to 0 the other half doubled
                     connect_algo = 1, # node connection algorithm
                     )
+    return cfg_default
+
 sim_pars_ints = ['N_tot', 'N_init', 'connect_algo']
 
 
@@ -115,15 +118,19 @@ def generate_filenames(d_sim_pars, N_loops=10, force_overwrite=False):
     nameval_to_str = [[f'{name}__{x}' for x in lst] for (name, lst) in d_sim_pars.items()]
     all_combinations = list(product(*nameval_to_str))
 
+    cfg = get_cfg_default()
+    # combination = all_combinations[0]
     for combination in all_combinations:
         for s in combination:
             name, val = s.split('__')
             val = int(val) if name in sim_pars_ints else float(val)
-            cfg_default[name] = val
+            cfg[name] = val
+
+        print(cfg)
 
         # ID = 0
         for ID in range(N_loops):
-            filename = dict_to_filename_with_dir(cfg_default, ID)
+            filename = dict_to_filename_with_dir(cfg, ID)
 
             not_existing = (not Path(filename).exists())
             if not_existing or force_overwrite: 
