@@ -19,8 +19,8 @@ num_cores_max = 15
 
 #%%
 
-def get_SK_P1_UK_filenames():
-    filenames = Path('Data_SK_P1_UK').glob(f'*.joblib')
+def get_animation_filenames():
+    filenames = Path('Data_animation').glob(f'*.joblib')
     return [str(file) for file in sorted(filenames)]
 
 # pip install mpl-scatter-density
@@ -65,7 +65,7 @@ class AnimateSIR:
         if verbose:
             print(f"Loading: \n{filename}")
         self.SK, self.P1, self.UK = joblib.load(filename)
-        # filename_AK = filename.replace('SK_P1_UK.joblib', 'AK_initial.parquet')
+        # filename_AK = filename.replace('animation.joblib', 'AK_initial.parquet')
         # self.AK = awkward.fromparquet(filename_AK)
         # filename_Rate = filename_AK.replace('AK_initial.parquet', 'Rate_initial.parquet')
         # self.Rate = awkward.fromparquet(filename_Rate)
@@ -177,7 +177,7 @@ class AnimateSIR:
         circles = [Line2D(label=self.state_names[state], markerfacecolor=self.d_colors[state], **kw_args_circle) for state in self.states]
         ax.legend(handles=circles, loc='upper left', fontsize=20)
 
-        cfg = extra_funcs.filename_to_dotdict(self.filename, SK_P1_UK=True)
+        cfg = extra_funcs.filename_to_dotdict(self.filename, animation=True)
         title = extra_funcs.dict_to_title(cfg)
         ax.set_title(title, pad=50, fontsize=22)
 
@@ -229,7 +229,7 @@ class AnimateSIR:
     def make_animation(self, dpi=50, remove_frames=True, force_rerun=False, optimize_gif=True):
         filename = self.filename
         name = 'animation_' + Path(filename).stem + '.gif'
-        gifname = str(Path('Figures_SK_P1_UK') / name)
+        gifname = str(Path('Figures_animation') / name)
 
         if not Path(gifname).exists() or force_rerun:
             if self.verbose and not self.do_tqdm:
@@ -253,11 +253,11 @@ class AnimateSIR:
         return None
 
     def _get_sim_pars_str(self):
-        return Path(self.filename).stem.replace('.SK_P1_UK', '')
+        return Path(self.filename).stem.replace('.animation', '')
 
     def _get_png_name(self, i_day):
         sim_pars_str = self._get_sim_pars_str()
-        return f"Figures_SK_P1_UK/tmp_{sim_pars_str}/animation_{sim_pars_str}_frame_{i_day:06d}.png"
+        return f"Figures_animation/tmp_{sim_pars_str}/animation_{sim_pars_str}_frame_{i_day:06d}.png"
 
     def _make_png_files(self, dpi, do_tqdm, force_rerun=False):
         it = range(self.N)
@@ -324,7 +324,7 @@ def get_num_cores(num_cores_max, subtract_cores=1):
 
 num_cores = get_num_cores(num_cores_max)
 
-filenames = get_SK_P1_UK_filenames()
+filenames = get_animation_filenames()
 filename = filenames[1]
 N_files = len(filenames)           
 
