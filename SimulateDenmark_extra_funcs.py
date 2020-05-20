@@ -27,7 +27,7 @@ cfg_default = dict(
                     N_init = 100, # Initial Infected
                     mu = 20.0,  # Average number of connections of a node (init: 20)
                     sigma_mu = 0.0, # Spread (skewness) in N connections
-                    rho = rho_inf, # Spacial dependency. Average distance to connect with.
+                    rho = 0, # Spacial dependency. Average distance to connect with.
                     beta = 0.01, # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
                     sigma_beta = 0.0, # Spread in rates, beta
                     lambda_E = 1.0, # E->I, Lambda(from E states)
@@ -238,7 +238,7 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
     # N_init = 100 # Initial Infected
     # mu = 20.0  # Average number of connections of a node (init: 20)
     # sigma_mu = 0.0 # Spread (skewness) in N connections
-    # rho = rho_inf # Spacial dependency. Average distance to connect with.
+    # rho = 0 # Spacial dependency. Average distance to connect with.
     # beta = 0.01 # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
     # sigma_beta = 0.0 # Spread in rates, beta (beta_eff = beta - sigma_beta+2*sigma_beta*rand[0,1])... could be exponential?
     # lambda_E = 1.0 # E->I, Lambda(from E states)
