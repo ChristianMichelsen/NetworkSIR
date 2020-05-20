@@ -6,24 +6,22 @@ from pathlib import Path
 from importlib import reload
 
 num_cores_max = 12
-N_loops = 10
+N_loops = 1
 force_animation = False
 dry_run = False
-
-# x=x
 
 #%%
 
 all_sim_pars = [
 
                 { 
-                    'rho_inv': [0, 1, 2, 4, 6, 8, 10, 15, 20],
+                    'rho': [50, 500, 5000, 5_000_000],
                     'connect_algo': [1, 2],
                 },
 
                 {
                     'epsilon_rho': [0, 0.5, 1, 2, 5],
-                    'rho_inv': [15],
+                    'rho': [50],
                 },
 
                 {   'connect_algo': [1, 2],

@@ -12,9 +12,8 @@ import rc_params
 rc_params.set_rc_params()
 
 def get_filenames():
-    filenames = Path('Data/NetworkSimulation').rglob(f'*.csv')
+    filenames = Path('Data/ABN').rglob(f'*.csv')
     return [str(file) for file in sorted(filenames)]
-
 
 def pandas_load_file(filename, return_only_df=False):
     df_raw = pd.read_csv(filename).convert_dtypes()
@@ -61,9 +60,9 @@ def interpolate_dataframe(df, time, t_interpolated, cols_to_interpolate):
     return df_interpolated
 
 @njit
-def ODE_integrate(y0, Tmax, dt, ts, mu0, Mrate1, Mrate2, beta): 
+def ODE_integrate(y0, Tmax, dt, ts, mu0, Mrate1, lambda_I, beta): 
 
-    S, N0, E1, E2, E3, E4, I1, I2, I3, I4, R = y0
+    S, N_tot, E1, E2, E3, E4, I1, I2, I3, I4, R = y0
 
     click = 0
     ODE_result_SIR = np.zeros((int(Tmax/ts)+1, 5))
@@ -71,21 +70,21 @@ def ODE_integrate(y0, Tmax, dt, ts, mu0, Mrate1, Mrate2, beta):
 
     for Time in Times:
 
-        dS  = -beta*mu0*2/N0*(I1+I2+I3+I4)*S
-        dE1 = beta*mu0*2/N0*(I1+I2+I3+I4)*S - Mrate1*E1
+        dS  = -beta*mu0*2/N_tot*(I1+I2+I3+I4)*S
+        dE1 = beta*mu0*2/N_tot*(I1+I2+I3+I4)*S - Mrate1*E1
 
         dE2 = Mrate1*E1 - Mrate1*E2
         dE3 = Mrate1*E2 - Mrate1*E3
         dE4 = Mrate1*E3 - Mrate1*E4
 
-        dI1 = Mrate1*E4 - Mrate2*I1
-        dI2 = Mrate2*I1 - Mrate2*I2
-        dI3 = Mrate2*I2 - Mrate2*I3
-        dI4 = Mrate2*I3 - Mrate2*I4
+        dI1 = Mrate1*E4 - lambda_I*I1
+        dI2 = lambda_I*I1 - lambda_I*I2
+        dI3 = lambda_I*I2 - lambda_I*I3
+        dI4 = lambda_I*I3 - lambda_I*I4
 
-        # R0  += dt*beta*mu0/N0*(I1+I2+I3+I4)*S
+        # R0  += dt*beta*mu0/N_tot*(I1+I2+I3+I4)*S
 
-        dR  = Mrate2*I4
+        dR  = lambda_I*I4
 
         S  += dt*dS
         E1 = E1 + dt*dE1
@@ -113,12 +112,10 @@ def ODE_integrate(y0, Tmax, dt, ts, mu0, Mrate1, Mrate2, beta):
     return ODE_result_SIR
 
 
-
 from functools import lru_cache
-
-
 from iminuit.util import make_func_code
 from iminuit import describe
+
 
 class CustomChi2:  # override the class with a better one
     
@@ -136,9 +133,9 @@ class CustomChi2:  # override the class with a better one
         self.N = sum(self.y_truth > self.y_min)
         self.N_refits = 0
 
-    def __call__(self, Mrate1, Mrate2, beta, tau):  # par are a variable number of model parameters
+    def __call__(self, Mrate1, lambda_I, beta, tau):  # par are a variable number of model parameters
         # compute the function value
-        y_hat = self._calc_yhat_interpolated(Mrate1, Mrate2, beta, tau)
+        y_hat = self._calc_yhat_interpolated(Mrate1, lambda_I, beta, tau)
         mask = (self.y_truth > self.y_min)
         # compute the chi2-value
         chi2 = np.sum((self.y_truth[mask] - y_hat[mask])**2/self.sy[mask]**2)
@@ -150,13 +147,13 @@ class CustomChi2:  # override the class with a better one
         return f'CustomChi2(\n\t{self.t_interpolated=}, \n\t{self.y_truth=}, \n\t{self.y0=}, \n\t{self.Tmax=}, \n\t{self.dt=}, \n\t{self.ts=}, \n\t{self.mu0=}, \n\t{self.y_min=},\n\t)'.replace('=', ' = ').replace('array(', '').replace('])', ']')
 
     @lru_cache(maxsize=None)
-    def _calc_ODE_result_SIR(self, Mrate1, Mrate2, beta, ts=None, Tmax=None):
+    def _calc_ODE_result_SIR(self, Mrate1, lambda_I, beta, ts=None, Tmax=None):
         ts = ts if ts is not None else self.ts
         Tmax = Tmax if Tmax is not None else self.Tmax
-        return ODE_integrate(self.y0, Tmax, self.dt, ts, self.mu0, Mrate1, Mrate2, beta)
+        return ODE_integrate(self.y0, Tmax, self.dt, ts, self.mu0, Mrate1, lambda_I, beta)
 
-    def _calc_yhat_interpolated(self, Mrate1, Mrate2, beta, tau):
-        ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, Mrate2, beta)
+    def _calc_yhat_interpolated(self, Mrate1, lambda_I, beta, tau):
+        ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, lambda_I, beta)
         if ODE_result_SIR[-1, 3] == 0:
             ODE_result_SIR = ODE_result_SIR[:-1]
         I_SIR = ODE_result_SIR[:, 2]
@@ -208,8 +205,8 @@ class CustomChi2:  # override the class with a better one
     def calc_df_fit(self, ts=0.01, values=None, Tmax=None):
         if values is None:
             values = self.values
-        Mrate1, Mrate2, beta, tau = values
-        ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, Mrate2, beta, ts=ts, Tmax=Tmax)
+        Mrate1, lambda_I, beta, tau = values
+        ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, lambda_I, beta, ts=ts, Tmax=Tmax)
         cols = ['S', 'E', 'I', 'R', 'Time']
         df_fit = pd.DataFrame(ODE_result_SIR, columns=cols).convert_dtypes()
         df_fit['Time'] -= tau
@@ -221,16 +218,16 @@ class CustomChi2:  # override the class with a better one
     def compute_I_max(self, ts=0.1, values=None):
         if values is None:
             values = self.values
-        Mrate1, Mrate2, beta, tau = values
-        ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, Mrate2, beta, ts=ts)
+        Mrate1, lambda_I, beta, tau = values
+        ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, lambda_I, beta, ts=ts)
         I_max = np.max(ODE_result_SIR[:, 2])
         return I_max
     
     def compute_R_inf(self, ts=0.1, values=None, Tmax=None):
         if values is None:
             values = self.values
-        Mrate1, Mrate2, beta, tau = values
-        ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, Mrate2, beta, ts=ts, Tmax=Tmax)
+        Mrate1, lambda_I, beta, tau = values
+        ODE_result_SIR = self._calc_ODE_result_SIR(Mrate1, lambda_I, beta, ts=ts, Tmax=Tmax)
         R_inf = ODE_result_SIR[-1, 3]
         return R_inf
 
@@ -239,15 +236,15 @@ class CustomChi2:  # override the class with a better one
 def dict_to_str(d):
     string = ''
     for key, val in d.items():
-        string += f"{key}_{val}_"
-    return string[:-1]
+        string += f"{key}__{val}__"
+    return string[:-2]
 
 
-def filename_to_dotdict(filename, SK_P1_UK=False):
-    return SimulateDenmark_extra_funcs.filename_to_dotdict(filename, SK_P1_UK=SK_P1_UK)
+def filename_to_dotdict(filename, animation=False):
+    return SimulateDenmark_extra_funcs.filename_to_dotdict(filename, animation=animation)
 
-def string_to_dict(string, SK_P1_UK=False):
-    return SimulateDenmark_extra_funcs.filename_to_dotdict(string, normal_string=True, SK_P1_UK=SK_P1_UK)
+def string_to_dict(string, animation=False):
+    return SimulateDenmark_extra_funcs.filename_to_dotdict(string, normal_string=True, animation=animation)
 
 def dict_to_title(d, N=None, exclude=None):
 
@@ -255,13 +252,13 @@ def dict_to_title(d, N=None, exclude=None):
         cfg = SimulateDenmark_extra_funcs.DotDict(d)
     else:
         cfg = d
-    N0_str = human_format(cfg.N0)
-    title = f"N={N0_str}, β={cfg.beta:.4f}, γ={cfg.gamma:.1f}, σ={cfg.sigma:.1f},  α={cfg.alpha:.1f}, μ={cfg.mu:.1f}, λ1={cfg.Mrate1:.1f}, λ2={cfg.Mrate2:.1f}, Ninit={cfg.Ninit}, BB={cfg.BB}"
+    N_tot_str = human_format(cfg.N_tot)
+    title = f"N={N_tot_str}, β={cfg.beta:.4f}, γ={cfg.gamma:.1f}, σ={cfg.sigma:.1f},  α={cfg.rho:.1f}, μ={cfg.mu:.1f}, λ1={cfg.Mrate1:.1f}, λ2={cfg.lambda_I:.1f}, Ninit={cfg.Ninit}, BB={cfg.BB}"
     if N:
         title += f", #{N}"
 
     if exclude:
-        d_translate = {'beta': 'β', 'N0': 'N', 'mu': 'μ', 'alpha': 'α', 'Ninit': 'Ninit', 'sigma': 'σ', 'gamma': 'γ'}
+        d_translate = {'beta': 'β', 'N_tot': 'N', 'mu': 'μ', 'rho': 'α', 'Ninit': 'Ninit', 'sigma': 'σ', 'gamma': 'γ'}
         new_title = ''
         for s in title.split():
             if not d_translate[exclude] in s:
@@ -298,70 +295,9 @@ import joblib
 from pathlib import Path
 from iminuit import Minuit
 
-
-# def fit_single_file(filename, ts=0.1, dt=0.01, FIT_MAX=100):
-
-#     # ts = 0.1 # frequency of "observations". Now 1 pr. day
-#     # dt = 0.01 # stepsize in integration
-#     # FIT_MAX = 100
-
-#     N_refits = 0
-#     discarded_files = []
-
-#     cfg = filename_to_dotdict(str(filename))
-#     parameters_as_string = dict_to_str(cfg)
-#     # d = extra_funcs.string_to_dict(parameters_as_string)
-
-#     df, df_interpolated, time, t_interpolated = pandas_load_file(filename)
-#     y_truth = df_interpolated['I'].to_numpy(int)
-#     Tmax = int(time.max())+1 # max number of days
-#     N0 = cfg.N0
-#     # y0 =  S, N0,                E1,E2,E3,E4,  I1,I2,I3,I4,  R
-#     y0 = N0-cfg.Ninit,N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0
-
-#     # reload(extra_funcs)
-#     fit_object = CustomChi2(t_interpolated, y_truth, y0, Tmax, dt=dt, ts=ts, mu0=cfg.mu, y_min=10)
-
-#     minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
-
-#     minuit.migrad()
-#     fit_object.set_chi2(minuit)
-
-#     i_fit = 0
-#     # if (not minuit.get_fmin().is_valid) :
-#     if fit_object.chi2 / fit_object.N > 100:
-
-#         continue_fit = True
-#         while continue_fit:
-#             i_fit += 1
-#             N_refits += 1
-
-#             param_grid = {'Mrate1': uniform(0.1, 10), 
-#                         'Mrate2': uniform(0.1, 10), 
-#                         'beta': uniform(0.1/20, 20/20), 
-#                         'tau': uniform(-10, 10),
-#                         }
-#             param_list = list(ParameterSampler(param_grid, n_iter=1))[0]
-#             minuit = Minuit(fit_object, pedantic=False, print_level=0, **param_list)
-#             minuit.migrad()
-#             fit_object.set_minuit(minuit)
-
-#             if fit_object.chi2 / fit_object.N <= 10 or i_fit>FIT_MAX:
-#                 continue_fit = False
-            
-#     if i_fit <= FIT_MAX:
-#         fit_object.set_minuit(minuit)
-#         return filename, fit_object, N_refits
-
-#     else:
-#         print(f"\n\n{filename} was discarded\n", flush=True)
-#         return filename, None, N_refits
-
-
-
 @lru_cache(maxsize=None)
-def calc_Imax_R_inf_deterministic(mu, Mrate1, Mrate2, beta, y0, Tmax, dt, ts):
-    ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu, Mrate1, Mrate2, beta)
+def calc_Imax_R_inf_deterministic(mu, Mrate1, lambda_I, beta, y0, Tmax, dt, ts):
+    ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu, Mrate1, lambda_I, beta)
     I_max = np.max(ODE_result_SIR[:, 2])
     R_inf = ODE_result_SIR[-1, 3]
     return I_max, R_inf
@@ -377,10 +313,10 @@ def try_refit(fit_object, cfg, FIT_MAX):
     continue_fit = True
     while continue_fit:
         N_refits += 1
-        param_grid = {'Mrate1': uniform(cfg.Mrate1/10, cfg.Mrate1*5), 
-                    'Mrate2': uniform(cfg.Mrate2/10, cfg.Mrate2*5), 
-                    'beta': uniform(cfg.beta/10, cfg.beta*5), 
-                    'tau': uniform(-10, 10),
+        param_grid = {'lambda_E': uniform(cfg.Mrate1/10, cfg.Mrate1*5), 
+                      'lambda_I': uniform(cfg.lambda_I/10, cfg.lambda_I*5), 
+                       'beta': uniform(cfg.beta/10, cfg.beta*5), 
+                       'tau': uniform(-10, 10),
                     }
         param_list = list(ParameterSampler(param_grid, n_iter=1))[0]
         minuit = Minuit(fit_object, pedantic=False, print_level=0, **param_list)
@@ -393,20 +329,17 @@ def try_refit(fit_object, cfg, FIT_MAX):
 
 def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
 
-    # ts = 0.1 # frequency of "observations". Now 1 pr. day
-    # dt = 0.01 # stepsize in integration
-
     cfg = filename_to_dotdict(filename)
 
     df, df_interpolated, time, t_interpolated = pandas_load_file(filename, return_only_df=False)
     R_inf_net = df['R'].iloc[-1]
 
     Tmax = int(df['Time'].max())+1 # max number of days
-    N0 = cfg.N0
-    y0 = N0-cfg.Ninit, N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0#, cfg.Ninit
+    N_tot = cfg.N_tot
+    y0 = N_tot-cfg.Ninit, N_tot,   cfg.Ninit,0,0,0,      0,0,0,0,   0#, cfg.Ninit
 
     I_min = 100
-    I_lockdown = I_lockdown_rel * cfg.N0 # percent
+    I_lockdown = I_lockdown_rel * cfg.N_tot # percent
     iloc_start = np.argmax(I_min <= df_interpolated['I'])
     iloc_lockdown = np.argmax(I_lockdown <= df_interpolated['I']) + 1
     
@@ -425,13 +358,13 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
         return filename, None
 
     y_truth_interpolated = df_interpolated['I']
-    I_max_det, R_inf_det = calc_Imax_R_inf_deterministic(cfg.mu, cfg.Mrate1, cfg.Mrate2, cfg.beta, y0, Tmax*2, dt, ts)
+    I_max_det, R_inf_det = calc_Imax_R_inf_deterministic(cfg.mu, cfg.lambda_E, cfg.lambda_I, cfg.beta, y0, Tmax*2, dt, ts)
     Tmax_peak = df_interpolated['I'].argmax()*1.2
     I_max_net = np.max(df['I'])
 
     fit_object = CustomChi2(t_interpolated[iloc_start:iloc_lockdown], y_truth_interpolated.to_numpy(float)[iloc_start:iloc_lockdown], y0, Tmax_peak, dt=dt, ts=ts, mu0=cfg.mu, y_min=I_min)
 
-    minuit = Minuit(fit_object, pedantic=False, print_level=0, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta, tau=0)
+    minuit = Minuit(fit_object, pedantic=False, print_level=0, lambda_E=cfg.lambda_E, lambda_I=cfg.lambda_I, beta=cfg.beta, tau=0)
 
     minuit.migrad()
     fit_object.set_chi2(minuit)
@@ -644,7 +577,7 @@ def fix_and_sort_index(df):
 
 
 # def get_filenames_to_use_Imax(par_string):
-#     filenames_to_use = Path(f'Data/NetworkSimulation/{par_string}').glob(f"*.csv")
+#     filenames_to_use = Path(f'Data/ABN/{par_string}').glob(f"*.csv")
 #     filenames_to_use = [str(s) for s in filenames_to_use]
 #     return sorted(filenames_to_use)
 
@@ -686,8 +619,8 @@ def fix_and_sort_index(df):
 #         I_rel = np.zeros(N_peak_fits)
 
 #         for i_fit_object, fit_object in enumerate(fit_objects):
-#             N0 = fit_object.y0[1]
-#             I_rel[i_fit_object] = fit_object.y_truth[-1] / N0 # percent
+#             N_tot = fit_object.y0[1]
+#             I_rel[i_fit_object] = fit_object.y_truth[-1] / N_tot # percent
 #             I_maxs[i_fit_object] = fit_object.compute_I_max()
 #             I_current_pos[i_fit_object] = fit_object.y_truth[-1]
 
@@ -766,7 +699,7 @@ def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=
     else:
         from matplotlib.backends.backend_pdf import PdfPages
 
-        base_dir = Path('Data') / 'NetworkSimulation'
+        base_dir = Path('Data') / 'ABN'
         all_sim_pars = sorted([str(x.name) for x in base_dir.glob('*') if '.DS' not in str(x.name)])
 
         with PdfPages(pdf_name) as pdf:
@@ -800,11 +733,11 @@ def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=
 
                 Tmax = max(Tmax, 50)
 
-                y0 = cfg.N0-cfg.Ninit, cfg.N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0#, cfg.Ninit
+                y0 = cfg.N_tot-cfg.Ninit, cfg.N_tot,   cfg.Ninit,0,0,0,      0,0,0,0,   0#, cfg.Ninit
                 dt = 0.01
                 ts = 0.1
 
-                ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu0=cfg.mu, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta)
+                ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu0=cfg.mu, lambda_E=cfg.lambda_E, lambda_I=cfg.lambda_I, beta=cfg.beta)
                 # print(y0, Tmax, dt, ts, cfg)
                 # I_SIR = ODE_result_SIR[:, 2]
                 # R_SIR = ODE_result_SIR[:, 3]
@@ -832,29 +765,19 @@ def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=
 
 #%%
 
+
+
+
 def get_filenames_different_than_default(find_par):
 
-    base_dir = Path('Data') / 'NetworkSimulation'
+    base_dir = Path('Data') / 'ABN'
     all_sim_pars = sorted([str(x.name) for x in base_dir.glob('*') if '.DS' not in str(x.name)])
 
     all_sim_pars_as_dict = {s: string_to_dict(s) for s in all_sim_pars}
     df_sim_pars = pd.DataFrame.from_dict(all_sim_pars_as_dict, orient='index')
 
-    default_pars = dict(
-                    N0 = 500_000,
-                    mu = 20.0,  # Average number connections
-                    alpha = 0.0, # Spatial parameter
-                    beta = 0.01, # Mean rate
-                    sigma = 0.0, # Spread in rate
-                    Mrate1 = 1.0, # E->I
-                    Mrate2 = 1.0, # I->R
-                    gamma = 0.0, # Parameter for skewed connection shape
-                    nts = 0.1, 
-                    Nstates = 9,
-                    BB = 1,
-                    Ninit = 100, # 100 Initial Infected
-                )
-
+    default_pars = SimulateDenmark_extra_funcs.cfg_default
+    default_pars['N_tot'] = 500_000
 
     if isinstance(find_par, str):
         find_par = [find_par]
@@ -878,15 +801,15 @@ def plot_variable_other_than_default(par, do_log=False):
     filenames_par_rest_default = get_filenames_different_than_default(par)
 
     d_par_pretty = {'beta': r'$\beta$', 
-                    'N0': r"$N_0$",
+                    'N_tot': r"$N_0$",
                     'mu': r"$\mu$",
-                    'alpha': r"$\alpha$",
+                    'rho': r"$\rho$",
                     'Ninit': r'$N_\mathrm{init}$', 
                     'sigma': r"$\sigma$",
                     'gamma': r"$\gamma$",
                     }
 
-    base_dir = Path('Data') / 'NetworkSimulation'
+    base_dir = Path('Data') / 'ABN'
 
     x = np.zeros(len(filenames_par_rest_default))
     y = np.zeros_like(x)
@@ -905,10 +828,10 @@ def plot_variable_other_than_default(par, do_log=False):
             I_max_net[i_filename] = df['I'].max()
 
         Tmax = max(df['Time'].max()*1.2, 300)
-        y0 = cfg.N0-cfg.Ninit, cfg.N0,   cfg.Ninit,0,0,0,      0,0,0,0,   0#, cfg.Ninit
+        y0 = cfg.N_tot-cfg.Ninit, cfg.N_tot,   cfg.Ninit,0,0,0,      0,0,0,0,   0#, cfg.Ninit
         dt = 0.01
         ts = 0.1
-        ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu0=cfg.mu, Mrate1=cfg.Mrate1, Mrate2=cfg.Mrate2, beta=cfg.beta)
+        ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu0=cfg.mu, Mrate1=cfg.Mrate1, lambda_I=cfg.lambda_I, beta=cfg.beta)
         # print(y0, Tmax, dt, ts, cfg)
         I_SIR = ODE_result_SIR[:, 2]
         I_max_SIR = np.max(I_SIR)

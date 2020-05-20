@@ -22,12 +22,14 @@ def is_local_computer(N_local_cores=8):
     else:
         return False
 
+rho_inf = 5_000_000
+
 cfg_default = dict(
                     N_tot = 50_000 if is_local_computer() else 500_000, # Total number of nodes!
                     N_init = 100, # Initial Infected
                     mu = 20.0,  # Average number of connections of a node (init: 20)
                     sigma_mu = 0.0, # Spread (skewness) in N connections
-                    rho_inv = 0.0, # Spacial dependency. higher rho_inv -> #connections goes down :  prob = exp(-rho_inv r_ij / rD))
+                    rho = rho_inf, # Spacial dependency. Average distance to connect with.
                     beta = 0.01, # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
                     sigma_beta = 0.0, # Spread in rates, beta (beta_eff = beta - sigma_beta+2*sigma_beta*rand[0,1])... could be exponential?
                     lambda_E = 1.0, # E->I, Lambda(from E states)
@@ -214,13 +216,13 @@ def haversine(lat1, lon1, lat2, lon2):
 
 
 @njit
-def single_run_numba(N_tot, N_init, mu, sigma_mu, rho_inv, beta, sigma_beta, lambda_E, lambda_I, connect_algo, epsilon_rho, frac_02, ID, coordinates, verbose=False):
+def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_E, lambda_I, connect_algo, epsilon_rho, frac_02, ID, coordinates, verbose=False):
     
     # N_tot = 50_000 # Total number of nodes!
     # N_init = 100 # Initial Infected
     # mu = 20.0  # Average number of connections of a node (init: 20)
     # sigma_mu = 0.0 # Spread (skewness) in N connections
-    # rho_inv = 0.0 # Spacial dependency. higher rho_inv -> #connections goes down :  prob = exp(-rho_inv r_ij / rD))
+    # rho = rho_inf # Spacial dependency. Average distance to connect with.
     # beta = 0.01 # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
     # sigma_beta = 0.0 # Spread in rates, beta (beta_eff = beta - sigma_beta+2*sigma_beta*rand[0,1])... could be exponential?
     # lambda_E = 1.0 # E->I, Lambda(from E states)
@@ -302,11 +304,11 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho_inv, beta, sigma_beta, lam
     # # # # # # # # # # # CONNECT NODES # # # # # # # # # # # # # # # # # # # # # # # # #
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     
-
     if verbose:
         print("CONNECT NODES")
-
-    rD = 1000 # with rD = 1000, it is approximately the same as using the Eucludian distance between lats and lons
+    
+    if rho >= rho_inf:
+        rho = np.inf
 
     if (connect_algo == 2):
         for c in range(int(mu*N_tot)):
@@ -326,7 +328,7 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho_inv, beta, sigma_beta, lam
                     r = haversine(coordinates[id1, 0], coordinates[id1, 1], coordinates[id2, 0], coordinates[id2, 1])
 
                     ra = np.random.rand()
-                    if np.exp(-rho_inv*r/rD) > ra:
+                    if np.exp(-r/rho) > ra:
                         individual_rates[id1, N_connections[id1]] = infection_rate[id1]
                         individual_rates[id2, N_connections[id2]] = infection_rate[id1]
 
@@ -349,11 +351,11 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho_inv, beta, sigma_beta, lam
             accra = 0
             cac = 0
 
-            ra_rho_inv = np.random.rand()
-            if ra_rho_inv >= epsilon_rho:
-                rho_inv_tmp = rho_inv
+            ra_rho = np.random.rand()
+            if ra_rho >= epsilon_rho:
+                rho_tmp = rho
             else:
-                rho_inv_tmp = 0
+                rho_tmp = np.inf
 
             while accra == 0:
                 ra2 = np.random.rand()          
@@ -361,7 +363,7 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho_inv, beta, sigma_beta, lam
                 acc = 1
                 cac += 1
 
-                rho_inv_tmp *= 0.9995
+                rho_tmp *= 1.0005 # 0.9995
 
                 #  Make sure no element is present twice
                 for i1 in range(N_connections[id1]):               
@@ -372,7 +374,7 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho_inv, beta, sigma_beta, lam
                     r = haversine(coordinates[id1, 0], coordinates[id1, 1], coordinates[id2, 0], coordinates[id2, 1])
 
                     ra = np.random.rand()
-                    if np.exp(-rho_inv_tmp*r/rD) > ra:
+                    if np.exp(-r/rho) > ra:
                     
                         individual_rates[id1, N_connections[id1]] = infection_rate[id1]
                         individual_rates[id2, N_connections[id2]] = infection_rate[id1]
@@ -598,7 +600,7 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho_inv, beta, sigma_beta, lam
             
         if (TotMov < 0) or (TotInf < 0): 
             print("\nNegative Problem", TotMov, TotInf)
-            print(rho_inv, beta, sigma_mu)
+            print(rho, beta, sigma_mu)
             on = 0 
     
     return SIRfile, SIRfile_which_state, coordinates, SIRfile_N_connections, SIRfile_which_connections, SIRfile_individual_rates
