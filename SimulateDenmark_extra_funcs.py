@@ -24,11 +24,12 @@ def is_local_computer(N_local_cores=8):
 
 def get_cfg_default():
     cfg_default = dict(
-                    N_tot = 50_000 if is_local_computer() else 500_000, # Total number of nodes!
+                    # N_tot = 50_000 if is_local_computer() else 500_000, # Total number of nodes!
+                    N_tot = 500_000, # Total number of nodes!
                     N_init = 100, # Initial Infected
                     mu = 20.0,  # Average number of connections of a node (init: 20)
                     sigma_mu = 0.0, # Spread (skewness) in N connections
-                    rho = 0, # Spacial dependency. Average distance to connect with.
+                    rho = 0.0, # Spacial dependency. Average distance to connect with.
                     beta = 0.01, # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
                     sigma_beta = 0.0, # Spread in rates, beta
                     lambda_E = 1.0, # E->I, Lambda(from E states)
@@ -134,23 +135,6 @@ def generate_filenames(d_sim_pars, N_loops=10, force_overwrite=False):
             if not_existing or force_overwrite: 
                 filenames.append(filename)
     return filenames
-
-
-# def get_filenames_iter(all_sim_pars, force_animation, N_loops):
-#     all_filenames = []
-#     if not force_animation:
-#         d_sim_pars = []
-#         for d_simulation_parameters in all_sim_pars:
-#             filenames = generate_filenames(d_simulation_parameters, N_loops, force_animation=force_animation)
-#             all_filenames.append(filenames)
-#             d_sim_pars.append(d_simulation_parameters)
-#     else:
-#         for d_simulation_parameters in all_sim_pars:
-#             all_filenames.extend(generate_filenames(d_simulation_parameters, N_loops, force_animation=force_animation))
-#         all_filenames = [all_filenames]
-#         d_sim_pars = ['all configurations']
-#     return all_filenames, d_sim_pars
-
 
 def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max):
     num_cores = get_num_cores(num_cores_max)

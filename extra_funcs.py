@@ -15,30 +15,6 @@ def get_filenames():
     filenames = Path('Data/ABN').rglob(f'*.csv')
     return [str(file) for file in sorted(filenames)]
 
-def pandas_load_file(filename, return_only_df=False):
-    df_raw = pd.read_csv(filename).convert_dtypes()
-
-    for state in ['E', 'I']:
-        df_raw[state] = sum([df_raw[col] for col in df_raw.columns if state in col and len(col) == 2])
-
-    # only keep relevant columns
-    df = df_raw[['Time', 'E', 'I', 'R']].copy()
-    if return_only_df:
-        return df
-
-    # make first value at time 0
-    t0 = df['Time'].min()
-    df['Time'] -= t0
-    time = df['Time']
-
-    # t0 = time.min()
-    t_interpolated = np.arange(int(time.max())+1)
-    cols_to_interpolate = ['E', 'I', 'R']
-    df_interpolated = interpolate_dataframe(df, time, t_interpolated, cols_to_interpolate)
-
-    return df, df_interpolated, time, t_interpolated
-
-
 # from scipy.signal import savgol_filter
 def interpolate_array(y, time, t_interpolated, force_positive=True):
     f = interpolate.interp1d(time, y, kind='cubic', fill_value=0, bounds_error=False)
@@ -58,6 +34,118 @@ def interpolate_dataframe(df, time, t_interpolated, cols_to_interpolate):
     df_interpolated = pd.DataFrame(data_interpolated)
     df_interpolated['Time'] = t_interpolated
     return df_interpolated
+
+def pandas_load_file(filename, return_only_df=False):
+    df_raw = pd.read_csv(filename).convert_dtypes()
+
+    for state in ['E', 'I']:
+        df_raw[state] = sum([df_raw[col] for col in df_raw.columns if state in col and len(col) == 2])
+
+    # only keep relevant columns
+    df = df_raw[['Time', 'E', 'I', 'R']].copy()
+    if return_only_df:
+        return df
+
+    # make first value at time 0
+    t0 = df['Time'].min()
+    df['Time'] -= t0
+    time = df['Time']
+
+    t_interpolated = np.arange(int(time.max())+1)
+    cols_to_interpolate = ['E', 'I', 'R']
+    df_interpolated = interpolate_dataframe(df, time, t_interpolated, cols_to_interpolate)
+
+    return df, df_interpolated, time, t_interpolated
+
+
+def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=100):
+
+    d_ylabel = {'I': 'Infected',
+                 'R': 'Recovered'}
+    d_label_loc = {'I': 'upper right', 'R': 'lower right'}
+
+    pdf_name = f"Figures/SIR_comparison_{parameter}.pdf"
+    Path(pdf_name).parent.mkdir(parents=True, exist_ok=True)
+
+    if Path(pdf_name).exists() and not force_overwrite:
+        print(f"{pdf_name} already exists")
+        return None
+    
+    else:
+        from matplotlib.backends.backend_pdf import PdfPages
+
+        base_dir = Path('Data') / 'ABN'
+        all_sim_pars = sorted([str(x.name) for x in base_dir.glob('*') if '.DS' not in str(x.name)])
+
+        with PdfPages(pdf_name) as pdf:
+
+            # sim_par = all_sim_pars[0]
+            for sim_par in tqdm(all_sim_pars):
+
+                ID_files = list((base_dir/sim_par).rglob('*.csv'))
+                cfg = string_to_dict(sim_par)
+
+                fig, ax = plt.subplots(figsize=(20, 10))
+
+                Tmax = 0
+                lw = 0.1
+                
+                it = enumerate(ID_files[:max_N_plots]) if max_N_plots < len(ID_files) else enumerate(ID_files[:max_N_plots])
+
+                for i, filename_ID in it:
+                    try:
+                        df = pandas_load_file(filename_ID, return_only_df=True)
+                    except EmptyDataError as e:
+                        from pandas.errors import EmptyDataError
+                        print(f"Skipping {filename_ID} because empty file")
+                        continue
+                    label = 'Simulations' if i == 0 else None
+                    ax.plot(df['Time'].values, df[parameter].values, lw=lw, c='k', label=label)
+                    if df['Time'].max() > Tmax:
+                        Tmax = df['Time'].max() 
+
+                Tmax = max(Tmax, 50)
+                df_fit = ODE_integrate_cfg_to_df(cfg, Tmax, dt=0.01, ts=0.1)
+
+                ax.plot(df_fit['Time'], df_fit[parameter], lw=15*lw, color='red', label='SIR')
+                leg = ax.legend(loc=d_label_loc[parameter])
+                for legobj in leg.legendHandles:
+                    legobj.set_linewidth(2.0)
+                
+                title = dict_to_title(cfg, len(ID_files))
+                ax.set(title=title, xlabel='Time', ylim=(0, None), ylabel=d_ylabel[parameter])
+                
+                ax.set_rasterized(True)
+                ax.set_rasterization_zorder(0)
+
+                pdf.savefig(fig, dpi=100)
+                plt.close('all')
+
+
+def dict_to_title(d, N=None, exclude=None):
+
+    if type(d) == 'dict':
+        cfg = SimulateDenmark_extra_funcs.DotDict(d)
+    else:
+        cfg = d
+
+    N_tot_str = human_format(cfg.N_tot)
+    title = f"N={N_tot_str}, beta={cfg.beta:.4f}, sigma_mu={cfg.sigma_mu:.1f}, sigma_beta={cfg.sigma_beta:.1f},  rho={cfg.rho:.1f}, mu={cfg.mu:.1f}, lambda_E={cfg.lambda_E:.1f}, lambda_I={cfg.lambda_I:.1f}, N_init={cfg.N_init}, epsilon_rho={cfg.epsilon_rho}, frac_02={cfg.frac_02}, connect_algo={cfg.connect_algo}"
+
+    if N:
+        title += f", #{N}"
+
+    if exclude:
+        d_translate = {'beta': 'β', 'N_tot': 'N', 'mu': 'μ', 'rho': 'rho', 'N_init': 'N_init', 'sigma_beta': 'sigma_beta', 'sigma_mu': 'sigma_mu', 'epsilon_rho': 'epsilon_rho', 'frac_02': 'frac_02'}
+        new_title = ''
+        for s in title.split():
+            if not d_translate[exclude] in s:
+                new_title += f"{s} "
+        title = new_title[:-1]
+    
+    return title
+
+
 
 @njit
 def ODE_integrate(y0, Tmax, dt, ts, mu0, lambda_E, lambda_I, beta): 
@@ -110,6 +198,14 @@ def ODE_integrate(y0, Tmax, dt, ts, mu0, lambda_E, lambda_I, beta):
                             ]
             click += 1
     return ODE_result_SIR
+
+
+def ODE_integrate_cfg_to_df(cfg, Tmax, dt=0.01, ts=0.1):
+    y0 = cfg.N_tot-cfg.N_init, cfg.N_tot,   cfg.N_init,0,0,0,      0,0,0,0,   0#, cfg.N_init
+    ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu0=cfg.mu, lambda_E=cfg.lambda_E, lambda_I=cfg.lambda_I, beta=cfg.beta)
+    cols = ['S', 'E', 'I', 'R', 'Time']
+    df_fit = pd.DataFrame(ODE_result_SIR, columns=cols).convert_dtypes()
+    return df_fit
 
 
 from functools import lru_cache
@@ -245,27 +341,6 @@ def filename_to_dotdict(filename, animation=False):
 
 def string_to_dict(string, animation=False):
     return SimulateDenmark_extra_funcs.filename_to_dotdict(string, normal_string=True, animation=animation)
-
-def dict_to_title(d, N=None, exclude=None):
-
-    if type(d) == 'dict':
-        cfg = SimulateDenmark_extra_funcs.DotDict(d)
-    else:
-        cfg = d
-    N_tot_str = human_format(cfg.N_tot)
-    title = f"N={N_tot_str}, β={cfg.beta:.4f}, sigma_mu={cfg.sigma_mu:.1f}, sigma_beta={cfg.sigma_beta:.1f},  rho={cfg.rho:.1f}, μ={cfg.mu:.1f}, λE={cfg.lambda_E:.1f}, λI={cfg.lambda_I:.1f}, N_init={cfg.N_init}, connect_algo={cfg.connect_algo}, epsilon_rho={cfg.epsilon_rho}, frac_02={cfg.frac_02}"
-    if N:
-        title += f", #{N}"
-
-    if exclude:
-        d_translate = {'beta': 'β', 'N_tot': 'N', 'mu': 'μ', 'rho': 'rho', 'N_init': 'N_init', 'sigma_beta': 'sigma_beta', 'sigma_mu': 'sigma_mu', 'epsilon_rho': 'epsilon_rho', 'frac_02': 'frac_02'}
-        new_title = ''
-        for s in title.split():
-            if not d_translate[exclude] in s:
-                new_title += f"{s} "
-        title = new_title[:-1]
-    
-    return title
 
 def filename_to_title(filename):
     return dict_to_title(filename_to_dotdict(filename))
@@ -675,90 +750,9 @@ def fix_and_sort_index(df):
 #     return df_par, df_par_std
 
 
-def mask_df(df, cut_val):
-    mask = (-cut_val <= df.loc['mean']) & (df.loc['mean'] <= cut_val)
-    return df.loc[:, mask]
-
-
-from pandas.errors import EmptyDataError
-
-def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=100):
-
-    d_ylabel = {'I': 'Infected',
-                 'R': 'Recovered'}
-    d_label_loc = {'I': 'upper right', 'R': 'lower right'}
-
-    pdf_name = f"Figures/SIR_comparison_{parameter}.pdf"
-    Path(pdf_name).parent.mkdir(parents=True, exist_ok=True)
-
-    if Path(pdf_name).exists() and not force_overwrite:
-        print(f"{pdf_name} already exists")
-        return None
-    
-    else:
-        from matplotlib.backends.backend_pdf import PdfPages
-
-        base_dir = Path('Data') / 'ABN'
-        all_sim_pars = sorted([str(x.name) for x in base_dir.glob('*') if '.DS' not in str(x.name)])
-
-        with PdfPages(pdf_name) as pdf:
-
-            # sim_par = all_sim_pars[0]
-            for sim_par in tqdm(all_sim_pars):
-
-                ID_files = list((base_dir/sim_par).rglob('*.csv'))
-
-                cfg = string_to_dict(sim_par)
-
-                fig, ax = plt.subplots(figsize=(20, 10))
-
-                Tmax = 0
-                lw = 0.1
-                
-                it = enumerate(ID_files[:max_N_plots]) if max_N_plots < len(ID_files) else enumerate(ID_files[:max_N_plots])
-
-                for i, filename_ID in it:
-                    try:
-                        df = pandas_load_file(filename_ID, return_only_df=True)
-                    except EmptyDataError as e:
-                        print(f"Skipping {filename_ID} because empty file")
-                        continue
-                        # raise e
-                    label = 'Simulations' if i == 0 else None
-                    # lw = 1 if i == 0 else 0.1
-                    ax.plot(df['Time'].values, df[parameter].values, lw=lw, c='k', label=label)
-                    if df['Time'].max() > Tmax:
-                        Tmax = df['Time'].max() 
-
-                Tmax = max(Tmax, 50)
-
-                y0 = cfg.N_tot-cfg.N_init, cfg.N_tot,   cfg.N_init,0,0,0,      0,0,0,0,   0#, cfg.N_init
-                dt = 0.01
-                ts = 0.1
-
-                ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu0=cfg.mu, lambda_E=cfg.lambda_E, lambda_I=cfg.lambda_I, beta=cfg.beta)
-                # print(y0, Tmax, dt, ts, cfg)
-                # I_SIR = ODE_result_SIR[:, 2]
-                # R_SIR = ODE_result_SIR[:, 3]
-                # time = ODE_result_SIR[:, 4]
-                cols = ['S', 'E', 'I', 'R', 'Time']
-                df_fit = pd.DataFrame(ODE_result_SIR, columns=cols).convert_dtypes()
-
-                ax.plot(df_fit['Time'], df_fit[parameter], lw=15*lw, color='red', label='SIR')
-                leg = ax.legend(loc=d_label_loc[parameter])
-                for legobj in leg.legendHandles:
-                    legobj.set_linewidth(2.0)
-                
-                title = dict_to_title(cfg, len(ID_files))
-                ax.set(title=title, xlabel='Time', ylim=(0, None), ylabel=d_ylabel[parameter])
-                
-                ax.set_rasterized(True)
-                ax.set_rasterization_zorder(0)
-
-                pdf.savefig(fig, dpi=100)
-                plt.close('all')
-
-
+# def mask_df(df, cut_val):
+#     mask = (-cut_val <= df.loc['mean']) & (df.loc['mean'] <= cut_val)
+#     return df.loc[:, mask]
 
 
 

@@ -6,7 +6,7 @@ from pathlib import Path
 from importlib import reload
 
 num_cores_max = 8
-N_loops = 10
+N_loops = 100
 dry_run = True
 force_overwrite = False
 
