@@ -2,9 +2,13 @@
 /Data/
 *.zip
 /Data_SK_P1_UK/
+/Data_animation/
+/Data_*/
 #/Figures_SK_P1_UK/
 *.joblib
 *.pickle
+*.parquet
+GPS_coordinates.npy
 
 #Jottacloud conflicted files
 *(Conflicted)*

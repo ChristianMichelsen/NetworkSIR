@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 import rc_params
 rc_params.set_rc_params()
 
-
 # conda install awkward
 # conda install -c conda-forge pyarrow
 import awkward
@@ -23,70 +22,139 @@ def is_local_computer(N_local_cores=8):
     else:
         return False
 
-def generate_filenames(d, N_loops=10, force_overwrite=False, force_SK_P1_UK=False):
-    filenames = []
-    cfg = dict(
-                    N0 = 50_000 if is_local_computer() else 500_000,
-                    # N0 = 500_000, # Total number of nodes!
+cfg_default = dict(
+                    N_tot = 50_000 if is_local_computer() else 500_000, # Total number of nodes!
+                    N_init = 100, # Initial Infected
                     mu = 20.0,  # Average number of connections of a node (init: 20)
-                    alpha = 0.0, # Spacial dependency. higher alpha -> #connections goes down :  prob = exp(-alpha r_ij / R0))
-                    beta = 0.01, # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N0)* betaSIR)
-                    sigma = 0.0, # Spread in rates, beta (beta_eff = beta - sigma+2*sigma*rand[0,1])... could be exponential?
-                    Mrate1 = 1.0, # E->I, Lambda(from E states)
-                    Mrate2 = 1.0, # I->R, Lambda(from I states)
-                    gamma = 0.0, # Spread (skewness) in N connections
-                    nts = 0.1, # Time step (0.1 - ten times a day)
-                    Nstates = 9,
-                    BB = 1, # node connection algorithm
-                    Ninit = 100, # Initial Infected
-                )
+                    sigma_mu = 0.0, # Spread (skewness) in N connections
+                    rho_inv = 0.0, # Spacial dependency. higher rho_inv -> #connections goes down :  prob = exp(-rho_inv r_ij / rD))
+                    beta = 0.01, # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
+                    sigma_beta = 0.0, # Spread in rates, beta (beta_eff = beta - sigma_beta+2*sigma_beta*rand[0,1])... could be exponential?
+                    lambda_E = 1.0, # E->I, Lambda(from E states)
+                    lambda_I = 1.0, # I->R, Lambda(from I states)
+                    connect_algo = 1, # node connection algorithm
+                    epsilon_rho = 0.01, # fraction of connections not depending on distance
+                    frac_02 = 0.0, # 0: as normal, 1: half of all (beta)rates are set to 0 the other half doubled
+                    )
 
-    nameval_to_str = [[f'{name}_{x}' for x in lst] for (name, lst) in d.items()]
+
+def filename_to_ID(filename):
+    return int(filename.split('ID__')[1].strip('.csv'))
+
+
+class DotDict(dict):
+    """
+    Class that allows a dict to indexed using dot-notation.
+    Example:
+    >>> dotdict = DotDict({'first_name': 'Christian', 'last_name': 'Michelsen'})
+    >>> dotdict.last_name
+    'Michelsen'
+    """
+
+    def __getattr__(self, item):
+        if item in self:
+            return self.get(item)
+        raise KeyError(f"'{item}' not in dict")
+
+    def __setattr__(self, key, value):
+        if key in self:
+            self[key] = value
+            return
+        raise KeyError(
+            "Only allowed to change existing keys with dot notation. Use brackets instead."
+        )
+
+
+def filename_to_dotdict(filename, normal_string=False, animation=False):
+    return DotDict(filename_to_dict(filename, normal_string=normal_string, animation=animation))
+
+
+def get_num_cores(num_cores_max):
+    num_cores = mp.cpu_count() - 1
+    if num_cores >= num_cores_max:
+        num_cores = num_cores_max
+    return num_cores
+
+
+def dict_to_filename_with_dir(cfg, ID):
+    filename = Path('Data') / 'ABN' 
+    file_string = ''
+    for key, val in cfg.items():
+        file_string += f"{key}__{val}__"
+    file_string = file_string[:-2] # remove trailing _
+    filename = filename / file_string
+    file_string += f"__ID__{ID:03d}.csv"
+    filename = filename / file_string
+    return str(filename)
+
+def filename_to_dict(filename, normal_string=False, animation=False): # , 
+    cfg = {}
+
+    if normal_string:
+        keyvals = filename.split('__')
+    elif animation:
+        keyvals = filename.split('/')[-1].split('.animation')[0].split('__')
+    else:
+        keyvals = str(Path(filename).stem).split('__')
+
+    keyvals_chunks = [keyvals[i:i + 2] for i in range(0, len(keyvals), 2)]
+    ints = ['N_tot', 'N_init', 'connect_algo']
+    for key, val in keyvals_chunks:
+        if not key == 'ID':
+            if key in ints:
+                cfg[key] = int(val)
+            else:
+                cfg[key] = float(val)
+    return DotDict(cfg)
+
+
+def generate_filenames(d, N_loops=10, force_overwrite=False, force_animation=False):
+    filenames = []
+
+    nameval_to_str = [[f'{name}__{x}' for x in lst] for (name, lst) in d.items()]
     all_combinations = list(product(*nameval_to_str))
 
-    ints = ['N0', 'BB', 'Ninit']
+    ints = ['N_tot', 'N_init', 'connect_algo']
 
     for combination in all_combinations:
         for s in combination:
-            name, val = s.split('_')
+            name, val = s.split('__')
             val = int(val) if name in ints else float(val)
-            cfg[name] = val
+            cfg_default[name] = val
 
         for ID in range(N_loops):
-            filename = dict_to_filename_with_dir(cfg, ID)
+            filename = dict_to_filename_with_dir(cfg_default, ID)
 
-            if ID == 0 and force_SK_P1_UK:
+            not_existing = (not Path(filename).exists())
+            force_animation = (ID == 0 and force_animation)
+            if not_existing or force_animation or force_overwrite:
                 filenames.append(filename)
-
-            elif not Path(filename).exists() or force_overwrite:
-                filenames.append(filename)
-        
     return filenames
 
 
-def get_filenames_iter(all_sim_pars, force_SK_P1_UK, N_loops):
+def get_filenames_iter(all_sim_pars, force_animation, N_loops):
     all_filenames = []
-    if not force_SK_P1_UK:
+    if not force_animation:
         d_sim_pars = []
         for d_simulation_parameters in all_sim_pars:
-            filenames = generate_filenames(d_simulation_parameters, N_loops, force_SK_P1_UK=force_SK_P1_UK)
+            filenames = generate_filenames(d_simulation_parameters, N_loops, force_animation=force_animation)
             all_filenames.append(filenames)
             d_sim_pars.append(d_simulation_parameters)
     else:
         for d_simulation_parameters in all_sim_pars:
-            all_filenames.extend(generate_filenames(d_simulation_parameters, N_loops, force_SK_P1_UK=force_SK_P1_UK))
+            all_filenames.extend(generate_filenames(d_simulation_parameters, N_loops, force_animation=force_animation))
         all_filenames = [all_filenames]
         d_sim_pars = ['all configurations']
     return all_filenames, d_sim_pars
 
 
-def get_num_cores_N0_specific(d_simulation_parameters, num_cores_max):
+def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max):
     num_cores = get_num_cores(num_cores_max)
 
-    if isinstance(d_simulation_parameters, dict) and 'N0' in d_simulation_parameters.keys():
-        if max(d_simulation_parameters['N0']) > 2_000_000:
+    if isinstance(d_simulation_parameters, dict) and 'N_tot' in d_simulation_parameters.keys():
+        if max(d_simulation_parameters['N_tot']) > 2_000_000:
             num_cores = 1
-        elif 600_000 <= max(d_simulation_parameters['N0']) <= 2_000_000:
+        elif 600_000 <= max(d_simulation_parameters['N_tot']) <= 2_000_000:
             num_cores = 2
             
     elif isinstance(d_simulation_parameters, str):
@@ -137,93 +205,97 @@ def deep_copy_2D_int(X):
             outer[ix, jx] = X[ix, jx]
     return outer
 
+@njit
+def haversine(lat1, lon1, lat2, lon2):
+    dlon = np.radians(lon2) - np.radians(lon1)
+    dlat = np.radians(lat2) - np.radians(lat1) 
+    a = np.sin(dlat/2.0)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2.0)**2
+    return 6367 * 2 * np.arcsin(np.sqrt(a))
 
 
 @njit
-def single_run_numba(N0, mu, alpha, beta, sigma, Mrate1, Mrate2, gamma, nts, Nstates, BB, Ninit, ID, P1, verbose=False):
-    # N0 = 10_000, # Total number of nodes!
-    # mu = 20.0,  # Average number of connections of a node (init: 20)
-    # alpha = 0.0, # Spacial dependency. higher alpha -> #connections goes down :  prob = exp(-alpha r_ij / R0))
-    # beta = 0.01, # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N0)* betaSIR)
-    # sigma = 0.0, # Spread in rates, beta (beta_eff = beta - sigma+2*sigma*rand[0,1])... could be exponential?
-    # Mrate1 = 1.0, # E->I, Lambda(from E states)
-    # Mrate2 = 1.0, # I->R, Lambda(from I states)
-    # gamma = 0.0, # Spread (skewness) in N connections
-    # nts = 0.1, # Time step (0.1 - ten times a day)
-    # Nstates = 9,
-    # BB = 1, # node connection algorithm
-    # Ninit = 100, # Initial Infected
+def single_run_numba(N_tot, N_init, mu, sigma_mu, rho_inv, beta, sigma_beta, lambda_E, lambda_I, connect_algo, epsilon_rho, frac_02, ID, coordinates, verbose=False):
+    
+    # N_tot = 50_000 # Total number of nodes!
+    # N_init = 100 # Initial Infected
+    # mu = 20.0  # Average number of connections of a node (init: 20)
+    # sigma_mu = 0.0 # Spread (skewness) in N connections
+    # rho_inv = 0.0 # Spacial dependency. higher rho_inv -> #connections goes down :  prob = exp(-rho_inv r_ij / rD))
+    # beta = 0.01 # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
+    # sigma_beta = 0.0 # Spread in rates, beta (beta_eff = beta - sigma_beta+2*sigma_beta*rand[0,1])... could be exponential?
+    # lambda_E = 1.0 # E->I, Lambda(from E states)
+    # lambda_I = 1.0 # I->R, Lambda(from I states)
+    # connect_algo = 1 # node connection algorithm
+    # epsilon_rho = 0.01 # fraction of connections not depending on distance
+    # frac_02 = 0.0 # 0: as normal, 1: half of all (beta)rates are set to 0 the other half doubled
     # ID = 0
-    # P1 = np.load('Data/GPS_coordinates.npy')[:N0]
-    # verbose = False
+    # coordinates = np.load('Data/GPS_coordinates.npy')[:N_tot]
+    # verbose = True
 
     np.random.seed(ID)
 
-    NRe = N0
+    nts = 0.1 # Time step (0.1 - ten times a day)
+    N_states = 9 # number of states
 
     N_AK_MAX = 1000
+
     # For generating Network
-    AK = -1*np.ones((N0, N_AK_MAX), np.uint16)
-    UK = np.zeros(N0, np.int_)
-    UKRef = np.zeros(N0, np.int_)
-    Prob = np.ones(N0)
-    Sig = np.ones(N0)
-    WMa = np.ones(N0)
-    SK = -1*np.ones(N0, np.uint8)
-    AKRef = -1*np.ones((N0, N_AK_MAX), np.uint16)
-    Rate = -1*np.ones((N0, N_AK_MAX))
-    SAK = -1*np.ones((Nstates, N0), np.uint16)
-    S = np.zeros(Nstates, np.int_)
-    Par = np.zeros(Nstates)
-    csMov = np.zeros(Nstates)
-    csInf = np.zeros(Nstates)
-    InfRat = np.zeros(N0)
+    which_connections = -1*np.ones((N_tot, N_AK_MAX), np.uint16)
+    which_connections_reference = -1*np.ones((N_tot, N_AK_MAX), np.uint16)
 
-    Ninfectious = 4 # This means the 5'th state
-    # For simulating Actual Disease
-    NExp = 0 
-    NInf = 0
+    N_connections = np.zeros(N_tot, np.int_)
+    N_connections_reference = np.zeros(N_tot, np.int_)
+    
+    connection_rate = np.ones(N_tot)
+    infection_rate = np.ones(N_tot)
+    which_state = -1*np.ones(N_tot, np.uint8)
+    
+    individual_rates = -1*np.ones((N_tot, N_AK_MAX))
+    SAK = -1*np.ones((N_states, N_tot), np.uint16)
+    state_total_counts = np.zeros(N_states, np.int_)
+    SIR_transition_rates = np.zeros(N_states)
 
-    Par[:4] = Mrate1
-    Par[4:8] = Mrate2
+    csMov = np.zeros(N_states)
+    csInf = np.zeros(N_states)
+    InfRat = np.zeros(N_tot)
 
-    # Here we initialize the system
-    # xx = 0.0 
-    # yy = 0.0 
-    # psi_epsilon = 1e-2
-    # tnext = (1/np.random.random())**(1/(psi+psi_epsilon))-1
+    infectious_state = 4 # This means the 5'th state
 
-
-    # D0 = 0.01 
-    # D = D0*100
-
-    if verbose:
-        print("Make rates and connections")
+    SIR_transition_rates[:4] = lambda_E
+    SIR_transition_rates[4:8] = lambda_I
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # # # # # # # # # # # RATES AND CONNECTIONS # # # # # # # # # # # # # # # # # # # # # 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-    # dt = 0.01 
-    # RT = 0
-    # rD = np.sqrt(2*D0*dt*N0) / 10
-    rD = 1
 
-    for i in range(N0):
+    if verbose:
+        print("Make rates and connections")
+
+    for i in range(N_tot):
         ra = np.random.rand()
-        if (ra < gamma):
-            Prob[i] = 0.1 -np.log( np.random.rand())/1.0
+        if (ra < sigma_mu):
+            connection_rate[i] = 0.1 - np.log(np.random.rand())# / 1.0
         else:
-            Prob[i] = 1.1;
+            connection_rate[i] = 1.1
+
         ra = np.random.rand()
-        if (ra < sigma):
+        if (ra < sigma_beta):
             rat = -np.log(np.random.rand())*beta
-            Sig[i] = rat
+            infection_rate[i] = rat
         else:
-            Sig[i] = beta
+            infection_rate[i] = beta
+        
+        ra_R0_change = np.random.rand()
+        if ra_R0_change < frac_02/2:
+            infection_rate[i] = infection_rate[i]*2
+        elif ra_R0_change > 1-frac_02/2:
+            infection_rate[i] = 0
+        else:
+            pass
 
-    PT = np.sum(Prob)
-    PC = np.cumsum(Prob)
+    PT = np.sum(connection_rate)
+    PC = np.cumsum(connection_rate)
     PP = PC/PT
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -234,54 +306,54 @@ def single_run_numba(N0, mu, alpha, beta, sigma, Mrate1, Mrate2, gamma, nts, Nst
     if verbose:
         print("CONNECT NODES")
 
-    if (BB == 0):
-        for c in range(int(mu*NRe)):
+    rD = 1000 # with rD = 1000, it is approximately the same as using the Eucludian distance between lats and lons
+
+    if (connect_algo == 2):
+        for c in range(int(mu*N_tot)):
             accra = 0
             while accra == 0:
                 ra1 = np.random.rand()
                 ra2 = np.random.rand()            
-                id1 = np.searchsorted(PP,ra1);
-                id2 = np.searchsorted(PP,ra2);
+                id1 = np.searchsorted(PP, ra1)
+                id2 = np.searchsorted(PP, ra2)
                 acc = 1
-                for i1 in range(UK[id1]):         #  Make sure no element is present twice
-                    if AK[id1, i1] == id2:
+                for i1 in range(N_connections[id1]):         #  Make sure no element is present twice
+                    if which_connections[id1, i1] == id2:
                         acc = 0         
-                if (UK[id1] < N_AK_MAX) and (UK[id2] < N_AK_MAX) and (id1 != id2) and (acc == 1):
+                if (N_connections[id1] < N_AK_MAX) and (N_connections[id2] < N_AK_MAX) and (id1 != id2) and (acc == 1):
                     
-                    r = np.sqrt((P1[id1, 0] - P1[id2, 0])**2 + (P1[id1, 1] - P1[id2, 1])**2)
-
+                    # r = np.sqrt((coordinates[id1, 0] - coordinates[id2, 0])**2 + (coordinates[id1, 1] - coordinates[id2, 1])**2)
+                    r = haversine(coordinates[id1, 0], coordinates[id1, 1], coordinates[id2, 0], coordinates[id2, 1])
 
                     ra = np.random.rand()
-                    if np.exp(-alpha*r/rD) > ra:
-                        rat = -np.log(np.random.rand())*beta
-                        Rate[id1, UK[id1]] = Sig[id1]
-                        Rate[id2, UK[id2]] = Sig[id1]
+                    if np.exp(-rho_inv*r/rD) > ra:
+                        individual_rates[id1, N_connections[id1]] = infection_rate[id1]
+                        individual_rates[id2, N_connections[id2]] = infection_rate[id1]
 
-                        AK[id1, UK[id1]] = id2	        
-                        AKRef[id1, UK[id1]] = id2                        
-                        AK[id2, UK[id2]] = id1 	
-                        AKRef[id2, UK[id2]] = id1
+                        which_connections[id1, N_connections[id1]] = id2	        
+                        which_connections_reference[id1, N_connections[id1]] = id2                        
+                        which_connections[id2, N_connections[id2]] = id1 	
+                        which_connections_reference[id2, N_connections[id2]] = id1
 
-                        UK[id1] += 1 
-                        UK[id2] += 1
-                        UKRef[id1] += 1 
-                        UKRef[id2] += 1
+                        N_connections[id1] += 1 
+                        N_connections[id2] += 1
+                        N_connections_reference[id1] += 1 
+                        N_connections_reference[id2] += 1
                         accra = 1                    
     else:
         # N_cac = 100
         num_prints = 0
-        for c in range(int(mu*NRe)):
+        for c in range(int(mu*N_tot)):
             ra1 = np.random.rand()
             id1 = np.searchsorted(PP, ra1) 
             accra = 0
             cac = 0
 
-            epsilon_alpha = 0.01
-            ra_alpha = np.random.rand()
-            if ra_alpha >= epsilon_alpha:
-                alpha_tmp = alpha
+            ra_rho_inv = np.random.rand()
+            if ra_rho_inv >= epsilon_rho:
+                rho_inv_tmp = rho_inv
             else:
-                alpha_tmp = 0
+                rho_inv_tmp = 0
 
             while accra == 0:
                 ra2 = np.random.rand()          
@@ -289,38 +361,31 @@ def single_run_numba(N0, mu, alpha, beta, sigma, Mrate1, Mrate2, gamma, nts, Nst
                 acc = 1
                 cac += 1
 
-                alpha_tmp *= 0.9995
-
-                # if cac > N_cac:
-                    # cac = 0
-                    # alpha_tmp *= 0.95
-                    # ra1 = np.random.rand()
-                    # id1 = np.searchsorted(PP, ra1) 
-                    # num_prints += 1
-                    # if verbose and num_prints < 100:
-                        # print("got here", id1, c) 
+                rho_inv_tmp *= 0.9995
 
                 #  Make sure no element is present twice
-                for i1 in range(UK[id1]):               
-                    if AK[id1, i1] == id2:
+                for i1 in range(N_connections[id1]):               
+                    if which_connections[id1, i1] == id2:
                         acc = 0
-                if (UK[id1] < N_AK_MAX) and (UK[id2] < N_AK_MAX) and (id1 != id2) and (acc == 1):
-                    r = np.sqrt((P1[id1, 0] - P1[id2, 0])**2 + (P1[id1, 1] - P1[id2, 1])**2)
+                if (N_connections[id1] < N_AK_MAX) and (N_connections[id2] < N_AK_MAX) and (id1 != id2) and (acc == 1):
+                    # r = np.sqrt((coordinates[id1, 0] - coordinates[id2, 0])**2 + (coordinates[id1, 1] - coordinates[id2, 1])**2)
+                    r = haversine(coordinates[id1, 0], coordinates[id1, 1], coordinates[id2, 0], coordinates[id2, 1])
+
                     ra = np.random.rand()
-                    if np.exp(-alpha_tmp*r/rD) > ra:
-                        rat = -np.log(np.random.rand())*beta
-                        Rate[id1, UK[id1]] = Sig[id1]
-                        Rate[id2, UK[id2]] = Sig[id1]
+                    if np.exp(-rho_inv_tmp*r/rD) > ra:
+                    
+                        individual_rates[id1, N_connections[id1]] = infection_rate[id1]
+                        individual_rates[id2, N_connections[id2]] = infection_rate[id1]
 
-                        AK[id1, UK[id1]] = id2
-                        AKRef[id1, UK[id1]] = id2
-                        AK[id2, UK[id2]] = id1
-                        AKRef[id2, UK[id2]] = id1
+                        which_connections[id1, N_connections[id1]] = id2
+                        which_connections_reference[id1, N_connections[id1]] = id2
+                        which_connections[id2, N_connections[id2]] = id1
+                        which_connections_reference[id2, N_connections[id2]] = id1
 
-                        UK[id1] += 1
-                        UK[id2] += 1
-                        UKRef[id1] += 1
-                        UKRef[id2] += 1
+                        N_connections[id1] += 1
+                        N_connections[id2] += 1
+                        N_connections_reference[id1] += 1
+                        N_connections_reference[id2] += 1
                         accra = 1
                         # print(c)
 
@@ -347,42 +412,40 @@ def single_run_numba(N0, mu, alpha, beta, sigma, Mrate1, Mrate2, gamma, nts, Nst
     RT = 0 
 
     ##  Now make initial infectious
-    for iin in range(Ninit):
+    for iin in range(N_init):
         idx = iin*10
-        # SK[idx] = 0
+        # which_state[idx] = 0
         new_state = np.random.randint(0, 4)
         # new_state = 0
         if verbose:
             print("new_state", new_state)
-        SK[idx] = new_state
+        which_state[idx] = new_state
 
-        SAK[new_state, S[new_state]] = idx
-        S[new_state] += 1  
+        SAK[new_state, state_total_counts[new_state]] = idx
+        state_total_counts[new_state] += 1  
         # DK[idx] = 1  
-        TotMov += Par[new_state]
-        csMov[new_state:] += Par[new_state]
-        for i1 in range(UKRef[idx]):
-            Af = AKRef[idx, i1]
-            for i2 in range(UK[Af]):
-                if AK[Af, i2] == idx:
-                    for i3 in range(i2, UK[Af]):
-                        AK[Af, i3] = AK[Af, i3+1] 
-                        Rate[Af, i3] = Rate[Af, i3+1]
-                    UK[Af] -= 1 
+        TotMov += SIR_transition_rates[new_state]
+        csMov[new_state:] += SIR_transition_rates[new_state]
+        for i1 in range(N_connections_reference[idx]):
+            Af = which_connections_reference[idx, i1]
+            for i2 in range(N_connections[Af]):
+                if which_connections[Af, i2] == idx:
+                    for i3 in range(i2, N_connections[Af]):
+                        which_connections[Af, i3] = which_connections[Af, i3+1] 
+                        individual_rates[Af, i3] = individual_rates[Af, i3+1]
+                    N_connections[Af] -= 1 
                     break 
 
 
     #   #############/
 
     SIRfile = []
-    SIRfile_SK = []
-    SIRfile_UK = []
-    # SIRfile_AK.append(deep_copy_2D_int(AK))
-    SIRfile_AK = deep_copy_2D_jagged_int(AK)
-    SIRfile_Rate = deep_copy_2D_jagged(Rate)
+    SIRfile_which_state = []
+    SIRfile_N_connections = []
+    SIRfile_which_connections = deep_copy_2D_jagged_int(which_connections)
+    SIRfile_individual_rates = deep_copy_2D_jagged(individual_rates)
     
-    # SIRfile_Rate = []
-    SK_UK_counter = 0
+    SIRfile_daily_counter = 0
 
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -410,38 +473,38 @@ def single_run_numba(N0, mu, alpha, beta, sigma, Mrate1, Mrate2, gamma, nts, Nst
             x = csMov/Tot
             i1 = np.searchsorted(x, ra1)
             Csum = csMov[i1]/Tot
-            for i2 in range(S[i1]):
-                Csum += Par[i1]/Tot
+            for i2 in range(state_total_counts[i1]):
+                Csum += SIR_transition_rates[i1]/Tot
                 if Csum > ra1:
                     idx = SAK[i1, i2]
                     AC = 1
                     break                
             
             # We have chosen idx to move -> here we move it
-            SAK[i1+1, S[i1+1]] = idx
-            for j in range(i2, S[i1]):
+            SAK[i1+1, state_total_counts[i1+1]] = idx
+            for j in range(i2, state_total_counts[i1]):
                 SAK[i1, j] = SAK[i1, j+1] 
 
-            SK[idx] += 1
-            S[i1] -= 1 
-            S[i1+1] += 1      
-            TotMov -= Par[i1] 
-            TotMov += Par[i1+1]     
-            csMov[i1] -= Par[i1]
-            csMov[i1+1:Nstates] += (Par[i1+1]-Par[i1])
+            which_state[idx] += 1
+            state_total_counts[i1] -= 1 
+            state_total_counts[i1+1] += 1      
+            TotMov -= SIR_transition_rates[i1] 
+            TotMov += SIR_transition_rates[i1+1]     
+            csMov[i1] -= SIR_transition_rates[i1]
+            csMov[i1+1:N_states] += (SIR_transition_rates[i1+1]-SIR_transition_rates[i1])
             csInf[i1] -= InfRat[idx]
 
-            if SK[idx] == Ninfectious: # Moves TO infectious State from non-infectious
-                for i1 in range(UK[idx]): # Loop over row idx	  
-                    if SK[AK[idx, i1]] < 0:
-                        TotInf += Rate[idx, i1]
-                        InfRat[idx] += Rate[idx, i1]
-                        csInf[SK[idx]:Nstates] += Rate[idx, i1]
-            if SK[idx] == Nstates-1: # If this moves to Recovered state
-                for i1 in range(UK[idx]): # Loop over row idx
-                    TotInf -= Rate[idx, i1] 
-                    InfRat[idx] -= Rate[idx, i1]
-                    csInf[SK[idx]:Nstates] -= Rate[idx, i1]
+            if which_state[idx] == infectious_state: # Moves TO infectious State from non-infectious
+                for i1 in range(N_connections[idx]): # Loop over row idx	  
+                    if which_state[which_connections[idx, i1]] < 0:
+                        TotInf += individual_rates[idx, i1]
+                        InfRat[idx] += individual_rates[idx, i1]
+                        csInf[which_state[idx]:N_states] += individual_rates[idx, i1]
+            if which_state[idx] == N_states-1: # If this moves to Recovered state
+                for i1 in range(N_connections[idx]): # Loop over row idx
+                    TotInf -= individual_rates[idx, i1] 
+                    InfRat[idx] -= individual_rates[idx, i1]
+                    csInf[which_state[idx]:N_states] -= individual_rates[idx, i1]
 
 
         # Here we infect new states
@@ -449,56 +512,56 @@ def single_run_numba(N0, mu, alpha, beta, sigma, Mrate1, Mrate2, gamma, nts, Nst
             x = TotMov/Tot + csInf/Tot
             i1 = np.searchsorted(x, ra1)
             Csum = TotMov/Tot + csInf[i1]/Tot
-            for i2 in range(S[i1]):
+            for i2 in range(state_total_counts[i1]):
                 idy = SAK[i1, i2]
-                for i3 in range(UK[idy]): 
-                    Csum += Rate[idy][i3]/Tot
+                for i3 in range(N_connections[idy]): 
+                    Csum += individual_rates[idy][i3]/Tot
                     if Csum > ra1:
-                        idx = AK[idy, i3]	      
-                        SK[idx] = 0 
+                        idx = which_connections[idy, i3]	      
+                        which_state[idx] = 0 
                         # NrDInf += 1
-                        SAK[0, S[0]] = idx	      
-                        S[0] += 1
-                        TotMov += Par[0]	      
-                        csMov += Par[0]
+                        SAK[0, state_total_counts[0]] = idx	      
+                        state_total_counts[0] += 1
+                        TotMov += SIR_transition_rates[0]	      
+                        csMov += SIR_transition_rates[0]
                         AC = 1
                         break                    
                 if AC == 1:
                     break
             # Here we update infection lists      
-            for i1 in range(UKRef[idx]):
+            for i1 in range(N_connections_reference[idx]):
                 acc = 0
-                Af = AKRef[idx, i1]
-                for i2 in range(UK[Af]):
-                    if AK[Af, i2] == idx:
-                        if (SK[Af] >= Ninfectious) and (SK[Af] < Nstates-1):	      
-                            TotInf -= Rate[Af, i2]
-                            InfRat[Af] -= Rate[Af, i2]
-                            csInf[SK[Af]:Nstates] -= Rate[Af, i2]
-                        for i3 in range(i2, UK[Af]):
-                            AK[Af, i3] = AK[Af, i3+1]
-                            Rate[Af, i3] = Rate[Af, i3+1]
-                        UK[Af] -= 1 
+                Af = which_connections_reference[idx, i1]
+                for i2 in range(N_connections[Af]):
+                    if which_connections[Af, i2] == idx:
+                        if (which_state[Af] >= infectious_state) and (which_state[Af] < N_states-1):	      
+                            TotInf -= individual_rates[Af, i2]
+                            InfRat[Af] -= individual_rates[Af, i2]
+                            csInf[which_state[Af]:N_states] -= individual_rates[Af, i2]
+                        for i3 in range(i2, N_connections[Af]):
+                            which_connections[Af, i3] = which_connections[Af, i3+1]
+                            individual_rates[Af, i3] = individual_rates[Af, i3+1]
+                        N_connections[Af] -= 1 
                         break
 
         ################
 
         if nts*click < RT:
-            SIRfile_tmp = np.zeros(Nstates + 1)
+            SIRfile_tmp = np.zeros(N_states + 1)
             icount = 0
             SIRfile_tmp[icount] = RT
-            for s in S:
+            for s in state_total_counts:
                 icount += 1
                 SIRfile_tmp[icount] = s #<< "\t"
             SIRfile.append(SIRfile_tmp)
-            SK_UK_counter += 1
+            SIRfile_daily_counter += 1
 
-            if SK_UK_counter >= 10:
-                SK_UK_counter = 0
+            if SIRfile_daily_counter >= 10:
+                SIRfile_daily_counter = 0
 
                 # deepcopy
-                SIRfile_SK.append(deep_copy_1D_int(SK))
-                SIRfile_UK.append(deep_copy_1D_int(UK))
+                SIRfile_which_state.append(deep_copy_1D_int(which_state))
+                SIRfile_N_connections.append(deep_copy_1D_int(N_connections))
 
             click += 1 
 
@@ -508,8 +571,8 @@ def single_run_numba(N0, mu, alpha, beta, sigma, Mrate1, Mrate2, gamma, nts, Nst
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
         if c > 100_000_000: 
-            if verbose:
-                print("c > 100_000_000")
+            # if verbose:
+            print("c > 100_000_000")
             on = 0
         
         if (TotInf + TotMov < 0.0001) and (TotMov + TotInf > -0.00001): 
@@ -517,7 +580,7 @@ def single_run_numba(N0, mu, alpha, beta, sigma, Mrate1, Mrate2, gamma, nts, Nst
             if verbose:
                 print("Equilibrium")
         
-        if S[Nstates-1] > N0-10:      
+        if state_total_counts[N_states-1] > N_tot-10:      
             if verbose:
                 print("2/3 through")
             on = 0
@@ -535,45 +598,11 @@ def single_run_numba(N0, mu, alpha, beta, sigma, Mrate1, Mrate2, gamma, nts, Nst
             
         if (TotMov < 0) or (TotInf < 0): 
             print("\nNegative Problem", TotMov, TotInf)
-            print(alpha, beta, gamma)
+            print(rho_inv, beta, sigma_mu)
             on = 0 
     
-    return SIRfile, SIRfile_SK, P1, SIRfile_UK, SIRfile_AK, SIRfile_Rate
+    return SIRfile, SIRfile_which_state, coordinates, SIRfile_N_connections, SIRfile_which_connections, SIRfile_individual_rates
 
-
-
-
-def dict_to_filename_with_dir(cfg, ID):
-    filename = Path('Data') / 'NetworkSimulation' 
-    file_string = ''
-    for key, val in cfg.items():
-        file_string += f"{key}_{val}_"
-    file_string = file_string[:-1] # remove trailing _
-    filename = filename / file_string
-    file_string += f"_ID_{ID:03d}.csv"
-    filename = filename / file_string
-    return str(filename)
-
-
-def filename_to_dict(filename, normal_string=False, SK_P1_UK=False): # , 
-    cfg = {}
-
-    if normal_string:
-        keyvals = filename.split('_')
-    elif SK_P1_UK:
-        keyvals = filename.split('/')[-1].split('.SK_P1_UK')[0].split('_')
-    else:
-        keyvals = str(Path(filename).stem).split('_')
-
-    keyvals_chunks = [keyvals[i:i + 2] for i in range(0, len(keyvals), 2)]
-    ints = ['N0', 'Ninit', 'Nstates', 'BB']
-    for key, val in keyvals_chunks:
-        if not key == 'ID':
-            if key in ints:
-                cfg[key] = int(val)
-            else:
-                cfg[key] = float(val)
-    return DotDict(cfg)
 
 
 
@@ -582,17 +611,17 @@ def single_run_and_save(filename, verbose=False):
     cfg = filename_to_dict(filename)
     ID = filename_to_ID(filename)
 
-    P1 = np.load('Data/GPS_coordinates.npy')
-    if cfg.N0 > len(P1):
-        raise AssertionError("N0 cannot be larger than P1 (number of houses in DK)")
+    coordinates = np.load('Data/GPS_coordinates.npy')
+    if cfg.N_tot > len(coordinates):
+        raise AssertionError("N_tot cannot be larger than coordinates (number of generated houses in DK)")
 
     np.random.seed(ID)
-    index = np.arange(len(P1))
-    index_subset = np.random.choice(index, cfg.N0, replace=False)
-    P1 = P1[index_subset]
+    index = np.arange(len(coordinates))
+    index_subset = np.random.choice(index, cfg.N_tot, replace=False)
+    coordinates = coordinates[index_subset]
 
-    res = single_run_numba(**cfg, ID=ID, P1=P1, verbose=verbose)
-    out_single_run, SIRfile_SK, SIRfile_P1, SIRfile_UK, SIRfile_AK_initial, SIRfile_Rate_initial = res
+    res = single_run_numba(**cfg, ID=ID, coordinates=coordinates, verbose=verbose)
+    out_single_run, SIRfile_which_state, SIRfile_P1, SIRfile_N_connections, SIRfile_AK_initial, SIRfile_Rate_initial = res
 
     header = ['Time', 
             'E1', 'E2', 'E3', 'E4', 
@@ -607,20 +636,20 @@ def single_run_and_save(filename, verbose=False):
     # save csv file
     df_raw.to_csv(filename, index=False)
 
-    # save SK, P1, and UK, once for each set of parameters
+    # save which_state, coordinates, and N_connections, once for each set of parameters
     if ID == 0:
-        SIRfile_SK = np.array(SIRfile_SK, dtype=int)
+        SIRfile_which_state = np.array(SIRfile_which_state, dtype=int)
         SIRfile_P1 = np.array(SIRfile_P1)
-        SIRfile_UK = np.array(SIRfile_UK, dtype=int)
+        SIRfile_N_connections = np.array(SIRfile_N_connections, dtype=int)
         
-        filename_SK_P1_UK = str(Path('Data_SK_P1_UK') / Path(filename).stem) + '.SK_P1_UK.joblib'
+        filename_animation = str(Path('Data_animation') / Path(filename).stem) + '.animation.joblib'
 
-        Path(filename_SK_P1_UK).parent.mkdir(parents=True, exist_ok=True)
-        joblib.dump([SIRfile_SK, SIRfile_P1, SIRfile_UK], filename_SK_P1_UK)
-        # pickle.dump([SIRfile_SK, SIRfile_P1, SIRfile_UK], open(filename_SK_P1_UK.replace('joblib', 'pickle'), "wb"))
+        Path(filename_animation).parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump([SIRfile_which_state, SIRfile_P1, SIRfile_N_connections], filename_animation)
+        # pickle.dump([SIRfile_which_state, SIRfile_P1, SIRfile_N_connections], open(filename_animation.replace('joblib', 'pickle'), "wb"))
 
         SIRfile_AK_initial = awkward.fromiter(SIRfile_AK_initial).astype(np.int32)
-        filename_AK = filename_SK_P1_UK.replace('SK_P1_UK.joblib', 'AK_initial.parquet')
+        filename_AK = filename_animation.replace('animation.joblib', 'AK_initial.parquet')
         awkward.toparquet(filename_AK, SIRfile_AK_initial)
 
         SIRfile_Rate_initial = awkward.fromiter(SIRfile_Rate_initial)
@@ -630,49 +659,10 @@ def single_run_and_save(filename, verbose=False):
     return None
 
 
-def filename_to_ID(filename):
-    return int(filename.split('ID_')[1].strip('.csv'))
+# def convert_df(df_raw):
 
-
-class DotDict(dict):
-    """
-    Class that allows a dict to indexed using dot-notation.
-    Example:
-    >>> dotdict = DotDict({'first_name': 'Christian', 'last_name': 'Michelsen'})
-    >>> dotdict.last_name
-    'Michelsen'
-    """
-
-    def __getattr__(self, item):
-        if item in self:
-            return self.get(item)
-        raise KeyError(f"'{item}' not in dict")
-
-    def __setattr__(self, key, value):
-        if key in self:
-            self[key] = value
-            return
-        raise KeyError(
-            "Only allowed to change existing keys with dot notation. Use brackets instead."
-        )
-
-
-def filename_to_dotdict(filename, normal_string=False, SK_P1_UK=False):
-    return DotDict(filename_to_dict(filename, normal_string=normal_string, SK_P1_UK=SK_P1_UK))
-
-
-def get_num_cores(num_cores_max):
-    num_cores = mp.cpu_count() - 1
-    if num_cores >= num_cores_max:
-        num_cores = num_cores_max
-    return num_cores
-
-
-def convert_df(df_raw):
-
-    for state in ['E', 'I']:
-        df_raw[state] = sum([df_raw[col] for col in df_raw.columns if state in col and len(col) == 2])
-
-    # only keep relevant columns
-    df = df_raw[['Time', 'E', 'I', 'R']].copy()
-    return df
+#     for state in ['E', 'I']:
+#         df_raw[state] = sum([df_raw[col] for col in df_raw.columns if state in col and len(col) == 2])
+#     # only keep relevant columns
+#     df = df_raw[['Time', 'E', 'I', 'R']].copy()
+#     return df
