@@ -126,8 +126,6 @@ def generate_filenames(d_sim_pars, N_loops=10, force_overwrite=False):
             val = int(val) if name in sim_pars_ints else float(val)
             cfg[name] = val
 
-        print(cfg)
-
         # ID = 0
         for ID in range(N_loops):
             filename = dict_to_filename_with_dir(cfg, ID)
