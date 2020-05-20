@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
     fit_objects_all = extra_funcs.get_fit_Imax_results(filenames, force_rerun=True, num_cores_max=num_cores_max)
 
-
+    x=x
 
 #%%
 

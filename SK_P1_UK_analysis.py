@@ -234,7 +234,7 @@ class AnimateSIR:
         if not Path(gifname).exists() or force_rerun:
             if self.verbose and not self.do_tqdm:
                 print("\nMake individual frames", flush=True)
-            self._make_png_files(dpi, self.do_tqdm)
+            self._make_png_files(dpi, self.do_tqdm, force_rerun)
 
             if self.verbose:
                 print("\nMake GIF", flush=True)
@@ -259,17 +259,18 @@ class AnimateSIR:
         sim_pars_str = self._get_sim_pars_str()
         return f"Figures_SK_P1_UK/tmp_{sim_pars_str}/animation_{sim_pars_str}_frame_{i_day:06d}.png"
 
-    def _make_png_files(self, dpi, do_tqdm):
+    def _make_png_files(self, dpi, do_tqdm, force_rerun=False):
         it = range(self.N)
         if do_tqdm:
             it = tqdm(it, desc='Make individual frames')
         for i_day in it:
-            fig, _ = self._plot_df_i_day(i_day, dpi)
             png_name = self._get_png_name(i_day)
-            Path(png_name).parent.mkdir(parents=True, exist_ok=True)
-            fig.savefig(png_name, dpi=dpi, bbox_inches='tight', pad_inches=0.3)
-            plt.close(fig)
-            plt.close('all')
+            if not Path(png_name).exists() or force_rerun:
+                fig, _ = self._plot_df_i_day(i_day, dpi)
+                Path(png_name).parent.mkdir(parents=True, exist_ok=True)
+                fig.savefig(png_name, dpi=dpi, bbox_inches='tight', pad_inches=0.3)
+                plt.close(fig)
+                plt.close('all')
         return None
 
     def _make_gif_file(self, gifname):
