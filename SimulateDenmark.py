@@ -7,7 +7,7 @@ from importlib import reload
 
 num_cores_max = 8
 N_loops = 10
-dry_run = False
+dry_run = True
 force_overwrite = False
 
 #%%
@@ -74,27 +74,26 @@ all_sim_pars = [
                     'lambda_I': [0.5, 1, 2, 4],
                 },
 
-                {
-                    'N_tot': [1_000_000, 2_000_000],
-                },
+                # {
+                #     'N_tot': [1_000_000, 2_000_000],
+                # },
 
-                {
-                    'N_tot': [5_000_000],
-                },
+                # {
+                #     'N_tot': [5_000_000],
+                # },
 
                 ]
 
 
 #%%
 
-# x=x
+N_loops = 2 if extra_funcs.is_local_computer() else N_loops
 
 N_files_all = 0
 reload(extra_funcs)
 if __name__ == '__main__':
 
     for d_sim_pars in all_sim_pars:
-        # break
         filenames = extra_funcs.generate_filenames(d_sim_pars, N_loops, force_overwrite=force_overwrite)
 
         N_files = len(filenames)
@@ -102,10 +101,7 @@ if __name__ == '__main__':
 
         # make sure path exists
         if len(filenames) > 0:
-            # filename = filenames[0]
-
             num_cores = extra_funcs.get_num_cores_N_tot_specific(d_sim_pars, num_cores_max)
-            
             print(f"\nGenerating {N_files:3d} network-based simulations with {num_cores} cores based on {d_sim_pars}, please wait.", flush=True)
 
             if dry_run:

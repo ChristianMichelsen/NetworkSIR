@@ -22,8 +22,6 @@ def is_local_computer(N_local_cores=8):
     else:
         return False
 
-rho_inf = 5_000_000
-
 cfg_default = dict(
                     N_tot = 50_000 if is_local_computer() else 500_000, # Total number of nodes!
                     N_init = 100, # Initial Infected
@@ -34,10 +32,11 @@ cfg_default = dict(
                     sigma_beta = 0.0, # Spread in rates, beta
                     lambda_E = 1.0, # E->I, Lambda(from E states)
                     lambda_I = 1.0, # I->R, Lambda(from I states)
-                    connect_algo = 1, # node connection algorithm
                     epsilon_rho = 0.01, # fraction of connections not depending on distance
                     frac_02 = 0.0, # 0: as normal, 1: half of all (beta)rates are set to 0 the other half doubled
+                    connect_algo = 1, # node connection algorithm
                     )
+sim_pars_ints = ['N_tot', 'N_init', 'connect_algo']
 
 
 def filename_to_ID(filename):
@@ -89,6 +88,7 @@ def dict_to_filename_with_dir(cfg, ID):
     filename = filename / file_string
     return str(filename)
 
+
 def filename_to_dict(filename, normal_string=False, animation=False): # , 
     cfg = {}
 
@@ -100,10 +100,9 @@ def filename_to_dict(filename, normal_string=False, animation=False): # ,
         keyvals = str(Path(filename).stem).split('__')
 
     keyvals_chunks = [keyvals[i:i + 2] for i in range(0, len(keyvals), 2)]
-    ints = ['N_tot', 'N_init', 'connect_algo']
     for key, val in keyvals_chunks:
         if not key == 'ID':
-            if key in ints:
+            if key in sim_pars_ints:
                 cfg[key] = int(val)
             else:
                 cfg[key] = float(val)
@@ -116,12 +115,10 @@ def generate_filenames(d_sim_pars, N_loops=10, force_overwrite=False):
     nameval_to_str = [[f'{name}__{x}' for x in lst] for (name, lst) in d_sim_pars.items()]
     all_combinations = list(product(*nameval_to_str))
 
-    ints = ['N_tot', 'N_init', 'connect_algo']
-
     for combination in all_combinations:
         for s in combination:
             name, val = s.split('__')
-            val = int(val) if name in ints else float(val)
+            val = int(val) if name in sim_pars_ints else float(val)
             cfg_default[name] = val
 
         # ID = 0
@@ -215,6 +212,25 @@ def haversine(lat1, lon1, lat2, lon2):
     return 6367 * 2 * np.arcsin(np.sqrt(a))
 
 
+# def foo(N_connections_reference, idx, which_connections_reference, N_connections):
+#     # Here we update infection lists      
+#     for i1 in range(N_connections_reference[idx]):
+#         acc = 0
+#         Af = which_connections_reference[idx, i1]
+#         for i2 in range(N_connections[Af]):
+#             if which_connections[Af, i2] == idx:
+#                 if (which_state[Af] >= infectious_state) and (which_state[Af] < N_states-1):	      
+#                     TotInf -= individual_rates[Af, i2]
+#                     InfRat[Af] -= individual_rates[Af, i2]
+#                     csInf[which_state[Af]:N_states] -= individual_rates[Af, i2]
+#                 for i3 in range(i2, N_connections[Af]):
+#                     which_connections[Af, i3] = which_connections[Af, i3+1]
+#                     individual_rates[Af, i3] = individual_rates[Af, i3+1]
+#                 N_connections[Af] -= 1 
+#                 break
+
+
+
 @njit
 def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_E, lambda_I, connect_algo, epsilon_rho, frac_02, ID, coordinates, verbose=False):
     
@@ -249,12 +265,12 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
     N_connections = np.zeros(N_tot, np.int_)
     N_connections_reference = np.zeros(N_tot, np.int_)
     
-    connection_rate = np.ones(N_tot)
-    infection_rate = np.ones(N_tot)
+    connection_weight = np.ones(N_tot)
+    infection_weight = np.ones(N_tot)
     which_state = -1*np.ones(N_tot, np.uint8)
     
     individual_rates = -1*np.ones((N_tot, N_AK_MAX))
-    SAK = -1*np.ones((N_states, N_tot), np.uint16)
+    agents_in_state = -1*np.ones((N_states, N_tot), np.uint16)
     state_total_counts = np.zeros(N_states, np.int_)
     SIR_transition_rates = np.zeros(N_states)
 
@@ -278,27 +294,27 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
     for i in range(N_tot):
         ra = np.random.rand()
         if (ra < sigma_mu):
-            connection_rate[i] = 0.1 - np.log(np.random.rand())# / 1.0
+            connection_weight[i] = 0.1 - np.log(np.random.rand())# / 1.0
         else:
-            connection_rate[i] = 1.1
+            connection_weight[i] = 1.1
 
         ra = np.random.rand()
         if (ra < sigma_beta):
             rat = -np.log(np.random.rand())*beta
-            infection_rate[i] = rat
+            infection_weight[i] = rat
         else:
-            infection_rate[i] = beta
+            infection_weight[i] = beta
         
         ra_R0_change = np.random.rand()
         if ra_R0_change < frac_02/2:
-            infection_rate[i] = infection_rate[i]*2
+            infection_weight[i] = infection_weight[i]*2
         elif ra_R0_change > 1-frac_02/2:
-            infection_rate[i] = 0
+            infection_weight[i] = 0
         else:
             pass
 
-    PT = np.sum(connection_rate)
-    PC = np.cumsum(connection_rate)
+    PT = np.sum(connection_weight)
+    PC = np.cumsum(connection_weight)
     PP = PC/PT
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -327,8 +343,8 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
 
                     ra = np.random.rand()
                     if np.exp(-r*rho/rho_scale) > ra:
-                        individual_rates[id1, N_connections[id1]] = infection_rate[id1]
-                        individual_rates[id2, N_connections[id2]] = infection_rate[id1]
+                        individual_rates[id1, N_connections[id1]] = infection_weight[id1]
+                        individual_rates[id2, N_connections[id2]] = infection_weight[id1]
 
                         which_connections[id1, N_connections[id1]] = id2	        
                         which_connections_reference[id1, N_connections[id1]] = id2                        
@@ -374,8 +390,8 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
                     ra = np.random.rand()
                     if np.exp(-r*rho/rho_scale) > ra:
                     
-                        individual_rates[id1, N_connections[id1]] = infection_rate[id1]
-                        individual_rates[id2, N_connections[id2]] = infection_rate[id1]
+                        individual_rates[id1, N_connections[id1]] = infection_weight[id1]
+                        individual_rates[id2, N_connections[id2]] = infection_weight[id1]
 
                         which_connections[id1, N_connections[id1]] = id2
                         which_connections_reference[id1, N_connections[id1]] = id2
@@ -421,7 +437,7 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
             print("new_state", new_state)
         which_state[idx] = new_state
 
-        SAK[new_state, state_total_counts[new_state]] = idx
+        agents_in_state[new_state, state_total_counts[new_state]] = idx
         state_total_counts[new_state] += 1  
         # DK[idx] = 1  
         TotMov += SIR_transition_rates[new_state]
@@ -476,14 +492,14 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
             for i2 in range(state_total_counts[i1]):
                 Csum += SIR_transition_rates[i1]/Tot
                 if Csum > ra1:
-                    idx = SAK[i1, i2]
+                    idx = agents_in_state[i1, i2]
                     AC = 1
                     break                
             
             # We have chosen idx to move -> here we move it
-            SAK[i1+1, state_total_counts[i1+1]] = idx
+            agents_in_state[i1+1, state_total_counts[i1+1]] = idx
             for j in range(i2, state_total_counts[i1]):
-                SAK[i1, j] = SAK[i1, j+1] 
+                agents_in_state[i1, j] = agents_in_state[i1, j+1] 
 
             which_state[idx] += 1
             state_total_counts[i1] -= 1 
@@ -513,14 +529,14 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
             i1 = np.searchsorted(x, ra1)
             Csum = TotMov/Tot + csInf[i1]/Tot
             for i2 in range(state_total_counts[i1]):
-                idy = SAK[i1, i2]
+                idy = agents_in_state[i1, i2]
                 for i3 in range(N_connections[idy]): 
                     Csum += individual_rates[idy][i3]/Tot
                     if Csum > ra1:
                         idx = which_connections[idy, i3]	      
                         which_state[idx] = 0 
                         # NrDInf += 1
-                        SAK[0, state_total_counts[0]] = idx	      
+                        agents_in_state[0, state_total_counts[0]] = idx	      
                         state_total_counts[0] += 1
                         TotMov += SIR_transition_rates[0]	      
                         csMov += SIR_transition_rates[0]
@@ -528,6 +544,7 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
                         break                    
                 if AC == 1:
                     break
+
             # Here we update infection lists      
             for i1 in range(N_connections_reference[idx]):
                 acc = 0
