@@ -122,14 +122,7 @@ def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=
                 plt.close('all')
 
 
-def dict_to_title(d, N=None, exclude=None):
-
-    # important to make a copy since overwriting below
-    cfg = SimulateDenmark_extra_funcs.DotDict(d)
-
-    cfg.N_tot = human_format(cfg.N_tot)
-    cfg.N_init = human_format(cfg.N_init)
-
+def get_d_translate():
     d_translate = { 'N_tot': r'N',
                     'N_init': r'N_\mathrm{init}',
                     'mu': r'\mu',
@@ -143,6 +136,19 @@ def dict_to_title(d, N=None, exclude=None):
                     'frac_02': r'f_{02}',
                     'connect_algo': r'\mathrm{connect}_\mathrm{algo}'
                     }
+    return d_translate
+
+
+
+def dict_to_title(d, N=None, exclude=None):
+
+    # important to make a copy since overwriting below
+    cfg = SimulateDenmark_extra_funcs.DotDict(d)
+
+    cfg.N_tot = human_format(cfg.N_tot)
+    cfg.N_init = human_format(cfg.N_init)
+
+    d_translate = get_d_translate()
 
     title = "$"
     for sim_par, val in cfg.items():
@@ -816,14 +822,7 @@ def plot_variable_other_than_default(parameter, do_log=False, **kwargs):
 
     filenames_par_rest_default = get_filenames_different_than_default(parameter, **kwargs)
 
-    d_par_pretty = {'beta': r'$\beta$', 
-                    'N_tot': r"$N_0$",
-                    'mu': r"$\mu$",
-                    'rho': r"$\rho$",
-                    'N_init': r'$N_\mathrm{init}$', 
-                    'sigma_beta': r"$\sigma_beta$",
-                    'sigma_mu': r"$\sigma_mu$",
-                    }
+    d_par_pretty = get_d_translate()
 
     base_dir = Path('Data') / 'ABN'
 
@@ -864,7 +863,7 @@ def plot_variable_other_than_default(parameter, do_log=False, **kwargs):
 
     fig, ax = plt.subplots() # 
     ax.errorbar(x, y, sy, fmt='.', color='black', ecolor='black', elinewidth=1, capsize=10) # , 
-    ax.set_xlabel(d_par_pretty[parameter]) # fontsize=fs
+    ax.set_xlabel(r"$" + d_par_pretty[parameter] + r"$") # fontsize=fs
     ax.set_ylabel(r'$I_\mathrm{max}^\mathrm{ABN} \, / \,\, I_\mathrm{max}^\mathrm{SIR}$') #labelpad=10 fontsize=fs
     ax.set_title(title) # pad=20 fontsize=16*k_scale
     if do_log:

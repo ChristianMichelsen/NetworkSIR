@@ -58,6 +58,8 @@ if __name__ == '__main__':
     extra_funcs.plot_variable_other_than_default('mu')
     extra_funcs.plot_variable_other_than_default('rho') 
     extra_funcs.plot_variable_other_than_default('rho', connect_algo=2) 
+    extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=20) 
+    extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=20, connect_algo=2) 
     extra_funcs.plot_variable_other_than_default('N_init', do_log=True) 
     extra_funcs.plot_variable_other_than_default('sigma_beta') 
     extra_funcs.plot_variable_other_than_default('sigma_mu') 
