@@ -15,13 +15,13 @@ force_overwrite = False
 all_sim_pars = [
 
                 { 
-                    'rho': [0, 1, 2, 5, 10, 15, 20, 40, 60],
+                    'rho': [0, 1, 2, 5, 10, 15, 20, 30, 40, 50, 60, 70, 80],
                     'connect_algo': [1, 2],
                 },
 
                 {
                     'epsilon_rho': [0, 0.005, 0.01, 0.02, 0.05],
-                    'rho': [20],
+                    'rho': [20, 60],
                     'connect_algo': [1, 2],
                 },
 
