@@ -354,8 +354,7 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
             accra = 0
             cac = 0
 
-            ra_rho = np.random.rand()
-            if ra_rho >= epsilon_rho:
+            if np.random.rand() > epsilon_rho:
                 rho_tmp = rho
             else:
                 rho_tmp = 0
@@ -377,7 +376,7 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
                     r = haversine(coordinates[id1, 0], coordinates[id1, 1], coordinates[id2, 0], coordinates[id2, 1])
 
                     ra = np.random.rand()
-                    if np.exp(-r*rho/rho_scale) > ra:
+                    if np.exp(-r*rho_tmp/rho_scale) > ra:
                     
                         individual_rates[id1, N_connections[id1]] = infection_weight[id1]
                         individual_rates[id2, N_connections[id2]] = infection_weight[id1]
