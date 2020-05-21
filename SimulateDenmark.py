@@ -15,40 +15,47 @@ force_overwrite = False
 all_sim_pars = [
 
                 { 
-                    'rho': [0, 1, 2, 5, 10, 15, 20],
+                    'rho': [0, 1, 2, 5, 10, 15, 20, 40, 60],
                     'connect_algo': [1, 2],
                 },
 
                 {
                     'epsilon_rho': [0, 0.005, 0.01, 0.02, 0.05],
                     'rho': [20],
+                    'connect_algo': [1, 2],
                 },
 
                 {   'connect_algo': [1, 2],
                 }, 
 
                 {   'frac_02': [0, 0.5, 1],
+                    'connect_algo': [1, 2],
                 }, 
 
                 {
                     'N_tot': [100_000, 200_000, 500_000],
+                    'connect_algo': [1, 2],
                 },
 
                 { 
                     'sigma_beta': [0.0, 1.0], 
                     'sigma_mu': [0.0, 1.0],
+                    'connect_algo': [1, 2],
                 },
 
                 {   'N_tot': [500_000],
                     'N_init': [1, 5, 50, 500, 1_000, 5_000],
+                    'connect_algo': [1, 2],
                 }, 
 
-                {   'N_tot': [100_000],
-                    'N_init': [1, 10, 100, 1_000],
-                }, 
+                # {   'N_tot': [100_000],
+                #     'N_init': [1, 10, 100, 1_000],
+                #     'connect_algo': [1, 2],
+                # }, 
 
                 {
                     'beta': [0.005, 0.01, 0.02, 0.05, 0.1],
+                    'connect_algo': [1, 2],
                 },
 
                 {
@@ -56,6 +63,7 @@ all_sim_pars = [
                     'mu': [20/2, 20/4],
                     'sigma_mu': [0, 1],
                     'sigma_beta': [0, 1],
+                    'connect_algo': [1, 2],
                 },
 
                 {
@@ -63,31 +71,38 @@ all_sim_pars = [
                     'lambda_I': [1*2, 1*4],
                     'sigma_mu': [0, 1],
                     'sigma_beta': [0, 1],
+                    'connect_algo': [1, 2],
                 },
 
                 {
                     'mu': [5, 10, 20, 40, 80],
+                    'connect_algo': [1, 2],
                 },
 
                 {
                     'lambda_E': [0.5, 1, 2, 4],
+                    'connect_algo': [1, 2],
                 },
 
                 {
                     'lambda_I': [0.5, 1, 2, 4],
+                    'connect_algo': [1, 2],
                 },
 
                 {
                     'N_tot': [1_000_000],
+                    'connect_algo': [1, 2],
                 },
 
                 {
                     'N_tot': [2_000_000],
+                    'connect_algo': [1, 2],
                 },
 
-                {
-                    'N_tot': [5_000_000],
-                },
+                # {
+                #     'N_tot': [5_000_000],
+                #     'connect_algo': [1, 2],
+                # },
 
                 ]
 

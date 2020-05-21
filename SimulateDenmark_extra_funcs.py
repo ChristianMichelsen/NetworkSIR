@@ -142,9 +142,9 @@ def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max):
     if isinstance(d_simulation_parameters, dict) and 'N_tot' in d_simulation_parameters.keys():
         N_tot_max = max(d_simulation_parameters['N_tot'])
         if 500_000 < N_tot_max <= 1_000_000:
-            num_cores = 5
+            num_cores = 6
         elif 1_000_000 < N_tot_max <= 2_000_000:
-            num_cores = 2
+            num_cores = 3
         elif 2_000_000 < N_tot_max:
             num_cores = 1
 

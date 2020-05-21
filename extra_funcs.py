@@ -146,7 +146,8 @@ def dict_to_title(d, N=None, exclude=None):
 
     title = "$"
     for sim_par, val in cfg.items():
-        title += f"{d_translate[sim_par]} = {val}, \," 
+        if not sim_par == exclude:
+            title += f"{d_translate[sim_par]} = {val}, \," 
 
     # title = f"$N={N_tot_str}, beta={cfg.beta}, sigma_mu={cfg.sigma_mu}, sigma_beta={cfg.sigma_beta},  rho={cfg.rho}, mu={cfg.mu}, lambda_E={cfg.lambda_E}, lambda_I={cfg.lambda_I}, N_init={cfg.N_init}, epsilon_rho={cfg.epsilon_rho}, frac_02={cfg.frac_02}, connect_algo={cfg.connect_algo}"
 
@@ -156,13 +157,13 @@ def dict_to_title(d, N=None, exclude=None):
     title = title[:-4] + '$'
 
 
-    if exclude:
-        raise AssertionError("Exclude not implemented yet")
-        new_title = ''
-        for s in title.split():
-            if not d_translate[exclude] in s:
-                new_title += f"{s} "
-        title = new_title[:-1]
+    # if exclude:
+    #     raise AssertionError("Exclude not implemented yet")
+    #     new_title = ''
+    #     for s in title.split():
+    #         if not d_translate[exclude] in s:
+    #             new_title += f"{s} "
+    #     title = new_title[:-1]
     
     return title
 
@@ -250,7 +251,7 @@ class CustomChi2:  # override the class with a better one
         self.N = sum(self.y_truth > self.y_min)
         self.N_refits = 0
 
-    def __call__(self, lambda_E, lambda_I, beta, tau):  # par are a variable number of model parameters
+    def __call__(self, lambda_E, lambda_I, beta, tau):  # parameter are a variable number of model parameters
         # compute the function value
         y_hat = self._calc_yhat_interpolated(lambda_E, lambda_I, beta, tau)
         mask = (self.y_truth > self.y_min)
@@ -755,15 +756,15 @@ def fix_and_sort_index(df):
 #     return df_binned
 
 
-# def extract_fit_parameter(par, d_fit_objects_all_IDs, filenames_to_use, bin_centers_Imax):
+# def extract_fit_parameter(parameter, d_fit_objects_all_IDs, filenames_to_use, bin_centers_Imax):
 #     par_tmp = {}
 #     par_std_tmp = {}
 #     for filename, fit_objects in d_fit_objects_all_IDs.items():
 #         pars = np.zeros(N_peak_fits)
 #         pars_std = np.zeros(N_peak_fits)
 #         for i_fit_object, fit_object in enumerate(fit_objects):
-#             pars[i_fit_object]  = fit_object.fit_values[par]
-#             pars_std[i_fit_object]  = fit_object.fit_errors[par]
+#             pars[i_fit_object]  = fit_object.fit_values[parameter]
+#             pars_std[i_fit_object]  = fit_object.fit_errors[parameter]
 #         par_tmp[filename] = pars 
 #         par_std_tmp[filename] = pars_std 
 #     df_par = Imax_fits_to_df(par_tmp, filenames_to_use, bin_centers_Imax)
@@ -782,37 +783,38 @@ def fix_and_sort_index(df):
 
 
 
-def get_filenames_different_than_default(find_par):
+def get_filenames_different_than_default(parameter, **kwargs):
 
     base_dir = Path('Data') / 'ABN'
     all_sim_pars = sorted([str(x.name) for x in base_dir.glob('*') if '.DS' not in str(x.name)])
 
     all_sim_pars_as_dict = {s: string_to_dict(s) for s in all_sim_pars}
+
     df_sim_pars = pd.DataFrame.from_dict(all_sim_pars_as_dict, orient='index')
 
-    default_pars = SimulateDenmark_extra_funcs.cfg_default
+    default_pars = SimulateDenmark_extra_funcs.get_cfg_default()
     default_pars['N_tot'] = 500_000
+    for key, val in kwargs.items():
+        default_pars[key] = val
 
-    if isinstance(find_par, str):
-        find_par = [find_par]
+    if isinstance(parameter, str):
+        parameter = [parameter]
 
     query = ''
     for key, val in default_pars.items():
-        if not key in find_par:
+        if not key in parameter:
             query += f"{key} == {val} & "
     query = query[:-3]
 
-    df_different_than_default = df_sim_pars.query(query).sort_values(find_par)
+    df_different_than_default = df_sim_pars.query(query).sort_values(parameter)
     return list(df_different_than_default.index)
-
-
 
 
 #%%
 
-def plot_variable_other_than_default(par, do_log=False):
+def plot_variable_other_than_default(parameter, do_log=False, **kwargs):
 
-    filenames_par_rest_default = get_filenames_different_than_default(par)
+    filenames_par_rest_default = get_filenames_different_than_default(parameter, **kwargs)
 
     d_par_pretty = {'beta': r'$\beta$', 
                     'N_tot': r"$N_0$",
@@ -852,39 +854,43 @@ def plot_variable_other_than_default(par, do_log=False):
         I_mask = (I_max_net > 10)
         z_rel = I_max_net / I_max_SIR
         z_rel = z_rel[I_mask]
-        # I_max_rel[cfg[par]] = I_max_net / I_max_SIR
-        x[i_simpar] = cfg[par]
+        # I_max_rel[cfg[parameter]] = I_max_net / I_max_SIR
+        x[i_simpar] = cfg[parameter]
         y[i_simpar] = np.mean(z_rel)
         sy[i_simpar] = np.std(z_rel) / np.sqrt(len(z_rel))
         n[i_simpar] = len(z_rel)
 
-    title = dict_to_title(cfg, exclude=par)
+    title = dict_to_title(cfg, exclude=parameter)
 
     fig, ax = plt.subplots() # 
     ax.errorbar(x, y, sy, fmt='.', color='black', ecolor='black', elinewidth=1, capsize=10) # , 
-    ax.set_xlabel(d_par_pretty[par]) # fontsize=fs
+    ax.set_xlabel(d_par_pretty[parameter]) # fontsize=fs
     ax.set_ylabel(r'$I_\mathrm{max}^\mathrm{ABN} \, / \,\, I_\mathrm{max}^\mathrm{SIR}$') #labelpad=10 fontsize=fs
     ax.set_title(title) # pad=20 fontsize=16*k_scale
     if do_log:
         ax.set_xscale('log')
     fig.tight_layout()
     
-    figname_pdf = Path(f"Figures/par_SIR_network_relative/png/par_SIR_network_relative_{par}.pdf")
+    figname_pdf = f"Figures/par_SIR_network_relative/pdf/par_SIR_network_relative_{parameter}"
+    for key, val in kwargs.items():
+        figname_pdf += f"_{key}_{val}"
+    figname_pdf += '.pdf'
+    
+
     Path(figname_pdf).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(figname_pdf) # bbox_inches='tight', pad_inches=0.3
     plt.close('all')
 
 
-
     n_text = [f"n = {int(ni)}" for ni in n]
     fig = go.Figure(data=go.Scatter(x=x, y=y, text=n_text, mode='markers', error_y=dict(array=sy)))
     fig.update_layout(title=title,
-                    xaxis_title=par,
+                    xaxis_title=parameter,
                     yaxis_title='I_max_net / I_max_SIR',
                     height=600, width=800,
                     showlegend=False,
                     )
-    figname_html = Path(f"Figures/par_SIR_network_relative/html/par_SIR_network_relative_{par}.html")
+    figname_html = figname_pdf.replace('pdf', 'html')
     Path(figname_html).parent.mkdir(parents=True, exist_ok=True)
     fig.write_html(str(figname_html))
 
