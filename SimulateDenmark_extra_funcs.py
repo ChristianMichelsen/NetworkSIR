@@ -140,13 +140,14 @@ def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max):
     num_cores = get_num_cores(num_cores_max)
 
     if isinstance(d_simulation_parameters, dict) and 'N_tot' in d_simulation_parameters.keys():
-        if max(d_simulation_parameters['N_tot']) > 2_000_000:
-            num_cores = 1
-        elif 600_000 <= max(d_simulation_parameters['N_tot']) <= 2_000_000:
+        N_tot_max = max(d_simulation_parameters['N_tot'])
+        if 500_000 < N_tot_max <= 1_000_000:
+            num_cores = 5
+        elif 1_000_000 < N_tot_max <= 2_000_000:
             num_cores = 2
-            
-    elif isinstance(d_simulation_parameters, str):
-        num_cores = 1
+        elif 2_000_000 < N_tot_max:
+            num_cores = 1
+
     
     return num_cores
 
@@ -281,14 +282,12 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
         print("Make rates and connections")
 
     for i in range(N_tot):
-        ra = np.random.rand()
-        if (ra < sigma_mu):
+        if (np.random.rand() < sigma_mu):
             connection_weight[i] = 0.1 - np.log(np.random.rand())# / 1.0
         else:
             connection_weight[i] = 1.1
 
-        ra = np.random.rand()
-        if (ra < sigma_beta):
+        if (np.random.rand() < sigma_beta):
             rat = -np.log(np.random.rand())*beta
             infection_weight[i] = rat
         else:
@@ -330,8 +329,7 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
                     # r = np.sqrt((coordinates[id1, 0] - coordinates[id2, 0])**2 + (coordinates[id1, 1] - coordinates[id2, 1])**2)
                     r = haversine(coordinates[id1, 0], coordinates[id1, 1], coordinates[id2, 0], coordinates[id2, 1])
 
-                    ra = np.random.rand()
-                    if np.exp(-r*rho/rho_scale) > ra:
+                    if np.exp(-r*rho/rho_scale) > np.random.rand():
                         individual_rates[id1, N_connections[id1]] = infection_weight[id1]
                         individual_rates[id2, N_connections[id2]] = infection_weight[id1]
 
@@ -375,8 +373,7 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
                     # r = np.sqrt((coordinates[id1, 0] - coordinates[id2, 0])**2 + (coordinates[id1, 1] - coordinates[id2, 1])**2)
                     r = haversine(coordinates[id1, 0], coordinates[id1, 1], coordinates[id2, 0], coordinates[id2, 1])
 
-                    ra = np.random.rand()
-                    if np.exp(-r*rho_tmp/rho_scale) > ra:
+                    if np.exp(-r*rho_tmp/rho_scale) > np.random.rand():
                     
                         individual_rates[id1, N_connections[id1]] = infection_weight[id1]
                         individual_rates[id2, N_connections[id2]] = infection_weight[id1]
