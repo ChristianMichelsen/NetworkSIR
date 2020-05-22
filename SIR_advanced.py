@@ -35,13 +35,13 @@ if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison('I', force_overwrite=True)
     extra_funcs.plot_SIR_model_comparison('R', force_overwrite=True)
 
-x=x
+# x=x
 
 #%%
 
 if __name__ == '__main__':
 
-    fit_objects_all = extra_funcs.get_fit_Imax_results(filenames, force_rerun=True, num_cores_max=num_cores_max)
+    fit_objects_all = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=num_cores_max)
 
     x=x
 
@@ -60,9 +60,16 @@ if __name__ == '__main__':
     extra_funcs.plot_variable_other_than_default('rho', connect_algo=2) 
     extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=20) 
     extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=20, connect_algo=2) 
+    extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=60) 
+    extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=60, connect_algo=2) 
     extra_funcs.plot_variable_other_than_default('N_init', do_log=True) 
     extra_funcs.plot_variable_other_than_default('sigma_beta') 
     extra_funcs.plot_variable_other_than_default('sigma_mu') 
+    extra_funcs.plot_variable_other_than_default('frac_02') 
+    extra_funcs.plot_variable_other_than_default('lambda_E') 
+    extra_funcs.plot_variable_other_than_default('lambda_I') 
+
+    
 
 
 #%%
@@ -128,7 +135,7 @@ if __name__ == '__main__':
                         ax.plot(df_fit['Time'], df_fit[y], lw=lw, color='green', label=label)
                         max_y[y] = max(max_y[y], max(df_fit[y].to_numpy(int)))
 
-                SIR_values = cfg.Mrate1, cfg.Mrate2, cfg.beta, 0
+                SIR_values = cfg.lambda_E, cfg.lambda_I, cfg.beta, 0
                 df_SIR = fit_object.calc_df_fit(values=SIR_values, ts=0.1, Tmax=Tmax)
 
                 # where I SIR is less than 50 and after the peak
@@ -159,7 +166,6 @@ if __name__ == '__main__':
                 fig.suptitle(title, fontsize=24)
 
 
-
                 # # These are in unitless percentages of the figure size. (0,0 is bottom left)
                 # left, bottom, width, height = [0.62, 0.76, 0.3*0.95, 0.08*0.9]
 
@@ -175,7 +181,7 @@ if __name__ == '__main__':
                 plt.close('all')
 
 
-    plot_fit_simulation_SIR_comparison(force_overwrite=True)
+    plot_fit_simulation_SIR_comparison(fit_objects_all, force_overwrite=True)
 
 
 

@@ -123,7 +123,7 @@ def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=
 
 
 def get_d_translate():
-    d_translate = { 'N_tot': r'N',
+    d_translate = { 'N_tot': r'N_\mathrm{tot}',
                     'N_init': r'N_\mathrm{init}',
                     'mu': r'\mu',
                     'sigma_mu': r'\sigma_\mu',
