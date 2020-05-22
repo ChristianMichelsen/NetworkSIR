@@ -26,7 +26,7 @@ plot_SIR_comparison = False if SimulateDenmark_extra_funcs.is_local_computer() e
 
 #%%
 
-reload(extra_funcs)
+# reload(extra_funcs)
 filenames = extra_funcs.get_filenames()
 N_files = len(filenames)
 
@@ -39,19 +39,11 @@ if plot_SIR_comparison:
 
 #%%
 
-if __name__ == '__main__':
+if False:
 
-    fit_objects_all = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=num_cores_max)
-
-    x=x
-
-#%%
-
-    reload(extra_funcs)
+    # reload(extra_funcs)
     parameter = 'rho'
     do_log = False
-
-    # TODO add R ratio as well
 
     extra_funcs.plot_variable_other_than_default('beta')
     extra_funcs.plot_variable_other_than_default('N_tot', do_log=True)
@@ -68,6 +60,15 @@ if __name__ == '__main__':
     extra_funcs.plot_variable_other_than_default('frac_02') 
     extra_funcs.plot_variable_other_than_default('lambda_E') 
     extra_funcs.plot_variable_other_than_default('lambda_I') 
+
+
+#%%
+
+if __name__ == '__main__':
+
+    fit_objects_all = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=num_cores_max)
+
+#%%
 
     
 
@@ -181,7 +182,10 @@ if __name__ == '__main__':
                 plt.close('all')
 
 
-    plot_fit_simulation_SIR_comparison(fit_objects_all, force_overwrite=True)
+    import warnings
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="This figure was using constrained_layout==True")
+        plot_fit_simulation_SIR_comparison(fit_objects_all, force_overwrite=True)
 
 
 
