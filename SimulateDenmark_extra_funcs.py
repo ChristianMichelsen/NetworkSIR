@@ -148,6 +148,8 @@ def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max):
         elif 2_000_000 < N_tot_max:
             num_cores = 1
 
+    if num_cores > num_cores_max:
+        num_cores = num_cores_max
     
     return num_cores
 
