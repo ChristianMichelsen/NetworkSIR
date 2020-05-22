@@ -35,7 +35,7 @@ if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison('I', force_overwrite=True)
     extra_funcs.plot_SIR_model_comparison('R', force_overwrite=True)
 
-# x=x
+x=x
 
 #%%
 
@@ -45,19 +45,24 @@ if False:
     parameter = 'rho'
     do_log = False
 
-    extra_funcs.plot_variable_other_than_default('beta')
     extra_funcs.plot_variable_other_than_default('N_tot', do_log=True)
-    extra_funcs.plot_variable_other_than_default('mu')
+    extra_funcs.plot_variable_other_than_default('N_init', do_log=True) 
+    
     extra_funcs.plot_variable_other_than_default('rho') 
     extra_funcs.plot_variable_other_than_default('rho', connect_algo=2) 
     extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=20) 
     extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=20, connect_algo=2) 
     extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=60) 
     extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=60, connect_algo=2) 
-    extra_funcs.plot_variable_other_than_default('N_init', do_log=True) 
+    extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=100)
+    extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=100, connect_algo=2)  
+    
+    extra_funcs.plot_variable_other_than_default('mu')
+    extra_funcs.plot_variable_other_than_default('beta')
     extra_funcs.plot_variable_other_than_default('sigma_beta') 
     extra_funcs.plot_variable_other_than_default('sigma_mu') 
-    extra_funcs.plot_variable_other_than_default('frac_02') 
+    extra_funcs.plot_variable_other_than_default('frac_02')
+    extra_funcs.plot_variable_other_than_default('frac_02', connect_algo=2) 
     extra_funcs.plot_variable_other_than_default('lambda_E') 
     extra_funcs.plot_variable_other_than_default('lambda_I') 
 
