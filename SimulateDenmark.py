@@ -40,17 +40,19 @@ all_sim_pars = [
                 { 
                     'sigma_beta': [0.0, 1.0], 
                     'sigma_mu': [0.0, 1.0],
-                    # 'connect_algo': [1, 2],
+                    'connect_algo': [1, 2],
                 },
 
                 { 
                     'sigma_beta': [0.0, 1.0], 
                     'rho': [0, 300],
+                    'connect_algo': [1, 2],
                 },
 
                 { 
                     'sigma_mu': [0.0, 1.0], 
                     'rho': [0, 300],
+                    'connect_algo': [1, 2],
                 },
 
                 {   'N_tot': [500_000],

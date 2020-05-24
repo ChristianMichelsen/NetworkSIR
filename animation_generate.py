@@ -662,13 +662,14 @@ filename = filenames[0]
 N_files = len(filenames)         
 
 
-# animation = AnimateSIR(filename, do_tqdm=True, verbose=True)
-# fig, ax = plt.subplots()
-# ax.hist(animation.UK[0], 100, range=(0, 300));
-# ax.set(xlabel='UK', ylabel='Counts')
+animation = AnimateSIR(filename, do_tqdm=True, verbose=True)
+fig, ax = plt.subplots()
+ax.hist(animation.UK[0], 100, range=(0, 300));
+ax.set(xlabel='UK', ylabel='Counts', title='algo 1')
+fig.savefig('UK_rho_300_algo_1.pdf')
+
 
 if False:
-
     animate_file(filename, do_tqdm=True, verbose=True, force_rerun=True)
 
 #%%
