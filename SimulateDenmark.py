@@ -5,7 +5,7 @@ import SimulateDenmark_extra_funcs as extra_funcs
 from pathlib import Path
 from importlib import reload
 
-num_cores_max = 6
+num_cores_max = 12
 N_loops = 10
 dry_run = True
 force_overwrite = False
@@ -43,6 +43,16 @@ all_sim_pars = [
                     # 'connect_algo': [1, 2],
                 },
 
+                { 
+                    'sigma_beta': [0.0, 1.0], 
+                    'rho': [0, 300],
+                },
+
+                { 
+                    'sigma_mu': [0.0, 1.0], 
+                    'rho': [0, 300],
+                },
+
                 {   'N_tot': [500_000],
                     'N_init': [1, 5, 50, 500, 1_000, 5_000],
                     'connect_algo': [1, 2],
@@ -75,7 +85,7 @@ all_sim_pars = [
                 },
 
                 {
-                    'mu': [5, 10, 15, 20, 30, 40, 60, 80],
+                    'mu': [5, 10, 11, 12, 13, 14, 15, 20, 30, 40, 60, 80],
                     # 'connect_algo': [1, 2],
                 },
 

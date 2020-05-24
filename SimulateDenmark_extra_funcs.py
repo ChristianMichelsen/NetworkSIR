@@ -290,8 +290,7 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
             connection_weight[i] = 1.1
 
         if (np.random.rand() < sigma_beta):
-            rat = -np.log(np.random.rand())*beta
-            infection_weight[i] = rat
+            infection_weight[i] = -np.log(np.random.rand())*beta
         else:
             infection_weight[i] = beta
         
