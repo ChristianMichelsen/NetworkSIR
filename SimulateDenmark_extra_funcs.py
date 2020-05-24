@@ -354,6 +354,7 @@ def single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_
             accra = 0
             cac = 0
 
+            # TODO add this for both
             if np.random.rand() > epsilon_rho:
                 rho_tmp = rho
             else:

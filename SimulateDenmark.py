@@ -45,7 +45,7 @@ all_sim_pars = [
 
                 {   'N_tot': [500_000],
                     'N_init': [1, 5, 50, 500, 1_000, 5_000],
-                    # 'connect_algo': [1, 2],
+                    'connect_algo': [1, 2],
                 }, 
 
                 # {   'N_tot': [100_000],
