@@ -658,15 +658,16 @@ def get_num_cores(num_cores_max, subtract_cores=1):
 num_cores = get_num_cores(num_cores_max)
 
 filenames = get_animation_filenames()
-filename = filenames[0]
+filename = filenames[2]
 N_files = len(filenames)         
 
 
-animation = AnimateSIR(filename, do_tqdm=True, verbose=True)
-fig, ax = plt.subplots()
-ax.hist(animation.UK[0], 100, range=(0, 300));
-ax.set(xlabel='UK', ylabel='Counts', title='algo 1')
-fig.savefig('UK_rho_300_algo_1.pdf')
+if False:
+    animation = AnimateSIR(filename, do_tqdm=True, verbose=True)
+    fig, ax = plt.subplots()
+    ax.hist(animation.UK[0], 100, range=(0, 300));
+    ax.set(xlabel='UK', ylabel='Counts', title='algo 1')
+    fig.savefig('UK_rho_300_algo_1.pdf')
 
 
 if False:

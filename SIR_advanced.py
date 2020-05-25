@@ -22,7 +22,7 @@ num_cores_max = 10
 savefig = False
 do_animate = False
 save_and_show_all_plots = True
-plot_SIR_comparison = False if SimulateDenmark_extra_funcs.is_local_computer() else False
+plot_SIR_comparison = True if SimulateDenmark_extra_funcs.is_local_computer() else False
 
 #%%
 
@@ -35,7 +35,6 @@ if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison('I', force_overwrite=True)
     extra_funcs.plot_SIR_model_comparison('R', force_overwrite=True)
 
-x=x 
 
 #%%
 
@@ -47,6 +46,7 @@ if False:
 
     extra_funcs.plot_variable_other_than_default('N_tot', do_log=True)
     extra_funcs.plot_variable_other_than_default('N_init', do_log=True) 
+    extra_funcs.plot_variable_other_than_default('N_init', do_log=True, connect_algo=2) 
     
     extra_funcs.plot_variable_other_than_default('rho') 
     extra_funcs.plot_variable_other_than_default('rho', connect_algo=2) 
@@ -60,7 +60,13 @@ if False:
     extra_funcs.plot_variable_other_than_default('mu')
     extra_funcs.plot_variable_other_than_default('beta')
     extra_funcs.plot_variable_other_than_default('sigma_beta') 
+    extra_funcs.plot_variable_other_than_default('sigma_beta', connect_algo=2) 
+    extra_funcs.plot_variable_other_than_default('sigma_beta', rho=300) 
+    extra_funcs.plot_variable_other_than_default('sigma_beta', rho=300, connect_algo=2) 
     extra_funcs.plot_variable_other_than_default('sigma_mu') 
+    extra_funcs.plot_variable_other_than_default('sigma_mu', connect_algo=2) 
+    extra_funcs.plot_variable_other_than_default('sigma_mu', rho=300) 
+    extra_funcs.plot_variable_other_than_default('sigma_mu', rho=300, connect_algo=2) 
     extra_funcs.plot_variable_other_than_default('frac_02')
     extra_funcs.plot_variable_other_than_default('frac_02', connect_algo=2) 
     extra_funcs.plot_variable_other_than_default('lambda_E') 

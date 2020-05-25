@@ -44,7 +44,7 @@ all_sim_pars = [
                 },
 
                 { 
-                    'sigma_beta': [0.0, 1.0], 
+                    'sigma_beta': [0.0, 0.25, 0.5, 0.75, 1.0], 
                     'rho': [0, 300],
                     'connect_algo': [1, 2],
                 },
