@@ -22,7 +22,7 @@ num_cores_max = 10
 savefig = False
 do_animate = False
 save_and_show_all_plots = True
-plot_SIR_comparison = True if SimulateDenmark_extra_funcs.is_local_computer() else False
+plot_SIR_comparison = False if SimulateDenmark_extra_funcs.is_local_computer() else False
 
 #%%
 
@@ -35,6 +35,8 @@ if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison('I', force_overwrite=True)
     extra_funcs.plot_SIR_model_comparison('R', force_overwrite=True)
 
+
+x=x
 
 #%%
 
