@@ -1,5 +1,5 @@
 import numpy as np
-from numba import njit
+from numba import njit # conda install -c numba icc_rt, conda install tbb, conda install intel-openmp
 from scipy import interpolate
 import pandas as pd
 from pathlib import Path
@@ -174,7 +174,7 @@ def dict_to_title(d, N=None, exclude=None):
     return title
 
 
-
+# conda install -c numba icc_rt
 @njit
 def ODE_integrate(y0, Tmax, dt, ts, mu0, lambda_E, lambda_I, beta): 
 

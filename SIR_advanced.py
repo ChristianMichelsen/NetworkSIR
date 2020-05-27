@@ -36,8 +36,6 @@ if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison('R', force_overwrite=True)
 
 
-x=x
-
 #%%
 
 if False:
@@ -82,8 +80,6 @@ if __name__ == '__main__':
     fit_objects_all = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=num_cores_max)
 
 #%%
-
-    
 
 
 #%%
