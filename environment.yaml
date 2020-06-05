@@ -19,7 +19,8 @@ dependencies:
   - black
   - pysftp
   - plotly
-  - numba
+  # - numba
+  - numba/label/dev::numba
   - joblib
   - scikit-learn
   - psutil

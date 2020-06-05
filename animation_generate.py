@@ -64,31 +64,30 @@ class AnimateSIR:
         self.verbose = verbose
         if verbose:
             print(f"Loading: \n{filename}")
-        self.SK, self.P1, self.UK = joblib.load(filename)
-        # filename_AK = filename.replace('animation.joblib', 'AK_initial.parquet')
-        # self.AK = awkward.fromparquet(filename_AK)
+        self.which_state, self.coordinates, self.N_connections = joblib.load(filename)
         # filename_Rate = filename_AK.replace('AK_initial.parquet', 'Rate_initial.parquet')
         # self.Rate = awkward.fromparquet(filename_Rate)
-        self.N = len(self.SK)
+        self.N = len(self.which_state)
         self.mapping = {-1: 'S', 
                         #  0: 'E', 1: 'E', 2:'E', 3: 'E',
                          0: 'I', 1: 'I', 2:'I', 3: 'I',
                          4: 'I', 5: 'I', 6:'I', 7: 'I',
                          8: 'R',
                         }
-        self.UK_max = self._get_UK_max()
+        self.N_connections_max = self._get_N_connections_max()
         self.df_counts = df_counts
+        self.cfg = extra_funcs.filename_to_dotdict(filename, animation=True)
 
 
     def _get_df(self, i_day):
-        df = pd.DataFrame(self.P1, columns=['x', 'y'])
-        df['SK_num'] = self.SK[i_day]
-        df['UK_num'] = self.UK[i_day]
-        df["SK"] = df['SK_num'].replace(self.mapping).astype('category')
+        df = pd.DataFrame(self.coordinates, columns=['x', 'y'])
+        df['which_state_num'] = self.which_state[i_day]
+        df['N_connections_num'] = self.N_connections[i_day]
+        df["which_state"] = df['which_state_num'].replace(self.mapping).astype('category')
         return df
     
-    def _get_UK_max(self):
-        return self._get_df(0)['UK_num'].max()
+    def _get_N_connections_max(self):
+        return self._get_df(0)['N_connections_num'].max()
 
     def _initialize_plot_and_df_counts(self):
 
@@ -96,9 +95,11 @@ class AnimateSIR:
         self.colors = ['#7F7F7F', '#D62728', '#2CA02C']
         self.d_colors = {'S': '#7F7F7F', 'I': '#D62728', 'R': '#2CA02C'}
         
-        self.norm_1000 = ImageNormalize(vmin=0., vmax=1000, stretch=LogStretch())
-        self.norm_100 = ImageNormalize(vmin=0., vmax=100, stretch=LogStretch())
-        self.norm_10 = ImageNormalize(vmin=0., vmax=10, stretch=LogStretch())
+        factor = self.N / 500_000
+
+        self.norm_1000 = ImageNormalize(vmin=0., vmax=1000*factor, stretch=LogStretch())
+        self.norm_100 = ImageNormalize(vmin=0., vmax=100*factor, stretch=LogStretch())
+        self.norm_10 = ImageNormalize(vmin=0., vmax=10*factor, stretch=LogStretch())
 
         # self.states = ['S', 'E', 'I', 'R']
         self.states = ['S', 'I', 'R']
@@ -130,7 +131,7 @@ class AnimateSIR:
             it = tqdm(it, desc="Creating df_counts")
         for i_day in it:
             df = self._get_df(i_day)
-            dfs = {s: df.query("SK == @s") for s in self.states}
+            dfs = {s: df.query("which_state == @s") for s in self.states}
             counts_i_day[i_day] = {key: len(val) for key, val in dfs.items()}
         df_counts = pd.DataFrame(counts_i_day).T
         return df_counts
@@ -168,7 +169,7 @@ class AnimateSIR:
     def _plot_df_i_day(self, i_day, dpi):
 
         df = self._get_df(i_day)
-        dfs = {s: df.query("SK == @s") for s in self.states}
+        dfs = {s: df.query("which_state == @s") for s in self.states}
 
         # Main plot
         k_scale = 1.8
@@ -336,20 +337,29 @@ def get_num_cores(num_cores_max, subtract_cores=1):
 num_cores = get_num_cores(num_cores_max)
 
 filenames = get_animation_filenames()
-filename = filenames[2]
+filename = filenames[-1]
 N_files = len(filenames)
 
 
 if False:
     animation = AnimateSIR(filename, do_tqdm=True, verbose=True)
     fig, ax = plt.subplots()
-    ax.hist(animation.UK[0], 100, range=(0, 300));
-    ax.set(xlabel='UK', ylabel='Counts')
-    # fig.savefig('UK_rho_300_algo_1.pdf')
+    ax.hist(animation.N_connections[0], 100, range=(0, 200));
+    ax.set(xlabel='N_connections', ylabel='Counts')
+    # fig.savefig('N_connections_rho_300_algo_1.pdf')
 
 
 if False:
     animate_file(filename, do_tqdm=True, verbose=True, force_rerun=True)
+
+
+
+# animation = AnimateSIR(filename, do_tqdm=True, verbose=True)
+# fig, ax = plt.subplots()
+# ax.hist(animation.N_connections[0], 100, range=(0, 200));
+# ax.set(xlabel='N_connections', ylabel='Counts')
+
+# animate_file(filename, do_tqdm=True, verbose=True, force_rerun=True)
 
 
 #%%
@@ -367,3 +377,138 @@ if __name__ == '__main__':
             print(f"Generating frames using {num_cores} cores, please wait", flush=True)
             with mp.Pool(num_cores) as p:
                 list(tqdm(p.imap_unordered(animate_file, filenames), total=N_files))
+
+
+
+#%%
+
+if False: # XXX
+
+
+    from SimulateDenmarkAgeHospitalization_extra_funcs import haversine
+    from extra_funcs import human_format
+
+    @njit
+    def hist2d_numba(data_2D, bins, ranges):
+        H = np.zeros((bins[0], bins[1]), dtype=np.uint64)
+        delta = 1 / ((ranges[:, 1] - ranges[:, 0]) / bins)
+        for t in range(data_2D.shape[0]):
+            i = (data_2D[t, 0] - ranges[0, 0]) * delta[0]
+            j = (data_2D[t, 1] - ranges[1, 0]) * delta[1]
+            if 0 <= i < bins[0] and 0 <= j < bins[1]:
+                H[int(i), int(j)] += 1
+        return H
+
+    @njit
+    def get_ranges(x):
+        return np.array(([x[:, 0].min(), x[:, 0].max()], 
+                            [x[:, 1].min(), x[:, 1].max()]))
+
+    def histogram2d(data_2D, bins=None, ranges=None):
+        if bins is None:
+            print("No binning provided, using (100, 100) as default")
+            bins = np.array((100, 100))
+        if isinstance(bins, int):
+            bins = np.array([bins, bins])
+        elif isinstance(bins, list) or isinstance(bins, tuple):
+            bins = np.array(bins)
+        if ranges is None:
+            ranges = get_ranges(data_2D)
+            ranges[:, 0] *= 0.99
+            ranges[:, 1] *= 1.01
+
+        return hist2d_numba(data_2D, bins=bins, ranges=ranges)
+
+
+    def compute_N_box_index(coordinates, N_bins_x, N_bins_y, verbose=False):
+
+        counts = histogram2d(coordinates, bins=(N_bins_x, N_bins_y))
+        counts_1d = counts.flatten()
+
+        counts_1d_nonzero = counts_1d[counts_1d > 0]
+        counts_sorted =  np.sort(counts_1d_nonzero)[::-1]
+        
+        threshold = 0.8
+        cumsum = np.cumsum(counts_sorted) / counts_sorted.sum()
+        index = np.argmax(cumsum > threshold) + 1
+        if verbose:
+            print(len(coordinates))
+            print(len(counts_1d))
+            print(len(counts_1d_nonzero))
+            print(index)
+            print(index / len(counts_1d_nonzero))
+        return index, counts_1d
+
+
+    def get_N_bins_xy(coordinates):
+
+        lon_min = coordinates[:, 0].min()
+        lon_max = coordinates[:, 0].max()
+        lon_mid = np.mean([lon_min, lon_max])
+
+        lat_min = coordinates[:, 1].min()
+        lat_max = coordinates[:, 1].max()
+        lat_mid = np.mean([lat_min, lat_max])
+
+        N_bins_x = int(haversine(lon_min, lat_mid, lon_max, lat_mid)) + 1
+        N_bins_y = int(haversine(lon_mid, lat_min, lon_mid, lat_max)) + 1
+
+        return N_bins_x, N_bins_y
+
+
+
+    animation = AnimateSIR(filename, do_tqdm=True, verbose=True)
+    coordinates = animation.coordinates
+    out_which_state = animation.which_state
+    cfg = animation.cfg
+    cfg.N_tot = human_format(cfg.N_tot)
+
+    N_bins_x, N_bins_y = get_N_bins_xy(coordinates)
+    # N_bins_x = N_bins_x // 5
+    # N_bins_y = N_bins_y // 5
+
+
+    N_box_all, counts_1d_all = compute_N_box_index(coordinates, N_bins_x, N_bins_y)
+    out_which_state = np.array(out_which_state, dtype=np.int8)
+
+    x = np.arange(0, len(out_which_state)-1, 1)
+    IHI = np.zeros(len(x))
+    # from tqdm import tqdm
+    # for i, i_day in tqdm(enumerate(x)):
+    for i, i_day in enumerate(x):
+
+        which_state_day = out_which_state[i_day]
+
+        coordinates_infected = coordinates[(-1 < which_state_day) & (which_state_day < 8)]
+        N_box_infected, counts_1d_infected = compute_N_box_index(coordinates_infected, N_bins_x, N_bins_y)
+
+        ratio_N_box = N_box_infected / N_box_all
+        IHI[i] = ratio_N_box
+
+    fig, ax = plt.subplots()
+    ax.plot(x, IHI)
+    ax.set(xlabel='i_day', ylabel='IHI', title=f'{cfg.N_tot=}, {cfg.sigma_beta=}, {cfg.rho=}, {cfg.beta=}, {cfg.algo=}')
+    # fig.savefig('IHI1.pdf')
+
+
+if False:
+
+    # out_which_state = np.array(out_which_state, dtype=np.int8)
+    # out_N_connections = np.array(out_N_connections, dtype=np.int32)
+    out_N_connections = animation.N_connections
+
+
+    # i_day = len(out_which_state) - 1
+    i_day = 80
+    which_state_day = out_which_state[i_day]
+    N_connections_day0 = out_N_connections[0]
+
+    fig, ax = plt.subplots()
+    ax.hist(N_connections_day0[which_state_day == -1], range=(0, 100), bins=100, label='S', histtype='step', lw=2)
+    ax.hist(N_connections_day0[which_state_day != -1], range=(0, 100), bins=100, label='EIR', histtype='step', lw=2)
+    ax.axvline(np.mean(N_connections_day0[which_state_day == -1]), label='Mean S', lw=1, alpha=0.8, ls='--')
+    ax.hist(N_connections_day0, range=(0, 100), bins=100, label='Total', color='gray', alpha=0.8, histtype='step', lw=1)
+    ax.set(xlabel='# of connections', ylabel='Counts', title=f'{i_day=}')
+    ax.set_yscale('log')
+    ax.legend()
+    fig.savefig(f"test_i_day_{i_day}")

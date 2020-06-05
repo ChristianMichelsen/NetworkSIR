@@ -5,82 +5,70 @@ import SimulateDenmarkAgeHospitalization_extra_funcs as extra_funcs
 from pathlib import Path
 from importlib import reload
 
-num_cores_max = 12
+num_cores_max = 30
 N_loops = 10
 dry_run = True
-force_overwrite = True
+force_overwrite = False
 
 #%%
 
 all_sim_pars = [
 
+                {
+                    'N_tot': [580_000],
+                    'sigma_beta': [0.0, 1.0],
+                    'rho': [0, 150],
+                    'algo': [2],
+                    'beta': [0.01],
+                },
+
+
+                {
+                    'N_ages': [1, 3, 10],
+                    'age_mixing': [0, 0.25, 0.5, 0.75, 1],
+                },
+
+
                 # {
-                #     'N_tot': [1_000],
+                #     'N_tot': [5_800_000],
+                #     'sigma_beta': [0.0, 1.0],
+                #     'rho': [0, 150],
+                #     'algo': [2],
+                #     'beta': [0.01],
                 # },
 
-
-                { 
-                    'rho': [0, 1, 2, 5, 10, 15, 20, 30, 40, 50, 60, 70, 80, 100, 150, 200, 300],
-                    'connect_algo': [1, 2],
-                },
-
-                {
-                    'epsilon_rho': [0, 0.005, 0.01, 0.02, 0.05],
-                    'rho': [100],
-                    'connect_algo': [1, 2],
-                },
-
-                {   'connect_algo': [1, 2],
-                }, 
-
-                {   'frac_02': [0, 0.5, 1],
-                    'connect_algo': [1, 2],
+                {   
+                    'algo': [2, 1],
                 }, 
 
                 {
-                    'N_tot': [100_000, 200_000, 500_000],
-                    # 'connect_algo': [1, 2],
+                    'N_tot': [100_000, 200_000, 500_000, 580_000],
+                    'algo': [2, 1],
                 },
 
                 { 
                     'sigma_beta': [0.0, 1.0], 
                     'sigma_mu': [0.0, 1.0],
-                    'connect_algo': [1, 2],
+                    'algo': [2, 1],
                 },
 
-                { 
-                    'sigma_beta': [0.0, 0.25, 0.5, 0.75, 1.0], 
-                    'rho': [0, 300],
-                    'connect_algo': [1, 2],
-                },
 
-                { 
-                    'sigma_mu': [0.0, 1.0], 
-                    'rho': [0, 300],
-                    'connect_algo': [1, 2],
-                },
-
-                {   'N_tot': [500_000],
+                {   'N_tot': [580_000],
                     'N_init': [1, 5, 50, 500, 1_000, 5_000],
-                    'connect_algo': [1, 2],
+                    'algo': [2, 1],
                 }, 
 
-                # {   'N_tot': [100_000],
-                #     'N_init': [1, 10, 100, 1_000],
-                #     'connect_algo': [1, 2],
-                # }, 
 
                 {
                     'beta': [0.005, 0.01, 0.02, 0.05, 0.1],
-                    # 'connect_algo': [1, 2],
                 },
 
                 {
                     'beta': [0.01*2, 0.01*4],
-                    'mu': [20/2, 20/4],
+                    'mu': [40/2, 40/4],
                     'sigma_mu': [0, 1],
                     'sigma_beta': [0, 1],
-                    # 'connect_algo': [1, 2],
+                    'algo': [2, 1],
                 },
 
                 {
@@ -88,22 +76,18 @@ all_sim_pars = [
                     'lambda_I': [1*2, 1*4],
                     'sigma_mu': [0, 1],
                     'sigma_beta': [0, 1],
-                    # 'connect_algo': [1, 2],
                 },
 
                 {
-                    'mu': [5, 10, 11, 12, 13, 14, 15, 20, 30, 40, 60, 80],
-                    # 'connect_algo': [1, 2],
+                    'mu': [10, 20, 25, 30, 40, 50, 60, 80, 100],
                 },
 
                 {
                     'lambda_E': [0.5, 1, 2, 4],
-                    # 'connect_algo': [1, 2],
                 },
 
                 {
                     'lambda_I': [0.5, 1, 2, 4],
-                    # 'connect_algo': [1, 2],
                 },
 
 
@@ -115,20 +99,59 @@ all_sim_pars = [
                     'sigma_beta': [0.0, 0.25, 0.5, 0.75, 1.0],
                 },
 
+
+                {   'frac_02': [0, 0.5, 1],
+                    'algo': [2, 1],
+                }, 
+
+
+                { 
+                    'rho': [0, 1, 2, 5, 10, 15, 20, 30, 40, 50, 60, 70, 80, 100, 150, 200, 250, 300],
+                    'algo': [2, 1],
+                },
+
+                { 
+                    'sigma_beta': [0.0, 0.25, 0.5, 0.75, 1.0], 
+                    'rho': [0, 150],
+                    'algo': [2, 1],
+                },
+
+                { 
+                    'sigma_mu': [0.0, 1.0], 
+                    'rho': [0, 150],
+                    'algo': [2, 1],
+                },
+
+                {
+                    'epsilon_rho': [0, 0.005, 0.01, 0.02, 0.05],
+                    'rho': [150],
+                    'algo': [2, 1],
+                },
+
                 {
                     'N_tot': [1_000_000],
-                    # 'connect_algo': [1, 2],
                 },
 
                 {
                     'N_tot': [2_000_000],
-                    # 'connect_algo': [1, 2],
                 },
 
                 {
                     'N_tot': [5_000_000],
-                #     'connect_algo': [1, 2],
                 },
+
+                {
+                    'N_tot': [5_800_000],
+                },
+
+
+                # {
+                #     'N_tot': [5_800_000],
+                #     'sigma_beta': [0.0, 1.0],
+                #     'rho': [0, 150],
+                #     'algo': [2, 1],
+                #     'beta': [0.1],
+                # },
 
                 ]
 

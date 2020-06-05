@@ -9,6 +9,7 @@
 *.pickle
 *.parquet
 GPS_coordinates.npy
+/old/
 
 #Jottacloud conflicted files
 *(Conflicted)*

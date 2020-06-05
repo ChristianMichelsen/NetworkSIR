@@ -5,7 +5,7 @@ import pandas as pd
 from pathlib import Path
 from scipy.stats import uniform as sp_uniform
 import plotly.graph_objects as go
-import SimulateDenmark_extra_funcs
+import SimulateDenmarkAgeHospitalization_extra_funcs
 import matplotlib.pyplot as plt
 import pickle
 import rc_params
@@ -88,7 +88,7 @@ def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=
                 fig, ax = plt.subplots(figsize=(20, 10))
 
                 Tmax = 0
-                lw = 0.1
+                lw = 0.1 * 10 / np.sqrt(len(ID_files))
                 
                 it = enumerate(ID_files[:max_N_plots]) if max_N_plots < len(ID_files) else enumerate(ID_files[:max_N_plots])
 
@@ -107,7 +107,7 @@ def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=
                 Tmax = max(Tmax, 50)
                 df_fit = ODE_integrate_cfg_to_df(cfg, Tmax, dt=0.01, ts=0.1)
 
-                ax.plot(df_fit['Time'], df_fit[parameter], lw=15*lw, color='red', label='SIR')
+                ax.plot(df_fit['Time'], df_fit[parameter], lw=2.5, color='red', label='SIR')
                 leg = ax.legend(loc=d_label_loc[parameter])
                 for legobj in leg.legendHandles:
                     legobj.set_linewidth(2.0)
@@ -125,16 +125,18 @@ def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=
 def get_d_translate():
     d_translate = { 'N_tot': r'N_\mathrm{tot}',
                     'N_init': r'N_\mathrm{init}',
+                    'N_ages': r'N_\mathrm{ages}',
                     'mu': r'\mu',
                     'sigma_mu': r'\sigma_\mu',
-                    'rho': r'\rho', 
                     'beta': r'\beta', 
                     'sigma_beta': r'\sigma_\beta',  
+                    'rho': r'\rho', 
                     'lambda_E': r'\lambda_E',
                     'lambda_I': r'\lambda_I',
                     'epsilon_rho': r'\epsilon_\rho', 
                     'frac_02': r'f_{02}',
-                    'connect_algo': r'\mathrm{connect}_\mathrm{algo}'
+                    'age_mixing': r'\mathrm{age}_\mathrm{mixing}',
+                    'algo': r'\mathrm{connect}_\mathrm{algo}',
                     }
     return d_translate
 
@@ -143,7 +145,7 @@ def get_d_translate():
 def dict_to_title(d, N=None, exclude=None):
 
     # important to make a copy since overwriting below
-    cfg = SimulateDenmark_extra_funcs.DotDict(d)
+    cfg = SimulateDenmarkAgeHospitalization_extra_funcs.DotDict(d)
 
     cfg.N_tot = human_format(cfg.N_tot)
     cfg.N_init = human_format(cfg.N_init)
@@ -155,7 +157,7 @@ def dict_to_title(d, N=None, exclude=None):
         if not sim_par == exclude:
             title += f"{d_translate[sim_par]} = {val}, \," 
 
-    # title = f"$N={N_tot_str}, beta={cfg.beta}, sigma_mu={cfg.sigma_mu}, sigma_beta={cfg.sigma_beta},  rho={cfg.rho}, mu={cfg.mu}, lambda_E={cfg.lambda_E}, lambda_I={cfg.lambda_I}, N_init={cfg.N_init}, epsilon_rho={cfg.epsilon_rho}, frac_02={cfg.frac_02}, connect_algo={cfg.connect_algo}"
+    # title = f"$N={N_tot_str}, beta={cfg.beta}, sigma_mu={cfg.sigma_mu}, sigma_beta={cfg.sigma_beta},  rho={cfg.rho}, mu={cfg.mu}, lambda_E={cfg.lambda_E}, lambda_I={cfg.lambda_I}, N_init={cfg.N_init}, epsilon_rho={cfg.epsilon_rho}, frac_02={cfg.frac_02}, algo={cfg.algo}"
 
     if N:
         title += r"\#" + f"{N}, \,"
@@ -176,9 +178,10 @@ def dict_to_title(d, N=None, exclude=None):
 
 # conda install -c numba icc_rt
 @njit
-def ODE_integrate(y0, Tmax, dt, ts, mu0, lambda_E, lambda_I, beta): 
+def ODE_integrate(y0, Tmax, dt, ts, mu, lambda_E, lambda_I, beta): 
 
     S, N_tot, E1, E2, E3, E4, I1, I2, I3, I4, R = y0
+    mu /= 2 # to correct for mu scaling
 
     click = 0
     ODE_result_SIR = np.zeros((int(Tmax/ts)+1, 5))
@@ -186,8 +189,8 @@ def ODE_integrate(y0, Tmax, dt, ts, mu0, lambda_E, lambda_I, beta):
 
     for Time in Times:
 
-        dS  = -beta*mu0*2/N_tot*(I1+I2+I3+I4)*S
-        dE1 = beta*mu0*2/N_tot*(I1+I2+I3+I4)*S - lambda_E*E1
+        dS  = -beta*mu*2/N_tot*(I1+I2+I3+I4)*S
+        dE1 = beta*mu*2/N_tot*(I1+I2+I3+I4)*S - lambda_E*E1
 
         dE2 = lambda_E*E1 - lambda_E*E2
         dE3 = lambda_E*E2 - lambda_E*E3
@@ -198,7 +201,7 @@ def ODE_integrate(y0, Tmax, dt, ts, mu0, lambda_E, lambda_I, beta):
         dI3 = lambda_I*I2 - lambda_I*I3
         dI4 = lambda_I*I3 - lambda_I*I4
 
-        # R0  += dt*beta*mu0/N_tot*(I1+I2+I3+I4)*S
+        # R0  += dt*beta*mu/N_tot*(I1+I2+I3+I4)*S
 
         dR  = lambda_I*I4
 
@@ -230,7 +233,7 @@ def ODE_integrate(y0, Tmax, dt, ts, mu0, lambda_E, lambda_I, beta):
 
 def ODE_integrate_cfg_to_df(cfg, Tmax, dt=0.01, ts=0.1):
     y0 = cfg.N_tot-cfg.N_init, cfg.N_tot,   cfg.N_init,0,0,0,      0,0,0,0,   0#, cfg.N_init
-    ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu0=cfg.mu, lambda_E=cfg.lambda_E, lambda_I=cfg.lambda_I, beta=cfg.beta)
+    ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu=cfg.mu, lambda_E=cfg.lambda_E, lambda_I=cfg.lambda_I, beta=cfg.beta)
     cols = ['S', 'E', 'I', 'R', 'Time']
     df_fit = pd.DataFrame(ODE_result_SIR, columns=cols).convert_dtypes()
     return df_fit
@@ -243,7 +246,7 @@ from iminuit import describe
 
 class CustomChi2:  # override the class with a better one
     
-    def __init__(self, t_interpolated, y_truth, y0, Tmax, dt, ts, mu0, y_min=100):
+    def __init__(self, t_interpolated, y_truth, y0, Tmax, dt, ts, mu, y_min=100):
         
         self.t_interpolated = t_interpolated
         self.y_truth = y_truth#.to_numpy(int)
@@ -251,7 +254,7 @@ class CustomChi2:  # override the class with a better one
         self.Tmax = Tmax
         self.dt = dt
         self.ts = ts
-        self.mu0 = mu0
+        self.mu = mu
         self.sy = np.sqrt(self.y_truth) #if sy is None else sy
         self.y_min = y_min
         self.N = sum(self.y_truth > self.y_min)
@@ -268,13 +271,13 @@ class CustomChi2:  # override the class with a better one
         return chi2
 
     def __repr__(self):
-        return f'CustomChi2(\n\t{self.t_interpolated=}, \n\t{self.y_truth=}, \n\t{self.y0=}, \n\t{self.Tmax=}, \n\t{self.dt=}, \n\t{self.ts=}, \n\t{self.mu0=}, \n\t{self.y_min=},\n\t)'.replace('=', ' = ').replace('array(', '').replace('])', ']')
+        return f'CustomChi2(\n\t{self.t_interpolated=}, \n\t{self.y_truth=}, \n\t{self.y0=}, \n\t{self.Tmax=}, \n\t{self.dt=}, \n\t{self.ts=}, \n\t{self.mu=}, \n\t{self.y_min=},\n\t)'.replace('=', ' = ').replace('array(', '').replace('])', ']')
 
     @lru_cache(maxsize=None)
     def _calc_ODE_result_SIR(self, lambda_E, lambda_I, beta, ts=None, Tmax=None):
         ts = ts if ts is not None else self.ts
         Tmax = Tmax if Tmax is not None else self.Tmax
-        return ODE_integrate(self.y0, Tmax, self.dt, ts, self.mu0, lambda_E, lambda_I, beta)
+        return ODE_integrate(self.y0, Tmax, self.dt, ts, self.mu, lambda_E, lambda_I, beta)
 
     def _calc_yhat_interpolated(self, lambda_E, lambda_I, beta, tau):
         ODE_result_SIR = self._calc_ODE_result_SIR(lambda_E, lambda_I, beta)
@@ -365,10 +368,10 @@ def dict_to_str(d):
 
 
 def filename_to_dotdict(filename, animation=False):
-    return SimulateDenmark_extra_funcs.filename_to_dotdict(filename, animation=animation)
+    return SimulateDenmarkAgeHospitalization_extra_funcs.filename_to_dotdict(filename, animation=animation)
 
 def string_to_dict(string, animation=False):
-    return SimulateDenmark_extra_funcs.filename_to_dotdict(string, normal_string=True, animation=animation)
+    return SimulateDenmarkAgeHospitalization_extra_funcs.filename_to_dotdict(string, normal_string=True, animation=animation)
 
 def filename_to_title(filename):
     return dict_to_title(filename_to_dotdict(filename))
@@ -464,7 +467,7 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
     Tmax_peak = df_interpolated['I'].argmax()*1.2
     I_max_net = np.max(df['I'])
 
-    fit_object = CustomChi2(t_interpolated[iloc_start:iloc_lockdown], y_truth_interpolated.to_numpy(float)[iloc_start:iloc_lockdown], y0, Tmax_peak, dt=dt, ts=ts, mu0=cfg.mu, y_min=I_min)
+    fit_object = CustomChi2(t_interpolated[iloc_start:iloc_lockdown], y_truth_interpolated.to_numpy(float)[iloc_start:iloc_lockdown], y0, Tmax_peak, dt=dt, ts=ts, mu=cfg.mu, y_min=I_min)
 
     minuit = Minuit(fit_object, pedantic=False, print_level=0, lambda_E=cfg.lambda_E, lambda_I=cfg.lambda_I, beta=cfg.beta, tau=0)
 
@@ -798,8 +801,8 @@ def get_filenames_different_than_default(parameter, **kwargs):
 
     df_sim_pars = pd.DataFrame.from_dict(all_sim_pars_as_dict, orient='index')
 
-    default_pars = SimulateDenmark_extra_funcs.get_cfg_default()
-    default_pars['N_tot'] = 500_000
+    default_pars = SimulateDenmarkAgeHospitalization_extra_funcs.get_cfg_default()
+    # default_pars['N_tot'] = 580_000
     for key, val in kwargs.items():
         default_pars[key] = val
 
@@ -846,7 +849,7 @@ def plot_variable_other_than_default(parameter, do_log=False, **kwargs):
         y0 = cfg.N_tot-cfg.N_init, cfg.N_tot,   cfg.N_init,0,0,0,      0,0,0,0,   0#, cfg.N_init
         dt = 0.01
         ts = 0.1
-        ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu0=cfg.mu, lambda_E=cfg.lambda_E, lambda_I=cfg.lambda_I, beta=cfg.beta)
+        ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu=cfg.mu, lambda_E=cfg.lambda_E, lambda_I=cfg.lambda_I, beta=cfg.beta)
         # print(y0, Tmax, dt, ts, cfg)
         I_SIR = ODE_result_SIR[:, 2]
         I_max_SIR = np.max(I_SIR)

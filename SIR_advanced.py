@@ -12,7 +12,7 @@ import joblib
 from matplotlib.backends.backend_pdf import PdfPages
 import extra_funcs
 from importlib import reload
-import SimulateDenmark_extra_funcs
+import SimulateDenmarkAgeHospitalization_extra_funcs
 import matplotlib.patches as mpatches
 import rc_params
 rc_params.set_rc_params()
@@ -22,7 +22,7 @@ num_cores_max = 10
 savefig = False
 do_animate = False
 save_and_show_all_plots = True
-plot_SIR_comparison = False if SimulateDenmark_extra_funcs.is_local_computer() else False
+plot_SIR_comparison = False if SimulateDenmarkAgeHospitalization_extra_funcs.is_local_computer() else False
 
 #%%
 
@@ -35,40 +35,44 @@ if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison('I', force_overwrite=True)
     extra_funcs.plot_SIR_model_comparison('R', force_overwrite=True)
 
+x=x
 
 #%%
 
 if False:
 
     # reload(extra_funcs)
-    parameter = 'rho'
-    do_log = False
+    # parameter = 'rho'
+    # do_log = False
 
     extra_funcs.plot_variable_other_than_default('N_tot', do_log=True)
     extra_funcs.plot_variable_other_than_default('N_init', do_log=True) 
-    extra_funcs.plot_variable_other_than_default('N_init', do_log=True, connect_algo=2) 
-    
+    extra_funcs.plot_variable_other_than_default('N_init', do_log=True, algo=1) 
+
+    extra_funcs.plot_variable_other_than_default('N_ages', age_mixing=0)
+    extra_funcs.plot_variable_other_than_default('N_ages', age_mixing=0.5)
+    extra_funcs.plot_variable_other_than_default('N_ages', age_mixing=1) 
+    extra_funcs.plot_variable_other_than_default('age_mixing', N_ages=1)
+    extra_funcs.plot_variable_other_than_default('age_mixing', N_ages=3)
+    extra_funcs.plot_variable_other_than_default('age_mixing', N_ages=10) 
+
     extra_funcs.plot_variable_other_than_default('rho') 
-    extra_funcs.plot_variable_other_than_default('rho', connect_algo=2) 
-    extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=20) 
-    extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=20, connect_algo=2) 
-    extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=60) 
-    extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=60, connect_algo=2) 
-    extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=100)
-    extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=100, connect_algo=2)  
+    extra_funcs.plot_variable_other_than_default('rho', algo=1) 
+    extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=150)
+    extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=150, algo=1)  
     
     extra_funcs.plot_variable_other_than_default('mu')
     extra_funcs.plot_variable_other_than_default('beta')
     extra_funcs.plot_variable_other_than_default('sigma_beta') 
-    extra_funcs.plot_variable_other_than_default('sigma_beta', connect_algo=2) 
-    extra_funcs.plot_variable_other_than_default('sigma_beta', rho=300) 
-    extra_funcs.plot_variable_other_than_default('sigma_beta', rho=300, connect_algo=2) 
+    extra_funcs.plot_variable_other_than_default('sigma_beta', algo=1) 
+    extra_funcs.plot_variable_other_than_default('sigma_beta', rho=150) 
+    extra_funcs.plot_variable_other_than_default('sigma_beta', rho=150, algo=1) 
     extra_funcs.plot_variable_other_than_default('sigma_mu') 
-    extra_funcs.plot_variable_other_than_default('sigma_mu', connect_algo=2) 
-    extra_funcs.plot_variable_other_than_default('sigma_mu', rho=300) 
-    extra_funcs.plot_variable_other_than_default('sigma_mu', rho=300, connect_algo=2) 
+    extra_funcs.plot_variable_other_than_default('sigma_mu', algo=1) 
+    extra_funcs.plot_variable_other_than_default('sigma_mu', rho=150) 
+    extra_funcs.plot_variable_other_than_default('sigma_mu', rho=150, algo=1) 
     extra_funcs.plot_variable_other_than_default('frac_02')
-    extra_funcs.plot_variable_other_than_default('frac_02', connect_algo=2) 
+    extra_funcs.plot_variable_other_than_default('frac_02', algo=1) 
     extra_funcs.plot_variable_other_than_default('lambda_E') 
     extra_funcs.plot_variable_other_than_default('lambda_I') 
 
