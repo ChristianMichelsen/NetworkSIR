@@ -337,7 +337,7 @@ def get_num_cores(num_cores_max, subtract_cores=1):
 num_cores = get_num_cores(num_cores_max)
 
 filenames = get_animation_filenames()
-filename = filenames[-1]
+filename = filenames[3]
 N_files = len(filenames)
 
 
@@ -464,10 +464,6 @@ if False: # XXX
     cfg.N_tot = human_format(cfg.N_tot)
 
     N_bins_x, N_bins_y = get_N_bins_xy(coordinates)
-    # N_bins_x = N_bins_x // 5
-    # N_bins_y = N_bins_y // 5
-
-
     N_box_all, counts_1d_all = compute_N_box_index(coordinates, N_bins_x, N_bins_y)
     out_which_state = np.array(out_which_state, dtype=np.int8)
 

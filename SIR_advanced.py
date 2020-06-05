@@ -35,8 +35,6 @@ if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison('I', force_overwrite=True)
     extra_funcs.plot_SIR_model_comparison('R', force_overwrite=True)
 
-x=x
-
 #%%
 
 if False:
@@ -50,7 +48,9 @@ if False:
     extra_funcs.plot_variable_other_than_default('N_init', do_log=True, algo=1) 
 
     extra_funcs.plot_variable_other_than_default('N_ages', age_mixing=0)
+    extra_funcs.plot_variable_other_than_default('N_ages', age_mixing=0.25)
     extra_funcs.plot_variable_other_than_default('N_ages', age_mixing=0.5)
+    extra_funcs.plot_variable_other_than_default('N_ages', age_mixing=0.75)
     extra_funcs.plot_variable_other_than_default('N_ages', age_mixing=1) 
     extra_funcs.plot_variable_other_than_default('age_mixing', N_ages=1)
     extra_funcs.plot_variable_other_than_default('age_mixing', N_ages=3)
@@ -82,6 +82,7 @@ if False:
 if __name__ == '__main__':
 
     fit_objects_all = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=num_cores_max)
+
 
 #%%
 

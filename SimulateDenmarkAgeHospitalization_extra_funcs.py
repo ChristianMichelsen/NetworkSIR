@@ -236,6 +236,7 @@ def initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, frac_02)
         else:
             infection_weight[i] = beta
         
+        # TODO Scaling
         ra_R0_change = np.random.rand()
         if ra_R0_change < frac_02/2:
             infection_weight[i] = infection_weight[i]*2
@@ -1021,7 +1022,7 @@ if False:
     # cfg.algo = 100_000
     cfg['N_ages'] = 10
     cfg['age_mixing'] = 0.5
-    cfg.sigma_mu = 1.0
+    cfg.sigma_mu = 0.0
 
 
     coordinates = np.load('Data/GPS_coordinates.npy')
