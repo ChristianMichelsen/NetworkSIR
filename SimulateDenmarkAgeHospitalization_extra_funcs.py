@@ -541,17 +541,17 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
                     csInf[which_state[idx]:N_states] -= individual_rates[idx][i1]
 
 
-                # # XXX HOSPITAL
-                # # Now in hospital track
-                # H_state = np.searchsorted(H_probability_matrix_csum[ages[idx]], np.random.rand())
+                # XXX HOSPITAL
+                # Now in hospital track
+                H_state = np.searchsorted(H_probability_matrix_csum[ages[idx]], np.random.rand())
 
-                # H_which_state[idx] = H_state
-                # # H_agents_in_state[H_state, H_state_total_counts[H_state]] = idx # XXX
-                # H_agents_in_state[H_state].append(idx)
-                # H_state_total_counts[H_state] += 1
+                H_which_state[idx] = H_state
+                # H_agents_in_state[H_state, H_state_total_counts[H_state]] = idx # XXX
+                H_agents_in_state[H_state].append(idx)
+                H_state_total_counts[H_state] += 1
                 
-                # H_tot_move += H_move_matrix_sum[H_state, ages[idx]]
-                # H_cumsum_move[H_state:] += H_move_matrix_sum[H_state, ages[idx]] 
+                H_tot_move += H_move_matrix_sum[H_state, ages[idx]]
+                H_cumsum_move[H_state:] += H_move_matrix_sum[H_state, ages[idx]] 
 
 
                 # if H_counter < 100:
@@ -560,8 +560,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
 
 
         # Here we infect new states
-        # elif (TotMov + TotInf) / Tot > ra1:  # XXX HOSPITAL
-        else: # XXX HOSPITAL
+        elif (TotMov + TotInf) / Tot > ra1:  # XXX HOSPITAL
+        # else: # XXX HOSPITAL
             s = 2
             x = TotMov/Tot + csInf/Tot
             i1 = np.searchsorted(x, ra1)
@@ -609,49 +609,56 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
                         break
 
 
-        # ## move between hospital tracks
-        # else:
-        #     s = 3
-        #     x = (TotMov + TotInf + H_cumsum_move) / Tot
-        #     H_old_state = np.searchsorted(x, ra1)
-        #     Csum = (TotMov + TotInf + H_cumsum_move[H_old_state]) / Tot
-        #     for idx_H_state in range(len(H_agents_in_state[H_old_state])):
+        ## move between hospital tracks
+        else:
+            s = 3
+            x = (TotMov + TotInf + H_cumsum_move) / Tot
+            H_old_state = np.searchsorted(x, ra1)
+            Csum = (TotMov + TotInf + H_cumsum_move[H_old_state]) / Tot
+            for idx_H_state in range(len(H_agents_in_state[H_old_state])):
                 
-        #         idx = H_agents_in_state[H_old_state][idx_H_state]
-        #         Csum += H_move_matrix_sum[H_old_state, ages[idx]] / Tot
+                idx = H_agents_in_state[H_old_state][idx_H_state]
+                Csum += H_move_matrix_sum[H_old_state, ages[idx]] / Tot
                 
-        #         if Csum > ra1:
-        #             # idx = agents_in_state[H_old_state, idx]
+                if Csum > ra1:
+                    # idx = agents_in_state[H_old_state, idx]
                     
 
-        #             AC = 1
-        #             H_ra = np.random.rand()
+                    AC = 1
+                    H_ra = np.random.rand()
 
-        #             H_tmp = H_move_matrix_cumsum[H_which_state[idx], :, ages[idx]] / H_move_matrix_sum[H_which_state[idx], ages[idx]]
-        #             H_new_state = np.searchsorted(H_tmp, H_ra)
+                    H_tmp = H_move_matrix_cumsum[H_which_state[idx], :, ages[idx]] / H_move_matrix_sum[H_which_state[idx], ages[idx]]
+                    H_new_state = np.searchsorted(H_tmp, H_ra)
 
-        #             # for nested list pop element
-        #             # We have chosen idx to move -> here we move it
-        #             H_agents_in_state[H_old_state].pop(idx_H_state)
-        #             # for h in range(idx, H_state_total_counts[H_old_state]):
-        #             #     H_agents_in_state[H_old_state, h] = H_agents_in_state[H_old_state, h+1] 
+                    # for nested list pop element
+                    # We have chosen idx to move -> here we move it
+                    H_agents_in_state[H_old_state].pop(idx_H_state)
+                    # for h in range(idx, H_state_total_counts[H_old_state]):
+                    #     H_agents_in_state[H_old_state, h] = H_agents_in_state[H_old_state, h+1] 
 
-        #             H_which_state[idx] = H_new_state
-        #             # H_agents_in_state[H_new_state, H_state_total_counts[H_new_state]] = idx # XXX
-        #             H_agents_in_state[H_new_state].append(idx)
-        #             H_state_total_counts[H_old_state] -= 1
-        #             H_state_total_counts[H_new_state] += 1
+                    H_which_state[idx] = H_new_state
+                    # H_agents_in_state[H_new_state, H_state_total_counts[H_new_state]] = idx # XXX
+                    H_agents_in_state[H_new_state].append(idx)
+                    H_state_total_counts[H_old_state] -= 1
+                    H_state_total_counts[H_new_state] += 1
 
-        #             H_tot_move += H_move_matrix_sum[H_new_state, ages[idx]] - H_move_matrix_sum[H_old_state, ages[idx]]
-        #             H_cumsum_move[H_old_state] -= H_move_matrix_sum[H_old_state, ages[idx]] 
-        #             H_cumsum_move[H_new_state:] += H_move_matrix_sum[H_new_state, ages[idx]] - H_move_matrix_sum[H_old_state, ages[idx]] 
+                    H_tot_move += H_move_matrix_sum[H_new_state, ages[idx]] - H_move_matrix_sum[H_old_state, ages[idx]]
 
+                    # moving forward
+                    if H_old_state < H_new_state:
+                        H_cumsum_move[H_old_state:H_new_state] -= H_move_matrix_sum[H_old_state, ages[idx]] 
+                        H_cumsum_move[H_new_state:] += H_move_matrix_sum[H_new_state, ages[idx]] - H_move_matrix_sum[H_old_state, ages[idx]] 
+                    
+                    #moving backwards
+                    else:
+                        H_cumsum_move[H_new_state:H_old_state] += H_move_matrix_sum[H_old_state, ages[idx]] 
+                        H_cumsum_move[H_new_state:] += H_move_matrix_sum[H_new_state, ages[idx]] - H_move_matrix_sum[H_old_state, ages[idx]] 
 
-        #             if H_counter < 100:
-        #                 print(idx, "moves between hospital track", H_old_state, "and", H_new_state, '')
-        #                 H_counter += 1
+                    # if H_counter < 100:
+                    #     print(idx, "moves between hospital track", H_old_state, "and", H_new_state, '')
+                    #     H_counter += 1
 
-        #             break
+                    break
 
         ################
 
@@ -673,16 +680,16 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
         # # # # # # # # # # # BUG CHECK  # # # # # # # # # # # # # # # # # # # # # # # #
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-        continue_run, TotMov, TotInf = do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, AC, csMov, ra1, s)
+        continue_run, TotMov, TotInf = do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, AC, csMov, ra1, s, idx_H_state, H_old_state, H_agents_in_state, x)
 
     return out_time, out_state_counts, out_which_state, out_N_connections, out_which_connections, out_individual_rates
 
 #%%
 
 @njit
-def do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, AC, csMov, ra1, s):
+def do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, AC, csMov, ra1, s, idx_H_state, H_old_state, H_agents_in_state, x):
 
-    if counter > 100_000_000: 
+    if counter > 100_000_000:
         # if verbose:
         print("counter > 100_000_000")
         continue_run = False
@@ -699,7 +706,7 @@ def do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_cou
 
     # Check for bugs
     if AC == 0: 
-        print("No Chosen rate", csMov, ra1, s)
+        print("No Chosen rate", csMov, ra1, s, idx_H_state, H_old_state, H_agents_in_state[H_old_state], x)
         continue_run = False
     
     if (TotMov < 0) and (TotMov > -0.001):
@@ -808,23 +815,23 @@ def calculate_age_proportions_2D(alpha_age, N_ages):
 @njit
 def single_run_numba(N_tot, N_init, N_ages, mu, sigma_mu, beta, sigma_beta, rho, lambda_E, lambda_I, algo, epsilon_rho, frac_02, age_mixing, ID, coordinates, verbose=False):
     
-    # N_tot = 50_000 # Total number of nodes!
-    # N_init = 100 # Initial Infected
-    # N_ages = 10 #
-    # mu = 40.0  # Average number of connections of a node (init: 20)
-    # sigma_mu = 1.0 # Spread (skewness) in N connections
-    # beta = 0.01 # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
-    # sigma_beta = 0.0 # Spread in rates, beta (beta_eff = beta - sigma_beta+2*sigma_beta*rand[0,1])... could be exponential?
-    # rho = 0 # Spacial dependency. Average distance to connect with.
-    # lambda_E = 1.0 # E->I, Lambda(from E states)
-    # lambda_I = 1.0 # I->R, Lambda(from I states)
-    # algo = 1 # node connection algorithm
-    # epsilon_rho = 0.01 # fraction of connections not depending on distance
-    # frac_02 = 0.0 # 0: as normal, 1: half of all (beta)rates are set to 0 the other half doubled
-    # age_mixing = 1.0
-    # ID = 0
-    # coordinates = np.load('Data/GPS_coordinates.npy')[:N_tot]
-    # verbose = True
+    N_tot = 50_000 # Total number of nodes!
+    N_init = 100 # Initial Infected
+    N_ages = 10 #
+    mu = 40.0  # Average number of connections of a node (init: 20)
+    sigma_mu = 1.0 # Spread (skewness) in N connections
+    beta = 0.01 # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
+    sigma_beta = 0.0 # Spread in rates, beta (beta_eff = beta - sigma_beta+2*sigma_beta*rand[0,1])... could be exponential?
+    rho = 0 # Spacial dependency. Average distance to connect with.
+    lambda_E = 1.0 # E->I, Lambda(from E states)
+    lambda_I = 1.0 # I->R, Lambda(from I states)
+    algo = 1 # node connection algorithm
+    epsilon_rho = 0.01 # fraction of connections not depending on distance
+    frac_02 = 0.0 # 0: as normal, 1: half of all (beta)rates are set to 0 the other half doubled
+    age_mixing = 1.0
+    ID = 0
+    coordinates = np.load('Data/GPS_coordinates.npy')[:N_tot]
+    verbose = True
 
     np.random.seed(ID)
 
@@ -878,10 +885,12 @@ def single_run_numba(N_tot, N_init, N_ages, mu, sigma_mu, beta, sigma_beta, rho,
     H_move_matrix = np.zeros((H_N_states, H_N_states, N_ages), dtype=np.float32)
     H_move_matrix[0, 1] = 0.3
     H_move_matrix[1, 2] = 1.0
+    H_move_matrix[2, 1] = 0.6
     H_move_matrix[1, 4] = 0.1
     H_move_matrix[2, 3] = 0.1
     H_move_matrix[3, 4] = 1.0
     H_move_matrix[3, 5] = 0.1
+
 
     H_move_matrix_sum = np.sum(H_move_matrix, axis=1) 
     H_move_matrix_cumsum = numba_cumsum(H_move_matrix, axis=1) 
