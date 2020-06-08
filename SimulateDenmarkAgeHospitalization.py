@@ -15,6 +15,30 @@ force_overwrite = False
 all_sim_pars = [
 
                 {
+                    'N_init': [1_000],
+                    'N_ages': [10],
+                    'age_mixing': [0.5],
+                },
+
+
+                { 
+                    'N_tot': [5_800_000],
+                    'rho': [0, 1, 5, 10, 20, 40, 60, 80, 100, 200],
+                    'algo': [2],
+                },
+
+
+                {
+                    'N_tot': [5_800_000],
+                    'sigma_beta': [0.0, 1.0],
+                    'rho': [150],
+                    'epsilon_rho': [0],
+                    'algo': [2],
+                    'beta': [0.01],
+                },
+
+
+                {
                     'N_tot': [580_000],
                     'sigma_beta': [0.0, 1.0],
                     'rho': [0, 150],
