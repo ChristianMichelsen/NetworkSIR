@@ -6,61 +6,16 @@ from pathlib import Path
 from importlib import reload
 
 num_cores_max = 30
-N_loops = 10
+N_loops = 1
 dry_run = True
-force_overwrite = False
+force_overwrite = True
+
+if dry_run:
+    print("Running a dry run, nothing will actually be simulated.")
 
 #%%
 
 all_sim_pars = [
-
-                {
-                    'N_init': [1_000],
-                    'N_ages': [10],
-                    'age_mixing': [0.5],
-                },
-
-
-                { 
-                    'N_tot': [5_800_000],
-                    'rho': [0, 1, 5, 10, 20, 40, 60, 80, 100, 200],
-                    'algo': [2],
-                },
-
-
-                {
-                    'N_tot': [5_800_000],
-                    'sigma_beta': [0.0, 1.0],
-                    'rho': [150],
-                    'epsilon_rho': [0],
-                    'algo': [2],
-                    'beta': [0.01],
-                },
-
-
-                {
-                    'N_tot': [580_000],
-                    'sigma_beta': [0.0, 1.0],
-                    'rho': [0, 150],
-                    'algo': [2],
-                    'beta': [0.01],
-                },
-
-
-                {
-                    'N_ages': [1, 3, 10],
-                    'age_mixing': [0, 0.25, 0.5, 0.75, 1],
-                    'sigma_mu': [0, 0.5, 1],
-                },
-
-
-                {
-                    'N_tot': [5_800_000],
-                    'sigma_beta': [0.0, 1.0],
-                    'rho': [0, 150],
-                    'algo': [2],
-                    'beta': [0.01],
-                },
 
                 {   
                     'algo': [2, 1],
@@ -78,8 +33,7 @@ all_sim_pars = [
                 },
 
 
-                {   'N_tot': [580_000],
-                    'N_init': [1, 5, 50, 500, 1_000, 5_000],
+                {   'N_init': [1, 5, 50, 500, 1_000, 5_000],
                     'algo': [2, 1],
                 }, 
 
@@ -125,23 +79,8 @@ all_sim_pars = [
                 },
 
 
-                {   'frac_02': [0, 0.5, 1],
-                    'algo': [2, 1],
-                }, 
-
-
                 { 
-                    'rho': [400],
-                    'algo': [2],
-                },
-
-                { 
-                    'rho': [400],
-                    'algo': [1],
-                },
-
-                { 
-                    'rho': [0, 1, 2, 5, 10, 15, 20, 30, 40, 50, 60, 70, 80, 100, 150, 200, 250, 300, 400, 500],
+                    'rho': [0, 5, 10, 15, 25, 50, 75, 100, 150, 200, 250],
                     'algo': [2, 1],
                 },
 
@@ -163,6 +102,40 @@ all_sim_pars = [
                     'algo': [2, 1],
                 },
 
+
+                {
+                    'N_tot': [5_800_000],
+                    'rho': [0, 25, 50, 100, 150, 200, 300],
+                    'algo': [2],
+                },
+
+
+                {
+                    'N_tot': [5_800_000],
+                    'sigma_beta': [0.0, 1.0],
+                    'rho': [0, 150],
+                    'epsilon_rho': [0],
+                    'algo': [2],
+                    'beta': [0.01],
+                },
+
+
+                {
+                    'N_tot': [580_000],
+                    'sigma_beta': [0.0, 1.0],
+                    'rho': [0, 150],
+                    'algo': [2],
+                    'beta': [0.01],
+                },
+
+                {
+                    'N_tot': [5_800_000],
+                    'sigma_beta': [0.0, 1.0],
+                    'rho': [0, 150],
+                    'algo': [2],
+                    'beta': [0.01],
+                },
+
                 {
                     'N_tot': [1_000_000],
                 },
@@ -178,6 +151,21 @@ all_sim_pars = [
                 {
                     'N_tot': [5_800_000],
                 },
+
+
+                {
+                    'N_ages': [1, 3, 10],
+                    'age_mixing': [0, 0.25, 0.5, 0.75, 1],
+                    'sigma_mu': [0, 0.5, 1],
+                },
+
+
+                {
+                    'N_init': [1_000],
+                    'N_ages': [10],
+                    'age_mixing': [0.5],
+                },
+
 
                 ]
 

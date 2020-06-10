@@ -6,6 +6,7 @@ import joblib
 import multiprocessing as mp
 from itertools import product
 import matplotlib.pyplot as plt
+import h5py
 import rc_params
 rc_params.set_rc_params()
 
@@ -28,6 +29,7 @@ def is_local_computer(N_local_cores=8):
     else:
         return False
 
+
 def get_cfg_default():
     cfg_default = dict(
                     # N_tot = 50_000 if is_local_computer() else 500_000, # Total number of nodes!
@@ -42,7 +44,7 @@ def get_cfg_default():
                     lambda_E = 1.0, # E->I, Lambda(from E states)
                     lambda_I = 1.0, # I->R, Lambda(from I states)
                     epsilon_rho = 0.01, # fraction of connections not depending on distance
-                    frac_02 = 0.0, # 0: as normal, 1: half of all (beta)rates are set to 0 the other half doubled
+                    beta_scaling = 1.0, # anmunt of beta scaling
                     age_mixing = 1.0,
                     algo = 2, # node connection algorithm
                     )
@@ -153,59 +155,17 @@ def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max):
         if 500_000 < N_tot_max <= 1_000_000:
             num_cores = 25
         elif 1_000_000 < N_tot_max <= 2_000_000:
-            num_cores = 13
+            num_cores = 15
         elif 2_000_000 < N_tot_max <= 5_000_000:
-            num_cores = 5
+            num_cores = 8
         elif 5_000_000 < N_tot_max:
-            num_cores = 4
+            num_cores = 6
 
     if num_cores > num_cores_max:
         num_cores = num_cores_max
     
     return num_cores
 
-
-# @njit
-# def deep_copy_1D_int(X):
-#     outer = np.zeros(len(X), np.int_)
-#     for ix in range(len(X)):
-#         outer[ix] = X[ix]
-#     return outer
-
-# @njit
-# def deep_copy_2D_jagged_int(X, min_val=-1):
-#     outer = []
-#     n, m = X.shape
-#     for ix in range(n):
-#         inner = []
-#         for jx in range(m):
-#             if X[ix, jx] > min_val:
-#                 inner.append(int(X[ix, jx]))
-#         outer.append(inner)
-#     return outer
-
-
-# @njit
-# def deep_copy_2D_jagged(X, min_val=-1):
-#     outer = []
-#     n, m = X.shape
-#     for ix in range(n):
-#         inner = []
-#         for jx in range(m):
-#             if X[ix, jx] > min_val:
-#                 inner.append(X[ix, jx])
-#         outer.append(inner)
-#     return outer
-
-
-# @njit
-# def deep_copy_2D_int(X):
-#     n, m = X.shape
-#     outer = np.zeros((n, m), np.int_)
-#     for ix in range(n):
-#         for jx in range(m):
-#             outer[ix, jx] = X[ix, jx]
-#     return outer
 
 @njit
 def haversine(lon1, lat1, lon2, lat2):
@@ -220,7 +180,7 @@ def haversine(lon1, lat1, lon2, lat2):
 
 
 @njit
-def initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, frac_02):
+def initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, beta_scaling):
 
     connection_weight = np.ones(N_tot, dtype=np.float32)
     infection_weight = np.ones(N_tot, dtype=np.float32)
@@ -236,14 +196,12 @@ def initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, frac_02)
         else:
             infection_weight[i] = beta
         
-        # TODO Scaling
+        f = 1 / (beta_scaling + 1)
         ra_R0_change = np.random.rand()
-        if ra_R0_change < frac_02/2:
-            infection_weight[i] = infection_weight[i]*2
-        elif ra_R0_change > 1-frac_02/2:
-            infection_weight[i] = 0
+        if ra_R0_change < f:
+            infection_weight[i] = infection_weight[i]*beta_scaling
         else:
-            pass
+            infection_weight[i] = infection_weight[i]/beta_scaling
 
     return connection_weight, infection_weight
 
@@ -303,9 +261,9 @@ def update_node_connections(N_connections, individual_rates, which_connections, 
 
     #  Make sure no element is present twice
     accept = True
-    for i1 in range(N_connections[id1]):  # prange
-        # if which_connections[id1, i1] == id2:
-        if which_connections[id1][i1] == id2: # XXX
+    for idn in range(N_connections[id1]):  # prange
+        # if which_connections[id1, idn] == id2:
+        if which_connections[id1][idn] == id2: # XXX
             accept = False
 
     # if (N_connections[id1] < N_AK_MAX) and (N_connections[id2] < N_AK_MAX) and (id1 != id2) and accept:
@@ -445,17 +403,26 @@ def make_initial_infections(N_init, which_state, state_total_counts, agents_in_s
     return TotMov
 
 
+# @njit
+# def foo():
+#     d = dict()
+#     d[3] = []
+#     return d
+# d = foo()
+
+
 #%%
 
 @njit
-def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, infectious_state, N_connections, individual_rates, N_connections_reference, which_connections_reference, which_connections, ages, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, nts, verbose):
+def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, infectious_state, N_connections, individual_rates, N_connections_reference, which_connections_reference, which_connections, ages, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, mu, tau_I, N_contacts_remove, nts, verbose):
 
     out_time = List()
     out_state_counts = List()
     out_which_state = List()
     out_N_connections = List()
+    out_H_state_total_counts = List()
 
-    out_which_connections = which_connections.copy() # FIXME XXX
+    out_which_connections = which_connections.copy() 
     out_individual_rates = individual_rates.copy()
     out_ages = ages.copy()
 
@@ -470,8 +437,12 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
     RT = 0.0
 
     H_tot_move = 0
-
     H_counter = 0
+
+    intervention_switch = False
+    has_printed = False
+    closed_contacts = initialize_nested_lists(N_tot, dtype=np.int32) 
+    closed_contacts_rate = initialize_nested_lists(N_tot, dtype=np.float32) 
 
     # Run the simulation ################################
     continue_run = True
@@ -485,6 +456,56 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
         RT = RT + dt
         Csum = 0.0
         ra1 = np.random.rand()
+
+
+        # # removal of contacts
+        # I_tot = np.sum(state_total_counts[4:8])
+
+        # if tau_I < I_tot / N_tot and not intervention_switch:
+        #     intervention_switch = True
+
+        #     for c in range(int(N_tot*mu*N_contacts_remove)):
+
+        #         idx1 = np.random.randint(N_tot)
+
+        #         N_contacts_idx = len(which_connections[idx1])
+        #         if N_contacts_idx > 0:
+        #             idn1 = np.random.randint(N_contacts_idx)
+
+        #             closed_contacts[idx1].append(idn1)
+        #             rates1 = individual_rates[idx1]
+        #             closed_contacts_rate[idx1].append(rates1[idn1])
+        #             TotInf -= rates1[idn1]
+        #             csInf[which_state[idx1]:] -= rates1[idn1]
+        #             rates1[idn1] = 0
+
+        #             idx2 = which_connections[idx1][idn1]
+        #             connections2 = which_connections[idx2]
+        #             idn2 = -1
+        #             for i in range(len(connections2)):
+        #                 if connections2[i] == idx1:
+        #                     idn2 = i 
+        #             if idn2 < 0:
+        #                 print(idx1, idn1, idx2, idn2)
+
+
+        #             closed_contacts[idx2].append(idn2)
+        #             rates2 = individual_rates[idx2]
+        #             try:
+        #                 closed_contacts_rate[idx2].append(rates2[idn2])
+        #             except:
+        #                 if not has_printed:
+        #                     print("closed_contacts_rate")
+        #                     print(idx1, idn1, idx2, idn2)
+        #                     print(rates2)
+        #                     print(closed_contacts_rate[idx2])
+        #                     has_printed = True
+
+        #             TotInf -= rates2[idn2]
+        #             csInf[which_state[idx2]:] -= rates2[idn2]
+        #             rates2[idn2] = 0
+
+        #                 #  print(c, idx1, idn1, idx2, idn2)
 
 
         #######/ Here we move infected between states
@@ -654,11 +675,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
                         H_cumsum_move[H_new_state:H_old_state] += H_move_matrix_sum[H_old_state, ages[idx]] 
                         H_cumsum_move[H_new_state:] += H_move_matrix_sum[H_new_state, ages[idx]] - H_move_matrix_sum[H_old_state, ages[idx]] 
 
-                    # if H_counter < 100:
-                    #     print(idx, "moves between hospital track", H_old_state, "and", H_new_state, '')
-                    #     H_counter += 1
-
                     break
+
 
         ################
 
@@ -667,6 +685,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
             daily_counter += 1
             out_time.append(RT)
             out_state_counts.append(state_total_counts.copy())
+            out_H_state_total_counts.append(H_state_total_counts.copy())
+            # H_state_total_counts # TODO
 
             if daily_counter >= 10:
                 daily_counter = 0
@@ -682,7 +702,7 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
 
         continue_run, TotMov, TotInf = do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, AC, csMov, ra1, s, idx_H_state, H_old_state, H_agents_in_state, x)
 
-    return out_time, out_state_counts, out_which_state, out_N_connections, out_which_connections, out_individual_rates
+    return out_time, out_state_counts, out_which_state, out_N_connections, out_which_connections, out_individual_rates, out_H_state_total_counts, out_ages
 
 #%%
 
@@ -720,8 +740,6 @@ def do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_cou
         continue_run = False
 
     return continue_run, TotMov, TotInf
-
-
 
 
 
@@ -813,25 +831,28 @@ def calculate_age_proportions_2D(alpha_age, N_ages):
 
 # @njit
 @njit
-def single_run_numba(N_tot, N_init, N_ages, mu, sigma_mu, beta, sigma_beta, rho, lambda_E, lambda_I, algo, epsilon_rho, frac_02, age_mixing, ID, coordinates, verbose=False):
+def single_run_numba(N_tot, N_init, N_ages, mu, sigma_mu, beta, sigma_beta, rho, lambda_E, lambda_I, algo, epsilon_rho, beta_scaling, age_mixing, ID, coordinates, verbose=False):
     
-    N_tot = 50_000 # Total number of nodes!
-    N_init = 100 # Initial Infected
-    N_ages = 10 #
-    mu = 40.0  # Average number of connections of a node (init: 20)
-    sigma_mu = 1.0 # Spread (skewness) in N connections
-    beta = 0.01 # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
-    sigma_beta = 0.0 # Spread in rates, beta (beta_eff = beta - sigma_beta+2*sigma_beta*rand[0,1])... could be exponential?
-    rho = 0 # Spacial dependency. Average distance to connect with.
-    lambda_E = 1.0 # E->I, Lambda(from E states)
-    lambda_I = 1.0 # I->R, Lambda(from I states)
-    algo = 1 # node connection algorithm
-    epsilon_rho = 0.01 # fraction of connections not depending on distance
-    frac_02 = 0.0 # 0: as normal, 1: half of all (beta)rates are set to 0 the other half doubled
-    age_mixing = 1.0
-    ID = 0
-    coordinates = np.load('Data/GPS_coordinates.npy')[:N_tot]
-    verbose = True
+    # N_tot = 50_000 # Total number of nodes!
+    # N_init = 100 # Initial Infected
+    # N_ages = 10 #
+    # mu = 40.0  # Average number of connections of a node (init: 20)
+    # sigma_mu = 1.0 # Spread (skewness) in N connections
+    # beta = 0.01 # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
+    # sigma_beta = 0.0 # Spread in rates, beta (beta_eff = beta - sigma_beta+2*sigma_beta*rand[0,1])... could be exponential?
+    # rho = 0 # Spacial dependency. Average distance to connect with.
+    # lambda_E = 1.0 # E->I, Lambda(from E states)
+    # lambda_I = 1.0 # I->R, Lambda(from I states)
+    # algo = 1 # node connection algorithm
+    # epsilon_rho = 0.01 # fraction of connections not depending on distance
+    # beta_scaling = 1.0 # 0: as normal, 1: half of all (beta)rates are set to 0 the other half doubled
+    # age_mixing = 1.0
+    # ID = 0
+    # coordinates = np.load('Data/GPS_coordinates.npy')[:N_tot]
+    # verbose = True
+
+    tau_I = 0.001 # 0.1 percent of N_tot infected
+    N_contacts_remove = 0.05 # percent
 
     np.random.seed(ID)
 
@@ -905,7 +926,7 @@ def single_run_numba(N_tot, N_init, N_ages, mu, sigma_mu, beta, sigma_beta, rho,
     if verbose:
         print("Make rates and connections")
 
-    connection_weight, infection_weight = initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, frac_02)
+    connection_weight, infection_weight = initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, beta_scaling)
 
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
     # # # # # # # # # # # # # # # # AGES  # # # # # # # # # # # # # # # # # # # # # 
@@ -942,7 +963,7 @@ def single_run_numba(N_tot, N_init, N_ages, mu, sigma_mu, beta, sigma_beta, rho,
     if verbose:
         print("RUN SIMULATION")
 
-    res = run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, infectious_state, N_connections, individual_rates, N_connections_reference, which_connections_reference, which_connections, ages, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, nts, verbose)
+    res = run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, infectious_state, N_connections, individual_rates, N_connections_reference, which_connections_reference, which_connections, ages, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, mu, tau_I, N_contacts_remove, nts, verbose)
 
     return res
 
@@ -950,13 +971,10 @@ def single_run_numba(N_tot, N_init, N_ages, mu, sigma_mu, beta, sigma_beta, rho,
 
 def single_run_and_save(filename, verbose=False):
 
-
-    # filename = 'Data/ABN/N_tot__10000__N_init__100__mu__40.0__sigma_mu__0.0__rho__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__frac_02__0.0__connect_algo__1/N_tot__10000__N_init__100__mu__40.0__sigma_mu__0.0__rho__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__frac_02__0.0__connect_algo__1__ID__000.csv'
-    # verbose=True
+    # filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
 
     cfg = filename_to_dict(filename)
     ID = filename_to_ID(filename)
-
 
     coordinates = np.load('Data/GPS_coordinates.npy')
     if cfg.N_tot > len(coordinates):
@@ -968,146 +986,84 @@ def single_run_and_save(filename, verbose=False):
     coordinates = coordinates[index_subset]
 
     res = single_run_numba(**cfg, ID=ID, coordinates=coordinates, verbose=verbose)
-    # out_single_run, SIRfile_which_state, SIRfile_P1, SIRfile_N_connections, SIRfile_AK_initial, SIRfile_Rate_initial, out_time, out_state_counts = res
-    out_time, out_state_counts, out_which_state, out_N_connections, out_which_connections, out_individual_rates = res
-
+    out_time, out_state_counts, out_which_state, out_N_connections, out_which_connections, out_individual_rates, out_H_state_total_counts, out_ages = res
+    
     header = [
              'Time', 
             'E1', 'E2', 'E3', 'E4', 
             'I1', 'I2', 'I3', 'I4', 
             'R',
+            'H1', 'H2', 'ICU1', 'ICU2', 'R_H', 'D',
             ]
 
     df_time = pd.DataFrame(np.array(out_time), columns=header[0:1])
-    df_states = pd.DataFrame(np.array(out_state_counts), columns=header[1:])
-    df_raw = pd.concat([df_time, df_states], axis=1)#.convert_dtypes()
-    # df_raw = pd.DataFrame(out_time, columns=header).convert_dtypes()
+    df_states = pd.DataFrame(np.array(out_state_counts), columns=header[1:10])
+    df_H_states = pd.DataFrame(np.array(out_H_state_total_counts), columns=header[10:])
+    df = pd.concat([df_time, df_states, df_H_states], axis=1)#.convert_dtypes()
+    assert sum(df_H_states.sum(axis=1) == df_states['R'])
+    
 
     # make sure parent folder exists
     Path(filename).parent.mkdir(parents=True, exist_ok=True)
     # save csv file
-    df_raw.to_csv(filename, index=False)
+    df.to_csv(filename, index=False)
 
     # save which_state, coordinates, and N_connections, once for each set of parameters
     if ID == 0:
-        out_which_state = np.array(out_which_state, dtype=np.int8)
-        out_N_connections = np.array(out_N_connections, dtype=np.int32)
-        
-        filename_animation = str(Path('Data_animation') / Path(filename).stem) + '.animation.joblib'
+        which_state = np.array(out_which_state)
+        N_connections = np.array(out_N_connections)
+        ages = np.array(out_ages)
 
-        Path(filename_animation).parent.mkdir(parents=True, exist_ok=True)
-        joblib.dump([out_which_state, coordinates, out_N_connections], filename_animation)
+        filename_animation = str(Path('Data_animation') / Path(filename).stem) + '.animation.hdf5'
 
-        out_which_connections = awkward.fromiter(out_which_connections).astype(np.int32)
-        filename_which_connections = filename_animation.replace('animation.joblib', 'which_connections.parquet')
-        awkward.toparquet(filename_which_connections, out_which_connections)
+        path = Path(filename_animation)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # joblib.dump([which_state, coordinates, N_connections], filename_animation.replace('hdf5', 'joblib')) 
+        if path.exists():
+            path.unlink()
 
-        out_individual_rates = awkward.fromiter(out_individual_rates)
-        filename_rates = filename_which_connections.replace('which_connections.parquet', 'rates.parquet')
-        awkward.toparquet(filename_rates, out_individual_rates)
+        with h5py.File(filename_animation, "w") as f: # 
+            f.create_dataset("which_state", data=which_state)
+            f.create_dataset("coordinates", data=coordinates)
+            f.create_dataset("N_connections", data=N_connections)
+            f.create_dataset("ages", data=ages)
+            f.create_dataset("cfg_str", data=str(cfg)) # import ast; ast.literal_eval(str(cfg))
+            df_structured = np.array(df.to_records(index=False))
+            f.create_dataset("df", data=df_structured) 
+            
+            g = awkward.hdf5(f)
+            g["which_connections"] = awkward.fromiter(out_which_connections).astype(np.int32)
+            g["individual_rates"] = awkward.fromiter(out_individual_rates)
+
+            for key, val in cfg.items():
+                f.attrs[key] = val
+
+        # which_connections = awkward.fromiter(out_which_connections).astype(np.int32)
+        # filename_which_connections = filename_animation.replace('animation.joblib', 'which_connections.parquet')
+        # awkward.toparquet(filename_which_connections, which_connections)
+
+        # individual_rates = awkward.fromiter(out_individual_rates)
+        # filename_rates = filename_which_connections.replace('which_connections.parquet', 'rates.parquet')
+        # awkward.toparquet(filename_rates, individual_rates)
 
     return None
 
 
+# if False:
 
-# %%
+#     filename_animation = 'Data_animation/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.animation.hdf5'
 
+#     f = h5py.File(filename_animation, "r")
+#     # with h5py.File(filename_animation, "w") as f:
+#     f["which_state"].value
+#     f["coordinates"]
+#     f["N_connections"]
+#     ages = f["ages"].value
 
-# %%
+#     df = pd.DataFrame(f["df"].value)
 
-if False:
+#     f["which_connections"] 
+#     g = awkward.hdf5(f)
+#     g["which_connections"] 
+#     g["individual_rates"] 
 
-    filename = 'Data/ABN/N_tot__10000__N_init__100__mu__40.0__sigma_mu__0.0__rho__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__frac_02__0.0__algo__2/N_tot__10000__N_init__100__mu__40.0__sigma_mu__0.0__rho__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__frac_02__0.0__algo__2__ID__000.csv'
-
-    verbose=True
-
-    cfg = filename_to_dict(filename)
-    ID = filename_to_ID(filename)
-
-    cfg.N_tot = 580_000
-    # cfg.sigma_beta = 1.0
-    cfg.rho = 0
-    # cfg.beta = 0.01*10
-    # cfg.algo = 100_000
-    cfg['N_ages'] = 10
-    cfg['age_mixing'] = 0.5
-    cfg.sigma_mu = 0.0
-
-
-    coordinates = np.load('Data/GPS_coordinates.npy')
-    if cfg.N_tot > len(coordinates):
-        raise AssertionError("N_tot cannot be larger than coordinates (number of generated houses in DK)")
-
-    np.random.seed(ID)
-    index = np.arange(len(coordinates))
-    index_subset = np.random.choice(index, cfg.N_tot, replace=False)
-    coordinates = coordinates[index_subset]
-
-    res = single_run_numba(**cfg, ID=ID, coordinates=coordinates, verbose=verbose)
-    out_time, out_state_counts, out_which_state, out_N_connections, out_which_connections, out_individual_rates = res
-
-    header = [
-                'Time', 
-            'E1', 'E2', 'E3', 'E4', 
-            'I1', 'I2', 'I3', 'I4', 
-            'R',
-            ]
-
-    df_time = pd.DataFrame(np.array(out_time), columns=header[0:1])
-    df_states = pd.DataFrame(np.array(out_state_counts), columns=header[1:])
-    df_raw = pd.concat([df_time, df_states], axis=1)#.convert_dtypes()
-
-    print(df_raw)
-
-
-    fig, ax = plt.subplots()
-    # ax.plot(df_raw['Time'], df_raw['R'])
-    ax.plot(df_raw['Time'], df_raw['I1']+df_raw['I2']+df_raw['I2']+df_raw['I3'])
-
-    # joblib.dump(df_raw, 'dump2.joblib')
-
-
-
-#     # %timeit single_run_numba(**cfg, ID=ID, coordinates=coordinates, verbose=False)
-#     @njit(parallel=True)
-#     def test(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_E, lambda_I, algo, epsilon_rho, frac_02, coordinates, verbose=False):
-#         for ID in prange(6):
-#             print(ID)
-#             single_run_numba(N_tot, N_init, mu, sigma_mu, rho, beta, sigma_beta, lambda_E, lambda_I, algo, epsilon_rho, frac_02, ID, coordinates, verbose=verbose)
-#         return None
-
-#     test(**cfg, coordinates=coordinates, verbose=False)
-#     # %time test(**cfg, coordinates=coordinates, verbose=False)
-
-
-
-# def unpack_test(ID):
-
-#     filename = 'Data/ABN/N_tot__10000__N_init__100__mu__20.0__sigma_mu__0.0__rho__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__frac_02__0.0__connect_algo__1/N_tot__10000__N_init__100__mu__20.0__sigma_mu__0.0__rho__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__frac_02__0.0__connect_algo__1__ID__000.csv'
-#     verbose=True
-
-#     cfg = filename_to_dict(filename)
-#     cfg.N_tot = 50_000
-#     # ID = filename_to_ID(filename)
-
-#     coordinates = np.load('Data/GPS_coordinates.npy')
-#     if cfg.N_tot > len(coordinates):
-#         raise AssertionError("N_tot cannot be larger than coordinates (number of generated houses in DK)")
-
-#     np.random.seed(ID)
-#     index = np.arange(len(coordinates))
-#     index_subset = np.random.choice(index, cfg.N_tot, replace=False)
-#     coordinates = coordinates[index_subset]
-
-#     res = single_run_numba(**cfg, ID=ID, coordinates=coordinates, verbose=verbose)
-#     # out_single_run, SIRfile_which_state, SIRfile_P1, SIRfile_N_connections, SIRfile_AK_initial, SIRfile_Rate_initial, out_time, out_state_counts = res
-
-
-# from tqdm import tqdm
-# import multiprocessing as mp
-
-# if __name__ == '__main__':
-#     with mp.Pool(6) as p:
-#         list(tqdm(p.imap_unordered(unpack_test, range(6)), total=6))
-
-# %%

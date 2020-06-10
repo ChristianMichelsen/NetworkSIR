@@ -136,13 +136,13 @@ def get_d_translate():
                     'epsilon_rho': r'\epsilon_\rho', 
                     'frac_02': r'f_{02}',
                     'age_mixing': r'\mathrm{age}_\mathrm{mixing}',
-                    'algo': r'\mathrm{connect}_\mathrm{algo}',
+                    'algo': r'\mathrm{algo}',
                     }
     return d_translate
 
 
 
-def dict_to_title(d, N=None, exclude=None):
+def dict_to_title(d, N=None, exclude=None, in_two_line=True):
 
     # important to make a copy since overwriting below
     cfg = SimulateDenmarkAgeHospitalization_extra_funcs.DotDict(d)
@@ -157,7 +157,8 @@ def dict_to_title(d, N=None, exclude=None):
         if not sim_par == exclude:
             title += f"{d_translate[sim_par]} = {val}, \," 
 
-    # title = f"$N={N_tot_str}, beta={cfg.beta}, sigma_mu={cfg.sigma_mu}, sigma_beta={cfg.sigma_beta},  rho={cfg.rho}, mu={cfg.mu}, lambda_E={cfg.lambda_E}, lambda_I={cfg.lambda_I}, N_init={cfg.N_init}, epsilon_rho={cfg.epsilon_rho}, frac_02={cfg.frac_02}, algo={cfg.algo}"
+    if in_two_line:
+        title = title.replace(", \\,\\lambda_E", "$\n$\\lambda_E")
 
     if N:
         title += r"\#" + f"{N}, \,"

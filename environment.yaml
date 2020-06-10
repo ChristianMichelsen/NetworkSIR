@@ -33,6 +33,7 @@ dependencies:
   - fast-histogram
   - astropy
   - imageio-ffmpeg
+  - h5py
   - pip:
     - mpl-scatter-density
     - pygifsicle

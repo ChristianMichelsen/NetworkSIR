@@ -35,6 +35,8 @@ if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison('I', force_overwrite=True)
     extra_funcs.plot_SIR_model_comparison('R', force_overwrite=True)
 
+# x=x
+
 #%%
 
 if False:
@@ -58,6 +60,7 @@ if False:
 
     extra_funcs.plot_variable_other_than_default('rho') 
     extra_funcs.plot_variable_other_than_default('rho', algo=1) 
+    extra_funcs.plot_variable_other_than_default('rho', N_tot=5_800_000) 
     extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=150)
     extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=150, algo=1)  
     
