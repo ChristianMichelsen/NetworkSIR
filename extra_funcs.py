@@ -134,7 +134,7 @@ def get_d_translate():
                     'lambda_E': r'\lambda_E',
                     'lambda_I': r'\lambda_I',
                     'epsilon_rho': r'\epsilon_\rho', 
-                    'frac_02': r'f_{02}',
+                    'beta_scaling': r'\beta_\mathrm{scaling}',
                     'age_mixing': r'\mathrm{age}_\mathrm{mixing}',
                     'algo': r'\mathrm{algo}',
                     }
@@ -158,7 +158,10 @@ def dict_to_title(d, N=None, exclude=None, in_two_line=True):
             title += f"{d_translate[sim_par]} = {val}, \," 
 
     if in_two_line:
-        title = title.replace(", \\,\\lambda_E", "$\n$\\lambda_E")
+        if 'lambda_E' in title:
+            title = title.replace(", \\,\\lambda_E", "$\n$\\lambda_E")
+        else:
+            title = title.replace(", \\,\\lambda_I", "$\n$\\lambda_I")
 
     if N:
         title += r"\#" + f"{N}, \,"
@@ -466,7 +469,7 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
     y_truth_interpolated = df_interpolated['I']
     I_max_det, R_inf_det = calc_Imax_R_inf_deterministic(cfg.mu, cfg.lambda_E, cfg.lambda_I, cfg.beta, y0, Tmax*2, dt, ts)
     Tmax_peak = df_interpolated['I'].argmax()*1.2
-    I_max_net = np.max(df['I'])
+    I_max_ABN = np.max(df['I'])
 
     fit_object = CustomChi2(t_interpolated[iloc_start:iloc_lockdown], y_truth_interpolated.to_numpy(float)[iloc_start:iloc_lockdown], y0, Tmax_peak, dt=dt, ts=ts, mu=cfg.mu, y_min=I_min)
 
@@ -486,7 +489,7 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
     fit_object.set_minuit(minuit)
 
     fit_object.filename = filename
-    fit_object.I_max_net = I_max_net
+    fit_object.I_max_ABN = I_max_ABN
     fit_object.I_max_hat = fit_object.compute_I_max()
     fit_object.I_max_det = I_max_det
     
@@ -499,7 +502,7 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
 
     # reload(extra_funcs)
     # N_peak_fits = N_peak_fits
-    # I_max_net = np.max(I)
+    # I_max_ABN = np.max(I)
     # I_maxs = np.zeros(N_peak_fits)
     # betas = np.zeros(N_peak_fits)
     # betas_std = np.zeros(N_peak_fits)
@@ -507,7 +510,7 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
         # I_maxs[imax] = I_max
         # betas[imax] = fit_object.fit_values['beta']
         # betas_std[imax] = fit_object.fit_errors['beta']
-    # return filename, times_maxs_normalized, I_maxs, I_max_net, betas, betas_std
+    # return filename, times_maxs_normalized, I_maxs, I_max_ABN, betas, betas_std
 
 
 
@@ -671,122 +674,6 @@ def fix_and_sort_index(df):
     df.index = df.index.map(filename_to_ID)
     return df.sort_index(ascending=True, inplace=False)
 
-# def Imax_fits_to_df(Imax_res, filenames_to_use, I_maxs_times):
-#     res_tmp = {k: Imax_res[k] for k in filenames_to_use}
-#     df = fix_and_sort_index(pd.DataFrame(res_tmp).T)
-#     df.columns = I_maxs_times
-#     df.loc['mean'] = df.mean()
-#     df.loc['std'] = df.std()
-#     df.loc['sdom'] = df.std() / np.sqrt(len(df)-1)
-#     # I_max_normed_by_pars[par_string] = df
-#     return df
-
-
-# def get_filenames_to_use_Imax(par_string):
-#     filenames_to_use = Path(f'Data/ABN/{par_string}').glob(f"*.csv")
-#     filenames_to_use = [str(s) for s in filenames_to_use]
-#     return sorted(filenames_to_use)
-
-
-
-# def extract_normalized_Imaxs(d_fit_objects_all_IDs, I_maxs_net, filenames_to_use, bin_centers_Imax):
-#     I_maxs_normed_res = {}
-#     for filename, fit_objects in d_fit_objects_all_IDs.items():
-#         I_maxs = np.zeros(N_peak_fits)
-#         for i_fit_object, fit_object in enumerate(fit_objects):
-#             I_maxs[i_fit_object]  = fit_object.compute_I_max()
-#         ID = filename_to_ID(filename)
-#         I_maxs_normed_res[filename] = I_maxs / I_maxs_net[ID]
-#     df_I_maxs_normed = Imax_fits_to_df(I_maxs_normed_res, filenames_to_use, bin_centers_Imax)
-#     return df_I_maxs_normed
-
-
-# def extract_relative_Imaxs(d_fit_objects_all_IDs, I_maxs_net, filenames_to_use, bin_centers_Imax):
-#     I_maxs_relative_res = {}
-#     for filename, fit_objects in d_fit_objects_all_IDs.items():
-#         I_maxs = np.zeros(N_peak_fits)
-#         I_current_pos = np.zeros(N_peak_fits)
-#         for i_fit_object, fit_object in enumerate(fit_objects):
-#             I_maxs[i_fit_object] = fit_object.compute_I_max()
-#             I_current_pos[i_fit_object] = fit_object.y_truth[-1]
-#         ID = filename_to_ID(filename)
-#         I_maxs_relative_res[filename] = (I_maxs_net[ID]-I_maxs) / (I_maxs_net[ID]-I_current_pos)
-#     df_I_maxs_relative = Imax_fits_to_df(I_maxs_relative_res, filenames_to_use, bin_centers_Imax)
-#     return df_I_maxs_relative
-
-# def extract_relative_Imaxs_relative_I(d_fit_objects_all_IDs, I_maxs_net, filenames_to_use):
-    
-#     I_maxs_relative_res = {}
-#     I_relative_res = {}
-#     for filename, fit_objects in d_fit_objects_all_IDs.items():
-#         # break
-#         I_maxs = np.zeros(N_peak_fits)
-#         I_current_pos = np.zeros(N_peak_fits)
-#         I_rel = np.zeros(N_peak_fits)
-
-#         for i_fit_object, fit_object in enumerate(fit_objects):
-#             N_tot = fit_object.y0[1]
-#             I_rel[i_fit_object] = fit_object.y_truth[-1] / N_tot # percent
-#             I_maxs[i_fit_object] = fit_object.compute_I_max()
-#             I_current_pos[i_fit_object] = fit_object.y_truth[-1]
-
-#         ID = filename_to_ID(filename)
-#         I_maxs_relative_res[filename] = (I_maxs_net[ID]-I_maxs) / (I_maxs_net[ID]-I_current_pos)
-#         I_relative_res[filename] = I_rel
-
-#     x = np.stack(I_relative_res.values())
-#     y = np.stack(I_maxs_relative_res.values())
-
-#     x_flat = x.flatten()
-#     y_flat = y.flatten()
-
-#     # df_I_rel = pd.DataFrame.from_dict(I_relative_res).T
-#     x_min = x.min()*0.99
-#     x_max = x.max()*1.01
-#     N_bins = N_peak_fits
-#     bins = np.linspace(x_min, x_max, N_bins+1)
-#     bin_centers = (bins[1:] + bins[:-1]) / 2
-
-#     indices = np.digitize(x_flat, bins) - 1
-
-#     df_xy = pd.DataFrame({'x': x_flat, 'y':y_flat, 'bin': indices, 'bin_center': bin_centers[indices]})
-    
-#     def calc_binned_mean_sdom(df_group):
-#         mean = np.mean(df_group['y'])
-#         std = np.std(df_group['y'])
-#         sdom = std / np.sqrt(len(df_group) -1)
-#         d = {'x': df_group['bin_center'].iloc[0], 
-#              'mean': mean,
-#              'std': std,
-#              'sdom': sdom}
-#         return pd.Series(d)
-#         # return d
-
-#     df_binned = df_xy.groupby('bin').apply(calc_binned_mean_sdom)
-#     return df_binned
-
-
-# def extract_fit_parameter(parameter, d_fit_objects_all_IDs, filenames_to_use, bin_centers_Imax):
-#     par_tmp = {}
-#     par_std_tmp = {}
-#     for filename, fit_objects in d_fit_objects_all_IDs.items():
-#         pars = np.zeros(N_peak_fits)
-#         pars_std = np.zeros(N_peak_fits)
-#         for i_fit_object, fit_object in enumerate(fit_objects):
-#             pars[i_fit_object]  = fit_object.fit_values[parameter]
-#             pars_std[i_fit_object]  = fit_object.fit_errors[parameter]
-#         par_tmp[filename] = pars 
-#         par_std_tmp[filename] = pars_std 
-#     df_par = Imax_fits_to_df(par_tmp, filenames_to_use, bin_centers_Imax)
-#     df_par_std = Imax_fits_to_df(par_std_tmp, filenames_to_use, bin_centers_Imax)
-#     return df_par, df_par_std
-
-
-# def mask_df(df, cut_val):
-#     mask = (-cut_val <= df.loc['mean']) & (df.loc['mean'] <= cut_val)
-#     return df.loc[:, mask]
-
-
 
 #%%
 
@@ -822,74 +709,98 @@ def get_filenames_different_than_default(parameter, **kwargs):
 
 #%%
 
-def plot_variable_other_than_default(parameter, do_log=False, **kwargs):
+def SDOM(x):
+    # standard deviation of the mean
+    return np.std(x) / np.sqrt(len(x))
 
-    filenames_par_rest_default = get_filenames_different_than_default(parameter, **kwargs)
+
+def plot_1D_scan(parameter, do_log=False, **kwargs):
+
+    # kwargs = {}
+    default_files_as_function_of_parameter = get_filenames_different_than_default(parameter, **kwargs)
+    if len(default_files_as_function_of_parameter) == 0:
+        # print(f"\nNo files found for parameter {parameter}")
+        return None
 
     d_par_pretty = get_d_translate()
 
     base_dir = Path('Data') / 'ABN'
 
-    x = np.zeros(len(filenames_par_rest_default))
-    y = np.zeros_like(x)
-    sy = np.zeros_like(x)
+    x = np.zeros(len(default_files_as_function_of_parameter))
+    y_I = np.zeros_like(x)
+    y_R = np.zeros_like(x)
+    sy_I = np.zeros_like(x)
+    sy_R = np.zeros_like(x)
     n = np.zeros_like(x)
 
-    # i_simpar, sim_par = 0, filenames_par_rest_default[0]
-    for i_simpar, sim_par in enumerate(tqdm(filenames_par_rest_default)):
+    # i_simpar, sim_par = 0, default_files_as_function_of_parameter[0]
+    for i_simpar, sim_par in enumerate(tqdm(default_files_as_function_of_parameter, desc=parameter)):
         filenames = [str(filename) for filename in base_dir.rglob('*.csv') if f"{sim_par}/" in str(filename)]
         N_files = len(filenames)
 
-        I_max_net = np.zeros(N_files)
+        I_max_ABN = np.zeros(N_files)
+        R_inf_ABN = np.zeros(N_files)
+
+        # i_filename, filename = 0, filenames[0]
         for i_filename, filename in enumerate(filenames):
             cfg = filename_to_dotdict(filename)
             df = pandas_load_file(filename, return_only_df=True)
-            I_max_net[i_filename] = df['I'].max()
+            I_max_ABN[i_filename] = df['I'].max()
+            R_inf_ABN[i_filename] = df['R'].iloc[-1]
 
         Tmax = max(df['Time'].max()*1.2, 300)
-        y0 = cfg.N_tot-cfg.N_init, cfg.N_tot,   cfg.N_init,0,0,0,      0,0,0,0,   0#, cfg.N_init
-        dt = 0.01
-        ts = 0.1
-        ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu=cfg.mu, lambda_E=cfg.lambda_E, lambda_I=cfg.lambda_I, beta=cfg.beta)
-        # print(y0, Tmax, dt, ts, cfg)
-        I_SIR = ODE_result_SIR[:, 2]
-        I_max_SIR = np.max(I_SIR)
-        I_mask = (I_max_net > 10)
-        z_rel = I_max_net / I_max_SIR
-        z_rel = z_rel[I_mask]
-        # I_max_rel[cfg[parameter]] = I_max_net / I_max_SIR
+        df_SIR = ODE_integrate_cfg_to_df(cfg, Tmax, dt=0.01, ts=0.1)
+        
+        z_rel_I = I_max_ABN / df_SIR['I'].max()
+        z_rel_R = R_inf_ABN / df_SIR['R'].iloc[-1]
         x[i_simpar] = cfg[parameter]
-        y[i_simpar] = np.mean(z_rel)
-        sy[i_simpar] = np.std(z_rel) / np.sqrt(len(z_rel))
-        n[i_simpar] = len(z_rel)
+        y_I[i_simpar] = np.mean(z_rel_I)
+        y_R[i_simpar] = np.mean(z_rel_R)
+        sy_I[i_simpar] = SDOM(z_rel_I)
+        sy_R[i_simpar] = SDOM(z_rel_R) 
+        n[i_simpar] = N_files
 
     title = dict_to_title(cfg, exclude=parameter)
+    xlabel = r"$" + d_par_pretty[parameter] + r"$"
 
-    fig, ax = plt.subplots() # 
-    ax.errorbar(x, y, sy, fmt='.', color='black', ecolor='black', elinewidth=1, capsize=10) # , 
-    ax.set_xlabel(r"$" + d_par_pretty[parameter] + r"$") # fontsize=fs
-    ax.set_ylabel(r'$I_\mathrm{max}^\mathrm{ABN} \, / \,\, I_\mathrm{max}^\mathrm{SIR}$') #labelpad=10 fontsize=fs
-    ax.set_title(title) # pad=20 fontsize=16*k_scale
-    if do_log:
-        ax.set_xscale('log')
-    fig.tight_layout()
+    # n>1 datapoints
+    mask = (n > 1)
+
+    factor = 0.8
+    fig, (ax0, ax1) = plt.subplots(ncols=2, figsize=(16*factor, 9*factor)) # 
+    fig.suptitle(title, fontsize=28*factor)
+
+    ax0.errorbar(x[mask], y_I[mask], sy_I[mask], fmt='.', color='black', ecolor='black', elinewidth=1, capsize=10)
+    ax0.errorbar(x[~mask], y_I[~mask], sy_I[~mask], fmt='.', color='grey', ecolor='grey', elinewidth=1, capsize=10) 
+    ax0.set_xlabel(xlabel) 
+    ax0.set_ylabel(r'$I_\mathrm{max}^\mathrm{ABN} \, / \,\, I_\mathrm{max}^\mathrm{SIR}$')
+
+    ax1.errorbar(x[mask], y_R[mask], sy_R[mask], fmt='.', color='black', ecolor='black', elinewidth=1, capsize=10)
+    ax1.errorbar(x[~mask], y_R[~mask], sy_R[~mask], fmt='.', color='grey', ecolor='grey', elinewidth=1, capsize=10) 
+    ax1.set_xlabel(xlabel) 
+    ax1.set_ylabel(r'$R_\infty^\mathrm{ABN} \, / \,\, R_\infty^\mathrm{SIR}$') 
     
-    figname_pdf = f"Figures/par_SIR_network_relative/pdf/par_SIR_network_relative_{parameter}"
+    if do_log:
+        ax0.set_xscale('log')
+        ax1.set_xscale('log')
+    fig.tight_layout()
+    fig.subplots_adjust(top=0.8, wspace=0.45)
+    
+    figname_pdf = f"Figures/1D_scan/pdf/1D_scan_{parameter}"
     for key, val in kwargs.items():
         figname_pdf += f"_{key}_{val}"
     figname_pdf += '.pdf'
-    
 
     Path(figname_pdf).parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(figname_pdf) # bbox_inches='tight', pad_inches=0.3
+    fig.savefig(figname_pdf, dpi=100) # bbox_inches='tight', pad_inches=0.3
     plt.close('all')
 
 
     n_text = [f"n = {int(ni)}" for ni in n]
-    fig = go.Figure(data=go.Scatter(x=x, y=y, text=n_text, mode='markers', error_y=dict(array=sy)))
+    fig = go.Figure(data=go.Scatter(x=x, y=y_I, text=n_text, mode='markers', error_y=dict(array=sy_I)))
     fig.update_layout(title=title,
                     xaxis_title=parameter,
-                    yaxis_title='I_max_net / I_max_SIR',
+                    yaxis_title='I_max_ABN / I_max_SIR',
                     height=600, width=800,
                     showlegend=False,
                     )

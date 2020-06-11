@@ -414,7 +414,7 @@ def make_initial_infections(N_init, which_state, state_total_counts, agents_in_s
 #%%
 
 @njit
-def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, infectious_state, N_connections, individual_rates, N_connections_reference, which_connections_reference, which_connections, ages, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, mu, tau_I, N_contacts_remove, nts, verbose):
+def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, infectious_state, N_connections, individual_rates, N_connections_reference, which_connections_reference, which_connections, ages, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, mu, tau_I, delta_days, N_contacts_remove, nts, verbose):
 
     out_time = List()
     out_state_counts = List()
@@ -440,7 +440,7 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
     H_counter = 0
 
     intervention_switch = False
-    has_printed = False
+    intervention_day0 = 0.0
     closed_contacts = initialize_nested_lists(N_tot, dtype=np.int32) 
     closed_contacts_rate = initialize_nested_lists(N_tot, dtype=np.float32) 
 
@@ -458,54 +458,66 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
         ra1 = np.random.rand()
 
 
-        # # removal of contacts
-        # I_tot = np.sum(state_total_counts[4:8])
+        # INTERVENTION START
+        I_tot = np.sum(state_total_counts[4:8])
 
-        # if tau_I < I_tot / N_tot and not intervention_switch:
-        #     intervention_switch = True
+        if tau_I < I_tot / N_tot and not intervention_switch:
+            intervention_switch = True
+            intervention_day0 = RT
 
-        #     for c in range(int(N_tot*mu*N_contacts_remove)):
+            for c in range(int(N_tot*mu*N_contacts_remove)):
 
-        #         idx1 = np.random.randint(N_tot)
+                idx1 = np.random.randint(N_tot)
 
-        #         N_contacts_idx = len(which_connections[idx1])
-        #         if N_contacts_idx > 0:
-        #             idn1 = np.random.randint(N_contacts_idx)
+                # we force contacts 
+                N_contacts_idx = len(which_connections[idx1])
+                if N_contacts_idx > 0:
+                    break
 
-        #             closed_contacts[idx1].append(idn1)
-        #             rates1 = individual_rates[idx1]
-        #             closed_contacts_rate[idx1].append(rates1[idn1])
-        #             TotInf -= rates1[idn1]
-        #             csInf[which_state[idx1]:] -= rates1[idn1]
-        #             rates1[idn1] = 0
+                idn1 = np.random.randint(N_contacts_idx)
+                idx2 = which_connections[idx1][idn1]
 
-        #             idx2 = which_connections[idx1][idn1]
-        #             connections2 = which_connections[idx2]
-        #             idn2 = -1
-        #             for i in range(len(connections2)):
-        #                 if connections2[i] == idx1:
-        #                     idn2 = i 
-        #             if idn2 < 0:
-        #                 print(idx1, idn1, idx2, idn2)
+                closed_contacts[idx1].append(idx2)
+                rates1 = individual_rates[idx1]
+                closed_contacts_rate[idx1].append(rates1[idn1])
+                TotInf -= rates1[idn1]
+                csInf[which_state[idx1]:] -= rates1[idn1]
+                rates1[idn1] = 0
+
+                connections2 = which_connections[idx2]
+                idn2 = -1
+                for i in range(len(connections2)):
+                    if connections2[i] == idx1:
+                        idn2 = i 
+
+                # if idx2 is not in idx1, must be because idx1 is infected (E or I or R) and we stop
+                if idn2 == -1:
+                    break
+
+                closed_contacts[idx2].append(idx1)
+                rates2 = individual_rates[idx2]
+                closed_contacts_rate[idx2].append(rates2[idn2])
+                TotInf -= rates2[idn2]
+                csInf[which_state[idx2]:] -= rates2[idn2]
+                rates2[idn2] = 0
 
 
-        #             closed_contacts[idx2].append(idn2)
-        #             rates2 = individual_rates[idx2]
-        #             try:
-        #                 closed_contacts_rate[idx2].append(rates2[idn2])
-        #             except:
-        #                 if not has_printed:
-        #                     print("closed_contacts_rate")
-        #                     print(idx1, idn1, idx2, idn2)
-        #                     print(rates2)
-        #                     print(closed_contacts_rate[idx2])
-        #                     has_printed = True
+        # INTERVENTION STOP
+        # if (RT >= intervention_day0 + delta_days) and intervention_switch:
+        #     intervention_day0 = 1e10
 
-        #             TotInf -= rates2[idn2]
-        #             csInf[which_state[idx2]:] -= rates2[idn2]
-        #             rates2[idn2] = 0
-
-        #                 #  print(c, idx1, idn1, idx2, idn2)
+        #     for idx1 in range(len(closed_contacts)):
+        #         # if closed_contacts for idx1 contains any closed contacts, continue
+        #         if len(closed_contacts[idx1]) > 0:
+                    
+        #             # loop over all contacts in idx1
+        #             for idx2 in closed_contacts[idx1]:
+                        
+        #                 # if idx2 is susceptible
+        #                 if which_state[idx2] == -1:
+                            
+        #                     # for idx in which_contacts[idx1]
+            
 
 
         #######/ Here we move infected between states
@@ -833,25 +845,26 @@ def calculate_age_proportions_2D(alpha_age, N_ages):
 @njit
 def single_run_numba(N_tot, N_init, N_ages, mu, sigma_mu, beta, sigma_beta, rho, lambda_E, lambda_I, algo, epsilon_rho, beta_scaling, age_mixing, ID, coordinates, verbose=False):
     
-    # N_tot = 50_000 # Total number of nodes!
-    # N_init = 100 # Initial Infected
-    # N_ages = 10 #
-    # mu = 40.0  # Average number of connections of a node (init: 20)
-    # sigma_mu = 1.0 # Spread (skewness) in N connections
-    # beta = 0.01 # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
-    # sigma_beta = 0.0 # Spread in rates, beta (beta_eff = beta - sigma_beta+2*sigma_beta*rand[0,1])... could be exponential?
-    # rho = 0 # Spacial dependency. Average distance to connect with.
-    # lambda_E = 1.0 # E->I, Lambda(from E states)
-    # lambda_I = 1.0 # I->R, Lambda(from I states)
-    # algo = 1 # node connection algorithm
-    # epsilon_rho = 0.01 # fraction of connections not depending on distance
-    # beta_scaling = 1.0 # 0: as normal, 1: half of all (beta)rates are set to 0 the other half doubled
-    # age_mixing = 1.0
-    # ID = 0
-    # coordinates = np.load('Data/GPS_coordinates.npy')[:N_tot]
-    # verbose = True
+    N_tot = 50_000 # Total number of nodes!
+    N_init = 100 # Initial Infected
+    N_ages = 10 #
+    mu = 40.0  # Average number of connections of a node (init: 20)
+    sigma_mu = 1.0 # Spread (skewness) in N connections
+    beta = 0.01 # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
+    sigma_beta = 0.0 # Spread in rates, beta (beta_eff = beta - sigma_beta+2*sigma_beta*rand[0,1])... could be exponential?
+    rho = 0 # Spacial dependency. Average distance to connect with.
+    lambda_E = 1.0 # E->I, Lambda(from E states)
+    lambda_I = 1.0 # I->R, Lambda(from I states)
+    algo = 1 # node connection algorithm
+    epsilon_rho = 0.01 # fraction of connections not depending on distance
+    beta_scaling = 1.0 # 0: as normal, 1: half of all (beta)rates are set to 0 the other half doubled
+    age_mixing = 1.0
+    ID = 0
+    coordinates = np.load('Data/GPS_coordinates.npy')[:N_tot]
+    verbose = True
 
-    tau_I = 0.001 # 0.1 percent of N_tot infected
+    tau_I = 1 # start to turn off contacts when infected (I) is more than tau_I * N_tot 
+    delta_days = 10
     N_contacts_remove = 0.05 # percent
 
     np.random.seed(ID)
@@ -924,7 +937,8 @@ def single_run_numba(N_tot, N_init, N_ages, mu, sigma_mu, beta, sigma_beta, rho,
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
     if verbose:
-        print("Make rates and connections")
+        print("MAKE RATES AND CONNECTIONS")
+        
 
     connection_weight, infection_weight = initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, beta_scaling)
 
@@ -933,7 +947,7 @@ def single_run_numba(N_tot, N_init, N_ages, mu, sigma_mu, beta, sigma_beta, rho,
     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
     if verbose:
-        print("Make ages")
+        print("MAKE AGES")
 
     ages, ages_total_counts, ages_in_state, PT_ages, PC_ages, PP_ages = initialize_ages(N_tot, N_ages, connection_weight)
 
@@ -963,7 +977,7 @@ def single_run_numba(N_tot, N_init, N_ages, mu, sigma_mu, beta, sigma_beta, rho,
     if verbose:
         print("RUN SIMULATION")
 
-    res = run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, infectious_state, N_connections, individual_rates, N_connections_reference, which_connections_reference, which_connections, ages, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, mu, tau_I, N_contacts_remove, nts, verbose)
+    res = run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, infectious_state, N_connections, individual_rates, N_connections_reference, which_connections_reference, which_connections, ages, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, mu, tau_I, delta_days, N_contacts_remove, nts, verbose)
 
     return res
 

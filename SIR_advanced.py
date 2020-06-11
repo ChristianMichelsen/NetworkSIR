@@ -35,7 +35,7 @@ if plot_SIR_comparison:
     extra_funcs.plot_SIR_model_comparison('I', force_overwrite=True)
     extra_funcs.plot_SIR_model_comparison('R', force_overwrite=True)
 
-# x=x
+x=x
 
 #%%
 
@@ -45,39 +45,37 @@ if False:
     # parameter = 'rho'
     # do_log = False
 
-    extra_funcs.plot_variable_other_than_default('N_tot', do_log=True)
-    extra_funcs.plot_variable_other_than_default('N_init', do_log=True) 
-    extra_funcs.plot_variable_other_than_default('N_init', do_log=True, algo=1) 
+    extra_funcs.plot_1D_scan('N_tot', do_log=True)
+    extra_funcs.plot_1D_scan('N_init', do_log=True) 
+    extra_funcs.plot_1D_scan('N_init', do_log=True, algo=1) 
 
-    extra_funcs.plot_variable_other_than_default('N_ages', age_mixing=0)
-    extra_funcs.plot_variable_other_than_default('N_ages', age_mixing=0.25)
-    extra_funcs.plot_variable_other_than_default('N_ages', age_mixing=0.5)
-    extra_funcs.plot_variable_other_than_default('N_ages', age_mixing=0.75)
-    extra_funcs.plot_variable_other_than_default('N_ages', age_mixing=1) 
-    extra_funcs.plot_variable_other_than_default('age_mixing', N_ages=1)
-    extra_funcs.plot_variable_other_than_default('age_mixing', N_ages=3)
-    extra_funcs.plot_variable_other_than_default('age_mixing', N_ages=10) 
+    extra_funcs.plot_1D_scan('N_ages', age_mixing=0)
+    extra_funcs.plot_1D_scan('N_ages', age_mixing=0.25)
+    extra_funcs.plot_1D_scan('N_ages', age_mixing=0.5)
+    extra_funcs.plot_1D_scan('N_ages', age_mixing=0.75)
+    extra_funcs.plot_1D_scan('N_ages', age_mixing=1) 
+    extra_funcs.plot_1D_scan('age_mixing', N_ages=1)
+    extra_funcs.plot_1D_scan('age_mixing', N_ages=3)
+    extra_funcs.plot_1D_scan('age_mixing', N_ages=10) 
 
-    extra_funcs.plot_variable_other_than_default('rho') 
-    extra_funcs.plot_variable_other_than_default('rho', algo=1) 
-    extra_funcs.plot_variable_other_than_default('rho', N_tot=5_800_000) 
-    extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=150)
-    extra_funcs.plot_variable_other_than_default('epsilon_rho', rho=150, algo=1)  
+    extra_funcs.plot_1D_scan('rho') 
+    extra_funcs.plot_1D_scan('rho', algo=1) 
+    extra_funcs.plot_1D_scan('rho', N_tot=5_800_000) 
+    extra_funcs.plot_1D_scan('epsilon_rho', rho=150)
+    extra_funcs.plot_1D_scan('epsilon_rho', rho=150, algo=1)  
     
-    extra_funcs.plot_variable_other_than_default('mu')
-    extra_funcs.plot_variable_other_than_default('beta')
-    extra_funcs.plot_variable_other_than_default('sigma_beta') 
-    extra_funcs.plot_variable_other_than_default('sigma_beta', algo=1) 
-    extra_funcs.plot_variable_other_than_default('sigma_beta', rho=150) 
-    extra_funcs.plot_variable_other_than_default('sigma_beta', rho=150, algo=1) 
-    extra_funcs.plot_variable_other_than_default('sigma_mu') 
-    extra_funcs.plot_variable_other_than_default('sigma_mu', algo=1) 
-    extra_funcs.plot_variable_other_than_default('sigma_mu', rho=150) 
-    extra_funcs.plot_variable_other_than_default('sigma_mu', rho=150, algo=1) 
-    extra_funcs.plot_variable_other_than_default('frac_02')
-    extra_funcs.plot_variable_other_than_default('frac_02', algo=1) 
-    extra_funcs.plot_variable_other_than_default('lambda_E') 
-    extra_funcs.plot_variable_other_than_default('lambda_I') 
+    extra_funcs.plot_1D_scan('mu')
+    extra_funcs.plot_1D_scan('beta')
+    extra_funcs.plot_1D_scan('sigma_beta') 
+    extra_funcs.plot_1D_scan('sigma_beta', algo=1) 
+    extra_funcs.plot_1D_scan('sigma_beta', rho=150) 
+    extra_funcs.plot_1D_scan('sigma_beta', rho=150, algo=1) 
+    extra_funcs.plot_1D_scan('sigma_mu') 
+    extra_funcs.plot_1D_scan('sigma_mu', algo=1) 
+    extra_funcs.plot_1D_scan('sigma_mu', rho=150) 
+    extra_funcs.plot_1D_scan('sigma_mu', rho=150, algo=1) 
+    extra_funcs.plot_1D_scan('lambda_E') 
+    extra_funcs.plot_1D_scan('lambda_I') 
 
 
 #%%

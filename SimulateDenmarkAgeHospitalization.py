@@ -6,7 +6,7 @@ from pathlib import Path
 from importlib import reload
 
 num_cores_max = 30
-N_loops = 1
+N_loops = 10
 dry_run = True
 force_overwrite = True
 
@@ -16,6 +16,18 @@ if dry_run:
 #%%
 
 all_sim_pars = [
+
+                {
+                    'N_tot': [580_000],
+                    'N_init': [100],
+                    'beta_scaling': [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+                },
+
+                {
+                    'N_tot': [5_800_000],
+                    'N_init': [100],
+                    'beta_scaling': [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+                },
 
                 {   
                     'algo': [2, 1],

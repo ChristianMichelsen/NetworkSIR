@@ -12,15 +12,16 @@ import multiprocessing as mp
 import awkward
 import extra_funcs
 from importlib import reload
+import h5py
 import rc_params
-rc_params.set_rc_params()
+rc_params.set_rc_params() # fig_dpi=100
 
-num_cores_max = 1
+num_cores_max = 2
 
 #%%
 
 def get_animation_filenames():
-    filenames = Path('Data_animation').glob(f'*.joblib')
+    filenames = Path('Data_animation').glob(f'*.animation.hdf5')
     return [str(file) for file in sorted(filenames)]
 
 # pip install mpl-scatter-density
@@ -37,6 +38,7 @@ from matplotlib.lines import Line2D
 from matplotlib.ticker import EngFormatter, PercentFormatter, MaxNLocator
 from scipy.interpolate import interp1d
 import matplotlib as mpl
+
 
 #%%
 import shutil
@@ -57,57 +59,86 @@ def add_spines(ax, exclude=None):
 from abc import ABC, abstractmethod
 class AnimationBase(ABC):
 
-    def __init__(self, file_in, animation_type='animation', do_tqdm=False, verbose=False, N_max=None):
-        
-        if isinstance(file_in, str):
-            filename = file_in
-            self._non_copy_constructor(filename, animation_type, do_tqdm, verbose, N_max)
+    def __init__(self, filename, animation_type='animation', do_tqdm=False, verbose=False, N_max=None, load_into_memory=False):
 
-        elif isinstance(file_in, AnimationBase):
-            if verbose:
-                print("Copying class")
-            self._copy_constructor(file_in, animation_type, do_tqdm, verbose, N_max)
-        else:
-            raise AssertionError(f'Got wrong type of input to AnimationBase, got {type(file_in)}')
-
-        self.__name__ = 'AnimationBase'
-
-    def _non_copy_constructor(self, filename, animation_type, do_tqdm, verbose, N_max):
         self.filename = filename
         self.animation_type = animation_type
         self.do_tqdm = do_tqdm
         self.verbose = verbose
+        self.load_into_memory = load_into_memory
         if verbose:
             print(f"Loading: \n{self.filename}")
-        self.which_state, self.coordinates, self.N_connections = joblib.load(filename, mmap_mode='r')
+        # self.which_state, self.coordinates, self.N_connections = joblib.load(filename, mmap_mode='r')
+        self._load_h5py()
         if N_max is None:
-            self.N = len(self.which_state)
+            self.N_days = len(self.which_state)
         else:
-            self.N = N_max
-            self.N_truth = len(self.which_state)
+            self.N_days = N_max
+            self.N_days_truth = len(self.which_state)
         self.cfg = extra_funcs.filename_to_dotdict(filename, animation=True)
+        self.__name__ = 'AnimationBase'
+        
+        # if isinstance(file_in, str):
+        #     filename = file_in
+        #     self._non_copy_constructor(filename, animation_type, do_tqdm, verbose, N_max, load_into_memory)
 
+        # elif isinstance(file_in, AnimationBase):
+        #     if verbose:
+        #         print("Copying class")
+        #     self._copy_constructor(file_in, animation_type, do_tqdm, verbose, N_max, load_into_memory)
+        # else:
+        #     raise AssertionError(f'Got wrong type of input to AnimationBase, got {type(file_in)}')
 
-    def _copy_constructor(self, file_in, animation_type, do_tqdm, verbose, N_max):
-        self.filename = file_in.filename
-        self.animation_type = animation_type
-        self.do_tqdm = do_tqdm
-        self.verbose = verbose
-        self.which_state = file_in.which_state
-        self.coordinates = file_in.coordinates
-        self.N_connections = file_in.N_connections
-        if N_max is None:
-            self.N = len(self.which_state)
-        else:
-            self.N = N_max
-            self.N_truth = len(self.which_state)
-        self.cfg = file_in.cfg
+    # def _non_copy_constructor(self, filename, animation_type, do_tqdm, verbose, N_max, load_into_memory):
+        # self.filename = filename
+        # self.animation_type = animation_type
+        # self.do_tqdm = do_tqdm
+        # self.verbose = verbose
+        # self.load_into_memory = load_into_memory
+        # if verbose:
+        #     print(f"Loading: \n{self.filename}")
+        # # self.which_state, self.coordinates, self.N_connections = joblib.load(filename, mmap_mode='r')
+        # self._load_h5py()
+        # if N_max is None:
+        #     self.N_days = len(self.which_state)
+        # else:
+        #     self.N_days = N_max
+        #     self.N_days_truth = len(self.which_state)
+        # self.cfg = extra_funcs.filename_to_dotdict(filename, animation=True)
+
+    def _load_h5py(self):
+        f = h5py.File(self.filename, "r")
+        self.coordinates = f["coordinates"][()]
+        self.df_raw = pd.DataFrame(f["df"][()])
+        self.which_state = f["which_state"]
+        self.N_connections = f["N_connections"]
+        if self.load_into_memory:
+            self.which_state = self.which_state[()]
+            self.N_connections = self.N_connections[()]
+        # g = awkward.hdf5(f)
+        # g["which_connections"] 
+        # g["individual_rates"] 
+
+    # def _copy_constructor(self, file_in, animation_type, do_tqdm, verbose, N_max, load_into_memory):
+    #     self.filename = file_in.filename
+    #     self.animation_type = animation_type
+    #     self.do_tqdm = do_tqdm
+    #     self.verbose = verbose
+    #     self.load_into_memory = file_in.load_into_memory
+    #     self.which_state = file_in.which_state
+    #     self.coordinates = file_in.coordinates
+    #     self.N_connections = file_in.N_connections
+    #     if N_max is None:
+    #         self.N_days = len(self.which_state)
+    #     else:
+    #         self.N_days = N_max
+    #         self.N_days_truth = len(self.which_state)
+    #     self.cfg = file_in.cfg
 
     def __repr__(self):
-        s = f"{self.__name__}(filename='{self.filename}', animation_type='{self.animation_type}', do_tqdm={self.do_tqdm}, verbose={self.verbose}, N={self.N})"
+        s = f"{self.__name__}(filename='{self.filename}', animation_type='{self.animation_type}', do_tqdm={self.do_tqdm}, verbose={self.verbose}, N_days={self.N_days})"
         return s
 
-        
     @abstractmethod
     def _plot_i_day(self, i_day, **kwargs):
         pass
@@ -158,7 +189,7 @@ class AnimationBase(ABC):
         else:
             dpi = 50
 
-        it = range(self.N)
+        it = range(self.N_days)
         if do_tqdm:
             it = tqdm(it, desc='Make individual frames')
         for i_day in it:
@@ -166,7 +197,7 @@ class AnimationBase(ABC):
             if not Path(png_name).exists() or force_rerun:
                 fig, _ = self._plot_i_day(i_day, **kwargs)
                 Path(png_name).parent.mkdir(parents=True, exist_ok=True)
-                fig.savefig(png_name, dpi=dpi, bbox_inches='tight', pad_inches=0.3)
+                fig.savefig(png_name, dpi=dpi, bbox_inches='tight', pad_inches=0.3) 
                 plt.close(fig)
                 plt.close('all')
         return None
@@ -201,8 +232,8 @@ class AnimationBase(ABC):
 
 class AnimateSIR(AnimationBase):
 
-    def __init__(self, filename, do_tqdm=False, verbose=False, N_max=None, df_counts=None):
-        super().__init__(filename, animation_type='animation', do_tqdm=do_tqdm, verbose=verbose, N_max=N_max)
+    def __init__(self, filename, do_tqdm=False, verbose=False, N_max=None, load_into_memory=False, df_counts=None):
+        super().__init__(filename, animation_type='animation', do_tqdm=do_tqdm, verbose=verbose, N_max=N_max, load_into_memory=load_into_memory)
         self.mapping = {-1: 'S', 
                         #  0: 'E', 1: 'E', 2:'E', 3: 'E',
                          0: 'I', 1: 'I', 2:'I', 3: 'I',
@@ -230,7 +261,7 @@ class AnimateSIR(AnimationBase):
         self.colors = ['#7F7F7F', '#D62728', '#2CA02C']
         self.d_colors = {'S': '#7F7F7F', 'I': '#D62728', 'R': '#2CA02C'}
         
-        factor = self.N / 500_000
+        factor = self.cfg['N_tot'] / 580_000
 
         self.norm_1000 = ImageNormalize(vmin=0., vmax=1000*factor, stretch=LogStretch())
         self.norm_100 = ImageNormalize(vmin=0., vmax=100*factor, stretch=LogStretch())
@@ -257,7 +288,7 @@ class AnimateSIR(AnimationBase):
 
     def _compute_df_counts(self):
         counts_i_day = {}
-        it = range(self.N)
+        it = range(self.N_days)
         if self.do_tqdm:
             it = tqdm(it, desc="Creating df_counts")
         for i_day in it:
@@ -299,7 +330,7 @@ class AnimateSIR(AnimationBase):
         return R_t
 
 
-    def _plot_i_day(self, i_day, dpi):
+    def _plot_i_day(self, i_day, dpi=50):
 
         df = self._get_df(i_day)
         dfs = {s: df.query("which_state == @s") for s in self.states}
@@ -395,8 +426,8 @@ if False:
 
 class Animate_N_connections(AnimationBase):
 
-    def __init__(self, filename, do_tqdm=False, verbose=False, N_max=None):
-        super().__init__(filename, animation_type='N_connections', do_tqdm=do_tqdm, verbose=verbose, N_max=N_max)
+    def __init__(self, filename, do_tqdm=False, verbose=False, N_max=None, load_into_memory=False):
+        super().__init__(filename, animation_type='N_connections', do_tqdm=do_tqdm, verbose=verbose, N_max=N_max, load_into_memory=load_into_memory)
         self.__name__ = 'Animate_N_connections'
 
 
@@ -521,16 +552,15 @@ def plot_IHI(file_in, verbose=True, savefig=True):
     
     filename = animation.filename
     coordinates = animation.coordinates
-    out_which_state = animation.which_state
+    which_state = animation.which_state
 
     N_bins_x, N_bins_y = get_N_bins_xy(coordinates)
     N_box_all, counts_1d_all = compute_N_box_index(coordinates, N_bins_x, N_bins_y)
-    out_which_state = np.array(out_which_state, dtype=np.int8)
 
-    x = np.arange(0, len(out_which_state)-1, 1)
+    x = np.arange(0, len(which_state)-1, 1)
     IHI = np.zeros(len(x))
     for i, i_day in enumerate(x):
-        which_state_day = out_which_state[i_day]
+        which_state_day = which_state[i_day]
         coordinates_infected = coordinates[(-1 < which_state_day) & (which_state_day < 8)]
         N_box_infected, counts_1d_infected = compute_N_box_index(coordinates_infected, N_bins_x, N_bins_y)
         ratio_N_box = N_box_infected / N_box_all
@@ -539,7 +569,7 @@ def plot_IHI(file_in, verbose=True, savefig=True):
     fig, ax = plt.subplots()
     ax.plot(x, IHI)
     title = extra_funcs.dict_to_title(animation.cfg)
-    ax.set(xlabel='Day', ylabel='Infection Homogeneity Index ', title=title)
+    ax.set(xlabel='Day', ylabel='Infection Homogeneity Index ', title=title, ylim=(0, 1))
     if savefig:
         pdf_name = str(Path('Figures/IHI') / 'IHI_') + Path(filename).stem + '.pdf'
         Path(pdf_name).parent.mkdir(parents=True, exist_ok=True)
@@ -548,8 +578,8 @@ def plot_IHI(file_in, verbose=True, savefig=True):
 
 # %%
 
-def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=True, force_rerun=False, optimize_gif=True, make_IHI_plot=True, make_N_connections_animation=True):
-    animation = AnimateSIR(filename, do_tqdm=do_tqdm, verbose=verbose)
+def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=True, force_rerun=False, optimize_gif=True, make_IHI_plot=True, make_N_connections_animation=True, load_into_memory=False):
+    animation = AnimateSIR(filename, do_tqdm=do_tqdm, verbose=verbose, load_into_memory=load_into_memory)
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message="All-NaN slice encountered")
         warnings.filterwarnings("ignore", message="Attempting to set identical")
@@ -563,7 +593,7 @@ def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=T
             print(f"Making IHI plot")
         plot_IHI(animation, verbose=False, savefig=True)
     if make_N_connections_animation:
-        animation_N_connections = Animate_N_connections(animation, do_tqdm=do_tqdm, verbose=verbose)
+        animation_N_connections = Animate_N_connections(filename, do_tqdm=do_tqdm, verbose=verbose, load_into_memory=load_into_memory)
         animation_N_connections.make_animation(remove_frames=remove_frames, 
                                                force_rerun=force_rerun, 
                                                optimize_gif=optimize_gif)
@@ -582,52 +612,132 @@ def get_num_cores(num_cores_max, subtract_cores=1):
 num_cores = get_num_cores(num_cores_max)
 
 filenames = get_animation_filenames()
-filename = filenames[-1]
+filename = filenames[1]
 N_files = len(filenames)
 
-
 if False:
-    animation = AnimateSIR(filename, do_tqdm=True, verbose=True)
-    fig, ax = plt.subplots()
-    ax.hist(animation.N_connections[0], 100, range=(0, 200));
-    ax.set(xlabel='N_connections', ylabel='Counts')
-    # fig.savefig('N_connections_rho_300_algo_1.pdf')
+    animate_file(filename, do_tqdm=True, verbose=True, force_rerun=True, make_IHI_plot=True, make_N_connections_animation=True, load_into_memory=False)
 
-
-if False:
-    animate_file(filename, do_tqdm=True, verbose=True, force_rerun=False, make_IHI_plot=True, make_N_connections_animation=True)
-
-
-if False: # XXX
-
-    for filename in tqdm(filenames, desc='Making IHI plots'):
-        if 'epsilon_rho__0.0__' in filename:
-            plot_IHI(filename, verbose=False, savefig=True)
-
-#%%
-
-animation = AnimateSIR(filename, do_tqdm=True, verbose=True)
-animation._initialize_plot_and_df_counts()
 
 #%%
 
 
 #%%
 
-if __name__ == '__main__':
+if __name__ == '__main__' and False:
 
-    if False:
+    if num_cores == 1:
 
-        if num_cores == 1:
+        for filename in tqdm(filenames):
+            animate_file(filename, do_tqdm=True, verbose=True, force_rerun=False)
 
-            for filename in tqdm(filenames):
-                animate_file(filename, do_tqdm=True, verbose=True, force_rerun=False)
+    else:
+        print(f"Generating {N_files} animations using {num_cores} cores, please wait", flush=True)
+        with mp.Pool(num_cores) as p:
+            list(tqdm(p.imap_unordered(animate_file, filenames), total=N_files))
 
+
+#%%
+
+if True:
+
+    animation = AnimateSIR(filename, do_tqdm=True, verbose=True, load_into_memory=False)
+    animation._initialize_plot_and_df_counts()
+    i_day = 6
+
+    time_delay = 1
+    laplace_factor = 0
+
+    df_counts =  animation.df_counts
+    I = df_counts['I']
+    R = df_counts['R']
+    N = len(df_counts)
+    R_t = np.zeros(N)
+    R_t[:time_delay] = np.nan
+    for i in range(time_delay, N):
+        num = I.iloc[i] - I.iloc[i-time_delay] + laplace_factor
+        den = R.iloc[i] - R.iloc[i-time_delay] + laplace_factor
+        if den != 0:
+            R_t[i] = num / den + 1
         else:
-            print(f"Generating frames using {num_cores} cores, please wait", flush=True)
-            with mp.Pool(num_cores) as p:
-                list(tqdm(p.imap_unordered(animate_file, filenames), total=N_files))
+            R_t[i] = np.nan
+        # df_R_t = pd.Series(R_t)
+        # plt.plot(R_t)
+        # df_R_t.rolling(window=10).median().plot()
 
 
 
-#%%
+#     dpi = 50
+#     dpi_fig = 100
+
+#     df = animation._get_df(i_day)
+#     dfs = {s: df.query("which_state == @s") for s in animation.states}
+
+#     # Main plot
+#     k_scale = 1.8
+#     fig = plt.figure(figsize=(10*k_scale, 13*k_scale), dpi=dpi_fig)
+#     ax = fig.add_subplot(1, 1, 1, projection='scatter_density')
+
+#     if len(dfs['S']) > 0:
+#         ax.scatter_density(dfs['S']['x'], dfs['S']['y'], color=animation.d_colors['S'], alpha=0.2, norm=animation.norm_1000, dpi=dpi)
+#     if len(dfs['R']) > 0:
+#         ax.scatter_density(dfs['R']['x'], dfs['R']['y'], color=animation.d_colors['R'], alpha=0.3, norm=animation.norm_100, dpi=dpi)
+#     if len(dfs['I']) > 0:
+#         ax.scatter_density(dfs['I']['x'], dfs['I']['y'], color=animation.d_colors['I'], norm=animation.norm_10, dpi=dpi)
+#     ax.set(xlim=(8, 13.7), ylim=(54.52, 58.2))
+
+#     print(f"{dpi=}, {dpi_fig=}")
+#     # fig
+
+
+
+#     kw_args_circle = dict(xdata=[0], ydata=[0], marker='o', color='w', markersize=16)
+#     circles = [Line2D(label=animation.state_names[state], markerfacecolor=animation.d_colors[state], **kw_args_circle) for state in animation.states]
+#     ax.legend(handles=circles, loc='upper left', fontsize=20)
+
+#     cfg = extra_funcs.filename_to_dotdict(animation.filename, animation=True)
+#     title = extra_funcs.dict_to_title(cfg)
+#     ax.set_title(title, pad=50, fontsize=22)
+
+#     # secondary plots:
+
+#     # These are in unitless percentages of the figure size. (0,0 is bottom left)
+#     left, bottom, width, height = [0.62, 0.76, 0.3*0.95, 0.08*0.9]
+
+#     background_box = [(0.51, 0.61), 0.47, 0.36]
+#     ax.add_patch(mpatches.Rectangle(*background_box, facecolor='white', edgecolor='lightgray', transform=ax.transAxes))
+
+#     i_day_max = i_day + max(3, i_day*0.1)
+
+#     # delta_width = 0 * width / 100
+#     ax2 = fig.add_axes([left, bottom, width, height])
+#     I_up_to_today = animation.df_counts['I'].iloc[:i_day+1] / animation.N_tot
+#     ax2.plot(I_up_to_today.index, I_up_to_today, '-', color=animation.d_colors['I'])
+#     ax2.plot(I_up_to_today.index[-1], I_up_to_today.iloc[-1], 'o', color=animation.d_colors['I'])
+#     I_max = np.max(I_up_to_today)
+#     ax2.set(xlabel='t', ylim=(0, I_max*1.2), xlim=(0, i_day_max))
+#     decimals = max(int(-np.log10(I_max)) - 1, 0) # max important, otherwise decimals=-1
+#     ax2.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=decimals))
+#     ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
+#     ax2.text(-0.28, 0.2, 'Infected', fontsize=20, transform=ax2.transAxes, rotation=90)
+#     add_spines(ax2)
+
+#     ax3 = fig.add_axes([left, bottom-height*1.8, width, height])
+#     if i_day > 0:
+#         R_t_up_to_today = animation._interpolate_R_t(animation.R_t[:i_day+1])
+#         z = (R_t_up_to_today['R_t'] > 1) / 1
+#         ax3.scatter(R_t_up_to_today['t'], R_t_up_to_today['R_t'], s=10, c=z, **animation._scatter_kwargs)
+#         R_t_today = R_t_up_to_today.iloc[-1]
+#         z_today = (R_t_today['R_t'] > 1)
+#         ax3.scatter(R_t_today['t'], R_t_today['R_t'], s=100, c=z_today, **animation._scatter_kwargs)
+#     R_t_max = 3
+#     ax3.axhline(1, ls='--', color='k', lw=1) # x = 0
+#     # ax3.axhline(0, color='k', lw=2) # x = 0
+#     ax3.set(xlabel='t', ylim=(0, R_t_max), xlim=(0, i_day_max))
+#     ax3.xaxis.set_major_locator(MaxNLocator(integer=True))
+#     ax3.text(-0.25, 0.4, r'$\mathregular{R}_\mathregular{eff}$', fontsize=24, transform=ax3.transAxes, rotation=90)
+#     add_spines(ax3)
+
+#     ax.text(0.02, 0.02, f"Day: {i_day}", fontsize=24, transform=ax.transAxes)
+
+#     plt.close('all')
