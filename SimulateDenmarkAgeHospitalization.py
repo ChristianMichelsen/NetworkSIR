@@ -8,14 +8,27 @@ from importlib import reload
 num_cores_max = 30
 N_loops = 10
 dry_run = True
-force_overwrite = True
+force_overwrite = False
 
 if dry_run:
-    print("Running a dry run, nothing will actually be simulated.")
+    print("\n\nRunning a dry run, nothing will actually be simulated.!!!\n\n")
 
 #%%
 
 all_sim_pars = [
+
+                {
+                    'epsilon_rho': [0],
+                    'rho': [100, 300],
+                    'algo': [2],
+                    'beta_scaling': [1, 25, 50, 75, 100]
+                },
+
+                {
+                    'epsilon_rho': [0, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.9, 0.9, 0.95, 0.99, 1.0],
+                    'rho': [100],
+                    'algo': [2, 1],
+                },
 
                 {
                     'N_tot': [580_000],
@@ -98,19 +111,19 @@ all_sim_pars = [
 
                 { 
                     'sigma_beta': [0.0, 0.25, 0.5, 0.75, 1.0], 
-                    'rho': [0, 150],
+                    'rho': [0, 100],
                     'algo': [2, 1],
                 },
 
                 { 
                     'sigma_mu': [0.0, 1.0], 
-                    'rho': [0, 150],
+                    'rho': [0, 100],
                     'algo': [2, 1],
                 },
 
                 {
                     'epsilon_rho': [0, 0.005, 0.01, 0.02, 0.05],
-                    'rho': [150],
+                    'rho': [100],
                     'algo': [2, 1],
                 },
 
@@ -125,7 +138,7 @@ all_sim_pars = [
                 {
                     'N_tot': [5_800_000],
                     'sigma_beta': [0.0, 1.0],
-                    'rho': [0, 150],
+                    'rho': [0, 100],
                     'epsilon_rho': [0],
                     'algo': [2],
                     'beta': [0.01],
@@ -135,7 +148,7 @@ all_sim_pars = [
                 {
                     'N_tot': [580_000],
                     'sigma_beta': [0.0, 1.0],
-                    'rho': [0, 150],
+                    'rho': [0, 100],
                     'algo': [2],
                     'beta': [0.01],
                 },
@@ -143,7 +156,7 @@ all_sim_pars = [
                 {
                     'N_tot': [5_800_000],
                     'sigma_beta': [0.0, 1.0],
-                    'rho': [0, 150],
+                    'rho': [0, 100],
                     'algo': [2],
                     'beta': [0.01],
                 },

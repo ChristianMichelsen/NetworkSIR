@@ -15,6 +15,7 @@ def get_filenames():
     filenames = Path('Data/ABN').rglob(f'*.csv')
     return [str(file) for file in sorted(filenames)]
 
+
 # from scipy.signal import savgol_filter
 def interpolate_array(y, time, t_interpolated, force_positive=True):
     f = interpolate.interp1d(time, y, kind='cubic', fill_value=0, bounds_error=False)
@@ -23,6 +24,7 @@ def interpolate_array(y, time, t_interpolated, force_positive=True):
         if force_positive:
             y_hat[y_hat<0] = 0
     return y_hat
+
 
 # from scipy.signal import savgol_filter
 def interpolate_dataframe(df, time, t_interpolated, cols_to_interpolate):
@@ -34,6 +36,7 @@ def interpolate_dataframe(df, time, t_interpolated, cols_to_interpolate):
     df_interpolated = pd.DataFrame(data_interpolated)
     df_interpolated['Time'] = t_interpolated
     return df_interpolated
+
 
 def pandas_load_file(filename, return_only_df=False):
     df_raw = pd.read_csv(filename).convert_dtypes()
@@ -112,7 +115,12 @@ def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=
                 for legobj in leg.legendHandles:
                     legobj.set_linewidth(2.0)
                 
-                title = dict_to_title(cfg, len(ID_files))
+                try:
+                    title = dict_to_title(cfg, len(ID_files))
+                except KeyError as e:
+                    print(cfg, ID_files)
+                    raise e
+
                 ax.set(title=title, xlabel='Time', ylim=(0, None), ylabel=d_ylabel[parameter])
                 
                 ax.set_rasterized(True)

@@ -32,7 +32,6 @@ def is_local_computer(N_local_cores=8):
 
 def get_cfg_default():
     cfg_default = dict(
-                    # N_tot = 50_000 if is_local_computer() else 500_000, # Total number of nodes!
                     N_tot = 580_000, # Total number of nodes!
                     N_init = 100, # Initial Infected
                     N_ages = 1, # Number of age categories
@@ -153,13 +152,13 @@ def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max):
     if isinstance(d_simulation_parameters, dict) and 'N_tot' in d_simulation_parameters.keys():
         N_tot_max = max(d_simulation_parameters['N_tot'])
         if 500_000 < N_tot_max <= 1_000_000:
-            num_cores = 25
+            num_cores = 30
         elif 1_000_000 < N_tot_max <= 2_000_000:
-            num_cores = 15
+            num_cores = 20
         elif 2_000_000 < N_tot_max <= 5_000_000:
-            num_cores = 8
+            num_cores = 15
         elif 5_000_000 < N_tot_max:
-            num_cores = 6
+            num_cores = 10
 
     if num_cores > num_cores_max:
         num_cores = num_cores_max
@@ -196,12 +195,18 @@ def initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, beta_sca
         else:
             infection_weight[i] = beta
         
-        f = 1 / (beta_scaling + 1)
+        # f = 1 / (beta_scaling + 1)
+        f = 0.1
+
+        # beta_scaling_down = f * beta_scaling + (1-f)
+        beta_scaling_up = 1 / (f + (1-f)/beta_scaling)
+        beta_scaling_down = beta_scaling_up / beta_scaling
+
         ra_R0_change = np.random.rand()
         if ra_R0_change < f:
-            infection_weight[i] = infection_weight[i]*beta_scaling
+            infection_weight[i] = infection_weight[i]*beta_scaling_up
         else:
-            infection_weight[i] = infection_weight[i]/beta_scaling
+            infection_weight[i] = infection_weight[i]*beta_scaling_down
 
     return connection_weight, infection_weight
 
@@ -458,65 +463,65 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
         ra1 = np.random.rand()
 
 
-        # INTERVENTION START
-        I_tot = np.sum(state_total_counts[4:8])
+        # # INTERVENTION START
+        # I_tot = np.sum(state_total_counts[4:8])
 
-        if tau_I < I_tot / N_tot and not intervention_switch:
-            intervention_switch = True
-            intervention_day0 = RT
+        # if tau_I < I_tot / N_tot and not intervention_switch:
+        #     intervention_switch = True
+        #     intervention_day0 = RT
 
-            for c in range(int(N_tot*mu*N_contacts_remove)):
+        #     for c in range(int(N_tot*mu*N_contacts_remove)):
 
-                idx1 = np.random.randint(N_tot)
+        #         idx1 = np.random.randint(N_tot)
 
-                # we force contacts 
-                N_contacts_idx = len(which_connections[idx1])
-                if N_contacts_idx > 0:
-                    break
+        #         # we force contacts 
+        #         N_contacts_idx = len(which_connections[idx1])
+        #         if N_contacts_idx > 0:
+        #             break
 
-                idn1 = np.random.randint(N_contacts_idx)
-                idx2 = which_connections[idx1][idn1]
+        #         idn1 = np.random.randint(N_contacts_idx)
+        #         idx2 = which_connections[idx1][idn1]
 
-                closed_contacts[idx1].append(idx2)
-                rates1 = individual_rates[idx1]
-                closed_contacts_rate[idx1].append(rates1[idn1])
-                TotInf -= rates1[idn1]
-                csInf[which_state[idx1]:] -= rates1[idn1]
-                rates1[idn1] = 0
+        #         closed_contacts[idx1].append(idx2)
+        #         rates1 = individual_rates[idx1]
+        #         closed_contacts_rate[idx1].append(rates1[idn1])
+        #         TotInf -= rates1[idn1]
+        #         csInf[which_state[idx1]:] -= rates1[idn1]
+        #         rates1[idn1] = 0
 
-                connections2 = which_connections[idx2]
-                idn2 = -1
-                for i in range(len(connections2)):
-                    if connections2[i] == idx1:
-                        idn2 = i 
+        #         connections2 = which_connections[idx2]
+        #         idn2 = -1
+        #         for i in range(len(connections2)):
+        #             if connections2[i] == idx1:
+        #                 idn2 = i 
 
-                # if idx2 is not in idx1, must be because idx1 is infected (E or I or R) and we stop
-                if idn2 == -1:
-                    break
+        #         # if idx2 is not in idx1, must be because idx1 is infected (E or I or R) and we stop
+        #         if idn2 == -1:
+        #             break
 
-                closed_contacts[idx2].append(idx1)
-                rates2 = individual_rates[idx2]
-                closed_contacts_rate[idx2].append(rates2[idn2])
-                TotInf -= rates2[idn2]
-                csInf[which_state[idx2]:] -= rates2[idn2]
-                rates2[idn2] = 0
+        #         closed_contacts[idx2].append(idx1)
+        #         rates2 = individual_rates[idx2]
+        #         closed_contacts_rate[idx2].append(rates2[idn2])
+        #         TotInf -= rates2[idn2]
+        #         csInf[which_state[idx2]:] -= rates2[idn2]
+        #         rates2[idn2] = 0
 
 
-        # INTERVENTION STOP
-        # if (RT >= intervention_day0 + delta_days) and intervention_switch:
-        #     intervention_day0 = 1e10
+        # # INTERVENTION STOP
+        # # if (RT >= intervention_day0 + delta_days) and intervention_switch:
+        # #     intervention_day0 = 1e10
 
-        #     for idx1 in range(len(closed_contacts)):
-        #         # if closed_contacts for idx1 contains any closed contacts, continue
-        #         if len(closed_contacts[idx1]) > 0:
+        # #     for idx1 in range(len(closed_contacts)):
+        # #         # if closed_contacts for idx1 contains any closed contacts, continue
+        # #         if len(closed_contacts[idx1]) > 0:
                     
-        #             # loop over all contacts in idx1
-        #             for idx2 in closed_contacts[idx1]:
+        # #             # loop over all contacts in idx1
+        # #             for idx2 in closed_contacts[idx1]:
                         
-        #                 # if idx2 is susceptible
-        #                 if which_state[idx2] == -1:
+        # #                 # if idx2 is susceptible
+        # #                 if which_state[idx2] == -1:
                             
-        #                     # for idx in which_contacts[idx1]
+        # #                     # for idx in which_contacts[idx1]
             
 
 
@@ -845,23 +850,23 @@ def calculate_age_proportions_2D(alpha_age, N_ages):
 @njit
 def single_run_numba(N_tot, N_init, N_ages, mu, sigma_mu, beta, sigma_beta, rho, lambda_E, lambda_I, algo, epsilon_rho, beta_scaling, age_mixing, ID, coordinates, verbose=False):
     
-    N_tot = 50_000 # Total number of nodes!
-    N_init = 100 # Initial Infected
-    N_ages = 10 #
-    mu = 40.0  # Average number of connections of a node (init: 20)
-    sigma_mu = 1.0 # Spread (skewness) in N connections
-    beta = 0.01 # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
-    sigma_beta = 0.0 # Spread in rates, beta (beta_eff = beta - sigma_beta+2*sigma_beta*rand[0,1])... could be exponential?
-    rho = 0 # Spacial dependency. Average distance to connect with.
-    lambda_E = 1.0 # E->I, Lambda(from E states)
-    lambda_I = 1.0 # I->R, Lambda(from I states)
-    algo = 1 # node connection algorithm
-    epsilon_rho = 0.01 # fraction of connections not depending on distance
-    beta_scaling = 1.0 # 0: as normal, 1: half of all (beta)rates are set to 0 the other half doubled
-    age_mixing = 1.0
-    ID = 0
-    coordinates = np.load('Data/GPS_coordinates.npy')[:N_tot]
-    verbose = True
+    # N_tot = 50_000 # Total number of nodes!
+    # N_init = 100 # Initial Infected
+    # N_ages = 10 #
+    # mu = 40.0  # Average number of connections of a node (init: 20)
+    # sigma_mu = 1.0 # Spread (skewness) in N connections
+    # beta = 0.01 # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
+    # sigma_beta = 0.0 # Spread in rates, beta (beta_eff = beta - sigma_beta+2*sigma_beta*rand[0,1])... could be exponential?
+    # rho = 0 # Spacial dependency. Average distance to connect with.
+    # lambda_E = 1.0 # E->I, Lambda(from E states)
+    # lambda_I = 1.0 # I->R, Lambda(from I states)
+    # algo = 1 # node connection algorithm
+    # epsilon_rho = 0.01 # fraction of connections not depending on distance
+    # beta_scaling = 1.0 # 0: as normal, 1: half of all (beta)rates are set to 0 the other half doubled
+    # age_mixing = 1.0
+    # ID = 0
+    # coordinates = np.load('Data/GPS_coordinates.npy')[:N_tot]
+    # verbose = True
 
     tau_I = 1 # start to turn off contacts when infected (I) is more than tau_I * N_tot 
     delta_days = 10

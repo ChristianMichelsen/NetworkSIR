@@ -44,6 +44,8 @@ import matplotlib as mpl
 import shutil
 import subprocess
 import warnings
+from scipy import signal
+
 
 
 def add_spines(ax, exclude=None):
@@ -57,7 +59,8 @@ def add_spines(ax, exclude=None):
     ax.tick_params(axis='x', pad=10)
 
 from abc import ABC, abstractmethod
-class AnimationBase(ABC):
+# class AnimationBase(ABC):
+class AnimationBase():
 
     def __init__(self, filename, animation_type='animation', do_tqdm=False, verbose=False, N_max=None, load_into_memory=False):
 
@@ -68,8 +71,7 @@ class AnimationBase(ABC):
         self.load_into_memory = load_into_memory
         if verbose:
             print(f"Loading: \n{self.filename}")
-        # self.which_state, self.coordinates, self.N_connections = joblib.load(filename, mmap_mode='r')
-        self._load_h5py()
+        self._load_hdf5fi_file()
         if N_max is None:
             self.N_days = len(self.which_state)
         else:
@@ -78,36 +80,10 @@ class AnimationBase(ABC):
         self.cfg = extra_funcs.filename_to_dotdict(filename, animation=True)
         self.__name__ = 'AnimationBase'
         
-        # if isinstance(file_in, str):
-        #     filename = file_in
-        #     self._non_copy_constructor(filename, animation_type, do_tqdm, verbose, N_max, load_into_memory)
-
-        # elif isinstance(file_in, AnimationBase):
-        #     if verbose:
-        #         print("Copying class")
-        #     self._copy_constructor(file_in, animation_type, do_tqdm, verbose, N_max, load_into_memory)
-        # else:
-        #     raise AssertionError(f'Got wrong type of input to AnimationBase, got {type(file_in)}')
-
-    # def _non_copy_constructor(self, filename, animation_type, do_tqdm, verbose, N_max, load_into_memory):
-        # self.filename = filename
-        # self.animation_type = animation_type
-        # self.do_tqdm = do_tqdm
-        # self.verbose = verbose
-        # self.load_into_memory = load_into_memory
-        # if verbose:
-        #     print(f"Loading: \n{self.filename}")
-        # # self.which_state, self.coordinates, self.N_connections = joblib.load(filename, mmap_mode='r')
-        # self._load_h5py()
-        # if N_max is None:
-        #     self.N_days = len(self.which_state)
-        # else:
-        #     self.N_days = N_max
-        #     self.N_days_truth = len(self.which_state)
-        # self.cfg = extra_funcs.filename_to_dotdict(filename, animation=True)
-
-    def _load_h5py(self):
+    def _load_hdf5fi_file(self):
         f = h5py.File(self.filename, "r")
+        self.f = f
+        self.f_is_open = True
         self.coordinates = f["coordinates"][()]
         self.df_raw = pd.DataFrame(f["df"][()])
         self.which_state = f["which_state"]
@@ -119,29 +95,24 @@ class AnimationBase(ABC):
         # g["which_connections"] 
         # g["individual_rates"] 
 
-    # def _copy_constructor(self, file_in, animation_type, do_tqdm, verbose, N_max, load_into_memory):
-    #     self.filename = file_in.filename
-    #     self.animation_type = animation_type
-    #     self.do_tqdm = do_tqdm
-    #     self.verbose = verbose
-    #     self.load_into_memory = file_in.load_into_memory
-    #     self.which_state = file_in.which_state
-    #     self.coordinates = file_in.coordinates
-    #     self.N_connections = file_in.N_connections
-    #     if N_max is None:
-    #         self.N_days = len(self.which_state)
-    #     else:
-    #         self.N_days = N_max
-    #         self.N_days_truth = len(self.which_state)
-    #     self.cfg = file_in.cfg
+    def __enter__(self):
+        if not self.f_is_open:
+            print(f"Reloading {self.filename}")
+            self._load_hdf5fi_file()
+        return self
+
+
+    def __exit__(self, type, value, traceback):
+        self.f.close()
+        self.f_is_open = False
 
     def __repr__(self):
         s = f"{self.__name__}(filename='{self.filename}', animation_type='{self.animation_type}', do_tqdm={self.do_tqdm}, verbose={self.verbose}, N_days={self.N_days})"
         return s
 
-    @abstractmethod
-    def _plot_i_day(self, i_day, **kwargs):
-        pass
+    # @abstractmethod
+    # def _plot_i_day(self, i_day, **kwargs):
+    #     pass
 
     def make_animation(self, remove_frames=True, force_rerun=False, optimize_gif=True, **kwargs):
         name = f'{self.animation_type}_' + self._get_sim_pars_str() + '.gif'
@@ -229,7 +200,6 @@ class AnimationBase(ABC):
         optimize(gifname, colors=100)
 
 
-
 class AnimateSIR(AnimationBase):
 
     def __init__(self, filename, do_tqdm=False, verbose=False, N_max=None, load_into_memory=False, df_counts=None):
@@ -281,7 +251,8 @@ class AnimateSIR(AnimationBase):
         # calc counts and R_eff and N_tot
         if self.df_counts is None:
             self.df_counts = self._compute_df_counts()
-        self.R_t = self._calc_infection_rate_R_t()
+        self.R_eff = self._compute_R_eff()
+        self.R_eff_smooth = self._smoothen(self.R_eff, method='savgol', window_length=11, polyorder=3)
         self.N_tot = self.df_counts.iloc[0].sum()
         return None
 
@@ -298,37 +269,30 @@ class AnimateSIR(AnimationBase):
         df_counts = pd.DataFrame(counts_i_day).T
         return df_counts
 
+    def _compute_R_eff(self):
+        df_counts =  self.df_counts
+        I = df_counts['I'].values
+        R = df_counts['R'].values
+        R_eff = (I[1:] - I[:-1]) / (R[1:] - R[:-1]) + 1
+        return R_eff
+    
+    def _smoothen(self, x, method='savgol', **kwargs): # window_length=11, polyorder=3
+        if 'savgol' in method:
+            return signal.savgol_filter(x, **kwargs)  # window size used for filtering, # order of fitted polynomial
+        elif any([s in method for s in ['moving', 'rolling', 'average']]):
+            return pd.Series(x).rolling(**kwargs).mean().values
+        else:
+            raise AssertionError(f"Got wrong type of method for _smoothen(), got {method}")
 
-    def _interpolate_R_t(self, R_t):
-        N = len(R_t)
+    def _interpolate_R_eff(self, R_eff):
+        N = len(R_eff)
         x = np.arange(N)
-        y = R_t 
+        y = R_eff 
         f = interp1d(x, y, bounds_error=False, fill_value="extrapolate")
         x_interpolated = np.linspace(0, N-1, 10_000)
         y_interpolated = f(x_interpolated)
-        df_R_t = pd.DataFrame({'t': x_interpolated, 'R_t': y_interpolated})
-        return df_R_t
-
-
-    def _calc_infection_rate_R_t(self, time_delay=1, laplace_factor=0):
-        df_counts = self.df_counts
-        I = df_counts['I']
-        R = df_counts['R']
-        N = len(df_counts)
-        R_t = np.zeros(N)
-        R_t[:time_delay] = np.nan
-        for i in range(time_delay, N):
-            num = I.iloc[i] - I.iloc[i-time_delay] + laplace_factor
-            den = R.iloc[i] - R.iloc[i-time_delay] + laplace_factor
-            if den != 0:
-                R_t[i] = num / den + 1
-            else:
-                R_t[i] = np.nan
-        # df_R_t = pd.Series(R_t)
-        # plt.plot(R_t)
-        # df_R_t.rolling(window=10).median().plot()
-        return R_t
-
+        df_R_eff = pd.DataFrame({'t': x_interpolated, 'R_eff': y_interpolated})
+        return df_R_eff
 
     def _plot_i_day(self, i_day, dpi=50):
 
@@ -354,12 +318,12 @@ class AnimateSIR(AnimationBase):
 
         cfg = extra_funcs.filename_to_dotdict(self.filename, animation=True)
         title = extra_funcs.dict_to_title(cfg)
-        ax.set_title(title, pad=50, fontsize=22)
+        ax.set_title(title, pad=50, fontsize=28)
 
         # secondary plots:
 
         # These are in unitless percentages of the figure size. (0,0 is bottom left)
-        left, bottom, width, height = [0.62, 0.76, 0.3*0.95, 0.08*0.9]
+        left, bottom, width, height = [0.62, 0.76, 0.3*0.8, 0.08*0.8]
 
         background_box = [(0.51, 0.61), 0.47, 0.36]
         ax.add_patch(mpatches.Rectangle(*background_box, facecolor='white', edgecolor='lightgray', transform=ax.transAxes))
@@ -376,23 +340,27 @@ class AnimateSIR(AnimationBase):
         decimals = max(int(-np.log10(I_max)) - 1, 0) # max important, otherwise decimals=-1
         ax2.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=decimals))
         ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
-        ax2.text(-0.28, 0.2, 'Infected', fontsize=20, transform=ax2.transAxes, rotation=90)
+        ax2.text(-0.35, 0.2, 'Infected', fontsize=20, transform=ax2.transAxes, rotation=90)
+        ax2.xaxis.set_major_locator(MaxNLocator(6))
         add_spines(ax2)
 
         ax3 = fig.add_axes([left, bottom-height*1.8, width, height])
+
         if i_day > 0:
-            R_t_up_to_today = self._interpolate_R_t(self.R_t[:i_day+1])
-            z = (R_t_up_to_today['R_t'] > 1) / 1
-            ax3.scatter(R_t_up_to_today['t'], R_t_up_to_today['R_t'], s=10, c=z, **self._scatter_kwargs)
-            R_t_today = R_t_up_to_today.iloc[-1]
-            z_today = (R_t_today['R_t'] > 1)
-            ax3.scatter(R_t_today['t'], R_t_today['R_t'], s=100, c=z_today, **self._scatter_kwargs)
-        R_t_max = 3
+            R_eff_up_to_today = self._interpolate_R_eff(self.R_eff_smooth[:i_day+1])
+            z = (R_eff_up_to_today['R_eff'] > 1) / 1
+            ax3.scatter(R_eff_up_to_today['t'], R_eff_up_to_today['R_eff'], s=10, c=z, **self._scatter_kwargs)
+            R_eff_today = R_eff_up_to_today.iloc[-1]
+            z_today = (R_eff_today['R_eff'] > 1)
+            ax3.scatter(R_eff_today['t'], R_eff_today['R_eff'], s=100, c=z_today, **self._scatter_kwargs)
+        
+        R_eff_max = 4
         ax3.axhline(1, ls='--', color='k', lw=1) # x = 0
         # ax3.axhline(0, color='k', lw=2) # x = 0
-        ax3.set(xlabel='t', ylim=(0, R_t_max), xlim=(0, i_day_max))
+        ax3.set(xlabel='t', ylim=(0, R_eff_max), xlim=(0, i_day_max))
         ax3.xaxis.set_major_locator(MaxNLocator(integer=True))
-        ax3.text(-0.25, 0.4, r'$\mathregular{R}_\mathregular{eff}$', fontsize=24, transform=ax3.transAxes, rotation=90)
+        ax3.text(-0.4, 0.4, r'$\mathcal{R}_\mathregular{eff}$', fontsize=24, transform=ax3.transAxes, rotation=90)
+        ax3.xaxis.set_major_locator(MaxNLocator(6))
         add_spines(ax3)
 
         ax.text(0.02, 0.02, f"Day: {i_day}", fontsize=24, transform=ax.transAxes)
@@ -541,6 +509,7 @@ def get_N_bins_xy(coordinates):
 
     return N_bins_x, N_bins_y
 
+
 def plot_IHI(file_in, verbose=True, savefig=True):
 
     if isinstance(file_in, str):
@@ -575,28 +544,31 @@ def plot_IHI(file_in, verbose=True, savefig=True):
         Path(pdf_name).parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(pdf_name, dpi=600, bbox_inches='tight', pad_inches=0.3)
 
+    return fig, ax
+
 
 # %%
 
 def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=True, force_rerun=False, optimize_gif=True, make_IHI_plot=True, make_N_connections_animation=True, load_into_memory=False):
     animation = AnimateSIR(filename, do_tqdm=do_tqdm, verbose=verbose, load_into_memory=load_into_memory)
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", message="All-NaN slice encountered")
-        warnings.filterwarnings("ignore", message="Attempting to set identical")
-        animation.make_animation(remove_frames=remove_frames, 
-                                 force_rerun=force_rerun, 
-                                 optimize_gif=optimize_gif,
-                                 dpi=dpi,
-                                 )
+    with animation, warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="All-NaN slice encountered")
+            warnings.filterwarnings("ignore", message="Attempting to set identical")
+            animation.make_animation(remove_frames=remove_frames, 
+                                    force_rerun=force_rerun, 
+                                    optimize_gif=optimize_gif,
+                                    dpi=dpi,
+                                    )
     if make_IHI_plot:
         if verbose:
             print(f"Making IHI plot")
-        plot_IHI(animation, verbose=False, savefig=True)
+        plot_IHI(filename, verbose=False, savefig=True)
     if make_N_connections_animation:
         animation_N_connections = Animate_N_connections(filename, do_tqdm=do_tqdm, verbose=verbose, load_into_memory=load_into_memory)
-        animation_N_connections.make_animation(remove_frames=remove_frames, 
-                                               force_rerun=force_rerun, 
-                                               optimize_gif=optimize_gif)
+        with animation_N_connections:
+            animation_N_connections.make_animation(remove_frames=remove_frames, 
+                                                   force_rerun=force_rerun, 
+                                                   optimize_gif=optimize_gif)
 
     return None
 
@@ -612,11 +584,36 @@ def get_num_cores(num_cores_max, subtract_cores=1):
 num_cores = get_num_cores(num_cores_max)
 
 filenames = get_animation_filenames()
-filename = filenames[1]
+filename = filenames[5]
 N_files = len(filenames)
 
 if False:
     animate_file(filename, do_tqdm=True, verbose=True, force_rerun=True, make_IHI_plot=True, make_N_connections_animation=True, load_into_memory=False)
+
+
+fig, ax = plot_IHI(filename, verbose=False, savefig=True)
+
+
+animation = AnimateSIR("Data_animation/N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.0__beta_scaling__75.0__age_mixing__1.0__algo__2__ID__000.animation.hdf5", do_tqdm=True, verbose=True, load_into_memory=False)
+animation.df_raw[['I1', 'I2', 'I3', 'I4']].sum(axis=1).max()
+
+
+
+animation = AnimateSIR("Data_animation/N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.0__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.animation.hdf5", do_tqdm=True, verbose=True, load_into_memory=False)
+animation.df_raw[['I1', 'I2', 'I3', 'I4']].sum(axis=1).max()
+
+
+
+#%%
+
+
+# animation = AnimateSIR(filename, do_tqdm=True, verbose=True, load_into_memory=False)
+# animation._initialize_plot_and_df_counts()
+
+# i_day = 50
+# fig, axes = animation._plot_i_day(i_day, dpi=50)
+# fig
+
 
 
 #%%
@@ -639,105 +636,3 @@ if __name__ == '__main__' and False:
 
 #%%
 
-if True:
-
-    animation = AnimateSIR(filename, do_tqdm=True, verbose=True, load_into_memory=False)
-    animation._initialize_plot_and_df_counts()
-    i_day = 6
-
-    time_delay = 1
-    laplace_factor = 0
-
-    df_counts =  animation.df_counts
-    I = df_counts['I']
-    R = df_counts['R']
-    N = len(df_counts)
-    R_t = np.zeros(N)
-    R_t[:time_delay] = np.nan
-    for i in range(time_delay, N):
-        num = I.iloc[i] - I.iloc[i-time_delay] + laplace_factor
-        den = R.iloc[i] - R.iloc[i-time_delay] + laplace_factor
-        if den != 0:
-            R_t[i] = num / den + 1
-        else:
-            R_t[i] = np.nan
-        # df_R_t = pd.Series(R_t)
-        # plt.plot(R_t)
-        # df_R_t.rolling(window=10).median().plot()
-
-
-
-#     dpi = 50
-#     dpi_fig = 100
-
-#     df = animation._get_df(i_day)
-#     dfs = {s: df.query("which_state == @s") for s in animation.states}
-
-#     # Main plot
-#     k_scale = 1.8
-#     fig = plt.figure(figsize=(10*k_scale, 13*k_scale), dpi=dpi_fig)
-#     ax = fig.add_subplot(1, 1, 1, projection='scatter_density')
-
-#     if len(dfs['S']) > 0:
-#         ax.scatter_density(dfs['S']['x'], dfs['S']['y'], color=animation.d_colors['S'], alpha=0.2, norm=animation.norm_1000, dpi=dpi)
-#     if len(dfs['R']) > 0:
-#         ax.scatter_density(dfs['R']['x'], dfs['R']['y'], color=animation.d_colors['R'], alpha=0.3, norm=animation.norm_100, dpi=dpi)
-#     if len(dfs['I']) > 0:
-#         ax.scatter_density(dfs['I']['x'], dfs['I']['y'], color=animation.d_colors['I'], norm=animation.norm_10, dpi=dpi)
-#     ax.set(xlim=(8, 13.7), ylim=(54.52, 58.2))
-
-#     print(f"{dpi=}, {dpi_fig=}")
-#     # fig
-
-
-
-#     kw_args_circle = dict(xdata=[0], ydata=[0], marker='o', color='w', markersize=16)
-#     circles = [Line2D(label=animation.state_names[state], markerfacecolor=animation.d_colors[state], **kw_args_circle) for state in animation.states]
-#     ax.legend(handles=circles, loc='upper left', fontsize=20)
-
-#     cfg = extra_funcs.filename_to_dotdict(animation.filename, animation=True)
-#     title = extra_funcs.dict_to_title(cfg)
-#     ax.set_title(title, pad=50, fontsize=22)
-
-#     # secondary plots:
-
-#     # These are in unitless percentages of the figure size. (0,0 is bottom left)
-#     left, bottom, width, height = [0.62, 0.76, 0.3*0.95, 0.08*0.9]
-
-#     background_box = [(0.51, 0.61), 0.47, 0.36]
-#     ax.add_patch(mpatches.Rectangle(*background_box, facecolor='white', edgecolor='lightgray', transform=ax.transAxes))
-
-#     i_day_max = i_day + max(3, i_day*0.1)
-
-#     # delta_width = 0 * width / 100
-#     ax2 = fig.add_axes([left, bottom, width, height])
-#     I_up_to_today = animation.df_counts['I'].iloc[:i_day+1] / animation.N_tot
-#     ax2.plot(I_up_to_today.index, I_up_to_today, '-', color=animation.d_colors['I'])
-#     ax2.plot(I_up_to_today.index[-1], I_up_to_today.iloc[-1], 'o', color=animation.d_colors['I'])
-#     I_max = np.max(I_up_to_today)
-#     ax2.set(xlabel='t', ylim=(0, I_max*1.2), xlim=(0, i_day_max))
-#     decimals = max(int(-np.log10(I_max)) - 1, 0) # max important, otherwise decimals=-1
-#     ax2.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=decimals))
-#     ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
-#     ax2.text(-0.28, 0.2, 'Infected', fontsize=20, transform=ax2.transAxes, rotation=90)
-#     add_spines(ax2)
-
-#     ax3 = fig.add_axes([left, bottom-height*1.8, width, height])
-#     if i_day > 0:
-#         R_t_up_to_today = animation._interpolate_R_t(animation.R_t[:i_day+1])
-#         z = (R_t_up_to_today['R_t'] > 1) / 1
-#         ax3.scatter(R_t_up_to_today['t'], R_t_up_to_today['R_t'], s=10, c=z, **animation._scatter_kwargs)
-#         R_t_today = R_t_up_to_today.iloc[-1]
-#         z_today = (R_t_today['R_t'] > 1)
-#         ax3.scatter(R_t_today['t'], R_t_today['R_t'], s=100, c=z_today, **animation._scatter_kwargs)
-#     R_t_max = 3
-#     ax3.axhline(1, ls='--', color='k', lw=1) # x = 0
-#     # ax3.axhline(0, color='k', lw=2) # x = 0
-#     ax3.set(xlabel='t', ylim=(0, R_t_max), xlim=(0, i_day_max))
-#     ax3.xaxis.set_major_locator(MaxNLocator(integer=True))
-#     ax3.text(-0.25, 0.4, r'$\mathregular{R}_\mathregular{eff}$', fontsize=24, transform=ax3.transAxes, rotation=90)
-#     add_spines(ax3)
-
-#     ax.text(0.02, 0.02, f"Day: {i_day}", fontsize=24, transform=ax.transAxes)
-
-#     plt.close('all')
