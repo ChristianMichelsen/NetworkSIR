@@ -591,16 +591,27 @@ if False:
     animate_file(filename, do_tqdm=True, verbose=True, force_rerun=True, make_IHI_plot=True, make_N_connections_animation=True, load_into_memory=False)
 
 
-fig, ax = plot_IHI(filename, verbose=False, savefig=True)
+
+filename = "Data_animation/N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__1__ID__000.animation.hdf5"
+
+animation_N_connections = Animate_N_connections(filename, do_tqdm=True, verbose=True, load_into_memory=False)
+
+animation_N_connections.make_animation(remove_frames=False, 
+                                       force_rerun=False, 
+                                       optimize_gif=True)
 
 
-animation = AnimateSIR("Data_animation/N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.0__beta_scaling__75.0__age_mixing__1.0__algo__2__ID__000.animation.hdf5", do_tqdm=True, verbose=True, load_into_memory=False)
-animation.df_raw[['I1', 'I2', 'I3', 'I4']].sum(axis=1).max()
+
+# fig, ax = plot_IHI(filename, verbose=False, savefig=True)
+
+
+# animation = AnimateSIR("Data_animation/N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.0__beta_scaling__75.0__age_mixing__1.0__algo__2__ID__000.animation.hdf5", do_tqdm=True, verbose=True, load_into_memory=False)
+# animation.df_raw[['I1', 'I2', 'I3', 'I4']].sum(axis=1).max()
 
 
 
-animation = AnimateSIR("Data_animation/N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.0__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.animation.hdf5", do_tqdm=True, verbose=True, load_into_memory=False)
-animation.df_raw[['I1', 'I2', 'I3', 'I4']].sum(axis=1).max()
+# animation = AnimateSIR("Data_animation/N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.0__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.animation.hdf5", do_tqdm=True, verbose=True, load_into_memory=False)
+# animation.df_raw[['I1', 'I2', 'I3', 'I4']].sum(axis=1).max()
 
 
 
