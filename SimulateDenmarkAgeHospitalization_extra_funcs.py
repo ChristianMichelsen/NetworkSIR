@@ -446,7 +446,6 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
     out_individual_rates = individual_rates.copy()
     out_ages = ages.copy()
 
-
     daily_counter = 0
 
     Tot = 0.0
@@ -458,6 +457,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
 
     H_tot_move = 0
     H_counter = 0
+    idx_H_state = 0 # TODO: Uncomment when using hospitalizations
+    H_old_state = 0 # TODO: Uncomment when using hospitalizations
 
     intervention_switch = False
     intervention_day0 = 0.0
@@ -1106,14 +1107,14 @@ def single_run_and_save(filename, verbose=False):
     return None
 
 
-if True:
+if False:
 
     verbose = True
     filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
 
     cfg = filename_to_dict(filename)
     # cfg.beta_scaling = 50
-    cfg.N_tot = 58_000
+    cfg.N_tot = 100_000
     cfg.sigma_mu = 1
     cfg.sigma_beta = 1
     ID = filename_to_ID(filename)

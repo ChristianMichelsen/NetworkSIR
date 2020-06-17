@@ -21,7 +21,7 @@ all_sim_pars = [
                     'N_tot': [100_000],
                     'sigma_beta': [1],
                     'sigma_mu': [1],
-                    'rho': [0, 100],
+                    'rho': [0],
                 },
 
                 # {
