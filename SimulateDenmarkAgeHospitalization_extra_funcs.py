@@ -597,26 +597,26 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
                     csInf[which_state[idx]:N_states] -= individual_rates[idx][i1]
                     time_inf[idx] = RT - time_inf[idx]
 
-                # XXX HOSPITAL
-                # Now in hospital track
-                H_state = np.searchsorted(H_probability_matrix_csum[ages[idx]], np.random.rand())
+                # # XXX HOSPITAL
+                # # Now in hospital track
+                # H_state = np.searchsorted(H_probability_matrix_csum[ages[idx]], np.random.rand())
 
-                H_which_state[idx] = H_state
-                H_agents_in_state[H_state].append(idx)
-                H_state_total_counts[H_state] += 1
+                # H_which_state[idx] = H_state
+                # H_agents_in_state[H_state].append(idx)
+                # H_state_total_counts[H_state] += 1
                 
-                H_tot_move += H_move_matrix_sum[H_state, ages[idx]]
-                H_cumsum_move[H_state:] += H_move_matrix_sum[H_state, ages[idx]] 
+                # H_tot_move += H_move_matrix_sum[H_state, ages[idx]]
+                # H_cumsum_move[H_state:] += H_move_matrix_sum[H_state, ages[idx]] 
 
 
-                # if H_counter < 100:
-                #     print(idx, "jumps into hospital track", H_state, H_agents_in_state[H_state])
-                #     H_counter += 1
+                # # if H_counter < 100:
+                # #     print(idx, "jumps into hospital track", H_state, H_agents_in_state[H_state])
+                # #     H_counter += 1
 
 
         # Here we infect new states
-        elif (TotMov + TotInf) / Tot > ra1:  # XXX HOSPITAL
-        # else: # XXX HOSPITAL
+        # elif (TotMov + TotInf) / Tot > ra1:  # XXX HOSPITAL
+        else: # XXX HOSPITAL
             s = 2
 
             bug_inf += Tot / TotInf
@@ -670,56 +670,56 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
                         break
 
 
-        ## move between hospital tracks
-        else:
-            s = 3
+        # ## move between hospital tracks
+        # else:
+        #     s = 3
 
-            bug_hos += Tot / H_tot_move
+        #     bug_hos += Tot / H_tot_move
 
-            x = (TotMov + TotInf + H_cumsum_move) / Tot
-            H_old_state = np.searchsorted(x, ra1)
-            # Csum = (TotMov + TotInf + H_cumsum_move[H_old_state]) / Tot # XXXX
-            Csum = (TotMov + TotInf + H_cumsum_move[H_old_state-1]) / Tot # 
-            for idx_H_state in range(len(H_agents_in_state[H_old_state])):
+        #     x = (TotMov + TotInf + H_cumsum_move) / Tot
+        #     H_old_state = np.searchsorted(x, ra1)
+        #     # Csum = (TotMov + TotInf + H_cumsum_move[H_old_state]) / Tot # XXXX
+        #     Csum = (TotMov + TotInf + H_cumsum_move[H_old_state-1]) / Tot # 
+        #     for idx_H_state in range(len(H_agents_in_state[H_old_state])):
                 
-                idx = H_agents_in_state[H_old_state][idx_H_state]
-                Csum += H_move_matrix_sum[H_old_state, ages[idx]] / Tot
+        #         idx = H_agents_in_state[H_old_state][idx_H_state]
+        #         Csum += H_move_matrix_sum[H_old_state, ages[idx]] / Tot
                 
-                if Csum > ra1:
-                    # idx = agents_in_state[H_old_state, idx]
+        #         if Csum > ra1:
+        #             # idx = agents_in_state[H_old_state, idx]
                     
 
-                    AC = 1
-                    H_ra = np.random.rand()
+        #             AC = 1
+        #             H_ra = np.random.rand()
 
-                    H_tmp = H_move_matrix_cumsum[H_which_state[idx], :, ages[idx]] / H_move_matrix_sum[H_which_state[idx], ages[idx]]
-                    H_new_state = np.searchsorted(H_tmp, H_ra)
+        #             H_tmp = H_move_matrix_cumsum[H_which_state[idx], :, ages[idx]] / H_move_matrix_sum[H_which_state[idx], ages[idx]]
+        #             H_new_state = np.searchsorted(H_tmp, H_ra)
 
-                    # for nested list pop element
-                    # We have chosen idx to move -> here we move it
-                    H_agents_in_state[H_old_state].pop(idx_H_state)
-                    # for h in range(idx, H_state_total_counts[H_old_state]):
-                    #     H_agents_in_state[H_old_state, h] = H_agents_in_state[H_old_state, h+1] 
+        #             # for nested list pop element
+        #             # We have chosen idx to move -> here we move it
+        #             H_agents_in_state[H_old_state].pop(idx_H_state)
+        #             # for h in range(idx, H_state_total_counts[H_old_state]):
+        #             #     H_agents_in_state[H_old_state, h] = H_agents_in_state[H_old_state, h+1] 
 
-                    H_which_state[idx] = H_new_state
-                    # H_agents_in_state[H_new_state, H_state_total_counts[H_new_state]] = idx # XXX
-                    H_agents_in_state[H_new_state].append(idx)
-                    H_state_total_counts[H_old_state] -= 1
-                    H_state_total_counts[H_new_state] += 1
+        #             H_which_state[idx] = H_new_state
+        #             # H_agents_in_state[H_new_state, H_state_total_counts[H_new_state]] = idx # XXX
+        #             H_agents_in_state[H_new_state].append(idx)
+        #             H_state_total_counts[H_old_state] -= 1
+        #             H_state_total_counts[H_new_state] += 1
 
-                    H_tot_move += H_move_matrix_sum[H_new_state, ages[idx]] - H_move_matrix_sum[H_old_state, ages[idx]]
+        #             H_tot_move += H_move_matrix_sum[H_new_state, ages[idx]] - H_move_matrix_sum[H_old_state, ages[idx]]
 
-                    # moving forward
-                    if H_old_state < H_new_state:
-                        H_cumsum_move[H_old_state:H_new_state] -= H_move_matrix_sum[H_old_state, ages[idx]] 
-                        H_cumsum_move[H_new_state:] += H_move_matrix_sum[H_new_state, ages[idx]] - H_move_matrix_sum[H_old_state, ages[idx]] 
+        #             # moving forward
+        #             if H_old_state < H_new_state:
+        #                 H_cumsum_move[H_old_state:H_new_state] -= H_move_matrix_sum[H_old_state, ages[idx]] 
+        #                 H_cumsum_move[H_new_state:] += H_move_matrix_sum[H_new_state, ages[idx]] - H_move_matrix_sum[H_old_state, ages[idx]] 
                     
-                    #moving backwards
-                    else:
-                        H_cumsum_move[H_new_state:H_old_state] += H_move_matrix_sum[H_old_state, ages[idx]] 
-                        H_cumsum_move[H_new_state:] += H_move_matrix_sum[H_new_state, ages[idx]] - H_move_matrix_sum[H_old_state, ages[idx]] 
+        #             #moving backwards
+        #             else:
+        #                 H_cumsum_move[H_new_state:H_old_state] += H_move_matrix_sum[H_old_state, ages[idx]] 
+        #                 H_cumsum_move[H_new_state:] += H_move_matrix_sum[H_new_state, ages[idx]] - H_move_matrix_sum[H_old_state, ages[idx]] 
 
-                    break
+        #             break
 
 
         ################
