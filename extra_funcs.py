@@ -11,9 +11,14 @@ import pickle
 import rc_params
 rc_params.set_rc_params()
 
+def is_empty_file(file):
+    if isinstance(file, str):
+        file = Path(file)
+    return (file.stat().st_size == 0)
+
 def get_filenames():
     filenames = Path('Data/ABN').rglob(f'*.csv')
-    return [str(file) for file in sorted(filenames)]
+    return [str(file) for file in sorted(filenames) if not is_empty_file(file)]
 
 
 # from scipy.signal import savgol_filter
@@ -60,7 +65,7 @@ def pandas_load_file(filename, return_only_df=False):
 
     return df, df_interpolated, time, t_interpolated
 
-
+from pandas.errors import EmptyDataError
 def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=100):
 
     d_ylabel = {'I': 'Infected',
@@ -99,7 +104,6 @@ def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=
                     try:
                         df = pandas_load_file(filename_ID, return_only_df=True)
                     except EmptyDataError as e:
-                        from pandas.errors import EmptyDataError
                         print(f"Skipping {filename_ID} because empty file")
                         continue
                     label = 'Simulations' if i == 0 else None
@@ -395,12 +399,16 @@ def uniform(a, b):
     return sp_uniform(loc, scale)
 
 
-def human_format(num):
+def human_format(num, decimals=None):
     num = float('{:.3g}'.format(num))
     magnitude = 0
     while abs(num) >= 1000:
         magnitude += 1
         num /= 1000.0
+    if decimals is not None:
+        num = round(num, decimals)
+        # if decimals == 0:
+            # num = num[0]
     return '{}{}'.format('{:f}'.format(num).rstrip('0').rstrip('.'), ['', 'K', 'M', 'B', 'T'][magnitude])
 
 
@@ -413,7 +421,7 @@ from pathlib import Path
 from iminuit import Minuit
 
 @lru_cache(maxsize=None)
-def calc_Imax_R_inf_deterministic(mu, lambda_E, lambda_I, beta, y0, Tmax, dt, ts):
+def calc_Imax_R_inf_SIRerministic(mu, lambda_E, lambda_I, beta, y0, Tmax, dt, ts):
     ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu, lambda_E, lambda_I, beta)
     I_max = np.max(ODE_result_SIR[:, 2])
     R_inf = ODE_result_SIR[-1, 3]
@@ -449,7 +457,7 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
     cfg = filename_to_dotdict(filename)
 
     df, df_interpolated, time, t_interpolated = pandas_load_file(filename, return_only_df=False)
-    R_inf_net = df['R'].iloc[-1]
+    R_inf_ABN = df['R'].iloc[-1]
 
     Tmax = int(df['Time'].max())+1 # max number of days
     N_tot = cfg.N_tot
@@ -475,7 +483,7 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
         return filename, None
 
     y_truth_interpolated = df_interpolated['I']
-    I_max_det, R_inf_det = calc_Imax_R_inf_deterministic(cfg.mu, cfg.lambda_E, cfg.lambda_I, cfg.beta, y0, Tmax*2, dt, ts)
+    I_max_SIR, R_inf_SIR = calc_Imax_R_inf_SIRerministic(cfg.mu, cfg.lambda_E, cfg.lambda_I, cfg.beta, y0, Tmax*2, dt, ts)
     Tmax_peak = df_interpolated['I'].argmax()*1.2
     I_max_ABN = np.max(df['I'])
 
@@ -498,12 +506,12 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
 
     fit_object.filename = filename
     fit_object.I_max_ABN = I_max_ABN
-    fit_object.I_max_hat = fit_object.compute_I_max()
-    fit_object.I_max_det = I_max_det
+    fit_object.I_max_fit = fit_object.compute_I_max()
+    fit_object.I_max_SIR = I_max_SIR
     
-    fit_object.R_inf_net = R_inf_net
-    fit_object.R_inf_hat = fit_object.compute_R_inf(Tmax=Tmax*2)
-    fit_object.R_inf_det = R_inf_det
+    fit_object.R_inf_ABN = R_inf_ABN
+    fit_object.R_inf_fit = fit_object.compute_R_inf(Tmax=Tmax*2)
+    fit_object.R_inf_SIR = R_inf_SIR
 
     return filename, fit_object
 
@@ -722,54 +730,116 @@ def SDOM(x):
     return np.std(x) / np.sqrt(len(x))
 
 
-def plot_1D_scan(parameter, do_log=False, **kwargs):
+def foo_no_fit(filenames):
+
+    I_max_ABN = []
+    R_inf_ABN = []
+
+    # filename = filenames[0]
+    for filename in filenames:
+        cfg = filename_to_dotdict(filename)
+        try:
+            df = pandas_load_file(filename, return_only_df=True)
+        except EmptyDataError:
+            print(f"Empty file error at {filename}")
+            continue
+        I_max_ABN.append(df['I'].max())
+        R_inf_ABN.append(df['R'].iloc[-1])
+    I_max_ABN = np.array(I_max_ABN)
+    R_inf_ABN = np.array(R_inf_ABN)
+
+    Tmax = max(df['Time'].max()*1.2, 300)
+    df_SIR = ODE_integrate_cfg_to_df(cfg, Tmax, dt=0.01, ts=0.1)
+    
+    z_rel_I = I_max_ABN / df_SIR['I'].max()
+    z_rel_R = R_inf_ABN / df_SIR['R'].iloc[-1]
+    
+    return z_rel_I, z_rel_R, cfg
+
+
+def foo_with_fit(filenames, fit_objects_all):
+
+    cfg = filename_to_dotdict(filenames[0])
+    sim_par = dict_to_str(cfg)
+
+    z_rel_I = []
+    z_rel_R = []
+
+    # filename = filenames[0]
+    for fit_object in fit_objects_all[sim_par].values():
+        
+        z_rel_I.append( fit_object.I_max_ABN / fit_object.I_max_fit )
+        z_rel_R.append( fit_object.R_inf_ABN / fit_object.R_inf_fit )
+    
+    z_rel_I = np.array(z_rel_I)
+    z_rel_R = np.array(z_rel_R)
+
+    return z_rel_I, z_rel_R, cfg
+
+
+
+def foo(parameter, fit_objects_all, **kwargs):
 
     # kwargs = {}
     default_files_as_function_of_parameter = get_filenames_different_than_default(parameter, **kwargs)
     if len(default_files_as_function_of_parameter) == 0:
-        # print(f"\nNo files found for parameter {parameter}")
         return None
-
-    d_par_pretty = get_d_translate()
 
     base_dir = Path('Data') / 'ABN'
 
-    x = np.zeros(len(default_files_as_function_of_parameter))
-    y_I = np.zeros_like(x)
-    y_R = np.zeros_like(x)
-    sy_I = np.zeros_like(x)
-    sy_R = np.zeros_like(x)
-    n = np.zeros_like(x)
+    x = []
+    y_I = []
+    y_R = []
+    sy_I = []
+    sy_R = []
+    n = []
 
-    # i_simpar, sim_par = 0, default_files_as_function_of_parameter[0]
-    for i_simpar, sim_par in enumerate(tqdm(default_files_as_function_of_parameter, desc=parameter)):
+    # sim_par = default_files_as_function_of_parameter[0]
+    for sim_par in tqdm(default_files_as_function_of_parameter, desc=parameter):
         filenames = [str(filename) for filename in base_dir.rglob('*.csv') if f"{sim_par}/" in str(filename)]
-        N_files = len(filenames)
 
-        I_max_ABN = np.zeros(N_files)
-        R_inf_ABN = np.zeros(N_files)
+        if fit_objects_all is None:
+            z_rel_I, z_rel_R, cfg = foo_no_fit(filenames)
+        else:
+            z_rel_I, z_rel_R, cfg = foo_with_fit(filenames, fit_objects_all)
 
-        # i_filename, filename = 0, filenames[0]
-        for i_filename, filename in enumerate(filenames):
-            cfg = filename_to_dotdict(filename)
-            df = pandas_load_file(filename, return_only_df=True)
-            I_max_ABN[i_filename] = df['I'].max()
-            R_inf_ABN[i_filename] = df['R'].iloc[-1]
+        x.append(cfg[parameter])
+        y_I.append(np.mean(z_rel_I))
+        y_R.append(np.mean(z_rel_R))
+        sy_I.append(SDOM(z_rel_I))
+        sy_R.append(SDOM(z_rel_R))
+        n.append(len(z_rel_I)) # not len(filenames) in case any empty files
 
-        Tmax = max(df['Time'].max()*1.2, 300)
-        df_SIR = ODE_integrate_cfg_to_df(cfg, Tmax, dt=0.01, ts=0.1)
-        
-        z_rel_I = I_max_ABN / df_SIR['I'].max()
-        z_rel_R = R_inf_ABN / df_SIR['R'].iloc[-1]
-        x[i_simpar] = cfg[parameter]
-        y_I[i_simpar] = np.mean(z_rel_I)
-        y_R[i_simpar] = np.mean(z_rel_R)
-        sy_I[i_simpar] = SDOM(z_rel_I)
-        sy_R[i_simpar] = SDOM(z_rel_R) 
-        n[i_simpar] = N_files
+    x = np.array(x)
+    y_I = np.array(y_I)
+    y_R = np.array(y_R)
+    sy_I = np.array(sy_I)
+    sy_R = np.array(sy_R)
+    n = np.array(n)
 
+    return x, y_I, y_R, sy_I, sy_R, n, cfg
+
+
+
+from pandas.errors import EmptyDataError
+def plot_1D_scan(parameter, fit_objects_all=None, do_log=False, **kwargs):
+
+    # kwargs = {}
+    res = foo(parameter, fit_objects_all, **kwargs)
+    if res is None:
+        return None
+    x, y_I, y_R, sy_I, sy_R, n, cfg = res
+    
+
+    d_par_pretty = get_d_translate()
     title = dict_to_title(cfg, exclude=parameter)
     xlabel = r"$" + d_par_pretty[parameter] + r"$"
+
+    if fit_objects_all is None:
+        normed_by = 'SIR'
+    else:
+        normed_by = 'fit'
+
 
     # n>1 datapoints
     mask = (n > 1)
@@ -781,12 +851,13 @@ def plot_1D_scan(parameter, do_log=False, **kwargs):
     ax0.errorbar(x[mask], y_I[mask], sy_I[mask], fmt='.', color='black', ecolor='black', elinewidth=1, capsize=10)
     ax0.errorbar(x[~mask], y_I[~mask], sy_I[~mask], fmt='.', color='grey', ecolor='grey', elinewidth=1, capsize=10) 
     ax0.set_xlabel(xlabel) 
-    ax0.set_ylabel(r'$I_\mathrm{max}^\mathrm{ABN} \, / \,\, I_\mathrm{max}^\mathrm{SIR}$')
+
+    ax0.set_ylabel(r'$I_\mathrm{max}^\mathrm{ABN} \, / \,\, I_\mathrm{max}^\mathrm{'+normed_by+'}$')
 
     ax1.errorbar(x[mask], y_R[mask], sy_R[mask], fmt='.', color='black', ecolor='black', elinewidth=1, capsize=10)
     ax1.errorbar(x[~mask], y_R[~mask], sy_R[~mask], fmt='.', color='grey', ecolor='grey', elinewidth=1, capsize=10) 
     ax1.set_xlabel(xlabel) 
-    ax1.set_ylabel(r'$R_\infty^\mathrm{ABN} \, / \,\, R_\infty^\mathrm{SIR}$') 
+    ax1.set_ylabel(r'$R_\infty^\mathrm{ABN} \, / \,\, R_\infty^\mathrm{'+normed_by+'}$') 
     
     if do_log:
         ax0.set_xscale('log')
@@ -797,23 +868,26 @@ def plot_1D_scan(parameter, do_log=False, **kwargs):
     figname_pdf = f"Figures/1D_scan/pdf/1D_scan_{parameter}"
     for key, val in kwargs.items():
         figname_pdf += f"_{key}_{val}"
-    figname_pdf += '.pdf'
+    figname_pdf += f'_normed_by_{normed_by}.pdf'
 
     Path(figname_pdf).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(figname_pdf, dpi=100) # bbox_inches='tight', pad_inches=0.3
     plt.close('all')
 
 
-    n_text = [f"n = {int(ni)}" for ni in n]
-    fig = go.Figure(data=go.Scatter(x=x, y=y_I, text=n_text, mode='markers', error_y=dict(array=sy_I)))
-    fig.update_layout(title=title,
-                    xaxis_title=parameter,
-                    yaxis_title='I_max_ABN / I_max_SIR',
-                    height=600, width=800,
-                    showlegend=False,
-                    )
-    figname_html = figname_pdf.replace('pdf', 'html')
-    Path(figname_html).parent.mkdir(parents=True, exist_ok=True)
-    fig.write_html(str(figname_html))
+    # n_text = [f"n = {int(ni)}" for ni in n]
+    # fig = go.Figure(data=go.Scatter(x=x, y=y_I, text=n_text, mode='markers', error_y=dict(array=sy_I)))
+    # fig.update_layout(title=title,
+    #                 xaxis_title=parameter,
+    #                 yaxis_title='I_max_ABN / I_max_SIR',
+    #                 height=600, width=800,
+    #                 showlegend=False,
+    #                 )
+    # figname_html = figname_pdf.replace('pdf', 'html')
+    # Path(figname_html).parent.mkdir(parents=True, exist_ok=True)
+    # fig.write_html(str(figname_html))
 
 
+
+
+# %%

@@ -14,9 +14,9 @@ import extra_funcs
 from importlib import reload
 import h5py
 import rc_params
-rc_params.set_rc_params() # fig_dpi=100
+rc_params.set_rc_params(fig_dpi=50) # 
 
-num_cores_max = 2
+num_cores_max = 1
 
 #%%
 
@@ -47,6 +47,17 @@ import warnings
 from scipy import signal
 
 
+from matplotlib.offsetbox import TextArea, DrawingArea, OffsetImage, AnnotationBbox
+import matplotlib.image as mpimg
+
+from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
+from matplotlib.transforms import Bbox
+import matplotlib.font_manager as fm
+fontprops = fm.FontProperties(size=24)
+
+longitudes_per_50km = 0.8392
+image = plt.imread('Figures/CompasRose/CompasRose.png')
+
 
 def add_spines(ax, exclude=None):
     if exclude is None:
@@ -69,8 +80,8 @@ class AnimationBase():
         self.do_tqdm = do_tqdm
         self.verbose = verbose
         self.load_into_memory = load_into_memory
-        if verbose:
-            print(f"Loading: \n{self.filename}")
+        # if verbose:
+            # print(f"Loading: \n{self.filename}")
         self._load_hdf5fi_file()
         if N_max is None:
             self.N_days = len(self.which_state)
@@ -229,7 +240,7 @@ class AnimateSIR(AnimationBase):
     def _initialize_plot_and_df_counts(self):
 
         self.colors = ['#7F7F7F', '#D62728', '#2CA02C']
-        self.d_colors = {'S': '#7F7F7F', 'I': '#D62728', 'R': '#2CA02C'}
+        self.d_colors = {'S': '#7F7F7F', 'I': '#D62728', 'R': '#2CA02C'} # orangy red: #D66727, normal red: #D62728
         
         factor = self.cfg['N_tot'] / 580_000
 
@@ -310,11 +321,26 @@ class AnimateSIR(AnimationBase):
             ax.scatter_density(dfs['R']['x'], dfs['R']['y'], color=self.d_colors['R'], alpha=0.3, norm=self.norm_100, dpi=dpi)
         if len(dfs['I']) > 0:
             ax.scatter_density(dfs['I']['x'], dfs['I']['y'], color=self.d_colors['I'], norm=self.norm_10, dpi=dpi)
-        ax.set(xlim=(8, 13.7), ylim=(54.52, 58.2))
+        ax.set(xlim=(7.9, 13.7), ylim=(54.4, 58.2), xlabel='Longitude')
+        ax.set_ylabel('Latitude', rotation=90) # fontsize=20, labelpad=20
 
-        kw_args_circle = dict(xdata=[0], ydata=[0], marker='o', color='w', markersize=16)
-        circles = [Line2D(label=self.state_names[state], markerfacecolor=self.d_colors[state], **kw_args_circle) for state in self.states]
-        ax.legend(handles=circles, loc='upper left', fontsize=20)
+
+        kw_args_circle = dict(xdata=[0], ydata=[0], marker='o', color='w', markersize=18)
+        circles = [Line2D(label=self.state_names[state], 
+                          markerfacecolor=self.d_colors[state], **kw_args_circle)
+                          for state in self.states]
+        ax.legend(handles=circles, loc='upper left', fontsize=24, frameon=False)
+
+        # string = "\n".join([human_format(len(dfs[state]), decimals=1) for state in self.states])
+        s_legend = [human_format(len(dfs[state]), decimals=1) for state in self.states]
+        delta_s = 0.0261
+        for i, s in enumerate(s_legend):
+            ax.text(0.41, 0.9698-i*delta_s, s, fontsize=24, transform=ax.transAxes, ha='right')
+        
+        # left, bottom, width, height
+        legend_background_box = [(0.023, 0.91), 0.398, 0.085] 
+        ax.add_patch(mpatches.Rectangle(*legend_background_box, facecolor='white', edgecolor='white', transform=ax.transAxes))
+
 
         cfg = extra_funcs.filename_to_dotdict(self.filename, animation=True)
         title = extra_funcs.dict_to_title(cfg)
@@ -323,10 +349,10 @@ class AnimateSIR(AnimationBase):
         # secondary plots:
 
         # These are in unitless percentages of the figure size. (0,0 is bottom left)
-        left, bottom, width, height = [0.62, 0.76, 0.3*0.8, 0.08*0.8]
+        left, bottom, width, height = [0.56, 0.75, 0.39*0.8, 0.08*0.8]
 
-        background_box = [(0.51, 0.61), 0.47, 0.36]
-        ax.add_patch(mpatches.Rectangle(*background_box, facecolor='white', edgecolor='lightgray', transform=ax.transAxes))
+        background_box = [(0.49, 0.60), 0.49, 0.35]
+        ax.add_patch(mpatches.Rectangle(*background_box, facecolor='white', edgecolor='white', transform=ax.transAxes))
 
         i_day_max = i_day + max(3, i_day*0.1)
 
@@ -336,15 +362,14 @@ class AnimateSIR(AnimationBase):
         ax2.plot(I_up_to_today.index, I_up_to_today, '-', color=self.d_colors['I'])
         ax2.plot(I_up_to_today.index[-1], I_up_to_today.iloc[-1], 'o', color=self.d_colors['I'])
         I_max = np.max(I_up_to_today)
-        ax2.set(xlabel='t', ylim=(0, I_max*1.2), xlim=(0, i_day_max))
+        ax2.set(xlabel=r'$t \,\, \mathrm{(days)}$', ylim=(0, I_max*1.2), xlim=(0, i_day_max))
         decimals = max(int(-np.log10(I_max)) - 1, 0) # max important, otherwise decimals=-1
         ax2.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=decimals))
-        ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
-        ax2.text(-0.35, 0.2, 'Infected', fontsize=20, transform=ax2.transAxes, rotation=90)
-        ax2.xaxis.set_major_locator(MaxNLocator(6))
+        ax2.text(0, 1.18, 'Infected', fontsize=22, transform=ax2.transAxes, rotation=0, ha="center")
+        ax2.xaxis.set_major_locator(MaxNLocator(5, integer=True))
         add_spines(ax2)
 
-        ax3 = fig.add_axes([left, bottom-height*1.8, width, height])
+        ax3 = fig.add_axes([left, bottom-height*1.9, width, height])
 
         if i_day > 0:
             R_eff_up_to_today = self._interpolate_R_eff(self.R_eff_smooth[:i_day+1])
@@ -356,14 +381,34 @@ class AnimateSIR(AnimationBase):
         
         R_eff_max = 4
         ax3.axhline(1, ls='--', color='k', lw=1) # x = 0
-        # ax3.axhline(0, color='k', lw=2) # x = 0
-        ax3.set(xlabel='t', ylim=(0, R_eff_max), xlim=(0, i_day_max))
-        ax3.xaxis.set_major_locator(MaxNLocator(integer=True))
-        ax3.text(-0.4, 0.4, r'$\mathcal{R}_\mathregular{eff}$', fontsize=24, transform=ax3.transAxes, rotation=90)
-        ax3.xaxis.set_major_locator(MaxNLocator(6))
+        ax3.set(xlabel=r'$t \,\, \mathrm{(days)}$', ylim=(0, R_eff_max*1.1), xlim=(0, i_day_max))
+        ax3.text(0, 1.18, r'$\mathcal{R}_\mathregular{eff}$', fontsize=26, transform=ax3.transAxes, rotation=0, ha='center')
+        ax3.xaxis.set_major_locator(MaxNLocator(6, integer=True))
+        ax3.yaxis.set_major_locator(MaxNLocator(3, integer=True))
         add_spines(ax3)
 
-        ax.text(0.02, 0.02, f"Day: {i_day}", fontsize=24, transform=ax.transAxes)
+        ax4 = fig.add_axes([0.13, 0.68, 0.1, 0.1])
+        ax4.imshow(image, alpha=0.9)
+        ax4.axis('off')  # clear x-axis and y-axis
+
+        ax.text(0.70, 0.97, f"Day: {i_day}", fontsize=34, transform=ax.transAxes, backgroundcolor='white')
+        ax.text(0.012, 0.012, f"Simulation of COVID-19 epidemic with no intervention.", fontsize=24, transform=ax.transAxes, backgroundcolor='white')
+        ax.text(0.99, 0.01, f"Niels Bohr Institute\narXiv: 2006.XXXXX", ha='right', fontsize=18, transform=ax.transAxes, backgroundcolor='white')
+
+        scalebar = AnchoredSizeBar(ax.transData,
+                                longitudes_per_50km, '50 km', 
+                                loc='upper left', 
+                                sep=10,
+                                color='black',
+                                frameon=False,
+                                size_vertical=0.003,  
+                                fontproperties=fontprops,
+                                bbox_to_anchor=Bbox.from_bounds(8, 57.8, 0, 0),
+                                bbox_transform=ax.transData
+                                )
+
+        ax.add_artist(scalebar)
+
 
         plt.close('all')
         return fig, (ax, ax2, ax3)
@@ -416,7 +461,7 @@ class Animate_N_connections(AnimationBase):
         ax.hist(N_connections_day0, range=(0, range_max), bins=N_bins, label='Total', color='gray', alpha=0.8, histtype='step', lw=1)
         
         title = extra_funcs.dict_to_title(self.cfg)
-        ax.text(-0.1, -0.13, f"Day: {i_day}", ha='left', va='top', transform=ax.transAxes, fontdict=dict(size=30))
+        ax.text(-0.1, -0.13, f"Day: {i_day}", ha='left', va='top', transform=ax.transAxes, fontsize=30)
         ax.set(xlabel='# of connections', ylabel='Counts', title=title, xlim=(0, range_max-1), ylim=(10, None))
         ax.set_yscale('log')
         ax.legend(fontsize=20)
@@ -510,7 +555,7 @@ def get_N_bins_xy(coordinates):
     return N_bins_x, N_bins_y
 
 
-def plot_IHI(file_in, verbose=True, savefig=True):
+def plot_IHI(file_in, verbose=True, savefig=True, force_rerun=False):
 
     if isinstance(file_in, str):
         animation = AnimateSIR(file_in, verbose=verbose)
@@ -518,57 +563,84 @@ def plot_IHI(file_in, verbose=True, savefig=True):
         animation = file_in
     else:
         raise AssertionError(f'Got wrong type of input to plot_IHI, got {type(file_in)}')
-    
+
     filename = animation.filename
     coordinates = animation.coordinates
     which_state = animation.which_state
 
-    N_bins_x, N_bins_y = get_N_bins_xy(coordinates)
-    N_box_all, counts_1d_all = compute_N_box_index(coordinates, N_bins_x, N_bins_y)
+    pdf_name = str(Path('Figures/IHI') / 'IHI_') + Path(filename).stem + '.pdf'
+    if not Path(pdf_name).exists() or force_rerun:
 
-    x = np.arange(0, len(which_state)-1, 1)
-    IHI = np.zeros(len(x))
-    for i, i_day in enumerate(x):
-        which_state_day = which_state[i_day]
-        coordinates_infected = coordinates[(-1 < which_state_day) & (which_state_day < 8)]
-        N_box_infected, counts_1d_infected = compute_N_box_index(coordinates_infected, N_bins_x, N_bins_y)
-        ratio_N_box = N_box_infected / N_box_all
-        IHI[i] = ratio_N_box
+        N_bins_x, N_bins_y = get_N_bins_xy(coordinates)
+        N_box_all, counts_1d_all = compute_N_box_index(coordinates, N_bins_x, N_bins_y)
 
-    fig, ax = plt.subplots()
-    ax.plot(x, IHI)
-    title = extra_funcs.dict_to_title(animation.cfg)
-    ax.set(xlabel='Day', ylabel='Infection Homogeneity Index ', title=title, ylim=(0, 1))
-    if savefig:
-        pdf_name = str(Path('Figures/IHI') / 'IHI_') + Path(filename).stem + '.pdf'
-        Path(pdf_name).parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(pdf_name, dpi=600, bbox_inches='tight', pad_inches=0.3)
+        x = np.arange(0, len(which_state)-1, 1)
+        IHI = np.zeros(len(x))
+        for i, i_day in enumerate(x):
+            which_state_day = which_state[i_day]
+            coordinates_infected = coordinates[(-1 < which_state_day) & (which_state_day < 8)]
+            N_box_infected, counts_1d_infected = compute_N_box_index(coordinates_infected, N_bins_x, N_bins_y)
+            ratio_N_box = N_box_infected / N_box_all
+            IHI[i] = ratio_N_box
 
-    return fig, ax
+        fig, ax = plt.subplots()
+        ax.plot(x, IHI)
+        title = extra_funcs.dict_to_title(animation.cfg)
+        ax.set(xlabel='Day', ylabel='Infection Homogeneity Index ', title=title, ylim=(0, 1))
+        if savefig:
+            Path(pdf_name).parent.mkdir(parents=True, exist_ok=True)
+            fig.savefig(pdf_name, dpi=600, bbox_inches='tight', pad_inches=0.3)
+
+        return fig, ax
+    
+    else:
+        if verbose:
+            print(f"{pdf_name} already exists, skipping for now.")
+
 
 
 # %%
 
-def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=True, force_rerun=False, optimize_gif=True, make_IHI_plot=True, make_N_connections_animation=True, load_into_memory=False):
-    animation = AnimateSIR(filename, do_tqdm=do_tqdm, verbose=verbose, load_into_memory=load_into_memory)
-    with animation, warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message="All-NaN slice encountered")
-            warnings.filterwarnings("ignore", message="Attempting to set identical")
-            animation.make_animation(remove_frames=remove_frames, 
-                                    force_rerun=force_rerun, 
-                                    optimize_gif=optimize_gif,
-                                    dpi=dpi,
-                                    )
-    if make_IHI_plot:
-        if verbose:
-            print(f"Making IHI plot")
-        plot_IHI(filename, verbose=False, savefig=True)
-    if make_N_connections_animation:
-        animation_N_connections = Animate_N_connections(filename, do_tqdm=do_tqdm, verbose=verbose, load_into_memory=load_into_memory)
-        with animation_N_connections:
-            animation_N_connections.make_animation(remove_frames=remove_frames, 
-                                                   force_rerun=force_rerun, 
-                                                   optimize_gif=optimize_gif)
+def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=True, force_rerun=False, optimize_gif=True, 
+                make_geo_animation=True, 
+                make_IHI_plot=False, 
+                make_N_connections_animation=False, 
+                load_into_memory=False):
+
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="All-NaN slice encountered")
+        warnings.filterwarnings("ignore", message="Attempting to set identical")
+        warnings.filterwarnings("ignore", message="invalid value encountered in")
+        warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
+
+
+        if make_geo_animation:
+            animation = AnimateSIR(filename, do_tqdm=do_tqdm, verbose=verbose, load_into_memory=load_into_memory)
+            with animation:
+                    animation.make_animation(remove_frames=remove_frames, 
+                                            force_rerun=force_rerun, 
+                                            optimize_gif=optimize_gif,
+                                            dpi=dpi,
+                                            )
+        if make_IHI_plot:
+            if verbose:
+                print(f"Making IHI plot")
+            try:
+                fig, ax = plot_IHI(filename, verbose=False, savefig=True, force_rerun=force_rerun)
+                plt.close(fig)
+            except TypeError:
+                plot_IHI(filename, verbose=False, savefig=True, force_rerun=force_rerun)
+                if verbose:
+                    print(f'\nIHI Error in {filename}\n')
+            plt.close('all')
+            
+        if make_N_connections_animation:
+            animation_N_connections = Animate_N_connections(filename, do_tqdm=do_tqdm, verbose=verbose, load_into_memory=load_into_memory)
+            with animation_N_connections:
+                animation_N_connections.make_animation(remove_frames=remove_frames, 
+                                                    force_rerun=force_rerun, 
+                                                    optimize_gif=optimize_gif)
 
     return None
 
@@ -584,65 +656,60 @@ def get_num_cores(num_cores_max, subtract_cores=1):
 num_cores = get_num_cores(num_cores_max)
 
 filenames = get_animation_filenames()
-filename = filenames[5]
+filename = filenames[0]
 N_files = len(filenames)
-
-if False:
-    animate_file(filename, do_tqdm=True, verbose=True, force_rerun=True, make_IHI_plot=True, make_N_connections_animation=True, load_into_memory=False)
-
-
-
-filename = "Data_animation/N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__1__ID__000.animation.hdf5"
-
-animation_N_connections = Animate_N_connections(filename, do_tqdm=True, verbose=True, load_into_memory=False)
-
-animation_N_connections.make_animation(remove_frames=False, 
-                                       force_rerun=False, 
-                                       optimize_gif=True)
-
-
-
-# fig, ax = plot_IHI(filename, verbose=False, savefig=True)
-
-
-# animation = AnimateSIR("Data_animation/N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.0__beta_scaling__75.0__age_mixing__1.0__algo__2__ID__000.animation.hdf5", do_tqdm=True, verbose=True, load_into_memory=False)
-# animation.df_raw[['I1', 'I2', 'I3', 'I4']].sum(axis=1).max()
-
-
-
-# animation = AnimateSIR("Data_animation/N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.0__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.animation.hdf5", do_tqdm=True, verbose=True, load_into_memory=False)
-# animation.df_raw[['I1', 'I2', 'I3', 'I4']].sum(axis=1).max()
 
 
 
 #%%
 
 
-# animation = AnimateSIR(filename, do_tqdm=True, verbose=True, load_into_memory=False)
+# i_day = 12
+
+# animation = AnimateSIR(filename, do_tqdm=True, verbose=True, load_into_memory=False, N_max=i_day+1)
 # animation._initialize_plot_and_df_counts()
 
-# i_day = 50
+# #%%
+
 # fig, axes = animation._plot_i_day(i_day, dpi=50)
+
+# ax = axes[0]
+
 # fig
 
 
 
 #%%
 
+# x=x
+
+
 
 #%%
 
-if __name__ == '__main__' and False:
+if __name__ == '__main__' and True:
 
     if num_cores == 1:
 
         for filename in tqdm(filenames):
-            animate_file(filename, do_tqdm=True, verbose=True, force_rerun=False)
+            try:
+                animate_file(filename, do_tqdm=False, verbose=False, force_rerun=False,
+                             make_geo_animation=True, 
+                             make_N_connections_animation=False, 
+                             make_IHI_plot=False)
+            except OSError as e:
+                print(f"\nGot error at file {filename}\n")
 
     else:
         print(f"Generating {N_files} animations using {num_cores} cores, please wait", flush=True)
         with mp.Pool(num_cores) as p:
             list(tqdm(p.imap_unordered(animate_file, filenames), total=N_files))
+
+
+#%%
+
+
+
 
 
 #%%

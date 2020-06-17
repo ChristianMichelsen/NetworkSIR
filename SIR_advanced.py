@@ -45,40 +45,35 @@ if False:
     # parameter = 'rho'
     # do_log = False
 
-    extra_funcs.plot_1D_scan('N_tot', do_log=True)
-    extra_funcs.plot_1D_scan('N_init', do_log=True) 
-    extra_funcs.plot_1D_scan('N_init', do_log=True, algo=1) 
+    fit_objects_all = None
 
-    # extra_funcs.plot_1D_scan('N_ages', age_mixing=0)
-    # extra_funcs.plot_1D_scan('N_ages', age_mixing=0.25)
-    # extra_funcs.plot_1D_scan('N_ages', age_mixing=0.5)
-    # extra_funcs.plot_1D_scan('N_ages', age_mixing=0.75)
-    # extra_funcs.plot_1D_scan('N_ages', age_mixing=1) 
-    # extra_funcs.plot_1D_scan('age_mixing', N_ages=1)
-    # extra_funcs.plot_1D_scan('age_mixing', N_ages=3)
-    # extra_funcs.plot_1D_scan('age_mixing', N_ages=10) 
+    extra_funcs.plot_1D_scan('N_tot', fit_objects_all, do_log=True)
+    extra_funcs.plot_1D_scan('N_init', fit_objects_all, do_log=True) 
+    extra_funcs.plot_1D_scan('N_init', fit_objects_all, do_log=True, algo=1) 
 
-    extra_funcs.plot_1D_scan('beta_scaling')
-    extra_funcs.plot_1D_scan('beta_scaling', N_tot=5_800_000)
+    extra_funcs.plot_1D_scan('beta_scaling', fit_objects_all, N_tot=5_800_000, epsilon_rho=0, rho=100, N_init=100)
+    extra_funcs.plot_1D_scan('beta_scaling', fit_objects_all, N_tot=5_800_000, epsilon_rho=0, rho=100, N_init=1000)
+    extra_funcs.plot_1D_scan('beta_scaling', fit_objects_all, N_tot=580_000, epsilon_rho=0, rho=100, N_init=100)
+    extra_funcs.plot_1D_scan('beta_scaling', fit_objects_all, N_tot=580_000, epsilon_rho=0, rho=100, N_init=1000)
 
-    extra_funcs.plot_1D_scan('rho') 
-    extra_funcs.plot_1D_scan('rho', algo=1) 
-    extra_funcs.plot_1D_scan('rho', N_tot=5_800_000) 
-    extra_funcs.plot_1D_scan('epsilon_rho', rho=100)
-    extra_funcs.plot_1D_scan('epsilon_rho', rho=100, algo=1)  
+    extra_funcs.plot_1D_scan('rho', fit_objects_all) 
+    extra_funcs.plot_1D_scan('rho', fit_objects_all, algo=1) 
+    extra_funcs.plot_1D_scan('rho', fit_objects_all, N_tot=5_800_000) 
+    extra_funcs.plot_1D_scan('epsilon_rho', fit_objects_all, rho=100)
+    extra_funcs.plot_1D_scan('epsilon_rho', fit_objects_all, rho=100, algo=1)  
     
-    extra_funcs.plot_1D_scan('mu')
-    extra_funcs.plot_1D_scan('beta')
-    extra_funcs.plot_1D_scan('sigma_beta') 
-    extra_funcs.plot_1D_scan('sigma_beta', algo=1) 
-    extra_funcs.plot_1D_scan('sigma_beta', rho=150) 
-    extra_funcs.plot_1D_scan('sigma_beta', rho=150, algo=1) 
-    extra_funcs.plot_1D_scan('sigma_mu') 
-    extra_funcs.plot_1D_scan('sigma_mu', algo=1) 
-    extra_funcs.plot_1D_scan('sigma_mu', rho=150) 
-    extra_funcs.plot_1D_scan('sigma_mu', rho=150, algo=1) 
-    extra_funcs.plot_1D_scan('lambda_E') 
-    extra_funcs.plot_1D_scan('lambda_I') 
+    extra_funcs.plot_1D_scan('mu', fit_objects_all)
+    extra_funcs.plot_1D_scan('beta', fit_objects_all)
+    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all) 
+    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, algo=1) 
+    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, rho=100) 
+    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, rho=100, algo=1) 
+    extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all) 
+    extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all, algo=1) 
+    extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all, rho=100) 
+    extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all, rho=100, algo=1) 
+    extra_funcs.plot_1D_scan('lambda_E', fit_objects_all) 
+    extra_funcs.plot_1D_scan('lambda_I', fit_objects_all) 
 
 
 #%%
@@ -87,6 +82,7 @@ if __name__ == '__main__':
 
     fit_objects_all = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=num_cores_max)
 
+    x=x
 
 #%%
 
@@ -213,8 +209,16 @@ if __name__ == '__main__':
     print("Finished running")
 
 
-    # %%
 
-    import matplotlib as mpl
-    mpl.rcParams
+#%%
+
+
+# fit_object.filename = filename
+# fit_object.I_max_ABN 
+# fit_object.I_max_hat 
+# fit_object.I_max_det 
+
+# fit_object.R_inf_net 
+# fit_object.R_inf_hat 
+# fit_object.R_inf_det 
 

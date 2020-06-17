@@ -21,6 +21,8 @@ import awkward
 do_fast_math = False
 do_parallel_numba = False
 
+np.set_printoptions(linewidth=200)
+
 
 def is_local_computer(N_local_cores=8):
     import platform
@@ -185,6 +187,23 @@ def initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, beta_sca
     infection_weight = np.ones(N_tot, dtype=np.float32)
 
     for i in range(N_tot): # prange
+
+        # ra = np.random.rand()
+        # ra2 = np.random.rand()
+        # print("!!! USING CORRELATED connection_weight AND infection_weight !!!")
+
+        # # if (np.random.rand() < sigma_mu):
+        # if (ra < sigma_mu):
+        #     connection_weight[i] = 0.1 - np.log(ra2)# / 1.0
+        # else:
+        #     connection_weight[i] = 1.1
+
+        # # if (np.random.rand() < sigma_beta):
+        # if (ra < sigma_beta):
+        #     infection_weight[i] = -np.log(ra2)*beta
+        # else:
+        #     infection_weight[i] = beta
+        
         if (np.random.rand() < sigma_mu):
             connection_weight[i] = 0.1 - np.log(np.random.rand())# / 1.0
         else:
@@ -195,6 +214,7 @@ def initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, beta_sca
         else:
             infection_weight[i] = beta
         
+
         # f = 1 / (beta_scaling + 1)
         f = 0.1
 
@@ -391,18 +411,12 @@ def make_initial_infections(N_init, which_state, state_total_counts, agents_in_s
         TotMov += SIR_transition_rates[new_state]
         csMov[new_state:] += SIR_transition_rates[new_state]
         for i1 in range(N_connections_reference[idx]):
-            # Af = which_connections_reference[idx, i1] # XXX
             Af = which_connections_reference[idx][i1]
             for i2 in range(N_connections[Af]):
-                # if which_connections[Af, i2] == idx: # XXX
                 if which_connections[Af][i2] == idx:
                     # XXX maybe pop?
                     which_connections[Af].pop(i2) 
                     individual_rates[Af].pop(i2)
-                    # for i3 in range(i2, N_connections[Af]):
-                    #     # which_connections[Af, i3] = which_connections[Af, i3+1] 
-                    #     # which_connections[Af][i3] = which_connections[Af][i3+1] # XXX
-                    #     individual_rates[Af, i3] = individual_rates[Af, i3+1]
                     N_connections[Af] -= 1
                     break 
     return TotMov
@@ -419,11 +433,12 @@ def make_initial_infections(N_init, which_state, state_total_counts, agents_in_s
 #%%
 
 @njit
-def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, infectious_state, N_connections, individual_rates, N_connections_reference, which_connections_reference, which_connections, ages, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, mu, tau_I, delta_days, N_contacts_remove, nts, verbose):
+def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, infectious_state, N_connections, individual_rates, N_connections_reference, which_connections_reference, which_connections, ages, individual_infection_counter, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, mu, tau_I, delta_days, N_contacts_remove, nts, verbose):
 
     out_time = List()
     out_state_counts = List()
     out_which_state = List()
+    out_individual_infection_counter = List()
     out_N_connections = List()
     out_H_state_total_counts = List()
 
@@ -448,6 +463,13 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
     intervention_day0 = 0.0
     closed_contacts = initialize_nested_lists(N_tot, dtype=np.int32) 
     closed_contacts_rate = initialize_nested_lists(N_tot, dtype=np.float32) 
+
+    bug_move = 0.0
+    bug_inf = 0.0
+    bug_hos = 0.0
+    time_inf = np.zeros(N_tot, np.float32)
+    bug_contacts = np.zeros(N_tot, np.int32)
+
 
     # Run the simulation ################################
     continue_run = True
@@ -529,23 +551,23 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
         AC = 0 
         if TotMov / Tot > ra1:
             s = 1
+
+            bug_move += Tot / TotMov
+
             x = csMov / Tot
             i1 = np.searchsorted(x, ra1)
-            Csum = csMov[i1] / Tot
+            # Csum = csMov[i1] / Tot # XXXX important change
+            Csum = csMov[i1-1] / Tot # XXXX important change
             for i2 in range(state_total_counts[i1]):
                 Csum += SIR_transition_rates[i1] / Tot
                 if Csum > ra1:
-                    # idx = agents_in_state[i1, i2] # XXX
                     idx = agents_in_state[i1][i2]
                     AC = 1
                     break                
             
             # We have chosen idx to move -> here we move it
-            # agents_in_state[i1+1, state_total_counts[i1+1]] = idx # XXX
             agents_in_state[i1+1].append(idx)
             agents_in_state[i1].pop(i2) 
-            # for j in range(i2, state_total_counts[i1]):
-            #     # agents_in_state[i1, j] = agents_in_state[i1, j+1] # XXX
 
             which_state[idx] += 1
             state_total_counts[i1] -= 1 
@@ -559,32 +581,27 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
             # Moves TO infectious State from non-infectious
             if which_state[idx] == infectious_state: 
                 for i1 in range(N_connections[idx]): # Loop over row idx	  
-                    # if which_state[which_connections[idx, i1]] < 0: # XXX
                     if which_state[which_connections[idx][i1]] < 0:
-                        # TotInf += individual_rates[idx, i1] # XXX
                         TotInf += individual_rates[idx][i1]
-                        # InfRat[idx] += individual_rates[idx, i1] # XXX
                         InfRat[idx] += individual_rates[idx][i1]
-                        # csInf[which_state[idx]:N_states] += individual_rates[idx, i1] # XXX
                         csInf[which_state[idx]:N_states] += individual_rates[idx][i1]
-           
+                        time_inf[idx] = RT
+                        bug_contacts[idx] = N_connections[idx]
+
+
             # If this moves to Recovered state
             if which_state[idx] == N_states-1:
                 for i1 in range(N_connections[idx]): # Loop over row idx
-                    # TotInf -= individual_rates[idx, i1] # XXX
                     TotInf -= individual_rates[idx][i1] 
-                    # InfRat[idx] -= individual_rates[idx, i1] # XXX
                     InfRat[idx] -= individual_rates[idx][i1]
-                    # csInf[which_state[idx]:N_states] -= individual_rates[idx, i1] # XXX
                     csInf[which_state[idx]:N_states] -= individual_rates[idx][i1]
-
+                    time_inf[idx] = RT - time_inf[idx]
 
                 # XXX HOSPITAL
                 # Now in hospital track
                 H_state = np.searchsorted(H_probability_matrix_csum[ages[idx]], np.random.rand())
 
                 H_which_state[idx] = H_state
-                # H_agents_in_state[H_state, H_state_total_counts[H_state]] = idx # XXX
                 H_agents_in_state[H_state].append(idx)
                 H_state_total_counts[H_state] += 1
                 
@@ -601,48 +618,54 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
         elif (TotMov + TotInf) / Tot > ra1:  # XXX HOSPITAL
         # else: # XXX HOSPITAL
             s = 2
+
+            bug_inf += Tot / TotInf
+
+
             x = TotMov/Tot + csInf/Tot
             i1 = np.searchsorted(x, ra1)
-            Csum = TotMov/Tot + csInf[i1]/Tot
+            # Csum = TotMov/Tot + csInf[i1]/Tot # XXXX important change
+            Csum = TotMov/Tot + csInf[i1-1]/Tot
+
+            # if counter < 100:
+            #     print("\n")
+            #     print("x", x)
+            #     print("i1", i1)
+            #     print("Csum", Csum)
+            #     print("ra1", ra1)
+            #     print("csInf", csInf)
+
             for i2 in range(state_total_counts[i1]):
-                # idy = agents_in_state[i1, i2] # XXX
                 idy = agents_in_state[i1][i2]
                 for i3 in range(N_connections[idy]): 
                     Csum += individual_rates[idy][i3] / Tot
                     if Csum > ra1:
-                        # idx = which_connections[idy, i3]  # XXX    
                         idx = which_connections[idy][i3] 
                         which_state[idx] = 0 
-                        # agents_in_state[0, state_total_counts[0]] = idx	#
                         agents_in_state[0].append(idx)
                         state_total_counts[0] += 1
                         TotMov += SIR_transition_rates[0]	      
                         csMov += SIR_transition_rates[0]
                         AC = 1
+
+                        individual_infection_counter[idy] += 1
+
                         break                    
                 if AC == 1:
                     break
 
             # Here we update infection lists      
             for i1 in range(N_connections_reference[idx]):
-                # Af = which_connections_reference[idx, i1] # XXX
                 Af = which_connections_reference[idx][i1]
                 for i2 in range(N_connections[Af]):
-                    # if which_connections[Af, i2] == idx: # XXX
                     if which_connections[Af][i2] == idx:
                         if (which_state[Af] >= infectious_state) and (which_state[Af] < N_states-1):	      
-                            # TotInf -= individual_rates[Af, i2] # XXX
                             TotInf -= individual_rates[Af][i2]
-                            # InfRat[Af] -= individual_rates[Af, i2] # XXX
                             InfRat[Af] -= individual_rates[Af][i2] 
-                            # csInf[which_state[Af]:N_states] -= individual_rates[Af, i2] # XXX
                             csInf[which_state[Af]:N_states] -= individual_rates[Af][i2]
                         
                         which_connections[Af].pop(i2)
                         individual_rates[Af].pop(i2)
-                        # for i3 in range(i2, N_connections[Af]):
-                        #     # which_connections[Af, i3] = which_connections[Af, i3+1] # XXX
-                        #     individual_rates[Af, i3] = individual_rates[Af, i3+1]
                         N_connections[Af] -= 1 
                         break
 
@@ -650,9 +673,13 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
         ## move between hospital tracks
         else:
             s = 3
+
+            bug_hos += Tot / H_tot_move
+
             x = (TotMov + TotInf + H_cumsum_move) / Tot
             H_old_state = np.searchsorted(x, ra1)
-            Csum = (TotMov + TotInf + H_cumsum_move[H_old_state]) / Tot
+            # Csum = (TotMov + TotInf + H_cumsum_move[H_old_state]) / Tot # XXXX
+            Csum = (TotMov + TotInf + H_cumsum_move[H_old_state-1]) / Tot # 
             for idx_H_state in range(len(H_agents_in_state[H_old_state])):
                 
                 idx = H_agents_in_state[H_old_state][idx_H_state]
@@ -704,6 +731,7 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
             out_state_counts.append(state_total_counts.copy())
             out_H_state_total_counts.append(H_state_total_counts.copy())
             # H_state_total_counts # TODO
+            out_individual_infection_counter.append(individual_infection_counter.copy())
 
             if daily_counter >= 10:
                 daily_counter = 0
@@ -717,14 +745,14 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
         # # # # # # # # # # # BUG CHECK  # # # # # # # # # # # # # # # # # # # # # # # #
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 
-        continue_run, TotMov, TotInf = do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, AC, csMov, ra1, s, idx_H_state, H_old_state, H_agents_in_state, x)
+        continue_run, TotMov, TotInf = do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, AC, csMov, ra1, s, idx_H_state, H_old_state, H_agents_in_state, x, bug_move, bug_inf, bug_hos)
 
-    return out_time, out_state_counts, out_which_state, out_N_connections, out_which_connections, out_individual_rates, out_H_state_total_counts, out_ages
+    return out_time, out_state_counts, out_which_state, out_N_connections, out_which_connections, out_individual_rates, out_H_state_total_counts, out_ages, out_individual_infection_counter, time_inf, bug_contacts
 
 #%%
 
 @njit
-def do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, AC, csMov, ra1, s, idx_H_state, H_old_state, H_agents_in_state, x):
+def do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, AC, csMov, ra1, s, idx_H_state, H_old_state, H_agents_in_state, x, bug_move, bug_inf, bug_hos):
 
     if counter > 100_000_000:
         # if verbose:
@@ -735,6 +763,7 @@ def do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_cou
         continue_run = False
         if verbose:
             print("Equilibrium")
+            print(bug_move/counter, bug_inf/counter, bug_hos/counter)
     
     if state_total_counts[N_states-1] > N_tot-10:      
         if verbose:
@@ -862,7 +891,7 @@ def single_run_numba(N_tot, N_init, N_ages, mu, sigma_mu, beta, sigma_beta, rho,
     # lambda_I = 1.0 # I->R, Lambda(from I states)
     # algo = 1 # node connection algorithm
     # epsilon_rho = 0.01 # fraction of connections not depending on distance
-    # beta_scaling = 1.0 # 0: as normal, 1: half of all (beta)rates are set to 0 the other half doubled
+    # beta_scaling = 50.0 # 0: as normal, 1: half of all (beta)rates are set to 0 the other half doubled
     # age_mixing = 1.0
     # ID = 0
     # coordinates = np.load('Data/GPS_coordinates.npy')[:N_tot]
@@ -906,6 +935,8 @@ def single_run_numba(N_tot, N_init, N_ages, mu, sigma_mu, beta, sigma_beta, rho,
     infectious_state = 4 # This means the 5'th state
     SIR_transition_rates[:4] = lambda_E
     SIR_transition_rates[4:8] = lambda_I
+
+    individual_infection_counter = np.zeros(N_tot, dtype=np.int32)
 
     # age variables
     age_matrix_relative_interactions = calculate_age_proportions_1D(1.0, N_ages)
@@ -982,17 +1013,22 @@ def single_run_numba(N_tot, N_init, N_ages, mu, sigma_mu, beta, sigma_beta, rho,
     if verbose:
         print("RUN SIMULATION")
 
-    res = run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, infectious_state, N_connections, individual_rates, N_connections_reference, which_connections_reference, which_connections, ages, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, mu, tau_I, delta_days, N_contacts_remove, nts, verbose)
+    res = run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, infectious_state, N_connections, individual_rates, N_connections_reference, which_connections_reference, which_connections, ages, individual_infection_counter, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, mu, tau_I, delta_days, N_contacts_remove, nts, verbose)
 
-    return res
+    return res, infection_weight
 
 
 
 def single_run_and_save(filename, verbose=False):
 
+    # verbose = True
     # filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
 
     cfg = filename_to_dict(filename)
+    # cfg.beta_scaling = 50
+    cfg.N_tot = 580_000
+    cfg.sigma_mu = 1
+    cfg.sigma_beta = 1
     ID = filename_to_ID(filename)
 
     coordinates = np.load('Data/GPS_coordinates.npy')
@@ -1004,8 +1040,8 @@ def single_run_and_save(filename, verbose=False):
     index_subset = np.random.choice(index, cfg.N_tot, replace=False)
     coordinates = coordinates[index_subset]
 
-    res = single_run_numba(**cfg, ID=ID, coordinates=coordinates, verbose=verbose)
-    out_time, out_state_counts, out_which_state, out_N_connections, out_which_connections, out_individual_rates, out_H_state_total_counts, out_ages = res
+    res, infection_weight = single_run_numba(**cfg, ID=ID, coordinates=coordinates, verbose=verbose)
+    out_time, out_state_counts, out_which_state, out_N_connections, out_which_connections, out_individual_rates, out_H_state_total_counts, out_ages, out_individual_infection_counter, time_inf, bug_contacts = res
     
     header = [
              'Time', 
@@ -1032,6 +1068,7 @@ def single_run_and_save(filename, verbose=False):
         which_state = np.array(out_which_state)
         N_connections = np.array(out_N_connections)
         ages = np.array(out_ages)
+        individual_infection_counter = np.array(out_individual_infection_counter)
 
         filename_animation = str(Path('Data_animation') / Path(filename).stem) + '.animation.hdf5'
 
@@ -1046,6 +1083,7 @@ def single_run_and_save(filename, verbose=False):
             f.create_dataset("coordinates", data=coordinates)
             f.create_dataset("N_connections", data=N_connections)
             f.create_dataset("ages", data=ages)
+            f.create_dataset("individual_infection_counter", data=individual_infection_counter)
             f.create_dataset("cfg_str", data=str(cfg)) # import ast; ast.literal_eval(str(cfg))
             df_structured = np.array(df.to_records(index=False))
             f.create_dataset("df", data=df_structured) 
@@ -1068,21 +1106,76 @@ def single_run_and_save(filename, verbose=False):
     return None
 
 
-# if False:
+if True:
 
-#     filename_animation = 'Data_animation/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.animation.hdf5'
+    verbose = True
+    filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
 
-#     f = h5py.File(filename_animation, "r")
-#     # with h5py.File(filename_animation, "w") as f:
-#     f["which_state"].value
-#     f["coordinates"]
-#     f["N_connections"]
-#     ages = f["ages"].value
+    cfg = filename_to_dict(filename)
+    # cfg.beta_scaling = 50
+    cfg.N_tot = 58_000
+    cfg.sigma_mu = 1
+    cfg.sigma_beta = 1
+    ID = filename_to_ID(filename)
 
-#     df = pd.DataFrame(f["df"].value)
+    coordinates = np.load('Data/GPS_coordinates.npy')
+    if cfg.N_tot > len(coordinates):
+        raise AssertionError("N_tot cannot be larger than coordinates (number of generated houses in DK)")
 
-#     f["which_connections"] 
-#     g = awkward.hdf5(f)
-#     g["which_connections"] 
-#     g["individual_rates"] 
+    np.random.seed(ID)
+    index = np.arange(len(coordinates))
+    index_subset = np.random.choice(index, cfg.N_tot, replace=False)
+    coordinates = coordinates[index_subset]
+
+    res, infection_weight = single_run_numba(**cfg, ID=ID, coordinates=coordinates, verbose=verbose)
+    out_time, out_state_counts, out_which_state, out_N_connections, out_which_connections, out_individual_rates, out_H_state_total_counts, out_ages, out_individual_infection_counter, time_inf, bug_contacts = res
+    
+    header = [
+             'Time', 
+            'E1', 'E2', 'E3', 'E4', 
+            'I1', 'I2', 'I3', 'I4', 
+            'R',
+            'H1', 'H2', 'ICU1', 'ICU2', 'R_H', 'D',
+            ]
+
+    df_time = pd.DataFrame(np.array(out_time), columns=header[0:1])
+    df_states = pd.DataFrame(np.array(out_state_counts), columns=header[1:10])
+    df_H_states = pd.DataFrame(np.array(out_H_state_total_counts), columns=header[10:])
+    df = pd.concat([df_time, df_states, df_H_states], axis=1)#.convert_dtypes()
+    assert sum(df_H_states.sum(axis=1) == df_states['R'])
+    
+
+
+if False:
+
+    from matplotlib.colors import LogNorm
+    
+    N_connections = np.array(out_N_connections)
+    fig, ax = plt.subplots()
+    h = ax.hist2d(infection_weight, N_connections[0, :], bins=100, norm=LogNorm())
+    plt.colorbar(h[3])
+    ax.set(xlabel='Infection weight', ylabel='N_connections(t=0)')
+
+
+    x = (1 - np.exp(-time_inf*10*infection_weight)) * bug_contacts 
+    fig, ax = plt.subplots()
+    ax.hist(x, 100)
+    ax.set_yscale('log')
+    x.mean()
+    x[x!=0].mean()
+
+
+    import seaborn as sns
+    g = (sns.jointplot(infection_weight, N_connections[0, :], kind="hex")
+            .set_axis_labels("infection_weight", "N_connections(t=0)"))
+
+
+    individual_infection_counter = np.array(out_individual_infection_counter)
+    fig, ax = plt.subplots()
+    ax.hist(individual_infection_counter[-1, :], 100)
+    ax.set_yscale('log')
+
+    fig, ax = plt.subplots()
+    ax.hist(time_inf, 100)
+    
 

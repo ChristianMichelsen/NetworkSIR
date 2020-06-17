@@ -63,6 +63,9 @@ ytick.color: black
 # latex like font
 mathtext.fontset: cm
 
+# ignore "More than 20 figures have been opened." warning
+figure.max_open_warning: 0
+
 
 ## ***************************************************************************
 ## * SAVING FIGURES                                                          *
