@@ -8,7 +8,8 @@ from importlib import reload
 num_cores_max = 30
 N_loops = 10
 dry_run = True
-force_overwrite = True
+force_overwrite = False
+verbose = True
 
 if dry_run:
     print("\n\nRunning a dry run, nothing will actually be simulated.!!!\n\n")
@@ -19,17 +20,17 @@ all_sim_pars = [
 
                 {
                     'N_tot': [100_000],
-                    'sigma_beta': [1],
-                    'sigma_mu': [1],
-                    'rho': [0],
+                    'sigma_beta': [0, 1],
+                    'sigma_mu': [0, 1],
+                    'rho': [0, 100],
                 },
 
-                # {
-                #     'N_tot': [50_000],
-                #     'sigma_beta': [1],
-                #     'sigma_mu': [1],
-                # },
-
+                {
+                    'N_tot': [100_000],
+                    'sigma_beta': [0, 0.25, 0.5, 0.75, 1],
+                    'sigma_mu': [0],
+                    'rho': [0, 100],
+                },
 
                 # {
                 #     'N_tot': [5_800_000],
@@ -211,9 +212,9 @@ all_sim_pars = [
 
 #%%
 
-N_loops = 2 if extra_funcs.is_local_computer() else N_loops
+N_loops = 10 if extra_funcs.is_local_computer() else N_loops
 
-N_files_all = 0
+N_files_total = 0
 # reload(extra_funcs)
 if __name__ == '__main__':
 
@@ -221,7 +222,7 @@ if __name__ == '__main__':
         filenames = extra_funcs.generate_filenames(d_sim_pars, N_loops, force_overwrite=force_overwrite)
 
         N_files = len(filenames)
-        N_files_all += N_files
+        N_files_total += N_files
 
         # make sure path exists
         if len(filenames) > 0:
@@ -233,7 +234,7 @@ if __name__ == '__main__':
 
             if num_cores == 1:
                 for filename in tqdm(filenames):
-                    extra_funcs.single_run_and_save(filename)
+                    extra_funcs.single_run_and_save(filename, verbose=verbose)
 
             else:
                 with mp.Pool(num_cores) as p:
@@ -241,5 +242,5 @@ if __name__ == '__main__':
         else:
             print("No files to generate, everything already generated.")
 
-    print(f"\nIn total: {N_files_all} files generated")
+    print(f"\nIn total: {N_files_total} files generated")
     print("Finished simulating!")

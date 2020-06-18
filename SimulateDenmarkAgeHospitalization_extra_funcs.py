@@ -186,11 +186,12 @@ def initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, beta_sca
     connection_weight = np.ones(N_tot, dtype=np.float32)
     infection_weight = np.ones(N_tot, dtype=np.float32)
 
+
+    # print("!!! USING CORRELATED connection_weight AND infection_weight !!!")
     for i in range(N_tot): # prange
 
         # ra = np.random.rand()
         # ra2 = np.random.rand()
-        # print("!!! USING CORRELATED connection_weight AND infection_weight !!!")
 
         # # if (np.random.rand() < sigma_mu):
         # if (ra < sigma_mu):
@@ -1027,9 +1028,10 @@ def single_run_and_save(filename, verbose=False):
 
     cfg = filename_to_dict(filename)
     # cfg.beta_scaling = 50
-    cfg.N_tot = 580_000
-    cfg.sigma_mu = 1
-    cfg.sigma_beta = 1
+    # cfg.N_tot = 580_000
+    # cfg.sigma_mu = 1
+    # cfg.sigma_beta = 1
+    
     ID = filename_to_ID(filename)
 
     coordinates = np.load('Data/GPS_coordinates.npy')
@@ -1114,9 +1116,9 @@ if False:
 
     cfg = filename_to_dict(filename)
     # cfg.beta_scaling = 50
-    cfg.N_tot = 100_000
-    cfg.sigma_mu = 1
-    cfg.sigma_beta = 1
+    # cfg.N_tot = 10_000
+    # cfg.sigma_mu = 1
+    # cfg.sigma_beta = 1
     ID = filename_to_ID(filename)
 
     coordinates = np.load('Data/GPS_coordinates.npy')
@@ -1170,13 +1172,36 @@ if False:
     g = (sns.jointplot(infection_weight, N_connections[0, :], kind="hex")
             .set_axis_labels("infection_weight", "N_connections(t=0)"))
 
-
-    individual_infection_counter = np.array(out_individual_infection_counter)
-    fig, ax = plt.subplots()
-    ax.hist(individual_infection_counter[-1, :], 100)
-    ax.set_yscale('log')
-
     fig, ax = plt.subplots()
     ax.hist(time_inf, 100)
-    
 
+
+
+    import h5py
+
+    def get_animation_filenames():
+        filenames = Path('Data_animation').glob(f'*.animation.hdf5')
+        return [str(file) for file in sorted(filenames)]
+
+    filenames = get_animation_filenames()
+
+
+    filename = "Data_animation/N_tot__100000__N_init__100__N_ages__1__mu__40.0__sigma_mu__1.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.animation.hdf5"
+
+    for filename in filenames:
+
+        with h5py.File(filename, "r") as f:
+            individual_infection_counter = f["individual_infection_counter"][()]
+        # individual_infection_counter = np.array(out_individual_infection_counter)
+        
+        fig, ax = plt.subplots()
+        ax.hist(individual_infection_counter[-1, :], 100)
+        ax.set_yscale('log')
+
+        import extra_funcs
+        cfg = extra_funcs.filename_to_dotdict(filename, animation=True)
+        title = extra_funcs.dict_to_title(cfg)
+
+        ax.set(title=title);
+
+    

@@ -16,7 +16,7 @@ import h5py
 import rc_params
 rc_params.set_rc_params(fig_dpi=50) # 
 
-num_cores_max = 1
+num_cores_max = 6
 
 #%%
 
@@ -601,11 +601,11 @@ def plot_IHI(file_in, verbose=True, savefig=True, force_rerun=False):
 
 # %%
 
-def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=True, force_rerun=False, optimize_gif=True, 
+def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=True, force_rerun=False, optimize_gif=True, load_into_memory=False,
                 make_geo_animation=True, 
-                make_IHI_plot=False, 
-                make_N_connections_animation=False, 
-                load_into_memory=False):
+                make_IHI_plot=True, 
+                make_N_connections_animation=True, 
+                ):
 
 
     with warnings.catch_warnings():
@@ -660,22 +660,17 @@ filename = filenames[0]
 N_files = len(filenames)
 
 
-
 #%%
 
 
-# i_day = 12
-
-# animation = AnimateSIR(filename, do_tqdm=True, verbose=True, load_into_memory=False, N_max=i_day+1)
-# animation._initialize_plot_and_df_counts()
-
-# #%%
-
-# fig, axes = animation._plot_i_day(i_day, dpi=50)
-
-# ax = axes[0]
-
-# fig
+# for filename in tqdm(filenames):
+#     try:
+#         animate_file(filename, do_tqdm=True, verbose=True, force_rerun=True,
+#                     make_geo_animation=True, 
+#                     make_N_connections_animation=True, 
+#                     make_IHI_plot=True)
+#     except OSError:
+#         print("error", filename)
 
 
 
@@ -694,9 +689,9 @@ if __name__ == '__main__' and True:
         for filename in tqdm(filenames):
             try:
                 animate_file(filename, do_tqdm=False, verbose=False, force_rerun=False,
-                             make_geo_animation=True, 
+                             make_geo_animation=False, 
                              make_N_connections_animation=False, 
-                             make_IHI_plot=False)
+                             make_IHI_plot=True)
             except OSError as e:
                 print(f"\nGot error at file {filename}\n")
 
