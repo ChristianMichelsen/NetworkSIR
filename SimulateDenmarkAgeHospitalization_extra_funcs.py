@@ -461,8 +461,6 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
 
     H_tot_move = 0
     H_counter = 0
-    # idx_H_state = 0 # TODO: Uncomment when using hospitalizations
-    # H_old_state = 0 # TODO: Uncomment when using hospitalizations
 
     intervention_switch = False
     intervention_day0 = 0.0

@@ -212,7 +212,7 @@ all_sim_pars = [
 
 #%%
 
-N_loops = 10 if extra_funcs.is_local_computer() else N_loops
+N_loops = 2 if extra_funcs.is_local_computer() else N_loops
 
 N_files_total = 0
 # reload(extra_funcs)
