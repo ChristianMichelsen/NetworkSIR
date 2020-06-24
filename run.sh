@@ -5,6 +5,8 @@ date_str="$(date '+%Y.%m.%d_%H.%M.%S')"
 log_str="${date_str}_log.log"
 # python_str="${date_str}_${pythonfile}"
 
+export MPLBACKEND=agg
+
 nohup python -u ${pythonfile} &> "logs/${log_str}" & 
 
 rm out.log

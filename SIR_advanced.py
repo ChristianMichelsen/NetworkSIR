@@ -68,21 +68,15 @@ if False:
     extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, algo=1) 
     extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, rho=100) 
     extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, rho=100, algo=1) 
+    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, sigma_mu=1)
+    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, sigma_mu=1, rho=100) 
+    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, rho=100) 
     extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all) 
     extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all, algo=1) 
     extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all, rho=100) 
     extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all, rho=100, algo=1) 
     extra_funcs.plot_1D_scan('lambda_E', fit_objects_all) 
     extra_funcs.plot_1D_scan('lambda_I', fit_objects_all) 
-
-
-
-    if False:
-        extra_funcs.plot_1D_scan('rho', fit_objects_all, N_tot=100_000) 
-        extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, N_tot=100_000) 
-        extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, N_tot=100_000, rho=100) 
-        extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all, N_tot=100_000) 
-        extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all, N_tot=100_000, rho=100) 
 
 
 #%%

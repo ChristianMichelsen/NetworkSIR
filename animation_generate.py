@@ -86,19 +86,27 @@ class AnimationBase():
         self._load_hdf5_file()
 
         self.N_max = N_max
-        if N_max is None:
-            self.N_days = len(self.which_state)
-        else:
-            if N_max < 12:
-                print(f"N_max has to be 12 or larger (choosing 12 instead of {N_max} for now).")
-                N_max = 12
-            self.N_days = N_max
+        if self._is_valid_file:
+            if N_max is None:
+                self.N_days = len(self.which_state)
+            else:
+                if N_max < 12:
+                    print(f"N_max has to be 12 or larger (choosing 12 instead of {N_max} for now).")
+                    N_max = 12
+                self.N_days = N_max
         
         self.cfg = extra_funcs.filename_to_dotdict(filename, animation=True)
         self.__name__ = 'AnimationBase'
         
     def _load_hdf5_file(self):
-        f = h5py.File(self.filename, "r")
+        try:
+            f = h5py.File(self.filename, "r")
+            self._is_valid_file = True
+        except OSError:
+            print(f"\n\n\n!!! Error at {self.filename} !!! \n\n\n")
+            self._is_valid_file = False
+            return None
+
         self.f = f
         self.f_is_open = True
         self.coordinates = f["coordinates"][()]
@@ -112,13 +120,28 @@ class AnimationBase():
         # g["which_connections"] 
         # g["individual_rates"] 
 
+    @property
+    def is_valid_file(self):
+        if not self._is_valid_file:
+            if self.verbose:
+                print(f"Still error at {self.filename}")
+            return False
+        else:
+            return True
+
     def __enter__(self):
+        if not self.is_valid_file:
+            return None
+
         if not self.f_is_open:
             print(f"Reloading {self.filename}")
             self._load_hdf5_file()
         return self
 
     def __exit__(self, type, value, traceback):
+        if not self.is_valid_file:
+            return None
+
         self.f.close()
         self.f_is_open = False
 
@@ -134,12 +157,18 @@ class AnimationBase():
         name = f'{self.animation_type}_' + self._get_sim_pars_str() + '.gif'
         gifname = str(Path(f'Figures/{self.animation_type}') / name)
 
+        if not self.is_valid_file:
+            return None
+
         if not Path(gifname).exists() or force_rerun:
             if self.verbose and not self.do_tqdm:
                 print("\nMake individual frames", flush=True)
             try:
                 self._initialize_data()
             except AttributeError:
+                pass
+            except KeyError:
+                print(f"Got KeyError at {{self.filename}}")
                 pass
             except:
                 raise
@@ -160,7 +189,8 @@ class AnimationBase():
                     print("\nDelete temporary frames", flush=True)
                 self._remove_tmp_frames()
         else:
-            print(f'{self.animation_type} already exists.')
+            if self.verbose:
+                print(f'{self.animation_type} already exists.')
         return None
 
     def _get_sim_pars_str(self):
@@ -201,7 +231,7 @@ class AnimationBase():
         files_in = png_name.replace("000001", "%06d")
         video_name = gifname.replace('gif', 'mp4')
         fps = 10
-        subprocess.call(f"ffmpeg -r {fps} -i {files_in} -vcodec mpeg4 -y -vb 40M {video_name}", shell=True)
+        subprocess.call(f"ffmpeg -loglevel warning -r {fps} -i {files_in} -vcodec mpeg4 -y -vb 40M {video_name}", shell=True)
         return None
 
     def _remove_tmp_frames(self):
@@ -226,7 +256,7 @@ class AnimateSIR(AnimationBase):
                          4: 'I', 5: 'I', 6:'I', 7: 'I',
                          8: 'R',
                         }
-        self.N_connections_max = self._get_N_connections_max()
+        # self.N_connections_max = self._get_N_connections_max()
         self.df_counts = df_counts
         self.__name__ = 'AnimateSIR'
         self.dfs_all = {}
@@ -267,8 +297,8 @@ class AnimateSIR(AnimationBase):
         return df
 
 
-    def _get_N_connections_max(self):
-        return self._get_df(0)['N_connections_num'].max()
+    # def _get_N_connections_max(self):
+    #     return self._get_df(0)['N_connections_num'].max()
 
 
     def _initialize_plot(self):
@@ -294,6 +324,10 @@ class AnimateSIR(AnimationBase):
 
 
     def _initialize_data(self):
+
+        if not self.is_valid_file:
+            return None
+
         # calc counts and R_eff and N_tot
         if self.df_counts is None:
             self.df_counts = self._compute_df_counts()
@@ -302,8 +336,12 @@ class AnimateSIR(AnimationBase):
         # self.N_tot = self.df_counts.iloc[0].sum()
         assert self.cfg['N_tot'] == self.df_counts.iloc[0].sum()
 
-        print("XXX")
-        for i_day in tqdm(range(self.N_days+1), desc='dfs_all'):
+        it = range(self.N_days)
+        if self.do_tqdm:
+            it = tqdm(it, desc="dfs_all")
+        for i_day in it:
+        # print("XXX")
+        # for i_day in tqdm(range(self.N_days), desc='dfs_all'):
             df = self._get_df(i_day)
             self.dfs_all[i_day] = {s: df.query("which_state == @s") for s in self.states}
 
@@ -458,25 +496,6 @@ class AnimateSIR(AnimationBase):
 
 #%%
 
-if False:
-
-    animation = AnimateSIR(filename, verbose=True, do_tqdm=True, N_max=20)
-
-    dpi=50
-    remove_frames=True
-    force_rerun=False
-    optimize_gif=True
-
-    animation.make_animation(
-                                    remove_frames=remove_frames, 
-                                    force_rerun=True, 
-                                    optimize_gif=optimize_gif,
-                                    dpi=dpi
-                                    )
-
-
-#%%
-
 
 class Animate_N_connections(AnimationBase):
 
@@ -514,15 +533,6 @@ class Animate_N_connections(AnimationBase):
         ax.text(mean_N+5, log_middle, s_mean, ha='left', va='center', fontdict=dict(size=30, color=colors[0]), bbox=dict(ec=colors[0], fc='white', alpha=0.9))
 
         return fig, ax
-
-if False:
-    animation_N = Animate_N_connections(filename, do_tqdm=True, verbose=True)
-
-    animation_N.make_animation(remove_frames=remove_frames, 
-                            force_rerun=True, 
-                            optimize_gif=optimize_gif)
-
-
 
 #%%
 
@@ -654,11 +664,12 @@ def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=T
         if make_geo_animation:
             animation = AnimateSIR(filename, do_tqdm=do_tqdm, verbose=verbose, load_into_memory=load_into_memory)
             with animation:
-                    animation.make_animation(remove_frames=remove_frames, 
-                                            force_rerun=force_rerun, 
-                                            optimize_gif=optimize_gif,
-                                            dpi=dpi,
-                                            )
+                animation.make_animation(remove_frames=remove_frames, 
+                                        force_rerun=force_rerun, 
+                                        optimize_gif=optimize_gif,
+                                        dpi=dpi,
+                                        )
+            
         if make_IHI_plot:
             IHI = InfectionHomogeneityIndex(filename)
             with IHI:
@@ -686,8 +697,9 @@ def get_num_cores(num_cores_max, subtract_cores=1):
 num_cores = get_num_cores(num_cores_max)
 
 filenames = get_animation_filenames()
-filename = filenames[0]
+filename = filenames[-1]
 N_files = len(filenames)
+
 
 
 #%%
@@ -698,27 +710,27 @@ N_files = len(filenames)
 
 kwargs = dict(do_tqdm=False, 
               verbose=False, 
-              force_rerun=True,
-              make_geo_animation=False,
+              force_rerun=False,
+              make_geo_animation=True,
               make_N_connections_animation=False, 
-              make_IHI_plot=True)
+              make_IHI_plot=False)
 
 
-if __name__ == '__main__' and False:
+if __name__ == '__main__' and True:
 
     if num_cores == 1:
 
         for filename in tqdm(filenames):
-            try:
-                animate_file(filename, **kwargs)
-            except OSError as e:
-                print(f"\nGot error at file {filename}\n")
+            animate_file(filename, **kwargs)
 
     else:
         print(f"Generating {N_files} animations using {num_cores} cores, please wait", flush=True)
+        kwargs['do_tqdm'] = False
+        kwargs['verbose'] = False
         with mp.Pool(num_cores) as p:
             list(tqdm(p.imap_unordered(partial(animate_file, **kwargs), filenames), total=N_files))
 
+x=x
 
 #%%
         
@@ -824,3 +836,34 @@ if False:
     y.df_raw
 
 # %%
+
+
+
+#%%
+
+animation = AnimateSIR(filename, do_tqdm=True, verbose=True, N_max=12, load_into_memory=True)
+animation._initialize_data()
+
+
+coordinates = animation.coordinates
+which_state = animation.which_state
+which_state = which_state.reshape((*which_state.shape, -1))
+N_connections = animation.N_connections
+N_connections = N_connections.reshape((*N_connections.shape, -1))
+
+
+df_counts = animation.df_counts
+R_eff = animation.R_eff
+R_eff_smooth = animation.R_eff_smooth
+
+
+
+# import xarray as xr
+# coordinates_3D = np.tile(coordinates, (len(which_state),1,1))
+# data = np.c_[coordinates_3D, which_state, N_connections]
+# locs = ['lon', 'lat', 'which_state', 'N_connections']
+# times = np.arange(len(data))
+# foo = xr.DataArray(data, coords=[times, locs], dims=['time', 'space'])
+# airtemps = xr.tutorial.open_dataset('air_temperature')
+
+
