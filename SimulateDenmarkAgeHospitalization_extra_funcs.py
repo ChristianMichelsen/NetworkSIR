@@ -1483,15 +1483,15 @@ if False:
 
     #%%
 
-    %time foo1()
+    # %time foo1()
 
     #%%
 
-    %time foo2()
+    # %time foo2()
 
 
     #%%
 
-    %time foo3()
+    # %time foo3()
 
     # %%
