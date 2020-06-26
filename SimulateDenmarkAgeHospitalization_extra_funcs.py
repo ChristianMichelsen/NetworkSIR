@@ -173,7 +173,7 @@ def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max):
     return num_cores
 
 
-@njit(fastmath=do_fast_math, boundscheck=do_boundscheck, parallel=do_parallel_numba)
+@njit(boundscheck=do_boundscheck, parallel=do_parallel_numba)
 def haversine(lon1, lat1, lon2, lat2):
     lon1, lat1, lon2, lat2 = np.radians(lon1), np.radians(lat1), np.radians(lon2), np.radians(lat2)
     dlon = lon2 - lon1
@@ -181,13 +181,21 @@ def haversine(lon1, lat1, lon2, lat2):
     a = np.sin(dlat/2.0)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2.0)**2
     return 6367 * 2 * np.arcsin(np.sqrt(a)) # [km]
 
+@njit(boundscheck=do_boundscheck, parallel=do_parallel_numba)
+def haversine_scipy(p1, p2):
+    lon1, lat1 = p1
+    lon2, lat2 = p2
+    return haversine(lon1, lat1, lon2, lat2)
+
+
+
 
 #%%
 
 from numba import prange
 
 
-@njit(fastmath=False, boundscheck=do_boundscheck, parallel=do_parallel_numba)
+@njit(boundscheck=do_boundscheck)
 def initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, beta_scaling):
 
     connection_weight = np.ones(N_tot, dtype=np.float32)
@@ -195,7 +203,7 @@ def initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, beta_sca
 
 
     # print("!!! USING CORRELATED connection_weight AND infection_weight !!!")
-    for i in prange(N_tot): # prange
+    for i in range(N_tot): # prange
 
         # ra = np.random.rand()
         # ra2 = np.random.rand()
@@ -236,7 +244,7 @@ def initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, beta_sca
     return connection_weight, infection_weight
 
 
-@njit(fastmath=False, boundscheck=do_boundscheck, parallel=do_parallel_numba)
+@njit(boundscheck=do_boundscheck)
 def initialize_nested_lists(N, dtype):
     nested_list = List()
     for i in prange(N):
@@ -257,7 +265,7 @@ import numba as nb
 from numba import njit
 from numba.typed import List
 
-@njit(fastmath=False, boundscheck=do_boundscheck, parallel=do_parallel_numba)
+@njit(boundscheck=do_boundscheck)
 def initialize_ages(N_tot, N_ages, connection_weight):
 
     ages = -1*np.ones(N_tot, dtype=np.int8)
@@ -288,7 +296,7 @@ def initialize_ages(N_tot, N_ages, connection_weight):
     return ages, ages_total_counts, ages_in_state, PT_ages, PC_ages, PP_ages
 
 
-@njit(fastmath=False, boundscheck=do_boundscheck)
+@njit(boundscheck=do_boundscheck)
 def update_node_connections(N_connections, individual_rates, which_connections, which_connections_reference, coordinates, infection_weight, N_connections_reference, rho_tmp, rho_scale, continue_run, id1, id2):
 
     #  Make sure no element is present twice
@@ -323,7 +331,7 @@ def update_node_connections(N_connections, individual_rates, which_connections, 
     return continue_run
 
 
-@njit(fastmath=False, boundscheck=do_boundscheck)
+@njit(boundscheck=do_boundscheck)
 def run_algo_2(PP_ages, m_i, m_j, N_connections, individual_rates, which_connections, which_connections_reference, coordinates, infection_weight, N_connections_reference, rho_tmp, rho_scale, ages_in_state):
 
     continue_run = True
@@ -338,7 +346,7 @@ def run_algo_2(PP_ages, m_i, m_j, N_connections, individual_rates, which_connect
         continue_run = update_node_connections(N_connections, individual_rates, which_connections, which_connections_reference, coordinates, infection_weight, N_connections_reference, rho_tmp, rho_scale, continue_run, id1, id2)
 
 
-@njit(fastmath=False, boundscheck=do_boundscheck)
+@njit(boundscheck=do_boundscheck)
 def run_algo_1(PP_ages, m_i, m_j, N_connections, individual_rates, which_connections, which_connections_reference, coordinates, infection_weight, N_connections_reference, rho_tmp, rho_scale, ages_in_state):
 
     ra1 = np.random.rand()
@@ -361,7 +369,7 @@ def run_algo_1(PP_ages, m_i, m_j, N_connections, individual_rates, which_connect
     return N_algo_1_tries
 
 
-@njit(fastmath=False, boundscheck=do_boundscheck)
+@njit(boundscheck=do_boundscheck)
 def connect_nodes(mu, epsilon_rho, rho, algo, PP_ages, N_connections, individual_rates, which_connections, which_connections_reference, coordinates, infection_weight, N_connections_reference, rho_scale, N_ages, age_matrix, ages_in_state, verbose):
 
     num_prints = 0
@@ -386,7 +394,7 @@ def connect_nodes(mu, epsilon_rho, rho, algo, PP_ages, N_connections, individual
                         num_prints += 1
 
 
-@njit(fastmath=do_fast_math, boundscheck=do_boundscheck)
+@njit(boundscheck=do_boundscheck)
 def make_initial_infections(N_init, which_state, state_total_counts, agents_in_state, csMov, N_connections_reference, which_connections, which_connections_reference, N_connections, individual_rates, SIR_transition_rates, ages_in_state, initial_ages_exposed, cs_move_individual):
 
     TotMov = 0.0
@@ -425,7 +433,7 @@ def make_initial_infections(N_init, which_state, state_total_counts, agents_in_s
     return TotMov
 
 
-# # @njit(fastmath=do_fast_math, boundscheck=do_boundscheck)
+# # @njit(boundscheck=do_boundscheck)
 # # def foo():
 # #     d = dict()
 # #     d[3] = []
@@ -434,14 +442,14 @@ def make_initial_infections(N_init, which_state, state_total_counts, agents_in_s
 
 # from numba.typed import List, Dict
 
-# @njit(fastmath=do_fast_math, boundscheck=do_boundscheck)()
+# @njit(boundscheck=do_boundscheck)()
 # def initialize_empty_list(dtype):
 #     l = List()
 #     l.append(dtype(1))
 #     l.pop(0) # trick to tell compiler which dtype
 #     return l
 
-# @njit(fastmath=do_fast_math, boundscheck=do_boundscheck)()
+# @njit(boundscheck=do_boundscheck)()
 # def foo():
 #     d = Dict()
 #     d["a"] = initialize_empty_list(dtype=np.int32)
@@ -460,14 +468,14 @@ def make_initial_infections(N_init, which_state, state_total_counts, agents_in_s
 
 
 
-@njit(fastmath=do_fast_math, boundscheck=do_boundscheck)
+@njit(boundscheck=do_boundscheck)
 def add_to_list(lst, x):
     for i in range(len(lst)):
         lst[i] += x
     return lst
 
 
-@njit(fastmath=do_fast_math, boundscheck=do_boundscheck)
+@njit(boundscheck=do_boundscheck)
 def binary_search(x, a): 
 
     if a < x[0]:
@@ -498,7 +506,7 @@ def binary_search(x, a):
     # If we reach here, then the element was not present 
     return -1
 
-@njit(fastmath=do_fast_math, boundscheck=do_boundscheck)
+@njit(boundscheck=do_boundscheck)
 def foo(x, a):
     return np.searchsorted(x, a)
 
@@ -512,7 +520,7 @@ def foo(x, a):
 
 #%%
 
-@njit(fastmath=do_fast_math, boundscheck=do_boundscheck)
+@njit(boundscheck=do_boundscheck)
 def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, infectious_state, N_connections, individual_rates, N_connections_reference, which_connections_reference, which_connections, ages, individual_infection_counter, cs_move_individual, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, mu, tau_I, delta_days, N_contacts_remove, nts, verbose):
 
     out_time = List()
@@ -905,7 +913,7 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
 
 #%%
 
-@njit(fastmath=do_fast_math, boundscheck=do_boundscheck)
+@njit(boundscheck=do_boundscheck)
 def do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, AC, csMov, ra1, s, idx_H_state, H_old_state, H_agents_in_state, x, bug_move, bug_inf, bug_hos):
 
     if counter > 100_000_000:
@@ -946,14 +954,14 @@ def do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_cou
 from numba.typed import List
 import time
 
-@njit(fastmath=do_fast_math, boundscheck=do_boundscheck)
+@njit(boundscheck=do_boundscheck)
 def get_size_gb(x):
     return x.size * x.itemsize / 10**9
 
 
 #%%
 
-@njit(fastmath=do_fast_math, boundscheck=do_boundscheck)
+@njit(boundscheck=do_boundscheck)
 def numba_cumsum_2D(x, axis):
     y = np.zeros_like(x)
     n, m = np.shape(x)
@@ -965,7 +973,7 @@ def numba_cumsum_2D(x, axis):
             y[:, j] = np.cumsum(x[:, j])
     return y
 
-@njit(fastmath=do_fast_math, boundscheck=do_boundscheck)
+@njit(boundscheck=do_boundscheck)
 def numba_cumsum_3D(x, axis):
     y = np.zeros_like(x)
     n, m, p = np.shape(x)
@@ -998,7 +1006,7 @@ def numba_cumsum_shape(x, axis):
     elif x.ndim == 3:
         return lambda x, axis: numba_cumsum_3D(x, axis=axis)
 
-@njit(fastmath=do_fast_math, boundscheck=do_boundscheck)
+@njit(boundscheck=do_boundscheck)
 def numba_cumsum(x, axis=None):
     if axis is None and x.ndim != 1:
         print("numba_cumsum was used without any axis keyword set. Continuing using axis=0.")
@@ -1006,11 +1014,11 @@ def numba_cumsum(x, axis=None):
     return numba_cumsum_shape(x, axis)
 
 
-@njit(fastmath=do_fast_math, boundscheck=do_boundscheck)
+@njit(boundscheck=do_boundscheck)
 def calculate_epsilon(alpha_age, N_ages):
     return 1 / N_ages * alpha_age
 
-@njit(fastmath=do_fast_math, boundscheck=do_boundscheck)
+@njit(boundscheck=do_boundscheck)
 def calculate_age_proportions_1D(alpha_age, N_ages):
     epsilon = calculate_epsilon(alpha_age, N_ages)
     x = epsilon * np.ones(N_ages, dtype=np.float32) 
@@ -1018,7 +1026,7 @@ def calculate_age_proportions_1D(alpha_age, N_ages):
     return x
 
 
-@njit(fastmath=do_fast_math, boundscheck=do_boundscheck)
+@njit(boundscheck=do_boundscheck)
 def calculate_age_proportions_2D(alpha_age, N_ages):
     epsilon = calculate_epsilon(alpha_age, N_ages)
     A = epsilon * np.ones((N_ages, N_ages), dtype=np.float32) 
@@ -1029,8 +1037,8 @@ def calculate_age_proportions_2D(alpha_age, N_ages):
 
 #%%
 
-# @njit(fastmath=do_fast_math, boundscheck=do_boundscheck)
-@njit(fastmath=do_fast_math, boundscheck=do_boundscheck)
+# @njit(boundscheck=do_boundscheck)
+@njit(boundscheck=do_boundscheck)
 def single_run_numba(N_tot, N_init, N_ages, mu, sigma_mu, beta, sigma_beta, rho, lambda_E, lambda_I, algo, epsilon_rho, beta_scaling, age_mixing, ID, coordinates, verbose=False):
     
     # N_tot = 50_000 # Total number of nodes!
@@ -1168,7 +1176,7 @@ def single_run_numba(N_tot, N_init, N_ages, mu, sigma_mu, beta, sigma_beta, rho,
     return res
 
 
-
+import time
 def single_run_and_save(filename, verbose=False):
 
     # verbose = True
@@ -1257,22 +1265,36 @@ def single_run_and_save(filename, verbose=False):
         if path.exists():
             path.unlink()
 
-        with h5py.File(filename_animation, "w") as f: # 
-            f.create_dataset("which_state", data=which_state)
-            f.create_dataset("coordinates", data=coordinates)
-            f.create_dataset("N_connections", data=N_connections)
-            f.create_dataset("ages", data=ages)
-            f.create_dataset("individual_infection_counter", data=individual_infection_counter)
-            f.create_dataset("cfg_str", data=str(cfg)) # import ast; ast.literal_eval(str(cfg))
-            df_structured = np.array(df.to_records(index=False))
-            f.create_dataset("df", data=df_structured) 
-            
-            g = awkward.hdf5(f)
-            g["which_connections"] = awkward.fromiter(out_which_connections).astype(np.int32)
-            g["individual_rates"] = awkward.fromiter(out_individual_rates)
+        N_tries = 0
+        while True:
+            try:
+                with h5py.File(filename_animation, "w") as f: # 
+                    f.create_dataset("which_state", data=which_state)
+                    f.create_dataset("coordinates", data=coordinates)
+                    f.create_dataset("N_connections", data=N_connections)
+                    f.create_dataset("ages", data=ages)
+                    f.create_dataset("individual_infection_counter", data=individual_infection_counter)
+                    f.create_dataset("cfg_str", data=str(cfg)) # import ast; ast.literal_eval(str(cfg))
+                    df_structured = np.array(df.to_records(index=False))
+                    f.create_dataset("df", data=df_structured) 
+                    
+                    g = awkward.hdf5(f)
+                    g["which_connections"] = awkward.fromiter(out_which_connections).astype(np.int32)
+                    g["individual_rates"] = awkward.fromiter(out_individual_rates)
 
-            for key, val in cfg.items():
-                f.attrs[key] = val
+                    for key, val in cfg.items():
+                        f.attrs[key] = val
+                break
+
+            except MemoryError:
+                print(f"\n\n\nTried saving {filename} but ran into RAM errors, trying again in 5 minutes \n\n\n")
+                N_tries += 1
+                time.sleep(5*60)
+
+                if N_tries > 5:
+                    print(f"Tried more than 5 times, breaking now")
+                    break
+
 
         # which_connections = awkward.fromiter(out_which_connections).astype(np.int32)
         # filename_which_connections = filename_animation.replace('animation.joblib', 'which_connections.parquet')
@@ -1415,3 +1437,61 @@ if False:
 
 
 # %%
+
+if False:
+
+    from numba import njit, objmode
+
+
+    N = 100_000_000
+
+    def foo1():
+
+        f = open('foo1.txt', 'w')
+
+        res = 0
+        for i in range(N):
+            if (i % 2) == 0:
+                res += i
+            if i and i % (N//10) == 0:
+                print(i, res, file=f)
+        return res
+
+    @njit
+    def foo2():
+        res = 0
+        for i in range(N):
+            if (i % 2) == 0:
+                res += i
+            if i and i % (N//10) == 0:
+                print(i, res)
+        return res
+    _ = foo2()
+
+    @njit
+    def foo3():
+
+        res = 0
+        for i in range(N):
+            if (i % 2) == 0:
+                res += i
+            if i and i % (N//10) == 0:
+                with objmode():
+                    print(i, res, file=open('foo3.txt', 'a'))
+        return res
+    _ = foo3()
+
+    #%%
+
+    %time foo1()
+
+    #%%
+
+    %time foo2()
+
+
+    #%%
+
+    %time foo3()
+
+    # %%

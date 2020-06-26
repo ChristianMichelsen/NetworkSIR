@@ -153,12 +153,11 @@ class AnimationBase():
     # def _plot_i_day(self, i_day, **kwargs):
     #     pass
 
-    def make_animation(self, remove_frames=True, force_rerun=False, optimize_gif=True, **kwargs):
+    def _make_animation(self, remove_frames=True, force_rerun=False, optimize_gif=True, **kwargs):
+
         name = f'{self.animation_type}_' + self._get_sim_pars_str() + '.gif'
         gifname = str(Path(f'Figures/{self.animation_type}') / name)
 
-        if not self.is_valid_file:
-            return None
 
         if not Path(gifname).exists() or force_rerun:
             if self.verbose and not self.do_tqdm:
@@ -191,7 +190,26 @@ class AnimationBase():
         else:
             if self.verbose:
                 print(f'{self.animation_type} already exists.')
-        return None
+
+
+    def make_animation(self, remove_frames=True, force_rerun=False, optimize_gif=True, **kwargs):
+        
+        if not self.is_valid_file:
+            return None
+
+        try:
+            self._make_animation(remove_frames=remove_frames, force_rerun=force_rerun, optimize_gif=optimize_gif, **kwargs)
+
+        except OSError as e:
+                print(f"\n\n\nOSError at {filename} \n\n\n")
+                print(e)
+        
+
+        except ValueError as e:
+                print(f"\n\n\nValueError at {filename} \n\n\n")
+                print(e)
+
+
 
     def _get_sim_pars_str(self):
         return Path(self.filename).stem.replace('.animation', '')
@@ -570,7 +588,7 @@ def histogram2d(data_2D, bins=None, ranges=None):
     return hist2d_numba(data_2D, bins=bins, ranges=ranges)
 
 
-def compute_N_box_index(coordinates, N_bins_x, N_bins_y, verbose=False):
+def compute_N_box_index(coordinates, N_bins_x, N_bins_y, threshold=0.8, verbose=False):
 
     counts = histogram2d(coordinates, bins=(N_bins_x, N_bins_y))
     counts_1d = counts.flatten()
@@ -578,33 +596,20 @@ def compute_N_box_index(coordinates, N_bins_x, N_bins_y, verbose=False):
     counts_1d_nonzero = counts_1d[counts_1d > 0]
     counts_sorted =  np.sort(counts_1d_nonzero)[::-1]
     
-    threshold = 0.8
+    # threshold = 0.8
     cumsum = np.cumsum(counts_sorted) / counts_sorted.sum()
     index = np.argmax(cumsum > threshold) + 1
+    
     if verbose:
-        print(len(coordinates))
-        print(len(counts_1d))
-        print(len(counts_1d_nonzero))
-        print(index)
-        print(index / len(counts_1d_nonzero))
+        print(f"{len(coordinates)=}")
+        print(f"{len(counts_1d)=}")
+        print(f"{len(counts_1d_nonzero)=}")
+        print(f"{index=}")
+        print(f"{index / len(counts_1d_nonzero)=}")
     return index, counts_1d
 
 
-def get_N_bins_xy(coordinates):
-
-    lon_min = coordinates[:, 0].min()
-    lon_max = coordinates[:, 0].max()
-    lon_mid = np.mean([lon_min, lon_max])
-
-    lat_min = coordinates[:, 1].min()
-    lat_max = coordinates[:, 1].max()
-    lat_mid = np.mean([lat_min, lat_max])
-
-    N_bins_x = int(haversine(lon_min, lat_mid, lon_max, lat_mid)) + 1
-    N_bins_y = int(haversine(lon_mid, lat_min, lon_mid, lat_max)) + 1
-
-    return N_bins_x, N_bins_y
-
+from functools import lru_cache
 
 class InfectionHomogeneityIndex(AnimationBase):
 
@@ -612,26 +617,58 @@ class InfectionHomogeneityIndex(AnimationBase):
         super().__init__(filename, animation_type='InfectionHomogeneityIndex')
         self.__name__ = 'InfectionHomogeneityIndex'
 
-    def make_plot(self, verbose=False, savefig=True, force_rerun=False):
+
+    @lru_cache
+    def _get_N_bins_xy(self):
+
+        coordinates = self.coordinates
+
+        lon_min = coordinates[:, 0].min()
+        lon_max = coordinates[:, 0].max()
+        lon_mid = np.mean([lon_min, lon_max])
+
+        lat_min = coordinates[:, 1].min()
+        lat_max = coordinates[:, 1].max()
+        lat_mid = np.mean([lat_min, lat_max])
+
+        N_bins_x = int(haversine(lon_min, lat_mid, lon_max, lat_mid)) + 1
+        N_bins_y = int(haversine(lon_mid, lat_min, lon_mid, lat_max)) + 1
+
+        return N_bins_x, N_bins_y
+
+
+    def _compute_IHI(self, threshold):
+
+        N_bins_x, N_bins_y = self._get_N_bins_xy()
+
+        N = len(self.which_state)
+        x = np.arange(N-1)
+        IHI = np.zeros(len(x))
+        N_box_all, counts_1d_all = compute_N_box_index(self.coordinates, N_bins_x, N_bins_y, threshold=threshold)
+        for i_day in x:
+            which_state_day = self.which_state[i_day]
+            coordinates_infected = self.coordinates[(-1 < which_state_day) & (which_state_day < 8)]
+            N_box_infected, counts_1d_infected = compute_N_box_index(coordinates_infected, N_bins_x, N_bins_y, threshold=threshold)
+            ratio_N_box = N_box_infected / N_box_all
+            IHI[i_day] = ratio_N_box
+        return IHI
+
+
+    def _make_plot(self, verbose=False, savefig=True, force_rerun=False):
 
         pdf_name = str(Path('Figures/IHI') / 'IHI_') + Path(self.filename).stem + '.pdf'
         if not Path(pdf_name).exists() or force_rerun:
 
-            N_bins_x, N_bins_y = get_N_bins_xy(self.coordinates)
-            N_box_all, counts_1d_all = compute_N_box_index(self.coordinates, N_bins_x, N_bins_y)
-
-            N = len(self.which_state)
-            x = np.arange(N-1)
-            IHI = np.zeros(len(x))
-            for i, i_day in enumerate(x):
-                which_state_day = self.which_state[i_day]
-                coordinates_infected = self.coordinates[(-1 < which_state_day) & (which_state_day < 8)]
-                N_box_infected, counts_1d_infected = compute_N_box_index(coordinates_infected, N_bins_x, N_bins_y)
-                ratio_N_box = N_box_infected / N_box_all
-                IHI[i] = ratio_N_box
+            self.IHI_thresholds = {}
+            for threshold in np.linspace(0.1, 0.9, 9):
+                self.IHI_thresholds[threshold] = self._compute_IHI(threshold)
+            self.IHI_thresholds = pd.DataFrame(self.IHI_thresholds)
+            df = self.IHI_thresholds
 
             fig, ax = plt.subplots()
-            ax.plot(x, IHI)
+            for col in df:
+                ax.plot(df.index, df[col], label=f"Threshold = {col:.1f}")
+            ax.legend()
             title = extra_funcs.dict_to_title(self.cfg)
             ax.set(xlabel='Day', ylabel='Infection Homogeneity Index ', title=title, ylim=(0, 1))
             if savefig:
@@ -644,6 +681,30 @@ class InfectionHomogeneityIndex(AnimationBase):
                 print(f"{pdf_name} already exists, skipping for now.")
 
 
+    def make_plot(self, verbose=False, savefig=True, force_rerun=False):
+        if self.is_valid_file:
+            return self._make_plot(verbose=verbose, savefig=savefig, force_rerun=force_rerun)
+
+if False:
+    IHI = InfectionHomogeneityIndex(filename)
+    IHI.make_plot(verbose=True, savefig=False, force_rerun=True)
+
+
+    threshold = 0.1
+
+    N_bins_x, N_bins_y = IHI._get_N_bins_xy()
+
+    N = len(IHI.which_state)
+    x = np.arange(N-1)
+    ihi = np.zeros(len(x))
+
+    N_box_all, counts_1d_all = compute_N_box_index(IHI.coordinates, N_bins_x, N_bins_y, threshold=threshold, verbose=True)
+
+    i_day = 50
+    which_state_day = IHI.which_state[i_day]
+    coordinates_infected = IHI.coordinates[(-1 < which_state_day) & (which_state_day < 8)]
+    N_box_infected, counts_1d_infected = compute_N_box_index(coordinates_infected, N_bins_x, N_bins_y, threshold=threshold, verbose=True)
+    ratio_N_box = N_box_infected / N_box_all
 
 # %%
 
@@ -670,6 +731,7 @@ def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=T
                                         dpi=dpi,
                                         )
             
+
         if make_IHI_plot:
             IHI = InfectionHomogeneityIndex(filename)
             with IHI:
@@ -697,9 +759,10 @@ def get_num_cores(num_cores_max, subtract_cores=1):
 num_cores = get_num_cores(num_cores_max)
 
 filenames = get_animation_filenames()
-filename = filenames[-1]
+filename = filenames[1]
 N_files = len(filenames)
 
+x=x
 
 
 #%%
@@ -712,8 +775,8 @@ kwargs = dict(do_tqdm=False,
               verbose=False, 
               force_rerun=False,
               make_geo_animation=True,
-              make_N_connections_animation=False, 
-              make_IHI_plot=False)
+              make_N_connections_animation=True, 
+              make_IHI_plot=True)
 
 
 if __name__ == '__main__' and True:
@@ -866,4 +929,38 @@ R_eff_smooth = animation.R_eff_smooth
 # foo = xr.DataArray(data, coords=[times, locs], dims=['time', 'space'])
 # airtemps = xr.tutorial.open_dataset('air_temperature')
 
+# from SimulateDenmarkAgeHospitalization_extra_funcs import haversine_scipy
 
+
+# import dask_distance
+# import dask.array as da
+
+X = IHI.coordinates
+X = X[:10_000]
+
+# # x = dask_distance.cdist(X, X, haversine_scipy)
+# y = dask_distance.pdist(X, haversine_scipy)
+# y.compute()
+
+# h, bins = da.histogram(x, bins=100, range=[0, 1_000_000])
+# h.compute()
+# np.asarray(h)
+
+
+# y.persist()
+
+
+
+
+from scipy.spatial import cKDTree as KDTree
+
+
+# t1 = KDTree(X)
+# # we need a distance to not look beyond, if you have real knowledge use it, otherwise guess
+# # maxD = np.linalg.norm(l1[0] - l2[0]) # this could be closest but anyhting further is certainly not
+# # get a sparce matrix of all the distances
+
+# ans = t1.sparse_distance_matrix(t2, 1000)
+
+
+#%%
