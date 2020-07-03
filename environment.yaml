@@ -35,7 +35,8 @@ dependencies:
   - astropy
   - imageio-ffmpeg
   - h5py
-  - netcdf4
+ # - netcdf4
   - pip:
     - mpl-scatter-density
     - pygifsicle
+    - contexttimer

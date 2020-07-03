@@ -57,7 +57,7 @@ import matplotlib.font_manager as fm
 fontprops = fm.FontProperties(size=24)
 
 longitudes_per_50km = 0.8392
-image = plt.imread('Figures/CompasRose/CompasRose.png')
+compas_rose_img = plt.imread('Figures/CompasRose/CompasRose.png')
 
 
 def add_spines(ax, exclude=None):
@@ -484,9 +484,11 @@ class AnimateSIR(AnimationBase):
         ax3.yaxis.set_major_locator(MaxNLocator(3, integer=True))
         add_spines(ax3)
 
-        ax4 = fig.add_axes([0.13, 0.68, 0.1, 0.1])
-        ax4.imshow(image, alpha=0.9)
-        ax4.axis('off')  # clear x-axis and y-axis
+        add_compas_rose = False
+        if add_compas_rose:
+            ax4 = fig.add_axes([0.13, 0.68, 0.1, 0.1])
+            ax4.imshow(compas_rose_img, alpha=0.9)
+            ax4.axis('off')  # clear x-axis and y-axis
 
         ax.text(0.70, 0.97, f"Day: {i_day}", fontsize=34, transform=ax.transAxes, backgroundcolor='white')
         ax.text(0.012, 0.012, f"Simulation of COVID-19 epidemic with no intervention.", fontsize=24, transform=ax.transAxes, backgroundcolor='white')
@@ -609,6 +611,20 @@ def compute_N_box_index(coordinates, N_bins_x, N_bins_y, threshold=0.8, verbose=
     return index, counts_1d
 
 
+def compute_spatial_correlation_day(coordinates, which_state_day, N_bins_x, N_bins_y, verbose=False):
+
+    counts_1d_all = histogram2d(coordinates, bins=(N_bins_x, N_bins_y)).flatten()
+    counts_1d_I = histogram2d(coordinates[(-1 < which_state_day) & (which_state_day < 8)], bins=(N_bins_x, N_bins_y)).flatten()
+
+    counts_1d_nonzero_all = counts_1d_all[counts_1d_all > 0]
+    counts_1d_nonzero_I = counts_1d_I[counts_1d_all > 0]
+
+    f = counts_1d_nonzero_I / counts_1d_nonzero_I
+    return np.corrcoef(f)[0, 1]
+
+
+
+
 from functools import lru_cache
 
 class InfectionHomogeneityIndex(AnimationBase):
@@ -684,6 +700,27 @@ class InfectionHomogeneityIndex(AnimationBase):
     def make_plot(self, verbose=False, savefig=True, force_rerun=False):
         if self.is_valid_file:
             return self._make_plot(verbose=verbose, savefig=savefig, force_rerun=force_rerun)
+
+
+# # def m(x, w):
+#     """Weighted Mean"""
+#     # return np.sum(x * w) / np.sum(w)
+#     # return np.average(x, weights=w)
+
+# def cov(x, y, w):
+#     """Weighted Covariance"""
+#     mx = np.average(x, weights=w)
+#     my = np.average(y, weights=w)
+
+#     # return np.sum(w * (x - m(x, w)) * (y - m(y, w))) / np.sum(w)
+#     return np.average((x - mx) * (y - my), weights=w)
+
+# def corr(x, y, w):
+#     """Weighted Correlation"""
+#     return cov(x, y, w) / np.sqrt(cov(x, x, w) * cov(y, y, w))
+
+
+
 
 if False:
     IHI = InfectionHomogeneityIndex(filename)

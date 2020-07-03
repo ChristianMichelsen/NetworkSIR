@@ -9,7 +9,7 @@ num_cores_max = 30
 N_loops = 10
 dry_run = True
 force_overwrite = False
-verbose = True
+verbose = True # only for 1 core
 
 if dry_run:
     print("\n\nRunning a dry run, nothing will actually be simulated.!!!\n\n")
@@ -17,6 +17,10 @@ if dry_run:
 #%%
 
 all_sim_pars = [
+
+                # {
+                #     'N_tot': [100_000],
+                # },
 
                 {
                     'sigma_beta': [0, 1],
