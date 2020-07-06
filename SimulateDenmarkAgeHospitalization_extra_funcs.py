@@ -206,9 +206,9 @@ def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max):
         elif 1_000_000 < N_tot_max <= 2_000_000:
             num_cores = 30
         elif 2_000_000 < N_tot_max <= 5_000_000:
-            num_cores = 20
+            num_cores = 15
         elif 5_000_000 < N_tot_max:
-            num_cores = 10
+            num_cores = 12
 
     if num_cores > num_cores_max:
         num_cores = num_cores_max
@@ -1295,8 +1295,10 @@ def single_run_and_save(filename, verbose=False):
         if path.exists():
             path.unlink()
 
-        track_memory('Saving HDF5 File')
+        if do_track_memory:
+            df_time_memory, df_change_points = parse_memory_file(memory_file)
 
+        track_memory('Saving HDF5 File')
         with h5py.File(filename_animation, "w") as f: # 
             f.create_dataset("coordinates", data=coordinates)
             f.create_dataset("which_state", data=which_state)
@@ -1307,7 +1309,6 @@ def single_run_and_save(filename, verbose=False):
             f.create_dataset("df", data=dataframe_to_hdf5_format(df))
 
             if do_track_memory:
-                df_time_memory, df_change_points = parse_memory_file(memory_file)
                 f.create_dataset("memory_file", data=Path(memory_file).read_text())
                 f.create_dataset("df_time_memory", data=dataframe_to_hdf5_format(df_time_memory, cols_to_str=['ChangePoint']))
                 f.create_dataset("df_change_points", data=dataframe_to_hdf5_format(df_change_points, include_index=True))

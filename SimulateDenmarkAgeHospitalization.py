@@ -157,7 +157,7 @@ all_sim_pars = [
                     'N_tot': [5_800_000],
                     'sigma_beta': [0.0, 1.0],
                     'rho': [0, 100],
-                    '   ': [0],
+                    'epsilon_rho': [0],
                     'algo': [2],
                     'beta': [0.01],
                 },

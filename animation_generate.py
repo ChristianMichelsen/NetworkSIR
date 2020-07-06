@@ -70,11 +70,17 @@ def add_spines(ax, exclude=None):
             ax.spines[spine].set_linewidth(2)
     ax.tick_params(axis='x', pad=10)
 
+
+def convert_df_byte_cols(df):
+    for col in df.select_dtypes([np.object]):
+        df[col] = df[col].str.decode('utf-8') 
+    return df
+
+
 from abc import ABC, abstractmethod
-# class AnimationBase(ABC):
 class AnimationBase():
 
-    def __init__(self, filename, animation_type='animation', do_tqdm=False, verbose=False, N_max=None, load_into_memory=False):
+    def __init__(self, filename, animation_type='animation', do_tqdm=False, verbose=False, N_max=None, load_into_memory=True):
 
         self.filename = filename
         self.animation_type = animation_type
@@ -94,10 +100,12 @@ class AnimationBase():
                     print(f"N_max has to be 12 or larger (choosing 12 instead of {N_max} for now).")
                     N_max = 12
                 self.N_days = N_max
-        
         self.cfg = extra_funcs.filename_to_dotdict(filename, animation=True)
         self.__name__ = 'AnimationBase'
         
+    def __len__(self):
+        return self.N_days
+    
     def _load_hdf5_file(self):
         try:
             f = h5py.File(self.filename, "r")
@@ -110,12 +118,25 @@ class AnimationBase():
         self.f = f
         self.f_is_open = True
         self.coordinates = f["coordinates"][()]
-        self.df_raw = pd.DataFrame(f["df"][()])
+        self.df_raw = pd.DataFrame(f["df"][()]).drop('index', axis=1)
+        self.ages = f["ages"][()]
         self.which_state = f["which_state"]
         self.N_connections = f["N_connections"]
         if self.load_into_memory:
             self.which_state = self.which_state[()]
             self.N_connections = self.N_connections[()]
+
+        if 'df_time_memory' in f.keys():
+            df_time_memory = convert_df_byte_cols(pd.DataFrame(f["df_time_memory"][()])
+                                                 .rename(columns={"index": "Time"}))
+
+        if 'df_change_points' in f.keys():
+            df_change_points = convert_df_byte_cols(pd.DataFrame(f["df_change_points"][()])
+                                                    .rename(columns={"index": "ChangePoint"}))
+
+        if self.load_into_memory:
+            self._exit_file()
+
         # g = awkward.hdf5(f)
         # g["which_connections"] 
         # g["individual_rates"] 
@@ -137,13 +158,15 @@ class AnimationBase():
             print(f"Reloading {self.filename}")
             self._load_hdf5_file()
         return self
+    
+    def _exit_file(self):
+        self.f.close()
+        self.f_is_open = False
 
     def __exit__(self, type, value, traceback):
         if not self.is_valid_file:
             return None
-
-        self.f.close()
-        self.f_is_open = False
+        self._exit_file()
 
     def __repr__(self):
         s = f"{self.__name__}(filename='{self.filename}', animation_type='{self.animation_type}', do_tqdm={self.do_tqdm}, verbose={self.verbose}, N_max={self.N_max})"
@@ -218,23 +241,33 @@ class AnimationBase():
         sim_pars_str = self._get_sim_pars_str()
         return f"Figures/{self.animation_type}/tmp_{sim_pars_str}/{self.animation_type}_{sim_pars_str}_frame_{i_day:06d}.png"
 
-    def _make_png_files(self, do_tqdm, force_rerun=False, **kwargs):
-        if 'dpi' in kwargs:
-            dpi = kwargs['dpi']
-        else:
-            dpi = 50
+    def _make_single_frame(self, i_day, do_tqdm, force_rerun, **kwargs):
+        dpi = kwargs.get('dpi', 50)
+        png_name = self._get_png_name(i_day)
+        if not Path(png_name).exists() or force_rerun:
+            fig, _ = self._plot_i_day(i_day, **kwargs)
+            Path(png_name).parent.mkdir(parents=True, exist_ok=True)
+            fig.savefig(png_name, dpi=dpi, bbox_inches='tight', pad_inches=0.3) 
+            plt.close(fig)
+            plt.close('all')
+
+    def _make_png_files(self, do_tqdm, force_rerun, **kwargs):
+        
+        n_jobs = kwargs.pop('n_jobs', 1)
 
         it = range(self.N_days)
-        if do_tqdm:
+        if do_tqdm and (n_jobs == 1):
             it = tqdm(it, desc='Make individual frames')
-        for i_day in it:
-            png_name = self._get_png_name(i_day)
-            if not Path(png_name).exists() or force_rerun:
-                fig, _ = self._plot_i_day(i_day, **kwargs)
-                Path(png_name).parent.mkdir(parents=True, exist_ok=True)
-                fig.savefig(png_name, dpi=dpi, bbox_inches='tight', pad_inches=0.3) 
-                plt.close(fig)
-                plt.close('all')
+
+        make_single_frame = partial(self._make_single_frame(do_tqdm=do_tqdm, force_rerun=force_rerun, **kwargs))
+        # make_single_frame = lambda i_day: self._make_single_frame(i_day=i_day, do_tqdm=do_tqdm, force_rerun=force_rerun, **kwargs)
+
+        if n_jobs == 1:
+            for i_day in it:
+                make_single_frame(i_day)
+        else:
+            with mp.Pool(n_jobs) as p:
+                list(tqdm(p.imap_unordered(make_single_frame, it), total=self.N_days))
         return None
 
     def _make_gif_file(self, gifname):
@@ -264,6 +297,42 @@ class AnimationBase():
         optimize(gifname, colors=100)
 
 
+from collections import Counter, defaultdict
+def unique_counter(x, mapping=None):
+    vals, counts = np.unique(x, return_counts=True)
+    d = {val: count for val, count in zip(vals, counts)}
+    
+    if mapping is None:
+        return d
+    
+    d2 = Counter()
+    for key, val in d.items():
+        d2[mapping[key]] += val
+    d2 = dict(d2)
+
+    for key in set(mapping.values()):
+        if not key in d2:
+            d2[key] = 0
+    
+    return d2
+    
+    # df = pd.DataFrame(counts, columns=['counts'])
+    # df['vals'] = vals
+    # df['states'] = df['vals'].replace(mapping)
+    # d = df.groupby('states')['counts'].sum().to_dict()
+    # for key in set(mapping.values()):
+    #     if not key in d:
+    #         d[key] = 0
+    # return d
+
+
+def get_inverse_mapping(mapping):
+    inv_mapping = defaultdict(list)
+    for key, val in mapping.items():
+        inv_mapping[val].append(key)
+    return dict(inv_mapping)
+
+
 class AnimateSIR(AnimationBase):
 
     def __init__(self, filename, do_tqdm=False, verbose=False, N_max=None, load_into_memory=False, df_counts=None):
@@ -274,49 +343,45 @@ class AnimateSIR(AnimationBase):
                          4: 'I', 5: 'I', 6:'I', 7: 'I',
                          8: 'R',
                         }
-        # self.N_connections_max = self._get_N_connections_max()
+        self.inverse_mapping = get_inverse_mapping(self.mapping)
+        
         self.df_counts = df_counts
         self.__name__ = 'AnimateSIR'
         self.dfs_all = {}
         self._initialize_plot()
         
-    def __getstate__(self):
-        d_out = dict(filename=self.filename, 
-                     do_tqdm=self.do_tqdm, 
-                     verbose=self.verbose, 
-                     N_max=self.N_max, 
-                     load_into_memory=self.load_into_memory, 
-                     df_counts=self.df_counts, 
-                     dfs_all=self.dfs_all, 
-                     d_colors=self.d_colors,
-                     )
-        return d_out
+    # def __getstate__(self):
+    #     d_out = dict(filename=self.filename, 
+    #                  do_tqdm=self.do_tqdm, 
+    #                  verbose=self.verbose, 
+    #                  N_max=self.N_max, 
+    #                  load_into_memory=self.load_into_memory, 
+    #                  df_counts=self.df_counts, 
+    #                  dfs_all=self.dfs_all, 
+    #                  d_colors=self.d_colors,
+    #                  )
+    #     return d_out
     
 
-    def __setstate__(self, d_in):
-        self.__init__(
-                      filename=d_in['filename'], 
-                      do_tqdm=d_in['do_tqdm'], 
-                      verbose=d_in['verbose'], 
-                      N_max=d_in['N_max'], 
-                      load_into_memory=d_in['load_into_memory'],
-                      df_counts=d_in['df_counts'],
-        )
-        self.dfs_all = d_in['dfs_all']
-        self.d_colors = d_in['d_colors']
+    # def __setstate__(self, d_in):
+    #     self.__init__(
+    #                   filename=d_in['filename'], 
+    #                   do_tqdm=d_in['do_tqdm'], 
+    #                   verbose=d_in['verbose'], 
+    #                   N_max=d_in['N_max'], 
+    #                   load_into_memory=d_in['load_into_memory'],
+    #                   df_counts=d_in['df_counts'],
+    #     )
+    #     self.dfs_all = d_in['dfs_all']
+    #     self.d_colors = d_in['d_colors']
         
 
 
-    def _get_df(self, i_day):
-        df = pd.DataFrame(self.coordinates, columns=['x', 'y'])
-        df['which_state_num'] = self.which_state[i_day]
-        df['N_connections_num'] = self.N_connections[i_day]
-        df["which_state"] = df['which_state_num'].replace(self.mapping).astype('category')
-        return df
-
-
-    # def _get_N_connections_max(self):
-    #     return self._get_df(0)['N_connections_num'].max()
+    # def _get_df(self, i_day):
+    #     df = pd.DataFrame(self.coordinates, columns=['x', 'y'])
+    #     df['which_state_num'] = self.which_state[i_day]
+    #     df["which_state"] = df['which_state_num'].replace(self.mapping).astype('category')
+    #     return df
 
 
     def _initialize_plot(self):
@@ -340,6 +405,11 @@ class AnimateSIR(AnimationBase):
         norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
         self._scatter_kwargs = dict(cmap=cmap, norm=norm, edgecolor='none')
 
+        self._geo_plot_kwargs = {}
+        self._geo_plot_kwargs['S'] = dict(alpha=0.2, norm=self.norm_1000)
+        self._geo_plot_kwargs['R'] = dict(alpha=0.3, norm=self.norm_100)
+        self._geo_plot_kwargs['I'] = dict(norm=self.norm_10)
+
 
     def _initialize_data(self):
 
@@ -351,17 +421,7 @@ class AnimateSIR(AnimationBase):
             self.df_counts = self._compute_df_counts()
         self.R_eff = self._compute_R_eff()
         self.R_eff_smooth = self._smoothen(self.R_eff, method='savgol', window_length=11, polyorder=3)
-        # self.N_tot = self.df_counts.iloc[0].sum()
         assert self.cfg['N_tot'] == self.df_counts.iloc[0].sum()
-
-        it = range(self.N_days)
-        if self.do_tqdm:
-            it = tqdm(it, desc="dfs_all")
-        for i_day in it:
-        # print("XXX")
-        # for i_day in tqdm(range(self.N_days), desc='dfs_all'):
-            df = self._get_df(i_day)
-            self.dfs_all[i_day] = {s: df.query("which_state == @s") for s in self.states}
 
 
     def _compute_df_counts(self):
@@ -370,9 +430,10 @@ class AnimateSIR(AnimationBase):
         if self.do_tqdm:
             it = tqdm(it, desc="Creating df_counts")
         for i_day in it:
-            df = self._get_df(i_day)
-            dfs = {s: df.query("which_state == @s") for s in self.states}
-            counts_i_day[i_day] = {key: len(val) for key, val in dfs.items()}
+            counts_i_day[i_day] = unique_counter(self.which_state[i_day], mapping=self.mapping)
+            # df = self._get_df(i_day)
+            # dfs = {s: df.query("which_state == @s") for s in self.states}
+            # counts_i_day[i_day] = {key: len(val) for key, val in dfs.items()}
         df_counts = pd.DataFrame(counts_i_day).T
         return df_counts
 
@@ -401,24 +462,28 @@ class AnimateSIR(AnimationBase):
         df_R_eff = pd.DataFrame({'t': x_interpolated, 'R_eff': y_interpolated})
         return df_R_eff
 
+    def _get_mask(self, i_day, state):
+        return np.isin(self.which_state[i_day], self.inverse_mapping[state])
+
     def _plot_i_day(self, i_day, dpi=50):
 
         # df = self._get_df(i_day)
         # dfs = {s: df.query("which_state == @s") for s in self.states}
-        dfs = self.dfs_all[i_day]
+        # dfs = self.dfs_all[i_day]
 
         # Main plot
-        k_scale = 1.8
-        fig = plt.figure(figsize=(10*k_scale, 13*k_scale))
+        k_scale = 1.7
+        fig = plt.figure(figsize=(13*k_scale, 13*k_scale))
         ax = fig.add_subplot(1, 1, 1, projection='scatter_density')
 
-        if len(dfs['S']) > 0:
-            ax.scatter_density(dfs['S']['x'], dfs['S']['y'], color=self.d_colors['S'], alpha=0.2, norm=self.norm_1000, dpi=dpi)
-        if len(dfs['R']) > 0:
-            ax.scatter_density(dfs['R']['x'], dfs['R']['y'], color=self.d_colors['R'], alpha=0.3, norm=self.norm_100, dpi=dpi)
-        if len(dfs['I']) > 0:
-            ax.scatter_density(dfs['I']['x'], dfs['I']['y'], color=self.d_colors['I'], norm=self.norm_10, dpi=dpi)
-        ax.set(xlim=(7.9, 13.7), ylim=(54.4, 58.2), xlabel='Longitude')
+        for state in self.states:
+            if self.df_counts.loc[i_day, state] > 0:
+                ax.scatter_density(*self.coordinates[self._get_mask(i_day, state)].T, color=self.d_colors[state], dpi=dpi, **self._geo_plot_kwargs[state])
+        # if len(dfs['I']) > 0:
+        #     ax.scatter_density(dfs['I']['x'], dfs['I']['y'], color=self.d_colors['I'], , dpi=dpi)
+        
+        # ax.set(xlim=(7.9, 13.7), ylim=(54.4, 58.2), xlabel='Longitude')
+        ax.set(xlim=(7.9, 15.3), ylim=(54.5, 58.2), xlabel='Longitude')
         ax.set_ylabel('Latitude', rotation=90) # fontsize=20, labelpad=20
 
 
@@ -429,7 +494,7 @@ class AnimateSIR(AnimationBase):
         ax.legend(handles=circles, loc='upper left', fontsize=24, frameon=False)
 
         # string = "\n".join([human_format(len(dfs[state]), decimals=1) for state in self.states])
-        s_legend = [human_format(len(dfs[state]), decimals=1) for state in self.states]
+        s_legend = [human_format(self.df_counts.loc[i_day, state], decimals=1) for state in self.states]
         delta_s = 0.0261
         for i, s in enumerate(s_legend):
             ax.text(0.41, 0.9698-i*delta_s, s, fontsize=24, transform=ax.transAxes, ha='right')
@@ -441,7 +506,8 @@ class AnimateSIR(AnimationBase):
 
         cfg = extra_funcs.filename_to_dotdict(self.filename, animation=True)
         title = extra_funcs.dict_to_title(cfg)
-        ax.set_title(title, pad=50, fontsize=28)
+        title += "\n\n" + "Simulation of COVID-19 epidemic with no intervention"
+        ax.set_title(title, pad=40, fontsize=32)
 
         # secondary plots:
 
@@ -491,8 +557,8 @@ class AnimateSIR(AnimationBase):
             ax4.axis('off')  # clear x-axis and y-axis
 
         ax.text(0.70, 0.97, f"Day: {i_day}", fontsize=34, transform=ax.transAxes, backgroundcolor='white')
-        ax.text(0.012, 0.012, f"Simulation of COVID-19 epidemic with no intervention.", fontsize=24, transform=ax.transAxes, backgroundcolor='white')
-        ax.text(0.99, 0.01, f"Niels Bohr Institute\narXiv: 2006.XXXXX", ha='right', fontsize=18, transform=ax.transAxes, backgroundcolor='white')
+        # ax.text(0.012, 0.012, f"Simulation of COVID-19 epidemic with no intervention.", fontsize=24, transform=ax.transAxes, backgroundcolor='white')
+        ax.text(0.99, 0.01, f"Niels Bohr Institute\narXiv: 2006.XXXXX", ha='right', fontsize=20, transform=ax.transAxes, backgroundcolor='white')
 
         scalebar = AnchoredSizeBar(ax.transData,
                                 longitudes_per_50km, '50 km', 
@@ -722,41 +788,18 @@ class InfectionHomogeneityIndex(AnimationBase):
 
 
 
-if False:
-    IHI = InfectionHomogeneityIndex(filename)
-    IHI.make_plot(verbose=True, savefig=False, force_rerun=True)
-
-
-    threshold = 0.1
-
-    N_bins_x, N_bins_y = IHI._get_N_bins_xy()
-
-    N = len(IHI.which_state)
-    x = np.arange(N-1)
-    ihi = np.zeros(len(x))
-
-    N_box_all, counts_1d_all = compute_N_box_index(IHI.coordinates, N_bins_x, N_bins_y, threshold=threshold, verbose=True)
-
-    i_day = 50
-    which_state_day = IHI.which_state[i_day]
-    coordinates_infected = IHI.coordinates[(-1 < which_state_day) & (which_state_day < 8)]
-    N_box_infected, counts_1d_infected = compute_N_box_index(coordinates_infected, N_bins_x, N_bins_y, threshold=threshold, verbose=True)
-    ratio_N_box = N_box_infected / N_box_all
 
 # %%
 
-def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=True, force_rerun=False, optimize_gif=True, load_into_memory=False,
-                make_geo_animation=True, 
-                make_IHI_plot=True, 
-                make_N_connections_animation=True, 
-                ):
+def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=True, force_rerun=False, optimize_gif=True, load_into_memory=False, make_geo_animation=True, make_IHI_plot=True, make_N_connections_animation=True):
 
 
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message="All-NaN slice encountered")
         warnings.filterwarnings("ignore", message="Attempting to set identical")
-        warnings.filterwarnings("ignore", message="invalid value encountered in")
+        warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
         warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
+
 
 
         if make_geo_animation:
@@ -784,6 +827,8 @@ def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=T
 
     return None
 
+
+
 def get_num_cores(num_cores_max, subtract_cores=1):
     num_cores = mp.cpu_count() - subtract_cores
     if num_cores >= num_cores_max:
@@ -796,208 +841,255 @@ def get_num_cores(num_cores_max, subtract_cores=1):
 num_cores = get_num_cores(num_cores_max)
 
 filenames = get_animation_filenames()
-filename = filenames[1]
+filename = filenames[0]
 N_files = len(filenames)
 
-x=x
+# x=x
 
+# animation = AnimateSIR(filename, do_tqdm=True, verbose=True, load_into_memory=False)
+# animation = AnimateSIR(filename, do_tqdm=True, verbose=True, load_into_memory=True, N_max=50)
+animation = AnimateSIR(filename, do_tqdm=False, verbose=False, load_into_memory=True)
 
-#%%
+# animation.make_animation(remove_frames=True, 
+#                         force_rerun=True, 
+#                         optimize_gif=True,
+#                         dpi=50,
+#                         )
 
-
-
-#%%
-
-kwargs = dict(do_tqdm=False, 
-              verbose=False, 
-              force_rerun=False,
-              make_geo_animation=True,
-              make_N_connections_animation=True, 
-              make_IHI_plot=True)
-
-
-if __name__ == '__main__' and True:
-
-    if num_cores == 1:
-
-        for filename in tqdm(filenames):
-            animate_file(filename, **kwargs)
-
-    else:
-        print(f"Generating {N_files} animations using {num_cores} cores, please wait", flush=True)
-        kwargs['do_tqdm'] = False
-        kwargs['verbose'] = False
-        with mp.Pool(num_cores) as p:
-            list(tqdm(p.imap_unordered(partial(animate_file, **kwargs), filenames), total=N_files))
-
-x=x
-
-#%%
-        
-
-#%%
-
-
-def foo(i_day, animation):
-# def foo(i_day):
-    png_name = f"test_{i_day}.png"
-    fig, _ = animation._plot_i_day(i_day, dpi=50)
-    fig.savefig(png_name, dpi=50, bbox_inches='tight', pad_inches=0.3) 
-    plt.close(fig)
-    plt.close('all')
-
-
-if __name__ == '__main__' and True:
-
-    i_day = 12
-
-    animation = AnimateSIR(filename, do_tqdm=True, verbose=True, N_max=i_day)
-    animation._initialize_data()
-
-    for i_day in tqdm(range(12)):
-        foo(i_day, animation)
-
-        # self.coordinates = f["coordinates"][()]
-        # self.df_raw = pd.DataFrame(f["df"][()])
-        # self.which_state = f["which_state"]
-        # self.N_connections
-
-    # with mp.Pool(6) as p:
-    #     list(tqdm(p.imap_unordered(partial(foo, animation=animation), range(12)), total=12))
-    #     # list(tqdm(p.imap_unordered(foo, range(12)), total=12))
+# x=x
 
 
 
-#%%
+# def bar(i_day):
+#     return i_day, unique_counter(animation.which_state[i_day], mapping=animation.mapping)
 
-if False:
+# num_cores = 6
 
-    import pickle
+# if __name__ == '__main__' and True:
+#     with mp.Pool(num_cores) as p:
+#         y = list(tqdm(p.imap_unordered(bar, range(len(animation))), total=len(animation)))
+#         # x=x
+#     y = {key: val for (key, val) in y}
 
-    pickle.dump(animation, open('animation_test.pickle', 'wb'))
-    z = pickle.load(open('animation_test.pickle', 'rb'))
+    # print(y)
 
-
-
-
-#     d_out = animation.__dict__.copy()
-
-#     del d_out['f']  # remove filehandle entry
-#     del d_out['which_state']  # remove filehandle entry
-#     del d_out['N_connections']  # remove filehandle entry
-
-# # # Example
-# class SomeClass:
-#     def __init__(self, filename):
-#         self.name = filename
-#         self.file = open(filename)
-    
-
-# obj = SomeClass('animation_test.pickle')
-
-
-#%%
-
-class SomeClass:
-    def __init__(self, filename):
-        self.filename = filename
-        f = h5py.File(self.filename, "r")
-        self.f = f
-        self.coordinates = f["coordinates"][()]
-        self.df_raw = pd.DataFrame(f["df"][()])
-        self.which_state = f["which_state"]
-        self.N_connections = f["N_connections"]
-    
-    def __getstate__(self):
-        d_out = self.__dict__.copy()  # get attribute dictionary
-        del d_out['f']  # remove filehandle entry
-        del d_out['which_state']  # remove filehandle entry
-        del d_out['N_connections']  # remove filehandle entry
-
-        d_out = {'filename': self.filename}
-        return d_out
-    
-    def __setstate__(self, dict):
-        filename = dict['filename']
-        self.__init__(filename)
-
-
-
-x = SomeClass(filename)
-
-#%%
-
-if False:
-
-    pickle.dump(x, open('x.pickle', 'wb'))
-
-    y = pickle.load(open('x.pickle', 'rb'))
-    y.f
-    y.df_raw
-
-# %%
-
-
-
-#%%
-
-animation = AnimateSIR(filename, do_tqdm=True, verbose=True, N_max=12, load_into_memory=True)
 animation._initialize_data()
 
-
-coordinates = animation.coordinates
-which_state = animation.which_state
-which_state = which_state.reshape((*which_state.shape, -1))
-N_connections = animation.N_connections
-N_connections = N_connections.reshape((*N_connections.shape, -1))
-
-
-df_counts = animation.df_counts
-R_eff = animation.R_eff
-R_eff_smooth = animation.R_eff_smooth
-
-
-
-# import xarray as xr
-# coordinates_3D = np.tile(coordinates, (len(which_state),1,1))
-# data = np.c_[coordinates_3D, which_state, N_connections]
-# locs = ['lon', 'lat', 'which_state', 'N_connections']
-# times = np.arange(len(data))
-# foo = xr.DataArray(data, coords=[times, locs], dims=['time', 'space'])
-# airtemps = xr.tutorial.open_dataset('air_temperature')
-
-# from SimulateDenmarkAgeHospitalization_extra_funcs import haversine_scipy
-
-
-# import dask_distance
-# import dask.array as da
-
-X = IHI.coordinates
-X = X[:10_000]
-
-# # x = dask_distance.cdist(X, X, haversine_scipy)
-# y = dask_distance.pdist(X, haversine_scipy)
-# y.compute()
-
-# h, bins = da.histogram(x, bins=100, range=[0, 1_000_000])
-# h.compute()
-# np.asarray(h)
-
-
-# y.persist()
-
-
-
-
-from scipy.spatial import cKDTree as KDTree
-
-
-# t1 = KDTree(X)
-# # we need a distance to not look beyond, if you have real knowledge use it, otherwise guess
-# # maxD = np.linalg.norm(l1[0] - l2[0]) # this could be closest but anyhting further is certainly not
-# # get a sparce matrix of all the distances
-
-# ans = t1.sparse_distance_matrix(t2, 1000)
-
+# x=x
 
 #%%
+
+if __name__ == '__main__' and True:
+    animation._make_png_files(do_tqdm=True, force_rerun=True, dpi=50, n_jobs=6)
+
+    x=x
+
+#%%
+
+    # def _make_single_frame(self, i_day, do_tqdm, force_rerun, **kwargs):
+    #     dpi = kwargs.get('dpi', 50)
+    #     png_name = self._get_png_name(i_day)
+    #     if not Path(png_name).exists() or force_rerun:
+    #         fig, _ = self._plot_i_day(i_day, **kwargs)
+    #         Path(png_name).parent.mkdir(parents=True, exist_ok=True)
+    #         fig.savefig(png_name, dpi=dpi, bbox_inches='tight', pad_inches=0.3) 
+    #         plt.close(fig)
+    #         plt.close('all')
+
+    # def _make_png_files(self, do_tqdm, force_rerun, **kwargs):
+        
+    #     n_jobs = kwargs.get('n_jobs', 1)
+
+    #     it = range(self.N_days)
+    #     if do_tqdm and (n_jobs == 1):
+    #         it = tqdm(it, desc='Make individual frames')
+
+    #     make_single_frame = partial(self._make_single_frame(do_tqdm=do_tqdm, force_rerun=force_rerun, **kwargs))
+
+    #     if n_jobs == 1:
+    #         for i_day in it:
+    #             make_single_frame(i_day)
+    #     else:
+    #         with mp.Pool(num_cores) as p:
+    #             list(tqdm(p.imap_unordered(make_single_frame, it), total=self.N_days)
+    #     return None
+
+
+
+# animation.df_counts
+
+# fig, axes = animation._plot_i_day(0)
+# fig
+
+#%%
+
+dpi = 50
+num_cores = 6
+force_rerun = True
+
+def foo(i_day):
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="All-NaN slice encountered")
+        warnings.filterwarnings("ignore", message="Attempting to set identical")
+        warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
+        warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
+        warnings.filterwarnings("ignore", category=RuntimeWarning)
+
+        png_name = animation._get_png_name(i_day)
+        if not Path(png_name).exists() or force_rerun:
+            fig, _ = animation._plot_i_day(i_day)
+            Path(png_name).parent.mkdir(parents=True, exist_ok=True)
+            fig.savefig(png_name, dpi=dpi, bbox_inches='tight', pad_inches=0.3) 
+            plt.close(fig)
+            plt.close('all')
+
+
+if __name__ == '__main__' and True:
+    with mp.Pool(num_cores) as p:
+        list(tqdm(p.imap_unordered(foo, range(len(animation))), total=len(animation)))
+    # x=x
+
+# # #%%
+
+
+
+# # # Main plot
+# # k_scale = 1.8
+# # fig = plt.figure(figsize=(10*k_scale, 13*k_scale))
+# # ax = fig.add_subplot(1, 1, 1, projection='scatter_density')
+
+# # state = 'S'
+# # i_day = 0
+# # dpi=50
+
+# # if animation.df_counts.loc[i_day, state] > 0:
+# #     ax.scatter_density(*animation.coordinates[animation._get_mask(i_day, state)].T, color=animation.d_colors[state], dpi=dpi, **animation._geo_plot_kwargs[state])
+
+
+# #%%
+
+
+# # kwargs = dict(do_tqdm=True, 
+# #               verbose=True, 
+# #               force_rerun=True,
+# #               make_geo_animation=True,
+# #               make_N_connections_animation=True, 
+# #               make_IHI_plot=True)
+
+
+
+# kwargs = dict(do_tqdm=True, 
+#               verbose=True, 
+#               load_into_memory=False,
+#               force_rerun=True,
+#               make_geo_animation=True,
+#               make_N_connections_animation=True, 
+#               make_IHI_plot=True)
+
+
+# if __name__ == '__main__' and False:
+
+#     if num_cores == 1:
+
+#         for filename in tqdm(filenames):
+#             animate_file(filename, **kwargs)
+
+#     else:
+#         print(f"Generating {N_files} animations using {num_cores} cores, please wait", flush=True)
+#         kwargs['do_tqdm'] = False
+#         kwargs['verbose'] = False
+#         with mp.Pool(num_cores) as p:
+#             list(tqdm(p.imap_unordered(partial(animate_file, **kwargs), filenames), total=N_files))
+
+# x=x
+
+# #%%
+        
+
+# #%%
+
+
+# def foo(i_day, animation):
+# # def foo(i_day):
+#     png_name = f"test_{i_day}.png"
+#     fig, _ = animation._plot_i_day(i_day, dpi=50)
+#     fig.savefig(png_name, dpi=50, bbox_inches='tight', pad_inches=0.3) 
+#     plt.close(fig)
+#     plt.close('all')
+
+
+# if __name__ == '__main__' and True:
+
+#     i_day = 12
+
+#     animation = AnimateSIR(filename, do_tqdm=True, verbose=True, N_max=i_day)
+#     animation._initialize_data()
+
+#     for i_day in tqdm(range(12)):
+#         foo(i_day, animation)
+
+#         # self.coordinates = f["coordinates"][()]
+#         # self.df_raw = pd.DataFrame(f["df"][()])
+#         # self.which_state = f["which_state"]
+#         # self.N_connections
+
+#     # with mp.Pool(6) as p:
+#     #     list(tqdm(p.imap_unordered(partial(foo, animation=animation), range(12)), total=12))
+#     #     # list(tqdm(p.imap_unordered(foo, range(12)), total=12))
+
+
+
+# #%%
+
+# if False:
+
+#     import pickle
+
+#     pickle.dump(animation, open('animation_test.pickle', 'wb'))
+#     z = pickle.load(open('animation_test.pickle', 'rb'))
+
+
+# #%%
+
+# class SomeClass:
+#     def __init__(self, filename):
+#         self.filename = filename
+#         f = h5py.File(self.filename, "r")
+#         self.f = f
+#         self.coordinates = f["coordinates"][()]
+#         self.df_raw = pd.DataFrame(f["df"][()])
+#         self.which_state = f["which_state"]
+#         self.N_connections = f["N_connections"]
+    
+#     def __getstate__(self):
+#         d_out = self.__dict__.copy()  # get attribute dictionary
+#         del d_out['f']  # remove filehandle entry
+#         del d_out['which_state']  # remove filehandle entry
+#         del d_out['N_connections']  # remove filehandle entry
+
+#         d_out = {'filename': self.filename}
+#         return d_out
+    
+#     def __setstate__(self, dict):
+#         filename = dict['filename']
+#         self.__init__(filename)
+
+
+
+# x = SomeClass(filename)
+
+# #%%
+
+# if False:
+
+#     pickle.dump(x, open('x.pickle', 'wb'))
+
+#     y = pickle.load(open('x.pickle', 'rb'))
+#     y.f
+#     y.df_raw
+
+# #%%
+
+
+# %%
