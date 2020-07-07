@@ -9,6 +9,10 @@ from plotly.subplots import make_subplots
 import joblib
 from tqdm import tqdm
 import multiprocessing as mp
+
+# from p_tqdm import p_uimap, p_umap
+from functools import partial
+
 import awkward
 from functools import partial
 import extra_funcs
@@ -77,22 +81,77 @@ def convert_df_byte_cols(df):
     return df
 
 
-from abc import ABC, abstractmethod
+
+from pathos.helpers import cpu_count
+from pathos.multiprocessing import ProcessPool as Pool
+from collections.abc import Sized
+
+def _parallel(ordered, function, *iterables, **kwargs):
+    """Returns a generator for a parallel map with a progress bar.
+    Arguments:
+        ordered(bool): True for an ordered map, false for an unordered map.
+        function(Callable): The function to apply to each element of the given Iterables.
+        iterables(Tuple[Iterable]): One or more Iterables containing the data to be mapped.
+    Returns:
+        A generator which will apply the function to each element of the given Iterables
+        in parallel in order with a progress bar.
+    """
+
+    # Extract num_cpus
+    num_cpus = kwargs.pop('num_cpus', None)
+    do_tqdm = kwargs.pop('do_tqdm', True)
+
+    # Determine num_cpus
+    if num_cpus is None:
+        num_cpus = cpu_count()
+    elif type(num_cpus) == float:
+        num_cpus = int(round(num_cpus * cpu_count()))
+
+    # Determine length of tqdm (equal to length of shortest iterable)
+    length = min(len(iterable) for iterable in iterables if isinstance(iterable, Sized))
+
+    # Create parallel generator
+    map_type = 'imap' if ordered else 'uimap'
+    pool = Pool(num_cpus)
+    map_func = getattr(pool, map_type)
+
+    # create iterable
+    items = map_func(function, *iterables)
+
+    # add progress bar
+    if do_tqdm:
+        items = tqdm(items, total=length, **kwargs)
+
+    for item in items:
+        yield item
+
+    pool.clear()
+
+
+def p_umap(function, *iterables, **kwargs):
+    """Performs a parallel unordered map with a progress bar."""
+
+    ordered = False
+    generator = _parallel(ordered, function, *iterables, **kwargs)
+    result = list(generator)
+
+    return result
+
+
+
+
 class AnimationBase():
 
-    def __init__(self, filename, animation_type='animation', do_tqdm=False, verbose=False, N_max=None, load_into_memory=True):
+    def __init__(self, filename, animation_type='animation', do_tqdm=False, verbose=False, N_max=None):
 
         self.filename = filename
         self.animation_type = animation_type
         self.do_tqdm = do_tqdm
         self.verbose = verbose
-        self.load_into_memory = load_into_memory
-        # if verbose:
-            # print(f"Loading: \n{self.filename}")
         self._load_hdf5_file()
 
         self.N_max = N_max
-        if self._is_valid_file:
+        if self.is_valid_file:
             if N_max is None:
                 self.N_days = len(self.which_state)
             else:
@@ -100,46 +159,43 @@ class AnimationBase():
                     print(f"N_max has to be 12 or larger (choosing 12 instead of {N_max} for now).")
                     N_max = 12
                 self.N_days = N_max
-        self.cfg = extra_funcs.filename_to_dotdict(filename, animation=True)
+        self.cfg = dict(extra_funcs.filename_to_dotdict(filename, animation=True))
         self.__name__ = 'AnimationBase'
         
     def __len__(self):
         return self.N_days
     
+    def _load_data(self):
+
+        with h5py.File(self.filename, 'r') as f:
+
+            self.coordinates = f["coordinates"][()]
+            self.df_raw = pd.DataFrame(f["df"][()]).drop('index', axis=1)
+            self.ages = f["ages"][()]
+            self.which_state = f["which_state"][()]
+            self.N_connections = f["N_connections"][()]
+
+            if 'df_time_memory' in f.keys():
+                self.df_time_memory = convert_df_byte_cols(pd.DataFrame(f["df_time_memory"][()])
+                                                           .rename(columns={"index": "Time"}))
+
+            if 'df_change_points' in f.keys():
+                self.df_change_points = convert_df_byte_cols(pd.DataFrame(f["df_change_points"][()])
+                                                             .rename(columns={"index": "ChangePoint"}))
+
+        # g = awkward.hdf5(f)
+        # g["which_connections"] 
+        # g["individual_rates"] 
+
     def _load_hdf5_file(self):
         try:
-            f = h5py.File(self.filename, "r")
+            self._load_data()
             self._is_valid_file = True
         except OSError:
             print(f"\n\n\n!!! Error at {self.filename} !!! \n\n\n")
             self._is_valid_file = False
             return None
 
-        self.f = f
-        self.f_is_open = True
-        self.coordinates = f["coordinates"][()]
-        self.df_raw = pd.DataFrame(f["df"][()]).drop('index', axis=1)
-        self.ages = f["ages"][()]
-        self.which_state = f["which_state"]
-        self.N_connections = f["N_connections"]
-        if self.load_into_memory:
-            self.which_state = self.which_state[()]
-            self.N_connections = self.N_connections[()]
-
-        if 'df_time_memory' in f.keys():
-            df_time_memory = convert_df_byte_cols(pd.DataFrame(f["df_time_memory"][()])
-                                                 .rename(columns={"index": "Time"}))
-
-        if 'df_change_points' in f.keys():
-            df_change_points = convert_df_byte_cols(pd.DataFrame(f["df_change_points"][()])
-                                                    .rename(columns={"index": "ChangePoint"}))
-
-        if self.load_into_memory:
-            self._exit_file()
-
-        # g = awkward.hdf5(f)
-        # g["which_connections"] 
-        # g["individual_rates"] 
 
     @property
     def is_valid_file(self):
@@ -150,23 +206,6 @@ class AnimationBase():
         else:
             return True
 
-    def __enter__(self):
-        if not self.is_valid_file:
-            return None
-
-        if not self.f_is_open:
-            print(f"Reloading {self.filename}")
-            self._load_hdf5_file()
-        return self
-    
-    def _exit_file(self):
-        self.f.close()
-        self.f_is_open = False
-
-    def __exit__(self, type, value, traceback):
-        if not self.is_valid_file:
-            return None
-        self._exit_file()
 
     def __repr__(self):
         s = f"{self.__name__}(filename='{self.filename}', animation_type='{self.animation_type}', do_tqdm={self.do_tqdm}, verbose={self.verbose}, N_max={self.N_max})"
@@ -194,7 +233,7 @@ class AnimationBase():
                 pass
             except:
                 raise
-            self._make_png_files(self.do_tqdm, force_rerun, **kwargs)
+            self._make_png_files(force_rerun, **kwargs)
 
             if self.verbose:
                 print("\nMake GIF", flush=True)
@@ -221,12 +260,14 @@ class AnimationBase():
             return None
 
         try:
-            self._make_animation(remove_frames=remove_frames, force_rerun=force_rerun, optimize_gif=optimize_gif, **kwargs)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=RuntimeWarning)
+                warnings.filterwarnings("ignore", category=UserWarning)
+                self._make_animation(remove_frames=remove_frames, force_rerun=force_rerun, optimize_gif=optimize_gif, **kwargs)
 
         except OSError as e:
                 print(f"\n\n\nOSError at {filename} \n\n\n")
                 print(e)
-        
 
         except ValueError as e:
                 print(f"\n\n\nValueError at {filename} \n\n\n")
@@ -242,32 +283,44 @@ class AnimationBase():
         return f"Figures/{self.animation_type}/tmp_{sim_pars_str}/{self.animation_type}_{sim_pars_str}_frame_{i_day:06d}.png"
 
     def _make_single_frame(self, i_day, do_tqdm, force_rerun, **kwargs):
-        dpi = kwargs.get('dpi', 50)
-        png_name = self._get_png_name(i_day)
-        if not Path(png_name).exists() or force_rerun:
-            fig, _ = self._plot_i_day(i_day, **kwargs)
-            Path(png_name).parent.mkdir(parents=True, exist_ok=True)
-            fig.savefig(png_name, dpi=dpi, bbox_inches='tight', pad_inches=0.3) 
-            plt.close(fig)
-            plt.close('all')
 
-    def _make_png_files(self, do_tqdm, force_rerun, **kwargs):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=RuntimeWarning)
+
+            dpi = kwargs.get('dpi', 50)
+            png_name = self._get_png_name(i_day)
+            if not Path(png_name).exists() or force_rerun:
+                fig, _ = self._plot_i_day(i_day, **kwargs)
+                Path(png_name).parent.mkdir(parents=True, exist_ok=True)
+                fig.savefig(png_name, dpi=dpi, bbox_inches='tight', pad_inches=0.3) 
+                plt.close(fig)
+                plt.close('all')
+
+    def _make_png_files(self, force_rerun, **kwargs):
         
         n_jobs = kwargs.pop('n_jobs', 1)
+        do_tqdm = kwargs.pop('do_tqdm', self.do_tqdm)
 
         it = range(self.N_days)
-        if do_tqdm and (n_jobs == 1):
-            it = tqdm(it, desc='Make individual frames')
-
-        make_single_frame = partial(self._make_single_frame(do_tqdm=do_tqdm, force_rerun=force_rerun, **kwargs))
-        # make_single_frame = lambda i_day: self._make_single_frame(i_day=i_day, do_tqdm=do_tqdm, force_rerun=force_rerun, **kwargs)
+        
+        # make_single_frame = partial(self._make_single_frame(do_tqdm=do_tqdm, force_rerun=force_rerun, **kwargs))
+        make_single_frame = lambda i_day: self._make_single_frame(i_day=i_day, do_tqdm=do_tqdm, force_rerun=force_rerun, **kwargs)
 
         if n_jobs == 1:
+            
+            if do_tqdm:
+                it = tqdm(it, desc='Make individual frames')
+            
             for i_day in it:
                 make_single_frame(i_day)
+        
         else:
-            with mp.Pool(n_jobs) as p:
-                list(tqdm(p.imap_unordered(make_single_frame, it), total=self.N_days))
+            # with mp.Pool(n_jobs) as p:
+            p_umap(make_single_frame, it, num_cpus=n_jobs, do_tqdm=do_tqdm)
+            # iterator = p_uimap(make_single_frame, it)
+            # for result in iterator:
+            #     print(result) # prints '1a', '2b', '3c' in any order
+                # list(tqdm(p.imap_unordered(make_single_frame, it), total=self.N_days))
         return None
 
     def _make_gif_file(self, gifname):
@@ -295,6 +348,8 @@ class AnimationBase():
         if self.verbose:
             print("Optimize gif")
         optimize(gifname, colors=100)
+
+#%%
 
 
 from collections import Counter, defaultdict
@@ -325,7 +380,6 @@ def unique_counter(x, mapping=None):
     #         d[key] = 0
     # return d
 
-
 def get_inverse_mapping(mapping):
     inv_mapping = defaultdict(list)
     for key, val in mapping.items():
@@ -335,8 +389,8 @@ def get_inverse_mapping(mapping):
 
 class AnimateSIR(AnimationBase):
 
-    def __init__(self, filename, do_tqdm=False, verbose=False, N_max=None, load_into_memory=False, df_counts=None):
-        super().__init__(filename, animation_type='animation', do_tqdm=do_tqdm, verbose=verbose, N_max=N_max, load_into_memory=load_into_memory)
+    def __init__(self, filename, do_tqdm=False, verbose=False, N_max=None, df_counts=None):
+        super().__init__(filename, animation_type='animation', do_tqdm=do_tqdm, verbose=verbose, N_max=N_max)
         self.mapping = {-1: 'S', 
                         #  0: 'E', 1: 'E', 2:'E', 3: 'E',
                          0: 'I', 1: 'I', 2:'I', 3: 'I',
@@ -558,7 +612,7 @@ class AnimateSIR(AnimationBase):
 
         ax.text(0.70, 0.97, f"Day: {i_day}", fontsize=34, transform=ax.transAxes, backgroundcolor='white')
         # ax.text(0.012, 0.012, f"Simulation of COVID-19 epidemic with no intervention.", fontsize=24, transform=ax.transAxes, backgroundcolor='white')
-        ax.text(0.99, 0.01, f"Niels Bohr Institute\narXiv: 2006.XXXXX", ha='right', fontsize=20, transform=ax.transAxes, backgroundcolor='white')
+        ax.text(0.99, 0.01, f"Niels Bohr Institute\narXiv: 2007.XXXXX", ha='right', fontsize=20, transform=ax.transAxes, backgroundcolor='white')
 
         scalebar = AnchoredSizeBar(ax.transData,
                                 longitudes_per_50km, '50 km', 
@@ -585,8 +639,8 @@ class AnimateSIR(AnimationBase):
 
 class Animate_N_connections(AnimationBase):
 
-    def __init__(self, filename, do_tqdm=False, verbose=False, N_max=None, load_into_memory=False):
-        super().__init__(filename, animation_type='N_connections', do_tqdm=do_tqdm, verbose=verbose, N_max=N_max, load_into_memory=load_into_memory)
+    def __init__(self, filename, do_tqdm=False, verbose=False, N_max=None):
+        super().__init__(filename, animation_type='N_connections', do_tqdm=do_tqdm, verbose=verbose, N_max=N_max)
         self.__name__ = 'Animate_N_connections'
 
 
@@ -791,7 +845,7 @@ class InfectionHomogeneityIndex(AnimationBase):
 
 # %%
 
-def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=True, force_rerun=False, optimize_gif=True, load_into_memory=False, make_geo_animation=True, make_IHI_plot=True, make_N_connections_animation=True):
+def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=True, force_rerun=False, optimize_gif=True, make_geo_animation=True, make_IHI_plot=True, make_N_connections_animation=True):
 
 
     with warnings.catch_warnings():
@@ -803,7 +857,7 @@ def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=T
 
 
         if make_geo_animation:
-            animation = AnimateSIR(filename, do_tqdm=do_tqdm, verbose=verbose, load_into_memory=load_into_memory)
+            animation = AnimateSIR(filename, do_tqdm=do_tqdm, verbose=verbose)
             with animation:
                 animation.make_animation(remove_frames=remove_frames, 
                                         force_rerun=force_rerun, 
@@ -819,7 +873,7 @@ def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=T
                 plt.close('all')
             
         if make_N_connections_animation:
-            animation_N_connections = Animate_N_connections(filename, do_tqdm=do_tqdm, verbose=verbose, load_into_memory=load_into_memory)
+            animation_N_connections = Animate_N_connections(filename, do_tqdm=do_tqdm, verbose=verbose)
             with animation_N_connections:
                 animation_N_connections.make_animation(remove_frames=remove_frames, 
                                                     force_rerun=force_rerun, 
@@ -846,17 +900,29 @@ N_files = len(filenames)
 
 # x=x
 
-# animation = AnimateSIR(filename, do_tqdm=True, verbose=True, load_into_memory=False)
-# animation = AnimateSIR(filename, do_tqdm=True, verbose=True, load_into_memory=True, N_max=50)
-animation = AnimateSIR(filename, do_tqdm=False, verbose=False, load_into_memory=True)
+# import dill
 
-# animation.make_animation(remove_frames=True, 
-#                         force_rerun=True, 
-#                         optimize_gif=True,
-#                         dpi=50,
-#                         )
+# test = AnimationBase(filename)
+# test = AnimateSIR(filename, do_tqdm=True, verbose=True, N_max=50)
+# dill.dumps(test)
 
-# x=x
+# with open("test.dill", "wb") as dill_file:
+#      dill.dump(test, dill_file)
+
+# with open("test.dill", "rb") as dill_file:
+#      test = dill.load(dill_file)
+
+for filename in filenames:
+    animation = AnimateSIR(filename, do_tqdm=True, verbose=True)
+    if animation.cfg['N_tot'] < 1_000_000:
+        animation.make_animation(remove_frames=True, 
+                                force_rerun=True, 
+                                optimize_gif=True,
+                                dpi=50,
+                                n_jobs=7,
+                                )
+# 
+x=x
 
 
 
@@ -873,16 +939,25 @@ animation = AnimateSIR(filename, do_tqdm=False, verbose=False, load_into_memory=
 
     # print(y)
 
-animation._initialize_data()
+# animation._initialize_data()
 
 # x=x
+# 
+# import dill
+# dill.dumps(animation)
+
 
 #%%
 
-if __name__ == '__main__' and True:
-    animation._make_png_files(do_tqdm=True, force_rerun=True, dpi=50, n_jobs=6)
+# if __name__ == '__main__' and True:
+#     animation._make_png_files(do_tqdm=True, force_rerun=True, dpi=50, n_jobs=2)
+#     x=x
 
-    x=x
+
+    # processes
+
+#%%
+
 
 #%%
 

@@ -10,6 +10,8 @@
 *.parquet
 GPS_coordinates.npy
 /old/
+/Figures/animation/tmp_*/
+/Figures/N_connections/tmp_*/
 
 #Jottacloud conflicted files
 *(Conflicted)*

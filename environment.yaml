@@ -36,6 +36,8 @@ dependencies:
   - imageio-ffmpeg
   - h5py
  # - netcdf4
+  - pathos
+  - p_tqdm
   - pip:
     - mpl-scatter-density
     - pygifsicle
