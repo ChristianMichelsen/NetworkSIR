@@ -9,12 +9,12 @@ from plotly.subplots import make_subplots
 import joblib
 from tqdm import tqdm
 import multiprocessing as mp
+import os
 
-# from p_tqdm import p_uimap, p_umap
+# from p_tqdm import p_map, p_umap
 from functools import partial
 
 import awkward
-from functools import partial
 import extra_funcs
 from importlib import reload
 import h5py
@@ -26,7 +26,7 @@ num_cores_max = 1
 #%%
 
 def get_animation_filenames():
-    filenames = Path('Data_animation').glob(f'*.animation.hdf5')
+    filenames = Path('Data_animation').glob(f'N_tot__*.animation.hdf5')
     return [str(file) for file in sorted(filenames)]
 
 # pip install mpl-scatter-density
@@ -80,10 +80,9 @@ def convert_df_byte_cols(df):
         df[col] = df[col].str.decode('utf-8') 
     return df
 
-
-
 from pathos.helpers import cpu_count
 from pathos.multiprocessing import ProcessPool as Pool
+# from pathos.threading import ThreadPool as Pool
 from collections.abc import Sized
 
 def _parallel(ordered, function, *iterables, **kwargs):
@@ -106,6 +105,8 @@ def _parallel(ordered, function, *iterables, **kwargs):
         num_cpus = cpu_count()
     elif type(num_cpus) == float:
         num_cpus = int(round(num_cpus * cpu_count()))
+
+    print(f"{num_cpus=}")
 
     # Determine length of tqdm (equal to length of shortest iterable)
     length = min(len(iterable) for iterable in iterables if isinstance(iterable, Sized))
@@ -137,6 +138,15 @@ def p_umap(function, *iterables, **kwargs):
 
     return result
 
+
+def p_map(function, *iterables, **kwargs):
+    """Performs a parallel ordered map with a progress bar."""
+
+    ordered = True
+    generator = _parallel(ordered, function, *iterables, **kwargs)
+    result = list(generator)
+
+    return result
 
 
 
@@ -284,6 +294,10 @@ class AnimationBase():
 
     def _make_single_frame(self, i_day, do_tqdm, force_rerun, **kwargs):
 
+        # print(os.getpid())
+
+        print(i_day)
+
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -315,8 +329,15 @@ class AnimationBase():
                 make_single_frame(i_day)
         
         else:
+
+            from pathos.pools import ProcessPool
+            pool = ProcessPool(nodes=n_jobs)
+            pool.map(make_single_frame, it)
+            # p_umap(make_single_frame, it, num_cpus=n_jobs, do_tqdm=do_tqdm)
+            
+            
+            # p_umap(make_single_frame, it, num_cpus=n_jobs)
             # with mp.Pool(n_jobs) as p:
-            p_umap(make_single_frame, it, num_cpus=n_jobs, do_tqdm=do_tqdm)
             # iterator = p_uimap(make_single_frame, it)
             # for result in iterator:
             #     print(result) # prints '1a', '2b', '3c' in any order
@@ -637,6 +658,43 @@ class AnimateSIR(AnimationBase):
 #%%
 
 
+def weighted_quantile(values, quantiles, sample_weight=None, 
+                      values_sorted=False, old_style=False):
+    """ Very close to numpy.percentile, but supports weights.
+    NOTE: quantiles should be in [0, 1]!
+    :param values: numpy.array with data
+    :param quantiles: array-like with many quantiles needed
+    :param sample_weight: array-like of the same length as `array`
+    :param values_sorted: bool, if True, then will avoid sorting of
+        initial array
+    :param old_style: if True, will correct output to be consistent
+        with numpy.percentile.
+    :return: numpy.array with computed quantiles.
+    """
+    values = np.array(values)
+    quantiles = np.array(quantiles)
+    if sample_weight is None:
+        sample_weight = np.ones(len(values))
+    sample_weight = np.array(sample_weight)
+    assert np.all(quantiles >= 0) and np.all(quantiles <= 1), \
+        'quantiles should be in [0, 1]'
+
+    if not values_sorted:
+        sorter = np.argsort(values)
+        values = values[sorter]
+        sample_weight = sample_weight[sorter]
+
+    weighted_quantiles = np.cumsum(sample_weight) - 0.5 * sample_weight
+    if old_style:
+        # To be convenient with numpy.percentile
+        weighted_quantiles -= weighted_quantiles[0]
+        weighted_quantiles /= weighted_quantiles[-1]
+    else:
+        weighted_quantiles /= np.sum(sample_weight)
+    return np.interp(quantiles, weighted_quantiles, values)
+
+
+
 class Animate_N_connections(AnimationBase):
 
     def __init__(self, filename, do_tqdm=False, verbose=False, N_max=None):
@@ -649,7 +707,11 @@ class Animate_N_connections(AnimationBase):
         which_state_day = self.which_state[i_day]
         N_connections_day0 = self.N_connections[0]
 
-        range_max = np.percentile(N_connections_day0, 99.9)
+        N_connections_max = len(N_connections_day0)
+
+        weighted_quantile(np.arange(N_connections_max), 99, sample_weight=N_connections_day0)
+
+        # range_max = np.percentile(N_connections_day0, 99.9)
         N_bins = int(range_max)
 
         fig, ax = plt.subplots()
@@ -847,37 +909,27 @@ class InfectionHomogeneityIndex(AnimationBase):
 
 def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=True, force_rerun=False, optimize_gif=True, make_geo_animation=True, make_IHI_plot=True, make_N_connections_animation=True):
 
+    if make_geo_animation:
+        animation = AnimateSIR(filename, do_tqdm=do_tqdm, verbose=verbose)
+        with animation:
+            animation.make_animation(remove_frames=remove_frames, 
+                                    force_rerun=force_rerun, 
+                                    optimize_gif=optimize_gif,
+                                    dpi=dpi,
+                                    )
 
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", message="All-NaN slice encountered")
-        warnings.filterwarnings("ignore", message="Attempting to set identical")
-        warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
-        warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
-
-
-
-        if make_geo_animation:
-            animation = AnimateSIR(filename, do_tqdm=do_tqdm, verbose=verbose)
-            with animation:
-                animation.make_animation(remove_frames=remove_frames, 
-                                        force_rerun=force_rerun, 
-                                        optimize_gif=optimize_gif,
-                                        dpi=dpi,
-                                        )
-            
-
-        if make_IHI_plot:
-            IHI = InfectionHomogeneityIndex(filename)
-            with IHI:
-                IHI.make_plot(verbose=False, savefig=True, force_rerun=force_rerun)
-                plt.close('all')
-            
-        if make_N_connections_animation:
-            animation_N_connections = Animate_N_connections(filename, do_tqdm=do_tqdm, verbose=verbose)
-            with animation_N_connections:
-                animation_N_connections.make_animation(remove_frames=remove_frames, 
-                                                    force_rerun=force_rerun, 
-                                                    optimize_gif=optimize_gif)
+    if make_IHI_plot:
+        IHI = InfectionHomogeneityIndex(filename)
+        with IHI:
+            IHI.make_plot(verbose=False, savefig=True, force_rerun=force_rerun)
+            plt.close('all')
+        
+    if make_N_connections_animation:
+        animation_N_connections = Animate_N_connections(filename, do_tqdm=do_tqdm, verbose=verbose)
+        with animation_N_connections:
+            animation_N_connections.make_animation(remove_frames=remove_frames, 
+                                                force_rerun=force_rerun, 
+                                                optimize_gif=optimize_gif)
 
     return None
 
@@ -898,7 +950,37 @@ filenames = get_animation_filenames()
 filename = filenames[0]
 N_files = len(filenames)
 
-# x=x
+
+from contexttimer import Timer
+if __name__ == '__main__' and True:
+
+    print(f"{num_cores=}")
+
+    animation = AnimateSIR(filename, do_tqdm=True, verbose=True, N_max=100)
+    animation._initialize_data()
+
+    with Timer() as t:
+        animation._make_png_files(
+                                force_rerun=True, 
+                                dpi=50,
+                                n_jobs=num_cores,
+                                do_tqdm=True,
+                                )
+    print(f"_make_png_files: {t.elapsed:.1f}s.")
+
+
+x=x
+
+
+# # 
+# # IHI = InfectionHomogeneityIndex(filename)
+# # IHI.make_plot(verbose=True, savefig=False, force_rerun=True)
+
+
+# animation_N_connections = Animate_N_connections(filename, do_tqdm=True, verbose=True)
+# animation_N_connections.make_animation(remove_frames=False, 
+#                                        force_rerun=True, 
+#                                        optimize_gif=True)
 
 # import dill
 
@@ -912,17 +994,17 @@ N_files = len(filenames)
 # with open("test.dill", "rb") as dill_file:
 #      test = dill.load(dill_file)
 
-for filename in filenames:
-    animation = AnimateSIR(filename, do_tqdm=True, verbose=True)
-    if animation.cfg['N_tot'] < 1_000_000:
-        animation.make_animation(remove_frames=True, 
-                                force_rerun=True, 
-                                optimize_gif=True,
-                                dpi=50,
-                                n_jobs=7,
-                                )
-# 
-x=x
+# for filename in tqdm(filenames):
+#     animation = AnimateSIR(filename, do_tqdm=False, verbose=False)
+#     # if animation.cfg['N_tot'] < 1_000_000:
+#     animation.make_animation(remove_frames=True, 
+#                             force_rerun=True, 
+#                             optimize_gif=True,
+#                             dpi=50,
+#                             n_jobs=num_cores,
+#                             )
+# # 
+# x=x
 
 
 
@@ -997,33 +1079,6 @@ x=x
 # fig
 
 #%%
-
-dpi = 50
-num_cores = 6
-force_rerun = True
-
-def foo(i_day):
-
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", message="All-NaN slice encountered")
-        warnings.filterwarnings("ignore", message="Attempting to set identical")
-        warnings.filterwarnings("ignore", message="invalid value encountered in true_divide")
-        warnings.filterwarnings("ignore", message="divide by zero encountered in true_divide")
-        warnings.filterwarnings("ignore", category=RuntimeWarning)
-
-        png_name = animation._get_png_name(i_day)
-        if not Path(png_name).exists() or force_rerun:
-            fig, _ = animation._plot_i_day(i_day)
-            Path(png_name).parent.mkdir(parents=True, exist_ok=True)
-            fig.savefig(png_name, dpi=dpi, bbox_inches='tight', pad_inches=0.3) 
-            plt.close(fig)
-            plt.close('all')
-
-
-if __name__ == '__main__' and True:
-    with mp.Pool(num_cores) as p:
-        list(tqdm(p.imap_unordered(foo, range(len(animation))), total=len(animation)))
-    # x=x
 
 # # #%%
 
