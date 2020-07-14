@@ -28,7 +28,7 @@ dependencies:
   - plotly-orca
   #- natsort
   - datashader
-  - awkward
+  # - awkward
   - pyarrow
   - networkx
   - fast-histogram
@@ -38,7 +38,10 @@ dependencies:
  # - netcdf4
   - pathos
   - p_tqdm
+  # - awkward-numba
   - pip:
     - mpl-scatter-density
     - pygifsicle
     - contexttimer
+    - awkward1
+    - range-key-dict
