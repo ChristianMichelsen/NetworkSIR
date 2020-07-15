@@ -11,6 +11,8 @@ rc_params.set_rc_params()
 import psutil
 import warnings
 from importlib import reload
+from contexttimer import Timer
+
 
 import numba as nb
 from numba import njit, prange, objmode, typeof # conda install -c numba/label/dev numba
@@ -93,27 +95,25 @@ def initialize_ages(N_tot, N_ages, connection_weight):
 
 
 @njit
-def update_node_connections(N_connections, individual_rates, which_connections, coordinates, infection_weight, rho_tmp, rho_scale, continue_run, id1, id2):
-
+def update_node_connections(which_connections, coordinates, rho_tmp, rho_scale, continue_run, id1, id2):
     if id1 != id2:
         r = utils.haversine(coordinates[id1, 0], coordinates[id1, 1], coordinates[id2, 0], coordinates[id2, 1])
         if np.exp(-r*rho_tmp/rho_scale) > np.random.rand():
 
-            individual_rates[id1].append(infection_weight[id1]) # id1 -> id2
-            individual_rates[id2].append(infection_weight[id2]) # Changed from id1
-
             which_connections[id1].append(id2)
             which_connections[id2].append(id1)
-
-            N_connections[id1] += 1
-            N_connections[id2] += 1
             continue_run = False
+
+            # individual_rates[id1].append(infection_weight[id1]) # id1 -> id2
+            # individual_rates[id2].append(infection_weight[id2]) # Changed from id1
+            # N_connections[id1] += 1
+            # N_connections[id2] += 1
 
     return continue_run
 
 
 @njit
-def run_algo_2(PP_ages, m_i, m_j, N_connections, individual_rates, which_connections, coordinates, infection_weight, rho_tmp, rho_scale, ages_in_state):
+def run_algo_2(PP_ages, m_i, m_j, which_connections, coordinates, rho_tmp, rho_scale, ages_in_state):
 
     continue_run = True
     while continue_run:
@@ -124,17 +124,15 @@ def run_algo_2(PP_ages, m_i, m_j, N_connections, individual_rates, which_connect
         id1 = ages_in_state[m_i][id1]
         id2 = ages_in_state[m_j][id2]
 
-        continue_run = update_node_connections(N_connections, individual_rates, which_connections, coordinates, infection_weight, rho_tmp, rho_scale, continue_run, id1, id2)
+        continue_run = update_node_connections(which_connections, coordinates, rho_tmp, rho_scale, continue_run, id1, id2)
 
 
 @njit
-def run_algo_1(PP_ages, m_i, m_j, N_connections, individual_rates, which_connections, coordinates, infection_weight, rho_tmp, rho_scale, ages_in_state):
+def run_algo_1(PP_ages, m_i, m_j, which_connections, coordinates, rho_tmp, rho_scale, ages_in_state):
 
     ra1 = np.random.rand()
     id1 = np.searchsorted(PP_ages[m_i], ra1)
     id1 = ages_in_state[m_i][id1]
-
-    N_algo_1_tries = 0
 
     continue_run = True
     while continue_run:
@@ -142,18 +140,18 @@ def run_algo_1(PP_ages, m_i, m_j, N_connections, individual_rates, which_connect
         id2 = np.searchsorted(PP_ages[m_j], ra2)
         id2 = ages_in_state[m_j][id2]
 
-        N_algo_1_tries += 1
         rho_tmp *= 0.9995
 
-        continue_run = update_node_connections(N_connections, individual_rates, which_connections, coordinates, infection_weight, rho_tmp, rho_scale, continue_run, id1, id2)
-
-    return N_algo_1_tries
+        continue_run = update_node_connections(which_connections, coordinates, rho_tmp, rho_scale, continue_run, id1, id2)
 
 
 @njit
-def connect_nodes(mu, epsilon_rho, rho, algo, PP_ages, N_connections, individual_rates, which_connections, coordinates, infection_weight, rho_scale, N_ages, age_matrix, ages_in_state, verbose):
+def connect_nodes(epsilon_rho, rho, algo, PP_ages, which_connections, coordinates, rho_scale, N_ages, age_matrix, ages_in_state, verbose):
 
-    num_prints = 0
+    if (algo == 2):
+        run_algo = run_algo_2
+    else:
+        run_algo = run_algo_1
 
     for m_i in range(N_ages):
         for m_j in range(N_ages):
@@ -165,14 +163,7 @@ def connect_nodes(mu, epsilon_rho, rho, algo, PP_ages, N_connections, individual
                 else:
                     rho_tmp = 0.0
 
-                if (algo == 2):
-                    run_algo_2(PP_ages, m_i, m_j, N_connections, individual_rates, which_connections, coordinates, infection_weight, rho_tmp, rho_scale, ages_in_state)
-
-                else:
-                    N_algo_1_tries = run_algo_1(PP_ages, m_i, m_j, N_connections, individual_rates, which_connections, coordinates, infection_weight, rho_tmp, rho_scale, ages_in_state)
-
-                    if verbose and num_prints < 10:
-                        num_prints += 1
+                run_algo(PP_ages, m_i, m_j, which_connections, coordinates, rho_tmp, rho_scale, ages_in_state)
 
                 # if do_track_memory and (counter % (N_max//30) == 0):
                 #     with objmode():
@@ -655,16 +646,6 @@ def do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_cou
 
 
 
-if False:
-
-    verbose = True
-    filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
-
-    simulation = Simulation(filename, verbose)
-    simulation.initialize_network()
-
-
-
 #%%
 
 
@@ -692,14 +673,18 @@ class Simulation:
         #     which_connections, ages, individual_rates = res
 
 
+    def _get_filename_prefix(self):
+        self._filename_prefix = ''
+        if str(Path.cwd()).endswith('src'):
+            self._filename_prefix = '../'
+        return self._filename_prefix
 
     def _get_filename_network(self, extension='.hdf5'):
-
+        filename_prefix = self._get_filename_prefix()
         variables = ['N_tot', 'N_ages', 'rho', 'sigma_mu', 'algo']
         d = {key: self.cfg[key] for key in variables}
         d['ID'] = self.ID
-
-        filename = Path('Data') / 'network_initialization'
+        filename = Path(f'{filename_prefix}Data') / 'network_initialization'
         file_string = ''
         for key, val in d.items():
             file_string += f"{key}__{val}__"
@@ -710,8 +695,9 @@ class Simulation:
 
 
     def _prepare_memory_file(self):
+        self.time_start = Time.time()
         self.do_track_memory = True if self.ID == 0 else False
-        self._memory_file = self.filename.replace('.csv', '.memory_file.txt')
+        self._memory_file = self._filename_prefix + self.filename.replace('.csv', '.memory_file.txt')
         if self.ID == 0:
             utils.make_sure_folder_exist(self._memory_file) # make sure parent folder exists
             utils.delete_file(self._memory_file)
@@ -726,11 +712,11 @@ class Simulation:
         if self.do_track_memory:
             if s is not None:
                 print("#"+s, file=open(self._memory_file, 'a'))
-            print(Time.time(), self.current_memory_usage, file=open(self._memory_file, 'a'), sep='\t')  # GiB
+            print(Time.time()-self.time_start, self.current_memory_usage, file=open(self._memory_file, 'a'), sep='\t')  # GiB
 
 
     def _load_coordinates(self):
-        coordinates = np.load('../Data/GPS_coordinates.npy')
+        coordinates = np.load(self._filename_prefix + 'Data/GPS_coordinates.npy')
         if self.cfg.N_tot > len(coordinates):
             raise AssertionError("N_tot cannot be larger than coordinates (number of generated houses in DK)")
 
@@ -743,22 +729,25 @@ class Simulation:
     def _initialize_network(self):
 
         cfg = self.cfg
-        verbose = self.verbose
+
+        if self.verbose:
+            print("INITIALIZE NETWORK")
+        self.track_memory('Initialize Network')
 
         which_connections = utils.initialize_nested_lists(cfg.N_tot, dtype=np.uint32) # initialize_list_set
-        N_connections = np.zeros(cfg.N_tot, dtype=np.uint16)
-        individual_rates = utils.initialize_nested_lists(cfg.N_tot, dtype=np.float32)
+        # N_connections = np.zeros(cfg.N_tot, dtype=np.uint16)
+        # individual_rates = utils.initialize_nested_lists(cfg.N_tot, dtype=np.float32)
 
         rho_scale = 1000 # scale factor of rho
+        # cfg.mu /= 2 # fix to factor in that both nodes have connections with each other
 
         # age variables
         age_matrix_relative_interactions = simulation_utils.calculate_age_proportions_1D(1.0, cfg.N_ages)
         age_relative_proportions = simulation_utils.calculate_age_proportions_2D(cfg.age_mixing, cfg.N_ages)
-        age_matrix = age_matrix_relative_interactions * age_relative_proportions * cfg.mu * cfg.N_tot
+        age_matrix = age_matrix_relative_interactions * age_relative_proportions * (cfg.mu / 2) * cfg.N_tot
 
-        if verbose:
+        if self.verbose:
             print("MAKE RATES AND CONNECTIONS")
-
         self.track_memory('Rates and Connections')
 
         connection_weight, infection_weight = initialize_connections_and_rates(cfg.N_tot, cfg.sigma_mu, cfg.beta, cfg.sigma_beta, cfg.beta_scaling)
@@ -767,9 +756,8 @@ class Simulation:
         # # # # # # # # # # # # # # # # AGES  # # # # # # # # # # # # # # # # # # # # #
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-        if verbose:
+        if self.verbose:
             print("MAKE AGES")
-
         self.track_memory('Ages')
 
         ages, ages_total_counts, ages_in_state, PT_ages, PC_ages, PP_ages = initialize_ages(cfg.N_tot, cfg.N_ages, connection_weight)
@@ -778,25 +766,117 @@ class Simulation:
         # # # # # # # # # # # CONNECT NODES # # # # # # # # # # # # # # # # # # # # # # # # #
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-        if verbose:
+        if self.verbose:
             print("CONNECT NODES")
-
         self.track_memory('Connecting Nodes')
 
-        connect_nodes(cfg.mu, cfg.epsilon_rho, cfg.rho, cfg.algo, PP_ages, N_connections, individual_rates, which_connections, self.coordinates, infection_weight, rho_scale, cfg.N_ages, age_matrix, ages_in_state, verbose)
+        connect_nodes(cfg.epsilon_rho, cfg.rho, cfg.algo, PP_ages, which_connections, self.coordinates, rho_scale, cfg.N_ages, age_matrix, ages_in_state, verbose)
 
         return which_connections, ages
 
 
-    def initialize_network(self):
+    def _save_network_initalization(self, ages, which_connections, time_elapsed):
+        self.track_memory('Saving network initialization')
+        utils.make_sure_folder_exist(self.filename_network)
+        with h5py.File(self.filename_network, "w") as f: #
+            f.create_dataset("cfg_str", data=str(self.cfg)) # import ast; ast.literal_eval(str(cfg))
+            f.create_dataset("ages", data=ages)
+            awkward0.hdf5(f)["which_connections"] = which_connections
+            for key, val in self.cfg.items():
+                f.attrs[key] = val
+            f.create_dataset("time_elapsed", data=time_elapsed)
 
-        if Path(self.filename_network).exists():
+
+    def _load_network_initalization(self):
+        self.track_memory('Loading network initialization')
+        with h5py.File(self.filename_network, 'r') as f:
+            ages = f["ages"][()]
+            which_connections = awkward0.hdf5(f)["which_connections"]
+        return ages, ak.from_awkward0(which_connections)
+
+
+    def initialize_network(self, force_rerun=False):
+
+        if Path(self.filename_network).exists() and not force_rerun:
             print(f"{self.filename_network} exists")
-            return None
+            ages, which_connections = self._load_network_initalization()
+
         else:
             print(f"{self.filename_network} does not exist, creating it")
+            with Timer() as t, warnings.catch_warnings():
+                which_connections, ages = self._initialize_network()
+            which_connections = utils.nested_list_to_awkward_array(which_connections)
+            self._save_network_initalization(ages=ages,
+                                             which_connections=ak.to_awkward0(which_connections),
+                                             time_elapsed=t.elapsed)
 
-        return self._initialize_network()
+        self.ages = ages
+        self.which_connections = which_connections
+        self.N_connections = utils.get_lengths_of_nested_list(which_connections)
+
+
+    def make_initial_infections(self):
+
+        if self.verbose:
+            print("INITIAL INFECTIONS")
+        self.track_memory('Initial Infections')
+
+        cfg = self.cfg
+
+        np.random.seed(self.ID)
+
+        self.nts = 0.1 # Time step (0.1 - ten times a day)
+        self.N_states = 9 # number of states
+        self.initial_ages_exposed = np.arange(cfg.N_ages)
+
+
+        self.which_connections_reference = self.which_connections.copy()
+        # self.N_connections = utils.get_lengths_of_nested_list(self.which_connections)
+        self.N_connections_reference = self.N_connections.copy()
+
+        self.individual_rates = simulation_utils.compute_individual_rates(cfg.N_tot, cfg.beta, self.N_connections)
+
+        self.which_state = np.full(cfg.N_tot, -1, dtype=np.int8)
+        self.state_total_counts = np.zeros(self.N_states, dtype=np.uint32)
+        self.agents_in_state = utils.initialize_nested_lists(self.N_states, dtype=np.uint32)
+
+        self.csMov = np.zeros(N_states, dtype=np.float64)
+
+        self.cs_move_individual = utils.initialize_nested_lists(self.N_states, dtype=np.float64)
+
+        self.SIR_transition_rates = simulation_utils.initialize_SIR_transition_rates(self.N_states, cfg)
+
+        self.ages_in_state = np.unique(self.ages)
+
+        self.TotMov = make_initial_infections(cfg.N_init, self.which_state, self.state_total_counts, self.agents_in_state, self.csMov, self.N_connections_reference, self.which_connections, self.which_connections_reference, self.N_connections, self.individual_rates, self.SIR_transition_rates, self.ages_in_state, self.initial_ages_exposed, self.cs_move_individual)
+
+
+
+
+
+#%%
+
+if True:
+
+    reload(utils)
+
+    verbose = True
+    filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
+
+    simulation = Simulation(filename, verbose)
+    simulation.initialize_network(force_rerun=False)
+
+    print(simulation.ages)
+    print(simulation.which_connections)
+
+    which_connections = simulation.which_connections
+    ages = simulation.ages
+
+    simulation.make_initial_infections()
+
+    utils.get_lengths_of_nested_list(simulation.which_connections)
+
+#%%
 
 
 
@@ -826,10 +906,8 @@ def single_run_numba(N_tot, N_init, N_ages, mu, sigma_mu, beta, sigma_beta, rho,
     # coordinates = np.load('Data/GPS_coordinates.npy')[:N_tot]
     # verbose = True
 
-
     # if do_track_memory:
     track_memory('Initialize Variables')
-
 
     tau_I = 1 # start to turn off contacts when infected (I) is more than tau_I * N_tot
     delta_days = 10
@@ -999,32 +1077,6 @@ def get_awkward_filename(filename, extension='.awkw'):
     filename = filename / file_string
     return str(filename)
 
-from numba import typeof
-def get_numba_list_dtype(x):
-    dtype = str(typeof(nested_list)).split('[')[-1].split(']')[0]
-    return getattr(np, dtype)
-
-@njit
-def flatten_nested_list(nested_list):
-    res = List()
-    for lst in nested_list:
-        for x in lst:
-            res.append(x)
-    return np.asarray(res)
-
-@njit
-def get_cumulative_indices(nested_list, index_dtype=np.int64):
-    index = np.zeros(len(nested_list)+1, index_dtype)
-    for i, lst in enumerate(nested_list):
-        index[i+1] = index[i] + len(lst)
-    return index
-
-def nested_list_to_awkward_array(nested_list, index_dtype=np.int64):
-    content = ak.layout.NumpyArray(flatten_nested_list(nested_list))
-    index = ak.layout.Index32(get_cumulative_indices(nested_list, index_dtype))
-    listoffsetarray = ak.layout.ListOffsetArray32(index, content)
-    array = ak.Array(listoffsetarray)
-    return array
 
 # @njit
 # def _nested_lists_to_lists_of_arrays(nested_list, dtype):

@@ -78,7 +78,7 @@ def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=
     if Path(pdf_name).exists() and not force_overwrite:
         print(f"{pdf_name} already exists")
         return None
-    
+
     else:
         from matplotlib.backends.backend_pdf import PdfPages
 
@@ -97,7 +97,7 @@ def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=
 
                 Tmax = 0
                 lw = 0.1 * 10 / np.sqrt(len(ID_files))
-                
+
                 it = enumerate(ID_files[:max_N_plots]) if max_N_plots < len(ID_files) else enumerate(ID_files[:max_N_plots])
 
                 for i, filename_ID in it:
@@ -109,7 +109,7 @@ def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=
                     label = 'Simulations' if i == 0 else None
                     ax.plot(df['Time'].values, df[parameter].values, lw=lw, c='k', label=label)
                     if df['Time'].max() > Tmax:
-                        Tmax = df['Time'].max() 
+                        Tmax = df['Time'].max()
 
                 Tmax = max(Tmax, 50)
                 df_fit = ODE_integrate_cfg_to_df(cfg, Tmax, dt=0.01, ts=0.1)
@@ -118,7 +118,7 @@ def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=
                 leg = ax.legend(loc=d_label_loc[parameter])
                 for legobj in leg.legendHandles:
                     legobj.set_linewidth(2.0)
-                
+
                 try:
                     title = dict_to_title(cfg, len(ID_files))
                 except KeyError as e:
@@ -126,7 +126,7 @@ def plot_SIR_model_comparison(parameter='I', force_overwrite=False, max_N_plots=
                     raise e
 
                 ax.set(title=title, xlabel='Time', ylim=(0, None), ylabel=d_ylabel[parameter])
-                
+
                 ax.set_rasterized(True)
                 ax.set_rasterization_zorder(0)
 
@@ -140,12 +140,12 @@ def get_d_translate():
                     'N_ages': r'N_\mathrm{ages}',
                     'mu': r'\mu',
                     'sigma_mu': r'\sigma_\mu',
-                    'beta': r'\beta', 
-                    'sigma_beta': r'\sigma_\beta',  
-                    'rho': r'\rho', 
+                    'beta': r'\beta',
+                    'sigma_beta': r'\sigma_\beta',
+                    'rho': r'\rho',
                     'lambda_E': r'\lambda_E',
                     'lambda_I': r'\lambda_I',
-                    'epsilon_rho': r'\epsilon_\rho', 
+                    'epsilon_rho': r'\epsilon_\rho',
                     'beta_scaling': r'\beta_\mathrm{scaling}',
                     'age_mixing': r'\mathrm{age}_\mathrm{mixing}',
                     'algo': r'\mathrm{algo}',
@@ -167,7 +167,7 @@ def dict_to_title(d, N=None, exclude=None, in_two_line=True):
     title = "$"
     for sim_par, val in cfg.items():
         if not sim_par == exclude:
-            title += f"{d_translate[sim_par]} = {val}, \," 
+            title += f"{d_translate[sim_par]} = {val}, \,"
 
     if in_two_line:
         if 'lambda_E' in title:
@@ -188,13 +188,13 @@ def dict_to_title(d, N=None, exclude=None, in_two_line=True):
     #         if not d_translate[exclude] in s:
     #             new_title += f"{s} "
     #     title = new_title[:-1]
-    
+
     return title
 
 
 # conda install -c numba icc_rt
 @njit
-def ODE_integrate(y0, Tmax, dt, ts, mu, lambda_E, lambda_I, beta): 
+def ODE_integrate(y0, Tmax, dt, ts, mu, lambda_E, lambda_I, beta):
 
     S, N_tot, E1, E2, E3, E4, I1, I2, I3, I4, R = y0
     mu /= 2 # to correct for mu scaling
@@ -226,7 +226,7 @@ def ODE_integrate(y0, Tmax, dt, ts, mu, lambda_E, lambda_I, beta):
         E2 = E2 + dt*dE2
         E3 = E3 + dt*dE3
         E4 = E4 + dt*dE4
-        
+
         I1 += dt*dI1
         I2 += dt*dI2
         I3 += dt*dI3
@@ -236,8 +236,8 @@ def ODE_integrate(y0, Tmax, dt, ts, mu, lambda_E, lambda_I, beta):
 
         if Time >= ts*click: # - t0:
             ODE_result_SIR[click, :] = [
-                            S, 
-                            E1+E2+E3+E4, 
+                            S,
+                            E1+E2+E3+E4,
                             I1+I2+I3+I4,
                             R,
                             Time, # RT
@@ -261,9 +261,9 @@ from iminuit import describe
 
 
 class CustomChi2:  # override the class with a better one
-    
+
     def __init__(self, t_interpolated, y_truth, y0, Tmax, dt, ts, mu, y_min=100):
-        
+
         self.t_interpolated = t_interpolated
         self.y_truth = y_truth#.to_numpy(int)
         self.y0 = y0
@@ -329,7 +329,7 @@ class CustomChi2:  # override the class with a better one
             pass
 
         return None
-    
+
     def get_fit_par(self, parameter):
         return self.fit_values[parameter], self.fit_errors[parameter]
 
@@ -341,8 +341,8 @@ class CustomChi2:  # override the class with a better one
         return df_fit_parameters
 
     def get_correlations(self):
-        return pd.DataFrame(self.correlations, 
-                            index=self.parameters, 
+        return pd.DataFrame(self.correlations,
+                            index=self.parameters,
                             columns=self.parameters)
 
     def calc_df_fit(self, ts=0.01, values=None, Tmax=None):
@@ -365,7 +365,7 @@ class CustomChi2:  # override the class with a better one
         ODE_result_SIR = self._calc_ODE_result_SIR(lambda_E, lambda_I, beta, ts=ts)
         I_max = np.max(ODE_result_SIR[:, 2])
         return I_max
-    
+
     def compute_R_inf(self, ts=0.1, values=None, Tmax=None):
         if values is None:
             values = self.values
@@ -398,20 +398,6 @@ def uniform(a, b):
     scale = b-a
     return sp_uniform(loc, scale)
 
-
-def human_format(num, decimals=None):
-    num = float('{:.3g}'.format(num))
-    magnitude = 0
-    while abs(num) >= 1000:
-        magnitude += 1
-        num /= 1000.0
-    if decimals is not None:
-        num = round(num, decimals)
-        # if decimals == 0:
-            # num = num[0]
-    return '{}{}'.format('{:f}'.format(num).rstrip('0').rstrip('.'), ['', 'K', 'M', 'B', 'T'][magnitude])
-
-
 # %%%%
 
 from collections import defaultdict
@@ -438,9 +424,9 @@ def try_refit(fit_object, cfg, FIT_MAX):
     continue_fit = True
     while continue_fit:
         N_refits += 1
-        param_grid = {'lambda_E': uniform(cfg.lambda_E/10, cfg.lambda_E*5), 
-                      'lambda_I': uniform(cfg.lambda_I/10, cfg.lambda_I*5), 
-                       'beta': uniform(cfg.beta/10, cfg.beta*5), 
+        param_grid = {'lambda_E': uniform(cfg.lambda_E/10, cfg.lambda_E*5),
+                      'lambda_I': uniform(cfg.lambda_I/10, cfg.lambda_I*5),
+                       'beta': uniform(cfg.beta/10, cfg.beta*5),
                        'tau': uniform(-10, 10),
                     }
         param_list = list(ParameterSampler(param_grid, n_iter=1))[0]
@@ -467,7 +453,7 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
     I_lockdown = I_lockdown_rel * cfg.N_tot # percent
     iloc_start = np.argmax(I_min <= df_interpolated['I'])
     iloc_lockdown = np.argmax(I_lockdown <= df_interpolated['I']) + 1
-    
+
     #return None if simulation never reaches minimum requirements
     if I_lockdown < I_min:
         print(f"\nI_lockdown < I_min ({I_lockdown:.1f} < {I_min}) for file: \n{filename}\n")
@@ -508,7 +494,7 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
     fit_object.I_max_ABN = I_max_ABN
     fit_object.I_max_fit = fit_object.compute_I_max()
     fit_object.I_max_SIR = I_max_SIR
-    
+
     fit_object.R_inf_ABN = R_inf_ABN
     fit_object.R_inf_fit = fit_object.compute_R_inf(Tmax=Tmax*2)
     fit_object.R_inf_SIR = R_inf_SIR
@@ -558,12 +544,12 @@ from tqdm import tqdm
 #     discarded_files = []
 #     all_fit_objects = {}
 #     for filename, fit_object, N_refits in results:
-        
+
 #         if fit_object is None:
 #             discarded_files.append(filename)
 #         else:
 #             all_fit_objects[filename] = fit_object
-        
+
 #         N_refits_total += N_refits
 
 #     return all_fit_objects, discarded_files, N_refits_total
@@ -587,7 +573,7 @@ def calc_fit_Imax_results(filenames, num_cores_max=30):
     for filename, fit_object in results:
         if fit_object:
             fit_objects[filename] = fit_object#.fit_objects_Imax
-    return fit_objects 
+    return fit_objects
 
 
 
@@ -679,7 +665,7 @@ def cut_percentiles(x, p1, p2=None):
     if p2 is None:
         p1 = p1/2
         p2 = 100 - p1
-    
+
     x = x[~np.isnan(x)]
 
     mask = (np.percentile(x, p1) < x) & (x < np.percentile(x, p2))
@@ -750,10 +736,10 @@ def foo_no_fit(filenames):
 
     Tmax = max(df['Time'].max()*1.2, 300)
     df_SIR = ODE_integrate_cfg_to_df(cfg, Tmax, dt=0.01, ts=0.1)
-    
+
     z_rel_I = I_max_ABN / df_SIR['I'].max()
     z_rel_R = R_inf_ABN / df_SIR['R'].iloc[-1]
-    
+
     return z_rel_I, z_rel_R, cfg
 
 
@@ -767,10 +753,10 @@ def foo_with_fit(filenames, fit_objects_all):
 
     # filename = filenames[0]
     for fit_object in fit_objects_all[sim_par].values():
-        
+
         z_rel_I.append( fit_object.I_max_ABN / fit_object.I_max_fit )
         z_rel_R.append( fit_object.R_inf_ABN / fit_object.R_inf_fit )
-    
+
     z_rel_I = np.array(z_rel_I)
     z_rel_R = np.array(z_rel_R)
 
@@ -829,7 +815,7 @@ def plot_1D_scan(parameter, fit_objects_all=None, do_log=False, **kwargs):
     if res is None:
         return None
     x, y_I, y_R, sy_I, sy_R, n, cfg = res
-    
+
 
     d_par_pretty = get_d_translate()
     title = dict_to_title(cfg, exclude=parameter)
@@ -845,26 +831,26 @@ def plot_1D_scan(parameter, fit_objects_all=None, do_log=False, **kwargs):
     mask = (n > 1)
 
     factor = 0.8
-    fig, (ax0, ax1) = plt.subplots(ncols=2, figsize=(16*factor, 9*factor)) # 
+    fig, (ax0, ax1) = plt.subplots(ncols=2, figsize=(16*factor, 9*factor)) #
     fig.suptitle(title, fontsize=28*factor)
 
     ax0.errorbar(x[mask], y_I[mask], sy_I[mask], fmt='.', color='black', ecolor='black', elinewidth=1, capsize=10)
-    ax0.errorbar(x[~mask], y_I[~mask], sy_I[~mask], fmt='.', color='grey', ecolor='grey', elinewidth=1, capsize=10) 
-    ax0.set_xlabel(xlabel) 
+    ax0.errorbar(x[~mask], y_I[~mask], sy_I[~mask], fmt='.', color='grey', ecolor='grey', elinewidth=1, capsize=10)
+    ax0.set_xlabel(xlabel)
 
     ax0.set_ylabel(r'$I_\mathrm{max}^\mathrm{ABN} \, / \,\, I_\mathrm{max}^\mathrm{'+normed_by+'}$')
 
     ax1.errorbar(x[mask], y_R[mask], sy_R[mask], fmt='.', color='black', ecolor='black', elinewidth=1, capsize=10)
-    ax1.errorbar(x[~mask], y_R[~mask], sy_R[~mask], fmt='.', color='grey', ecolor='grey', elinewidth=1, capsize=10) 
-    ax1.set_xlabel(xlabel) 
-    ax1.set_ylabel(r'$R_\infty^\mathrm{ABN} \, / \,\, R_\infty^\mathrm{'+normed_by+'}$') 
-    
+    ax1.errorbar(x[~mask], y_R[~mask], sy_R[~mask], fmt='.', color='grey', ecolor='grey', elinewidth=1, capsize=10)
+    ax1.set_xlabel(xlabel)
+    ax1.set_ylabel(r'$R_\infty^\mathrm{ABN} \, / \,\, R_\infty^\mathrm{'+normed_by+'}$')
+
     if do_log:
         ax0.set_xscale('log')
         ax1.set_xscale('log')
     fig.tight_layout()
     fig.subplots_adjust(top=0.8, wspace=0.45)
-    
+
     figname_pdf = f"Figures/1D_scan/1D_scan_{parameter}"
     for key, val in kwargs.items():
         figname_pdf += f"_{key}_{val}"

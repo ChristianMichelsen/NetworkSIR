@@ -2,6 +2,8 @@ import numpy as np
 from range_key_dict import RangeKeyDict # pip install range-key-dict
 from itertools import product
 from numba import njit
+from numba.typed import List, Dict
+
 
 INTEGER_SIMULATION_PARAMETERS = ['N_tot', 'N_init',  'N_ages', 'algo']
 
@@ -98,3 +100,24 @@ def calculate_age_proportions_2D(alpha_age, N_ages):
     for i in range(N_ages):
         A[i, i] = 1-np.sum(np.delete(A[i, :], i))
     return A
+
+@njit
+def _compute_individual_rates(N_tot, beta, N_connections):
+    res = List()
+    for i in range(N_tot):
+        ra = np.random.random() * beta
+        x = np.full(N_connections[i], fill_value=ra, dtype=np.float32)
+    return res
+
+def compute_individual_rates(N_tot, beta, N_connections):
+    res = _compute_individual_rates(N_tot, beta, N_connections)
+    res = utils.nested_list_to_awkward_array(res)
+    return res
+
+
+def initialize_SIR_transition_rates(N_states, cfg):
+    infectious_states = 4 # This means the 5'th state
+    SIR_transition_rates = np.zeros(N_states, dtype=np.float32)
+    SIR_transition_rates[:infectious_states] = cfg.lambda_E
+    SIR_transition_rates[infectious_states:2*infectious_states] = cfg.lambda_I
+    return SIR_transition_rates

@@ -6,9 +6,17 @@ import numba as nb
 from numba import njit, prange, objmode, typeof # conda install -c numba/label/dev numba
 from numba.typed import List, Dict
 
-import simulation_utils
-from simulation_utils import INTEGER_SIMULATION_PARAMETERS
+import awkward1 as ak # pip install awkward1
 
+try:
+    import simulation_utils
+    from simulation_utils import INTEGER_SIMULATION_PARAMETERS
+except ModuleNotFoundError:
+    try:
+        from src import simulation_utils
+        from src.simulation_utils import INTEGER_SIMULATION_PARAMETERS
+    except ModuleNotFoundError as e:
+        raise e
 
 def _is_ipython():
     try:
@@ -28,8 +36,8 @@ def is_local_computer(N_local_cores=8):
         return False
 
 
-def get_num_cores(num_cores_max=None):
-    num_cores = mp.cpu_count() - 1
+def get_num_cores(num_cores_max=None, subtract_cores=1):
+    num_cores = mp.cpu_count() - subtract_cores
     if num_cores_max and num_cores >= num_cores_max:
         num_cores = num_cores_max
     return num_cores
@@ -111,6 +119,43 @@ def initialize_list_set(N, dtype):
 @njit
 def get_size_gb(x):
     return x.size * x.itemsize / 10**9
+
+
+from numba import typeof
+def get_numba_list_dtype(x):
+    dtype = str(typeof(nested_list)).split('[')[-1].split(']')[0]
+    return getattr(np, dtype)
+
+@njit
+def flatten_nested_list(nested_list):
+    res = List()
+    for lst in nested_list:
+        for x in lst:
+            res.append(x)
+    return np.asarray(res)
+
+@njit
+def get_cumulative_indices(nested_list, index_dtype=np.int64):
+    index = np.zeros(len(nested_list)+1, index_dtype)
+    for i, lst in enumerate(nested_list):
+        index[i+1] = index[i] + len(lst)
+    return index
+
+def nested_list_to_awkward_array(nested_list, index_dtype=np.int64):
+    content = ak.layout.NumpyArray(flatten_nested_list(nested_list))
+    index = ak.layout.Index64(get_cumulative_indices(nested_list, index_dtype))
+    listoffsetarray = ak.layout.ListOffsetArray64(index, content)
+    array = ak.Array(listoffsetarray)
+    return array
+
+
+@njit
+def get_lengths_of_nested_list(nested_list):
+    N = len(nested_list)
+    res = np.zeros(N, dtype=np.uint16)
+    for i in range(N):
+        res[i] = len(nested_list[i])
+    return res
 
 
 #%%
@@ -256,7 +301,9 @@ class DotDict(dict):
         raise KeyError(f"'{item}' not in dict")
 
     def __setattr__(self, key, value):
-        if not '__' in key:
+        if key in self:
+            self[key] = value
+        elif not '__' in key:
             raise KeyError("Not allowed to change keys with dot notation, use brackets instead.")
 
     # make class pickle-able
@@ -280,7 +327,8 @@ class Filename:
 
     def _string_to_dict(self):
         d = {}
-        keyvals = str(Path(self.filename).stem).split('__')
+        filename_stripped = self.filename.replace('.animation', '')
+        keyvals = str(Path(filename_stripped).stem).split('__')
         keyvals_chunks = [keyvals[i:i + 2] for i in range(0, len(keyvals), 2)]
         for key, val in keyvals_chunks:
             if key in INTEGER_SIMULATION_PARAMETERS + ['ID']:
@@ -302,3 +350,20 @@ class Filename:
     @property
     def ID(self):
         return self.to_ID()
+
+
+#%%
+
+
+def human_format(num, decimals=None):
+    num = float('{:.3g}'.format(num))
+    magnitude = 0
+    while abs(num) >= 1000:
+        magnitude += 1
+        num /= 1000.0
+    if decimals is not None:
+        num = round(num, decimals)
+        # if decimals == 0:
+            # num = num[0]
+    return '{}{}'.format('{:f}'.format(num).rstrip('0').rstrip('.'), ['', 'K', 'M', 'B', 'T'][magnitude])
+
