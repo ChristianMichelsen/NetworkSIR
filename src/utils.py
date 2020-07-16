@@ -112,6 +112,14 @@ def initialize_nested_lists(N, dtype):
     return nested_list
 
 @njit
+def initialize_empty_set(dtype):
+    s = set()
+    x = dtype(1)
+    s.add(x) # trick to tell compiler which dtype
+    s.discard(x)
+    return s
+
+@njit
 def initialize_list_set(N, dtype):
     return [initialize_empty_set(dtype=dtype) for _ in range(N)]
 
@@ -141,12 +149,16 @@ def get_cumulative_indices(nested_list, index_dtype=np.int64):
         index[i+1] = index[i] + len(lst)
     return index
 
-def nested_list_to_awkward_array(nested_list, index_dtype=np.int64):
+def nested_list_to_awkward_array(nested_list, index_dtype=np.int64, return_lengths=False):
     content = ak.layout.NumpyArray(flatten_nested_list(nested_list))
     index = ak.layout.Index64(get_cumulative_indices(nested_list, index_dtype))
     listoffsetarray = ak.layout.ListOffsetArray64(index, content)
     array = ak.Array(listoffsetarray)
-    return array
+
+    if return_lengths:
+        return array, get_lengths_of_nested_list(nested_list)
+    else:
+        return array
 
 
 @njit
@@ -157,6 +169,13 @@ def get_lengths_of_nested_list(nested_list):
         res[i] = len(nested_list[i])
     return res
 
+
+@njit
+def get_lengths_of_nested_list2(nested_list, dtype=np.uint16):
+    res = List()
+    for i in range(len(nested_list)):
+        res.append(dtype(len(nested_list[i])))
+    return np.asarray(res)
 
 #%%
 # Counters in Numba

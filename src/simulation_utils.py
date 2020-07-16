@@ -3,7 +3,7 @@ from range_key_dict import RangeKeyDict # pip install range-key-dict
 from itertools import product
 from numba import njit
 from numba.typed import List, Dict
-
+import utils
 
 INTEGER_SIMULATION_PARAMETERS = ['N_tot', 'N_init',  'N_ages', 'algo']
 
@@ -101,12 +101,14 @@ def calculate_age_proportions_2D(alpha_age, N_ages):
         A[i, i] = 1-np.sum(np.delete(A[i, :], i))
     return A
 
+
 @njit
 def _compute_individual_rates(N_tot, beta, N_connections):
     res = List()
     for i in range(N_tot):
         ra = np.random.random() * beta
         x = np.full(N_connections[i], fill_value=ra, dtype=np.float32)
+        res.append(x)
     return res
 
 def compute_individual_rates(N_tot, beta, N_connections):
@@ -114,10 +116,27 @@ def compute_individual_rates(N_tot, beta, N_connections):
     res = utils.nested_list_to_awkward_array(res)
     return res
 
+@njit
+def initialize_non_infectable(N_tot, N_connections):
+    res = List()
+    for i in range(N_tot):
+        res.append(np.ones(N_connections[i], dtype=np.bool_))
+    return res
 
-def initialize_SIR_transition_rates(N_states, cfg):
-    infectious_states = 4 # This means the 5'th state
+def initialize_SIR_transition_rates(N_states, N_infectious_states, cfg):
     SIR_transition_rates = np.zeros(N_states, dtype=np.float32)
-    SIR_transition_rates[:infectious_states] = cfg.lambda_E
-    SIR_transition_rates[infectious_states:2*infectious_states] = cfg.lambda_I
+    SIR_transition_rates[:N_infectious_states] = cfg.lambda_E
+    SIR_transition_rates[N_infectious_states:2*N_infectious_states] = cfg.lambda_I
     return SIR_transition_rates
+
+@njit
+def _compute_ages_in_state(ages, N_ages):
+    ages_in_state = utils.initialize_nested_lists(N_ages, dtype=np.int32)
+    for idx, age in enumerate(ages): # prange
+        ages_in_state[age].append(np.int32(idx))
+    return ages_in_state
+
+def compute_ages_in_state(ages, N_ages):
+    ages_in_state = _compute_ages_in_state(ages, N_ages)
+    ages_in_state = utils.nested_list_to_awkward_array(ages_in_state)
+    return ages_in_state

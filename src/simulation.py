@@ -37,17 +37,17 @@ def initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, beta_sca
     connection_weight = np.ones(N_tot, dtype=np.float32)
     infection_weight = np.ones(N_tot, dtype=np.float32)
 
-    for i in range(N_tot):
+    for agent in range(N_tot):
 
         if (np.random.rand() < sigma_mu):
-            connection_weight[i] = 0.1 - np.log(np.random.rand())# / 1.0
+            connection_weight[agent] = 0.1 - np.log(np.random.rand())# / 1.0
         else:
-            connection_weight[i] = 1.1
+            connection_weight[agent] = 1.1
 
         if (np.random.rand() < sigma_beta):
-            infection_weight[i] = -np.log(np.random.rand())*beta
+            infection_weight[agent] = -np.log(np.random.rand())*beta
         else:
-            infection_weight[i] = beta
+            infection_weight[agent] = beta
 
         f = 0.1
         beta_scaling_up = 1 / (f + (1-f)/beta_scaling)
@@ -55,9 +55,9 @@ def initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, beta_sca
 
         ra_R0_change = np.random.rand()
         if ra_R0_change < f:
-            infection_weight[i] = infection_weight[i]*beta_scaling_up
+            infection_weight[agent] = infection_weight[agent]*beta_scaling_up
         else:
-            infection_weight[i] = infection_weight[i]*beta_scaling_down
+            infection_weight[agent] = infection_weight[agent]*beta_scaling_down
 
     return connection_weight, infection_weight
 
@@ -70,24 +70,24 @@ def initialize_ages(N_tot, N_ages, connection_weight):
     ages_total_counts = np.zeros(N_ages, dtype=np.uint32)
     ages_in_state = utils.initialize_nested_lists(N_ages, dtype=np.int32)
 
-    for idx in range(N_tot): # prange
+    for agent in range(N_tot): # prange
         age = np.random.randint(N_ages)
-        ages[idx] = age
+        ages[agent] = age
         ages_total_counts[age] += 1
-        ages_in_state[age].append(np.int32(idx))
+        ages_in_state[age].append(np.int32(agent))
 
 
     PT_ages = np.zeros(N_ages, dtype=np.float32)
     PC_ages = List()
     PP_ages = List()
-    for i_age_group in range(N_ages): # prange
-        indices = np.asarray(ages_in_state[i_age_group])
+    for age_group in range(N_ages): # prange
+        indices = np.asarray(ages_in_state[age_group])
         connection_weight_ages = connection_weight[indices]
         PT_age = np.sum(connection_weight_ages)
         PC_age = np.cumsum(connection_weight_ages)
         PP_age = PC_age / PT_age
 
-        PT_ages[i_age_group] = PT_age
+        PT_ages[age_group] = PT_age
         PC_ages.append(PC_age)
         PP_ages.append(PP_age)
 
@@ -95,19 +95,19 @@ def initialize_ages(N_tot, N_ages, connection_weight):
 
 
 @njit
-def update_node_connections(which_connections, coordinates, rho_tmp, rho_scale, continue_run, id1, id2):
-    if id1 != id2:
-        r = utils.haversine(coordinates[id1, 0], coordinates[id1, 1], coordinates[id2, 0], coordinates[id2, 1])
+def update_node_connections(which_connections, coordinates, rho_tmp, rho_scale, continue_run, agent1, agent2):
+    if agent1 != agent2:
+        r = utils.haversine_scipy(coordinates[agent1, :], coordinates[agent2, :])
         if np.exp(-r*rho_tmp/rho_scale) > np.random.rand():
 
-            which_connections[id1].append(id2)
-            which_connections[id2].append(id1)
+            which_connections[agent1].append(agent2)
+            which_connections[agent2].append(agent1)
             continue_run = False
 
-            # individual_rates[id1].append(infection_weight[id1]) # id1 -> id2
-            # individual_rates[id2].append(infection_weight[id2]) # Changed from id1
-            # N_connections[id1] += 1
-            # N_connections[id2] += 1
+            # individual_rates[agent1].append(infection_weight[agent1]) # agent1 -> agent2
+            # individual_rates[agent2].append(infection_weight[agent2]) # Changed from agent1
+            # N_connections[agent1] += 1
+            # N_connections[agent2] += 1
 
     return continue_run
 
@@ -118,31 +118,31 @@ def run_algo_2(PP_ages, m_i, m_j, which_connections, coordinates, rho_tmp, rho_s
     continue_run = True
     while continue_run:
 
-        id1 = np.searchsorted(PP_ages[m_i], np.random.rand())
-        id2 = np.searchsorted(PP_ages[m_j], np.random.rand())
+        agent1 = np.searchsorted(PP_ages[m_i], np.random.rand())
+        agent2 = np.searchsorted(PP_ages[m_j], np.random.rand())
 
-        id1 = ages_in_state[m_i][id1]
-        id2 = ages_in_state[m_j][id2]
+        agent1 = ages_in_state[m_i][agent1]
+        agent2 = ages_in_state[m_j][agent2]
 
-        continue_run = update_node_connections(which_connections, coordinates, rho_tmp, rho_scale, continue_run, id1, id2)
+        continue_run = update_node_connections(which_connections, coordinates, rho_tmp, rho_scale, continue_run, agent1, agent2)
 
 
 @njit
 def run_algo_1(PP_ages, m_i, m_j, which_connections, coordinates, rho_tmp, rho_scale, ages_in_state):
 
     ra1 = np.random.rand()
-    id1 = np.searchsorted(PP_ages[m_i], ra1)
-    id1 = ages_in_state[m_i][id1]
+    agent1 = np.searchsorted(PP_ages[m_i], ra1)
+    agent1 = ages_in_state[m_i][agent1]
 
     continue_run = True
     while continue_run:
         ra2 = np.random.rand()
-        id2 = np.searchsorted(PP_ages[m_j], ra2)
-        id2 = ages_in_state[m_j][id2]
+        agent2 = np.searchsorted(PP_ages[m_j], ra2)
+        agent2 = ages_in_state[m_j][agent2]
 
         rho_tmp *= 0.9995
 
-        continue_run = update_node_connections(which_connections, coordinates, rho_tmp, rho_scale, continue_run, id1, id2)
+        continue_run = update_node_connections(which_connections, coordinates, rho_tmp, rho_scale, continue_run, agent1, agent2)
 
 
 @njit
@@ -165,44 +165,61 @@ def connect_nodes(epsilon_rho, rho, algo, PP_ages, which_connections, coordinate
 
                 run_algo(PP_ages, m_i, m_j, which_connections, coordinates, rho_tmp, rho_scale, ages_in_state)
 
-                # if do_track_memory and (counter % (N_max//30) == 0):
-                #     with objmode():
-                #         track_memory()
+                if (counter % (N_max//30) == 0):
+                    with objmode():
+                        track_memory()
 
 
 
 
 @njit
-def make_initial_infections(N_init, which_state, state_total_counts, agents_in_state, csMov, N_connections_reference, which_connections, which_connections_reference, N_connections, individual_rates, SIR_transition_rates, ages_in_state, initial_ages_exposed, cs_move_individual):
+def make_initial_infections(N_init, which_state, state_total_counts, agents_in_state, csMov, N_connections_reference, which_connections, which_connections_reference, N_connections, individual_rates, SIR_transition_rates, ages_in_state, initial_ages_exposed, cs_move_individual, N_infectious_states):
 
     TotMov = 0.0
+    safe_agents = set()
 
-    possible_idxs = List()
+    possible_agents = List()
     for age_exposed in initial_ages_exposed:
         for agent in ages_in_state[age_exposed]:
-            possible_idxs.append(agent)
+            possible_agents.append(agent)
 
     ##  Now make initial infections
-    random_indices = np.random.choice(np.asarray(possible_idxs), size=N_init, replace=False)
-    # idx = random_indices[0]
-    for idx in random_indices:
-        new_state = np.random.randint(0, 4)
-        which_state[idx] = new_state
+    random_agents = np.random.choice(np.asarray(possible_agents), size=N_init, replace=False)
+    # agent = random_agents[0]
+    for agent in random_agents:
+        new_state = np.random.randint(0, N_infectious_states)
+        which_state[agent] = new_state
 
-        agents_in_state[new_state].append(idx)
+        agents_in_state[new_state].append(agent)
         state_total_counts[new_state] += 1
         TotMov += SIR_transition_rates[new_state]
         csMov[new_state:] += SIR_transition_rates[new_state]
 
-        for i1 in range(N_connections_reference[idx]):
-            Af = which_connections_reference[idx][i1]
-            for i2 in range(N_connections[Af]):
-                if which_connections[Af][i2] == idx:
-                    which_connections[Af].pop(i2)
-                    individual_rates[Af].pop(i2)
-                    N_connections[Af] -= 1
-                    break
-    return TotMov
+        safe_agents.add(np.uint32(agent))
+
+        for agent2 in which_connections_reference[agent]:
+            N_connections[agent2] -= 1
+            # for i2 in range(N_connections_reference[Af]):
+                # if which_connections[agent2][i2] == agent:
+
+                #     which_connections[Af].pop(i2)
+                #     individual_rates[Af].pop(i2)
+
+                #     N_connections[Af] -= 1
+                #     break
+
+        # old method
+        # for i1 in range(N_connections_reference[agent]):
+        #     Af = which_connections_reference[agent][i1]
+        #     for i2 in range(N_connections[Af]):
+        #         if which_connections[Af][i2] == agent:
+
+        #             which_connections[Af].pop(i2)
+        #             individual_rates[Af].pop(i2)
+
+        #             N_connections[Af] -= 1
+        #             break
+    return TotMov, safe_agents
 
 
 #%%
@@ -770,17 +787,21 @@ class Simulation:
             print("CONNECT NODES")
         self.track_memory('Connecting Nodes')
 
+        global track_memory
+        track_memory = self.track_memory
+
         connect_nodes(cfg.epsilon_rho, cfg.rho, cfg.algo, PP_ages, which_connections, self.coordinates, rho_scale, cfg.N_ages, age_matrix, ages_in_state, verbose)
 
         return which_connections, ages
 
 
-    def _save_network_initalization(self, ages, which_connections, time_elapsed):
+    def _save_network_initalization(self, ages, N_connections, which_connections, time_elapsed):
         self.track_memory('Saving network initialization')
         utils.make_sure_folder_exist(self.filename_network)
         with h5py.File(self.filename_network, "w") as f: #
             f.create_dataset("cfg_str", data=str(self.cfg)) # import ast; ast.literal_eval(str(cfg))
             f.create_dataset("ages", data=ages)
+            f.create_dataset("N_connections", data=N_connections)
             awkward0.hdf5(f)["which_connections"] = which_connections
             for key, val in self.cfg.items():
                 f.attrs[key] = val
@@ -791,28 +812,30 @@ class Simulation:
         self.track_memory('Loading network initialization')
         with h5py.File(self.filename_network, 'r') as f:
             ages = f["ages"][()]
+            N_connections = f["N_connections"][()]
             which_connections = awkward0.hdf5(f)["which_connections"]
-        return ages, ak.from_awkward0(which_connections)
+        return ages, N_connections, ak.from_awkward0(which_connections)
 
 
     def initialize_network(self, force_rerun=False):
 
         if Path(self.filename_network).exists() and not force_rerun:
             print(f"{self.filename_network} exists")
-            ages, which_connections = self._load_network_initalization()
+            ages, N_connections, which_connections = self._load_network_initalization()
 
         else:
             print(f"{self.filename_network} does not exist, creating it")
             with Timer() as t, warnings.catch_warnings():
                 which_connections, ages = self._initialize_network()
-            which_connections = utils.nested_list_to_awkward_array(which_connections)
+            which_connections, N_connections = utils.nested_list_to_awkward_array(which_connections, return_lengths=True)
             self._save_network_initalization(ages=ages,
+                                             N_connections=N_connections,
                                              which_connections=ak.to_awkward0(which_connections),
                                              time_elapsed=t.elapsed)
 
         self.ages = ages
         self.which_connections = which_connections
-        self.N_connections = utils.get_lengths_of_nested_list(which_connections)
+        self.N_connections = N_connections
 
 
     def make_initial_infections(self):
@@ -827,6 +850,7 @@ class Simulation:
 
         self.nts = 0.1 # Time step (0.1 - ten times a day)
         self.N_states = 9 # number of states
+        self.N_infectious_states = 4 # This means the 5'th state
         self.initial_ages_exposed = np.arange(cfg.N_ages)
 
 
@@ -840,17 +864,28 @@ class Simulation:
         self.state_total_counts = np.zeros(self.N_states, dtype=np.uint32)
         self.agents_in_state = utils.initialize_nested_lists(self.N_states, dtype=np.uint32)
 
-        self.csMov = np.zeros(N_states, dtype=np.float64)
+        self.csMov = np.zeros(self.N_states, dtype=np.float64)
 
         self.cs_move_individual = utils.initialize_nested_lists(self.N_states, dtype=np.float64)
 
-        self.SIR_transition_rates = simulation_utils.initialize_SIR_transition_rates(self.N_states, cfg)
+        self.SIR_transition_rates = simulation_utils.initialize_SIR_transition_rates(self.N_states, self.N_infectious_states, cfg)
 
-        self.ages_in_state = np.unique(self.ages)
+        self.ages_in_state = simulation_utils.compute_ages_in_state(self.ages, cfg.N_ages)
 
-        self.TotMov = make_initial_infections(cfg.N_init, self.which_state, self.state_total_counts, self.agents_in_state, self.csMov, self.N_connections_reference, self.which_connections, self.which_connections_reference, self.N_connections, self.individual_rates, self.SIR_transition_rates, self.ages_in_state, self.initial_ages_exposed, self.cs_move_individual)
+        self.TotMov, self.safe_agents = make_initial_infections(cfg.N_init, self.which_state, self.state_total_counts, self.agents_in_state, self.csMov, self.N_connections_reference, self.which_connections, self.which_connections_reference, self.N_connections, self.individual_rates, self.SIR_transition_rates, self.ages_in_state, self.initial_ages_exposed, self.cs_move_individual, self.N_infectious_states)
 
 
+
+    def run_simulation(self):
+
+
+        if self.verbose:
+            print("RUN SIMULATION")
+        self.track_memory('Simulation')
+
+        cfg = self.cfg
+
+        run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, infectious_states, N_connections, individual_rates, N_connections_reference, which_connections_reference, which_connections, ages, individual_infection_counter, cs_move_individual, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, mu, tau_I, delta_days, N_contacts_remove, nts, verbose)
 
 
 
@@ -859,590 +894,589 @@ class Simulation:
 if True:
 
     reload(utils)
+    reload(simulation_utils)
 
     verbose = True
     filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
 
     simulation = Simulation(filename, verbose)
-    simulation.initialize_network(force_rerun=False)
-
-    print(simulation.ages)
-    print(simulation.which_connections)
+    simulation.initialize_network(force_rerun=True)
 
     which_connections = simulation.which_connections
     ages = simulation.ages
 
     simulation.make_initial_infections()
-
-    utils.get_lengths_of_nested_list(simulation.which_connections)
-
-#%%
-
+    simulation.safe_agents
+    # safe_agents = utils.initialize_empty_set(dtype=np.uint32)
 
 
 #%%
 
 
+#%%
+
+#%%
 
 
-# @njit
-def single_run_numba(N_tot, N_init, N_ages, mu, sigma_mu, beta, sigma_beta, rho, lambda_E, lambda_I, algo, epsilon_rho, beta_scaling, age_mixing, ID, coordinates, verbose=False):
 
-    # N_tot = 50_000 # Total number of nodes!
-    # N_init = 100 # Initial Infected
-    # N_ages = 10 #
-    # mu = 40.0  # Average number of connections of a node (init: 20)
-    # sigma_mu = 1.0 # Spread (skewness) in N connections
-    # beta = 0.01 # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
-    # sigma_beta = 0.0 # Spread in rates, beta (beta_eff = beta - sigma_beta+2*sigma_beta*rand[0,1])... could be exponential?
-    # rho = 0 # Spacial dependency. Average distance to connect with.
-    # lambda_E = 1.0 # E->I, Lambda(from E states)
-    # lambda_I = 1.0 # I->R, Lambda(from I states)
-    # algo = 1 # node connection algorithm
-    # epsilon_rho = 0.01 # fraction of connections not depending on distance
-    # beta_scaling = 50.0 # 0: as normal, 1: half of all (beta)rates are set to 0 the other half doubled
-    # age_mixing = 1.0
-    # ID = 0
-    # coordinates = np.load('Data/GPS_coordinates.npy')[:N_tot]
-    # verbose = True
+# # @njit
+# def single_run_numba(N_tot, N_init, N_ages, mu, sigma_mu, beta, sigma_beta, rho, lambda_E, lambda_I, algo, epsilon_rho, beta_scaling, age_mixing, ID, coordinates, verbose=False):
 
-    # if do_track_memory:
-    track_memory('Initialize Variables')
+#     # N_tot = 50_000 # Total number of nodes!
+#     # N_init = 100 # Initial Infected
+#     # N_ages = 10 #
+#     # mu = 40.0  # Average number of connections of a node (init: 20)
+#     # sigma_mu = 1.0 # Spread (skewness) in N connections
+#     # beta = 0.01 # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
+#     # sigma_beta = 0.0 # Spread in rates, beta (beta_eff = beta - sigma_beta+2*sigma_beta*rand[0,1])... could be exponential?
+#     # rho = 0 # Spacial dependency. Average distance to connect with.
+#     # lambda_E = 1.0 # E->I, Lambda(from E states)
+#     # lambda_I = 1.0 # I->R, Lambda(from I states)
+#     # algo = 1 # node connection algorithm
+#     # epsilon_rho = 0.01 # fraction of connections not depending on distance
+#     # beta_scaling = 50.0 # 0: as normal, 1: half of all (beta)rates are set to 0 the other half doubled
+#     # age_mixing = 1.0
+#     # ID = 0
+#     # coordinates = np.load('Data/GPS_coordinates.npy')[:N_tot]
+#     # verbose = True
 
-    tau_I = 1 # start to turn off contacts when infected (I) is more than tau_I * N_tot
-    delta_days = 10
-    N_contacts_remove = 0.05 # percent
+#     # if do_track_memory:
+#     track_memory('Initialize Variables')
 
-    np.random.seed(ID)
+#     tau_I = 1 # start to turn off contacts when infected (I) is more than tau_I * N_tot
+#     delta_days = 10
+#     N_contacts_remove = 0.05 # percent
 
-    nts = 0.1 # Time step (0.1 - ten times a day)
-    N_states = 9 # number of states
-    rho_scale = 1000 # scale factor of rho
-    initial_ages_exposed = np.arange(N_ages)
-    mu /= 2 # fix to factor in that both nodes have connections with each other
+#     np.random.seed(ID)
 
-    # For generating Network
-    which_connections = utils.initialize_nested_lists(N_tot, dtype=np.uint32) # initialize_list_set
-    which_connections_reference = utils.initialize_nested_lists(N_tot, dtype=np.uint32) # initialize_list_set
-    individual_rates = utils.initialize_nested_lists(N_tot, dtype=np.float32)
-    agents_in_state = utils.initialize_nested_lists(N_states, dtype=np.uint32)
+#     nts = 0.1 # Time step (0.1 - ten times a day)
+#     N_states = 9 # number of states
+#     rho_scale = 1000 # scale factor of rho
+#     initial_ages_exposed = np.arange(N_ages)
+#     mu /= 2 # fix to factor in that both nodes have connections with each other
 
-    state_total_counts = np.zeros(N_states, dtype=np.uint32)
-    SIR_transition_rates = np.zeros(N_states, dtype=np.float32)
+#     # For generating Network
+#     which_connections = utils.initialize_nested_lists(N_tot, dtype=np.uint32) # initialize_list_set
+#     which_connections_reference = utils.initialize_nested_lists(N_tot, dtype=np.uint32) # initialize_list_set
+#     individual_rates = utils.initialize_nested_lists(N_tot, dtype=np.float32)
+#     agents_in_state = utils.initialize_nested_lists(N_states, dtype=np.uint32)
 
-    N_connections = np.zeros(N_tot, dtype=np.uint16)
-    N_connections_reference = np.zeros(N_tot, dtype=np.uint16)
+#     state_total_counts = np.zeros(N_states, dtype=np.uint32)
+#     SIR_transition_rates = np.zeros(N_states, dtype=np.float32)
 
-    # which_state = -1*np.ones(N_tot, dtype=np.int8)
-    which_state = np.full(N_tot, -1, dtype=np.int8)
+#     N_connections = np.zeros(N_tot, dtype=np.uint16)
+#     N_connections_reference = np.zeros(N_tot, dtype=np.uint16)
 
-    csMov = np.zeros(N_states, dtype=np.float64)
-    csInf = np.zeros(N_states, dtype=np.float64)
-    InfRat = np.zeros(N_tot, dtype=np.float64)
+#     # which_state = -1*np.ones(N_tot, dtype=np.int8)
+#     which_state = np.full(N_tot, -1, dtype=np.int8)
 
-    infectious_states = 4 # This means the 5'th state
-    SIR_transition_rates[:infectious_states] = lambda_E
-    SIR_transition_rates[infectious_states:2*infectious_states] = lambda_I
+#     csMov = np.zeros(N_states, dtype=np.float64)
+#     csInf = np.zeros(N_states, dtype=np.float64)
+#     InfRat = np.zeros(N_tot, dtype=np.float64)
 
-    # individual_infection_counter = Counter_int32_uint16()
-    individual_infection_counter = np.zeros(N_tot, dtype=np.uint16)
+#     infectious_states = 4 # This means the 5'th state
+#     SIR_transition_rates[:infectious_states] = lambda_E
+#     SIR_transition_rates[infectious_states:2*infectious_states] = lambda_I
 
-    cs_move_individual = utils.initialize_nested_lists(N_states, dtype=np.float64)
-    cs_inf_individual = utils.initialize_nested_lists(N_states, dtype=np.float64)
+#     # individual_infection_counter = Counter_int32_uint16()
+#     individual_infection_counter = np.zeros(N_tot, dtype=np.uint16)
 
-    # age variables
-    age_matrix_relative_interactions = calculate_age_proportions_1D(1.0, N_ages)
-    age_relative_proportions = calculate_age_proportions_2D(age_mixing, N_ages)
-    age_matrix = age_matrix_relative_interactions * age_relative_proportions * mu * N_tot
+#     cs_move_individual = utils.initialize_nested_lists(N_states, dtype=np.float64)
+#     cs_inf_individual = utils.initialize_nested_lists(N_states, dtype=np.float64)
 
-    # Hospitalization track variables
-    H_N_states = 6 # number of states
-    H_state_total_counts = np.zeros(H_N_states, dtype=np.uint32)
-    # H_which_state = -1*np.ones(N_tot, dtype=np.int8)
-    H_which_state = np.full(N_tot, -1, dtype=np.int8)
+#     # age variables
+#     age_matrix_relative_interactions = calculate_age_proportions_1D(1.0, N_ages)
+#     age_relative_proportions = calculate_age_proportions_2D(age_mixing, N_ages)
+#     age_matrix = age_matrix_relative_interactions * age_relative_proportions * mu * N_tot
 
-    H_agents_in_state = utils.initialize_nested_lists(H_N_states, dtype=np.uint32)
-    H_probability_matrix = np.ones((N_ages, H_N_states), dtype=np.float32) / H_N_states
-    H_probability_matrix_csum = numba_cumsum(H_probability_matrix, axis=1)
+#     # Hospitalization track variables
+#     H_N_states = 6 # number of states
+#     H_state_total_counts = np.zeros(H_N_states, dtype=np.uint32)
+#     # H_which_state = -1*np.ones(N_tot, dtype=np.int8)
+#     H_which_state = np.full(N_tot, -1, dtype=np.int8)
 
-    H_move_matrix = np.zeros((H_N_states, H_N_states, N_ages), dtype=np.float32)
-    H_move_matrix[0, 1] = 0.3
-    H_move_matrix[1, 2] = 1.0
-    H_move_matrix[2, 1] = 0.6
-    H_move_matrix[1, 4] = 0.1
-    H_move_matrix[2, 3] = 0.1
-    H_move_matrix[3, 4] = 1.0
-    H_move_matrix[3, 5] = 0.1
+#     H_agents_in_state = utils.initialize_nested_lists(H_N_states, dtype=np.uint32)
+#     H_probability_matrix = np.ones((N_ages, H_N_states), dtype=np.float32) / H_N_states
+#     H_probability_matrix_csum = numba_cumsum(H_probability_matrix, axis=1)
 
-    H_move_matrix_sum = np.sum(H_move_matrix, axis=1)
-    H_move_matrix_cumsum = numba_cumsum(H_move_matrix, axis=1)
+#     H_move_matrix = np.zeros((H_N_states, H_N_states, N_ages), dtype=np.float32)
+#     H_move_matrix[0, 1] = 0.3
+#     H_move_matrix[1, 2] = 1.0
+#     H_move_matrix[2, 1] = 0.6
+#     H_move_matrix[1, 4] = 0.1
+#     H_move_matrix[2, 3] = 0.1
+#     H_move_matrix[3, 4] = 1.0
+#     H_move_matrix[3, 5] = 0.1
 
-    H_cumsum_move = np.zeros(H_N_states, dtype=np.float64)
+#     H_move_matrix_sum = np.sum(H_move_matrix, axis=1)
+#     H_move_matrix_cumsum = numba_cumsum(H_move_matrix, axis=1)
 
-
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    # # # # # # # # # # # RATES AND CONNECTIONS # # # # # # # # # # # # # # # # # # # # #
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-    if verbose:
-        print("MAKE RATES AND CONNECTIONS")
-
-    track_memory('Rates and Connections')
-
-    connection_weight, infection_weight = initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, beta_scaling)
-
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    # # # # # # # # # # # # # # # # AGES  # # # # # # # # # # # # # # # # # # # # #
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-    if verbose:
-        print("MAKE AGES")
-
-    track_memory('Ages')
-
-    ages, ages_total_counts, ages_in_state, PT_ages, PC_ages, PP_ages = initialize_ages(N_tot, N_ages, connection_weight)
-
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    # # # # # # # # # # # CONNECT NODES # # # # # # # # # # # # # # # # # # # # # # # # #
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-    if verbose:
-        print("CONNECT NODES")
+#     H_cumsum_move = np.zeros(H_N_states, dtype=np.float64)
 
 
-    track_memory('Connecting Nodes')
+#     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#     # # # # # # # # # # # RATES AND CONNECTIONS # # # # # # # # # # # # # # # # # # # # #
+#     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-    connect_nodes(mu, epsilon_rho, rho, algo, PP_ages, N_connections, individual_rates, which_connections, which_connections_reference, coordinates, infection_weight, N_connections_reference, rho_scale, N_ages, age_matrix, ages_in_state, verbose)
+#     if verbose:
+#         print("MAKE RATES AND CONNECTIONS")
 
-    if do_only_which_connections:
-        return which_connections, ages, individual_rates
+#     track_memory('Rates and Connections')
 
+#     connection_weight, infection_weight = initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, beta_scaling)
 
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    # # # # # # # # # # # INITIAL INFECTIONS  # # # # # # # # # # # # # # # # # # # # # # # #
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#     # # # # # # # # # # # # # # # # AGES  # # # # # # # # # # # # # # # # # # # # #
+#     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-    if verbose:
-        print("INITIAL INFECTIONS")
+#     if verbose:
+#         print("MAKE AGES")
 
-    # if do_track_memory:
-    track_memory('Initial Infections')
+#     track_memory('Ages')
 
-    TotMov = make_initial_infections(N_init, which_state, state_total_counts, agents_in_state, csMov, N_connections_reference, which_connections, which_connections_reference, N_connections, individual_rates, SIR_transition_rates, ages_in_state, initial_ages_exposed, cs_move_individual)
+#     ages, ages_total_counts, ages_in_state, PT_ages, PC_ages, PP_ages = initialize_ages(N_tot, N_ages, connection_weight)
 
+#     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#     # # # # # # # # # # # CONNECT NODES # # # # # # # # # # # # # # # # # # # # # # # # #
+#     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-    # # # # # # # # # # # RUN SIMULATION  # # # # # # # # # # # # # # # # # # # # # # # #
-    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-    if verbose:
-        print("RUN SIMULATION")
-
-    if do_track_memory:
-        with objmode():
-            track_memory('Simulation')
-
-    out_time, out_state_counts, out_which_state, out_N_connections, out_H_state_total_counts, out_ages = run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, infectious_states, N_connections, individual_rates, N_connections_reference, which_connections_reference, which_connections, ages, individual_infection_counter, cs_move_individual, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, mu, tau_I, delta_days, N_contacts_remove, nts, verbose)
+#     if verbose:
+#         print("CONNECT NODES")
 
 
-    # if do_track_memory:
-    track_memory('Arrays Conversion')
+#     track_memory('Connecting Nodes')
 
-    out_time = np.array(out_time)
-    out_state_counts = np.array(out_state_counts)
-    out_which_state = np.array(out_which_state)
-    out_N_connections = list_of_counters_to_numpy_array(out_N_connections)
-    out_H_state_total_counts = np.array(out_H_state_total_counts)
-    out_ages = np.array(out_ages)
-    # out_infection_counter = list_of_counters_to_numpy_array(out_infection_counter)
+#     connect_nodes(mu, epsilon_rho, rho, algo, PP_ages, N_connections, individual_rates, which_connections, which_connections_reference, coordinates, infection_weight, N_connections_reference, rho_scale, N_ages, age_matrix, ages_in_state, verbose)
 
-    return out_time, out_state_counts, out_which_state, out_N_connections, out_H_state_total_counts, out_ages
+#     if do_only_which_connections:
+#         return which_connections, ages, individual_rates
+
+
+#     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#     # # # # # # # # # # # INITIAL INFECTIONS  # # # # # # # # # # # # # # # # # # # # # # # #
+#     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+#     if verbose:
+#         print("INITIAL INFECTIONS")
+
+#     # if do_track_memory:
+#     track_memory('Initial Infections')
+
+#     TotMov = make_initial_infections(N_init, which_state, state_total_counts, agents_in_state, csMov, N_connections_reference, which_connections, which_connections_reference, N_connections, individual_rates, SIR_transition_rates, ages_in_state, initial_ages_exposed, cs_move_individual)
+
+
+#     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+#     # # # # # # # # # # # RUN SIMULATION  # # # # # # # # # # # # # # # # # # # # # # # #
+#     # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+#     if verbose:
+#         print("RUN SIMULATION")
+
+#     if do_track_memory:
+#         with objmode():
+#             track_memory('Simulation')
+
+#     out_time, out_state_counts, out_which_state, out_N_connections, out_H_state_total_counts, out_ages = run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, infectious_states, N_connections, individual_rates, N_connections_reference, which_connections_reference, which_connections, ages, individual_infection_counter, cs_move_individual, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, mu, tau_I, delta_days, N_contacts_remove, nts, verbose)
+
+
+#     # if do_track_memory:
+#     track_memory('Arrays Conversion')
+
+#     out_time = np.array(out_time)
+#     out_state_counts = np.array(out_state_counts)
+#     out_which_state = np.array(out_which_state)
+#     out_N_connections = list_of_counters_to_numpy_array(out_N_connections)
+#     out_H_state_total_counts = np.array(out_H_state_total_counts)
+#     out_ages = np.array(out_ages)
+#     # out_infection_counter = list_of_counters_to_numpy_array(out_infection_counter)
+
+#     return out_time, out_state_counts, out_which_state, out_N_connections, out_H_state_total_counts, out_ages
 
     # return res
 
-def get_awkward_filename(filename, extension='.awkw'):
-
-    cfg = filename_to_dict(filename)
-    ID = filename_to_ID(filename)
+# def get_awkward_filename(filename, extension='.awkw'):
+
+#     cfg = filename_to_dict(filename)
+#     ID = filename_to_ID(filename)
 
-    d = {key: cfg[key] for key in ['N_tot', 'N_ages', 'rho', 'sigma_mu']}
-    d['ID'] = ID
-
-    filename = Path('Data') / 'which_connections'
-    file_string = ''
-    for key, val in d.items():
-        file_string += f"{key}__{val}__"
-    file_string = file_string[:-2] # remove trailing _
-    file_string += extension
-    filename = filename / file_string
-    return str(filename)
+#     d = {key: cfg[key] for key in ['N_tot', 'N_ages', 'rho', 'sigma_mu']}
+#     d['ID'] = ID
+
+#     filename = Path('Data') / 'which_connections'
+#     file_string = ''
+#     for key, val in d.items():
+#         file_string += f"{key}__{val}__"
+#     file_string = file_string[:-2] # remove trailing _
+#     file_string += extension
+#     filename = filename / file_string
+#     return str(filename)
 
 
-# @njit
-# def _nested_lists_to_lists_of_arrays(nested_list, dtype):
-#     l = List()
-#     for x in nested_list:
-#         l.append(np.asarray(x, dtype=dtype))
-#     return l
+# # @njit
+# # def _nested_lists_to_lists_of_arrays(nested_list, dtype):
+# #     l = List()
+# #     for x in nested_list:
+# #         l.append(np.asarray(x, dtype=dtype))
+# #     return l
 
-# def nested_lists_to_lists_of_arrays(nested_list):
-#     # dtype = get_numba_list_dtype(nested_list[0])
-#     dtype = get_numba_list_dtype(nested_list)
-#     return _foo(nested_list, dtype)
+# # def nested_lists_to_lists_of_arrays(nested_list):
+# #     # dtype = get_numba_list_dtype(nested_list[0])
+# #     dtype = get_numba_list_dtype(nested_list)
+# #     return _foo(nested_list, dtype)
 
-# def nested_lists_to_python_lists_of_arrays(nested_list):
-#     # dtype = get_numba_list_dtype(nested_list[0])
-#     dtype = get_numba_list_dtype(nested_list)
-#     return [np.asarray(x, dtype=dtype) for x in nested_list]
+# # def nested_lists_to_python_lists_of_arrays(nested_list):
+# #     # dtype = get_numba_list_dtype(nested_list[0])
+# #     dtype = get_numba_list_dtype(nested_list)
+# #     return [np.asarray(x, dtype=dtype) for x in nested_list]
 
-import pickle
-def save_to_pickle(x, filename):
-    with open(filename, 'wb') as file_out:
-        pickle.dump(x, file_out)
+# import pickle
+# def save_to_pickle(x, filename):
+#     with open(filename, 'wb') as file_out:
+#         pickle.dump(x, file_out)
 
-def load_from_pickle(filename):
-    with open(filename, 'rb') as file_in:
-        return pickle.load(file_in)
-
-
-from contexttimer import Timer
-def single_run_and_save(filename, verbose=False):
-
-    # verbose = True
-    # filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
-
-    if do_only_which_connections:
-        filename_awkward = get_awkward_filename(filename, extension='.pickle')
-        if Path(filename_awkward).exists():
-            print(f"{filename_awkward} exists")
-            return None
-        else:
-            print(f"{filename_awkward} does not exist, creating it")
-
-
-    cfg = filename_to_dict(filename)
-    ID = filename_to_ID(filename)
-
-    global do_track_memory
-    if not do_only_which_connections:
-        do_track_memory = True if ID == 0 else False
-
-
-    global memory_file
-    memory_file = filename.replace('.csv', '.memory_file.txt')
-    # make sure parent folder exists
-    if ID == 0:
-        make_sure_folder_exist(memory_file)
-        delete_file(memory_file)
-
-    track_memory('Load Coordinates')
-    coordinates = get_coordinates(ID, cfg)
-
-    with Timer() as t, warnings.catch_warnings():
-        warnings.simplefilter('ignore', NumbaTypeSafetyWarning)
-        res = single_run_numba(**cfg, ID=ID, coordinates=coordinates, verbose=verbose)
-        which_connections, ages, individual_rates = res
-
-
-    if do_only_which_connections:
-        # which_connections = res
-        make_sure_folder_exist(filename_awkward)
-        try:
-            which_connections = nested_list_to_awkward_array(which_connections)
-            which_connections0 = ak.to_awkward0(which_connections)
+# def load_from_pickle(filename):
+#     with open(filename, 'rb') as file_in:
+#         return pickle.load(file_in)
+
+
+# from contexttimer import Timer
+# def single_run_and_save(filename, verbose=False):
+
+#     # verbose = True
+#     # filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
+
+#     if do_only_which_connections:
+#         filename_awkward = get_awkward_filename(filename, extension='.pickle')
+#         if Path(filename_awkward).exists():
+#             print(f"{filename_awkward} exists")
+#             return None
+#         else:
+#             print(f"{filename_awkward} does not exist, creating it")
+
+
+#     cfg = filename_to_dict(filename)
+#     ID = filename_to_ID(filename)
+
+#     global do_track_memory
+#     if not do_only_which_connections:
+#         do_track_memory = True if ID == 0 else False
+
+
+#     global memory_file
+#     memory_file = filename.replace('.csv', '.memory_file.txt')
+#     # make sure parent folder exists
+#     if ID == 0:
+#         make_sure_folder_exist(memory_file)
+#         delete_file(memory_file)
+
+#     track_memory('Load Coordinates')
+#     coordinates = get_coordinates(ID, cfg)
+
+#     with Timer() as t, warnings.catch_warnings():
+#         warnings.simplefilter('ignore', NumbaTypeSafetyWarning)
+#         res = single_run_numba(**cfg, ID=ID, coordinates=coordinates, verbose=verbose)
+#         which_connections, ages, individual_rates = res
+
+
+#     if do_only_which_connections:
+#         # which_connections = res
+#         make_sure_folder_exist(filename_awkward)
+#         try:
+#             which_connections = nested_list_to_awkward_array(which_connections)
+#             which_connections0 = ak.to_awkward0(which_connections)
 
-            individual_rates = nested_list_to_awkward_array(individual_rates)
-            individual_rates0 = ak.to_awkward0(individual_rates)
-
-            # which_connections_arrow = ak.to_arrow(which_connections)
-            # ak.from_arrow(which_connections_arrow)
-            # awkward0.save(filename_awkward, which_connections0, mode="w")
-            save_to_pickle([which_connections0, ages, individual_rates0, t.elapsed], filename_awkward.replace('.awkd', '.pickle'))
-
-        except:
-            print(f"\n\nError saving awkward0 array {filename}! \n\n")
-        # which_connections0, ages, individual_rates0, t_elapsed = load_from_pickle(filename_awkward.replace('.awkd', '.pickle'))
-        return None
+#             individual_rates = nested_list_to_awkward_array(individual_rates)
+#             individual_rates0 = ak.to_awkward0(individual_rates)
+
+#             # which_connections_arrow = ak.to_arrow(which_connections)
+#             # ak.from_arrow(which_connections_arrow)
+#             # awkward0.save(filename_awkward, which_connections0, mode="w")
+#             save_to_pickle([which_connections0, ages, individual_rates0, t.elapsed], filename_awkward.replace('.awkd', '.pickle'))
+
+#         except:
+#             print(f"\n\nError saving awkward0 array {filename}! \n\n")
+#         # which_connections0, ages, individual_rates0, t_elapsed = load_from_pickle(filename_awkward.replace('.awkd', '.pickle'))
+#         return None
 
-    # which_connections = nested_lists_to_lists_of_arrays(res)
-    # which_connections = nested_lists_to_python_lists_of_arrays(res)
-    # which_connections = np.array(nested_lists_to_lists_of_arrays(res))
-    # import dill
-    # dill.dumps(which_connections)
-    # foo(which_connections)
-
-
-    time, state_counts, which_state, N_connections, H_state_total_counts, ages = res
-
-    track_memory('Make DataFrame')
-    df = state_counts_to_df(time, state_counts, H_state_total_counts)
-
-    track_memory('Save CSV')
-    # make sure parent folder exists
-    Path(filename).parent.mkdir(parents=True, exist_ok=True)
-    # save csv file
-    df.to_csv(filename, index=False)
-
-    # save which_state, coordinates, and N_connections, once for each set of parameters
-    if ID == 0:
-
-        # filename_animation = 'memory_test.hdf5'
-        filename_animation = str(Path('Data_animation') / Path(filename).stem) + '.animation.hdf5'
+#     # which_connections = nested_lists_to_lists_of_arrays(res)
+#     # which_connections = nested_lists_to_python_lists_of_arrays(res)
+#     # which_connections = np.array(nested_lists_to_lists_of_arrays(res))
+#     # import dill
+#     # dill.dumps(which_connections)
+#     # foo(which_connections)
+
+
+#     time, state_counts, which_state, N_connections, H_state_total_counts, ages = res
+
+#     track_memory('Make DataFrame')
+#     df = state_counts_to_df(time, state_counts, H_state_total_counts)
+
+#     track_memory('Save CSV')
+#     # make sure parent folder exists
+#     Path(filename).parent.mkdir(parents=True, exist_ok=True)
+#     # save csv file
+#     df.to_csv(filename, index=False)
+
+#     # save which_state, coordinates, and N_connections, once for each set of parameters
+#     if ID == 0:
+
+#         # filename_animation = 'memory_test.hdf5'
+#         filename_animation = str(Path('Data_animation') / Path(filename).stem) + '.animation.hdf5'
 
-        path = Path(filename_animation)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        if path.exists():
-            path.unlink()
+#         path = Path(filename_animation)
+#         path.parent.mkdir(parents=True, exist_ok=True)
+#         if path.exists():
+#             path.unlink()
 
-        if do_track_memory:
-            df_time_memory, df_change_points = parse_memory_file(memory_file)
+#         if do_track_memory:
+#             df_time_memory, df_change_points = parse_memory_file(memory_file)
 
-        track_memory('Saving HDF5 File')
-        with h5py.File(filename_animation, "w") as f: #
-            f.create_dataset("coordinates", data=coordinates)
-            f.create_dataset("which_state", data=which_state)
-            f.create_dataset("N_connections", data=N_connections)
-            f.create_dataset("ages", data=ages)
-            # f.create_dataset("infection_counter", data=infection_counter)
-            f.create_dataset("cfg_str", data=str(cfg)) # import ast; ast.literal_eval(str(cfg))
-            f.create_dataset("df", data=dataframe_to_hdf5_format(df))
+#         track_memory('Saving HDF5 File')
+#         with h5py.File(filename_animation, "w") as f: #
+#             f.create_dataset("coordinates", data=coordinates)
+#             f.create_dataset("which_state", data=which_state)
+#             f.create_dataset("N_connections", data=N_connections)
+#             f.create_dataset("ages", data=ages)
+#             # f.create_dataset("infection_counter", data=infection_counter)
+#             f.create_dataset("cfg_str", data=str(cfg)) # import ast; ast.literal_eval(str(cfg))
+#             f.create_dataset("df", data=dataframe_to_hdf5_format(df))
 
-            if do_track_memory:
-                f.create_dataset("memory_file", data=Path(memory_file).read_text())
-                f.create_dataset("df_time_memory", data=dataframe_to_hdf5_format(df_time_memory, cols_to_str=['ChangePoint']))
-                f.create_dataset("df_change_points", data=dataframe_to_hdf5_format(df_change_points, include_index=True))
-
-            # if do_include_awkward:
-            #     if do_track_memory:
-            #         track_memory('Awkward')
-            #     g = awkward0.hdf5(f)
-            #     g["which_connections"] = awkward0.fromiter(out_which_connections).astype(np.int32)
-            #     g["individual_rates"] = awkward0.fromiter(out_individual_rates)
-
-            for key, val in cfg.items():
-                f.attrs[key] = val
-            f.create_dataset("time_elapsed", data=t.elapsed)
-
+#             if do_track_memory:
+#                 f.create_dataset("memory_file", data=Path(memory_file).read_text())
+#                 f.create_dataset("df_time_memory", data=dataframe_to_hdf5_format(df_time_memory, cols_to_str=['ChangePoint']))
+#                 f.create_dataset("df_change_points", data=dataframe_to_hdf5_format(df_change_points, include_index=True))
+
+#             # if do_include_awkward:
+#             #     if do_track_memory:
+#             #         track_memory('Awkward')
+#             #     g = awkward0.hdf5(f)
+#             #     g["which_connections"] = awkward0.fromiter(out_which_connections).astype(np.int32)
+#             #     g["individual_rates"] = awkward0.fromiter(out_individual_rates)
+
+#             for key, val in cfg.items():
+#                 f.attrs[key] = val
+#             f.create_dataset("time_elapsed", data=t.elapsed)
+
 
-    track_memory('Finished')
-    if verbose:
-        print(f"Run took in total: {t.elapsed:.1f}s.")
+#     track_memory('Finished')
+#     if verbose:
+#         print(f"Run took in total: {t.elapsed:.1f}s.")
 
-    if verbose:
-        print("\n\n")
-        print("coordinates", get_size_gb(coordinates))
-        print("which_state", get_size_gb(which_state))
-        print("N_connections", get_size_gb(N_connections))
-        print("ages", get_size_gb(ages))
+#     if verbose:
+#         print("\n\n")
+#         print("coordinates", get_size_gb(coordinates))
+#         print("which_state", get_size_gb(which_state))
+#         print("N_connections", get_size_gb(N_connections))
+#         print("ages", get_size_gb(ages))
 
-    if do_track_memory:
-        fig, ax = plot_memory_comsumption(df_time_memory, df_change_points, min_TimeDiffRel=0.1, min_MemoryDiffRel=0.1)
-        if savefig:
-            fig.savefig(memory_file.replace('.txt', '.pdf'))
+#     if do_track_memory:
+#         fig, ax = plot_memory_comsumption(df_time_memory, df_change_points, min_TimeDiffRel=0.1, min_MemoryDiffRel=0.1)
+#         if savefig:
+#             fig.savefig(memory_file.replace('.txt', '.pdf'))
 
 
-#%%
+# #%%
 
-if False:
+# if False:
 
-    from numba.typed import List, Dict
+#     from numba.typed import List, Dict
 
 
-    @njit
-    def initialize_empty_list(dtype):
-        l = List()
-        l.append(dtype(1))
-        l.pop(0) # trick to tell compiler which dtype
-        return l
+#     @njit
+#     def initialize_empty_list(dtype):
+#         l = List()
+#         l.append(dtype(1))
+#         l.pop(0) # trick to tell compiler which dtype
+#         return l
 
-    @njit
-    def initialize_empty_set(dtype):
-        s = set()
-        s.add(dtype(1))
-        s.discard(dtype(1)) # trick to tell compiler which dtype
-        return s
+#     @njit
+#     def initialize_empty_set(dtype):
+#         s = set()
+#         s.add(dtype(1))
+#         s.discard(dtype(1)) # trick to tell compiler which dtype
+#         return s
 
 
-    @njit
-    def foo():
-        x = set()
-        x.add(1)
-        x.add(2)
-        x.update([3, 4])
-        x.discard(2)
-        x.discard(5)
-        # x.add(1.3) # error
+#     @njit
+#     def foo():
+#         x = set()
+#         x.add(1)
+#         x.add(2)
+#         x.update([3, 4])
+#         x.discard(2)
+#         x.discard(5)
+#         # x.add(1.3) # error
 
-        y = List()
-        y.append(x)
+#         y = List()
+#         y.append(x)
 
-        d = Dict()
-        d["a"] = initialize_empty_list(dtype=np.int32)
+#         d = Dict()
+#         d["a"] = initialize_empty_list(dtype=np.int32)
 
-        z = Dict()
-        # z['x'] = initialize_empty_set(dtype=np.int32)
-        # z['x'] = x
+#         z = Dict()
+#         # z['x'] = initialize_empty_set(dtype=np.int32)
+#         # z['x'] = x
 
-        # return x, y, d, z
-        return x, y, d
+#         # return x, y, d, z
+#         return x, y, d
 
 
-    # x, y, d, z = foo()
-    x, y, d = foo()
+#     # x, y, d, z = foo()
+#     x, y, d = foo()
 
 
-def get_coordinates(ID, cfg):
-    coordinates = np.load('Data/GPS_coordinates.npy')
-    if cfg.N_tot > len(coordinates):
-        raise AssertionError("N_tot cannot be larger than coordinates (number of generated houses in DK)")
+# def get_coordinates(ID, cfg):
+#     coordinates = np.load('Data/GPS_coordinates.npy')
+#     if cfg.N_tot > len(coordinates):
+#         raise AssertionError("N_tot cannot be larger than coordinates (number of generated houses in DK)")
 
-    np.random.seed(ID)
-    index = np.arange(len(coordinates))
-    index_subset = np.random.choice(index, cfg.N_tot, replace=False)
-    coordinates = coordinates[index_subset]
-    return coordinates
+#     np.random.seed(ID)
+#     index = np.arange(len(coordinates))
+#     index_subset = np.random.choice(index, cfg.N_tot, replace=False)
+#     coordinates = coordinates[index_subset]
+#     return coordinates
 
-def state_counts_to_df(time, state_counts, H_state_total_counts):
+# def state_counts_to_df(time, state_counts, H_state_total_counts):
 
-    header = [
-             'Time',
-            'E1', 'E2', 'E3', 'E4',
-            'I1', 'I2', 'I3', 'I4',
-            'R',
-            'H1', 'H2', 'ICU1', 'ICU2', 'R_H', 'D',
-            ]
+#     header = [
+#              'Time',
+#             'E1', 'E2', 'E3', 'E4',
+#             'I1', 'I2', 'I3', 'I4',
+#             'R',
+#             'H1', 'H2', 'ICU1', 'ICU2', 'R_H', 'D',
+#             ]
 
-    df_time = pd.DataFrame(time, columns=header[0:1])
-    df_states = pd.DataFrame(state_counts, columns=header[1:10])
-    df_H_states = pd.DataFrame(H_state_total_counts, columns=header[10:])
-    df = pd.concat([df_time, df_states, df_H_states], axis=1)#.convert_dtypes()
-    assert sum(df_H_states.sum(axis=1) == df_states['R'])
-    return df
+#     df_time = pd.DataFrame(time, columns=header[0:1])
+#     df_states = pd.DataFrame(state_counts, columns=header[1:10])
+#     df_H_states = pd.DataFrame(H_state_total_counts, columns=header[10:])
+#     df = pd.concat([df_time, df_states, df_H_states], axis=1)#.convert_dtypes()
+#     assert sum(df_H_states.sum(axis=1) == df_states['R'])
+#     return df
 
-def parse_memory_file(filename):
+# def parse_memory_file(filename):
 
-    change_points = {}
+#     change_points = {}
 
-    d_time_mem = {}
+#     d_time_mem = {}
 
-    next_is_change_point = 0
-    zero_time = None
+#     next_is_change_point = 0
+#     zero_time = None
 
-    import csv
-    with open(filename, 'r') as f:
-        reader = csv.reader(f, delimiter='\t')
-        for irow, row in enumerate(reader):
+#     import csv
+#     with open(filename, 'r') as f:
+#         reader = csv.reader(f, delimiter='\t')
+#         for irow, row in enumerate(reader):
 
-            # if new section
-            if len(row) == 1:
-                next_is_change_point = True
-                s_change_points = row[0][1:]
+#             # if new section
+#             if len(row) == 1:
+#                 next_is_change_point = True
+#                 s_change_points = row[0][1:]
 
-            else:
+#             else:
 
-                time = float(row[0])
-                memory = float(row[1])
+#                 time = float(row[0])
+#                 memory = float(row[1])
 
-                if zero_time is None:
-                    zero_time = time
+#                 if zero_time is None:
+#                     zero_time = time
 
-                time -= zero_time
+#                 time -= zero_time
 
-                d_time_mem[time] = memory
+#                 d_time_mem[time] = memory
 
-                if next_is_change_point:
-                    change_points[time] = s_change_points
-                    next_is_change_point = False
+#                 if next_is_change_point:
+#                     change_points[time] = s_change_points
+#                     next_is_change_point = False
 
-    s_change_points = pd.Series(change_points)
-    df_time_memory = pd.DataFrame.from_dict(d_time_mem, orient='index')
-    df_time_memory.columns = ['Memory']
+#     s_change_points = pd.Series(change_points)
+#     df_time_memory = pd.DataFrame.from_dict(d_time_mem, orient='index')
+#     df_time_memory.columns = ['Memory']
 
-    df_time_memory['ChangePoint'] = s_change_points
+#     df_time_memory['ChangePoint'] = s_change_points
 
-    df_change_points = s_change_points.to_frame()
-    df_change_points.columns = ['ChangePoint']
-    df_change_points['Time'] = df_change_points.index
-    df_change_points = df_change_points.set_index('ChangePoint')
-    df_change_points['TimeDiff'] = -df_change_points['Time'].diff(-1)
-    df_change_points['TimeDiffRel'] = df_change_points['TimeDiff'] / df_change_points['Time'].iloc[-1]
+#     df_change_points = s_change_points.to_frame()
+#     df_change_points.columns = ['ChangePoint']
+#     df_change_points['Time'] = df_change_points.index
+#     df_change_points = df_change_points.set_index('ChangePoint')
+#     df_change_points['TimeDiff'] = -df_change_points['Time'].diff(-1)
+#     df_change_points['TimeDiffRel'] = df_change_points['TimeDiff'] / df_change_points['Time'].iloc[-1]
 
-    df_change_points['Memory'] = df_time_memory.loc[df_change_points['Time']]['Memory'].values
-    df_change_points['MemoryDiff'] = -df_change_points['Memory'].diff(-1)
-    df_change_points['MemoryDiffRel'] = df_change_points['MemoryDiff'] / df_change_points['Memory'].iloc[-1]
+#     df_change_points['Memory'] = df_time_memory.loc[df_change_points['Time']]['Memory'].values
+#     df_change_points['MemoryDiff'] = -df_change_points['Memory'].diff(-1)
+#     df_change_points['MemoryDiffRel'] = df_change_points['MemoryDiff'] / df_change_points['Memory'].iloc[-1]
 
-    df_change_points.index.name = None
+#     df_change_points.index.name = None
 
-    return df_time_memory, df_change_points
+#     return df_time_memory, df_change_points
 
 
-def get_column_dtypes(df, cols_to_str):
-    kwargs = {}
-    if cols_to_str is not None:
-        if isinstance(cols_to_str, str):
-            cols_to_str = [cols_to_str]
-        kwargs['column_dtypes'] = {col: f"<S{int(df[col].str.len().max())}" for col in cols_to_str}
-    return kwargs
+# def get_column_dtypes(df, cols_to_str):
+#     kwargs = {}
+#     if cols_to_str is not None:
+#         if isinstance(cols_to_str, str):
+#             cols_to_str = [cols_to_str]
+#         kwargs['column_dtypes'] = {col: f"<S{int(df[col].str.len().max())}" for col in cols_to_str}
+#     return kwargs
 
 
-def dataframe_to_hdf5_format(df, include_index=False, cols_to_str=None):
-    kwargs = get_column_dtypes(df, cols_to_str)
-    if include_index:
-        kwargs['index_dtypes'] = f"<S{df.index.str.len().max()}"
-    return np.array(df.to_records(index=True, **kwargs))
+# def dataframe_to_hdf5_format(df, include_index=False, cols_to_str=None):
+#     kwargs = get_column_dtypes(df, cols_to_str)
+#     if include_index:
+#         kwargs['index_dtypes'] = f"<S{df.index.str.len().max()}"
+#     return np.array(df.to_records(index=True, **kwargs))
 
 
-#%%
+# #%%
 
-# if do_track_memory:
-#     df_time_memory, df_change_points = parse_memory_file(memory_file)
-#     if not is_ipython:
-#         print(df_change_points)
+# # if do_track_memory:
+# #     df_time_memory, df_change_points = parse_memory_file(memory_file)
+# #     if not is_ipython:
+# #         print(df_change_points)
 
-# df_change_points
+# # df_change_points
 
 
-#%%
+# #%%
 
-def plot_memory_comsumption(df_time_memory, df_change_points, min_TimeDiffRel=0.1, min_MemoryDiffRel=0.1, time_unit='min'):
+# def plot_memory_comsumption(df_time_memory, df_change_points, min_TimeDiffRel=0.1, min_MemoryDiffRel=0.1, time_unit='min'):
 
-    colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
-    colors = [col for i, col in enumerate(colors) if i != 5]
+#     colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+#     colors = [col for i, col in enumerate(colors) if i != 5]
 
-    time_scale = {'s': 1, 'sec': 1,
-                  'm': 60, 'min': 60,
-                  'h': 60*60, 't': 60*60}
+#     time_scale = {'s': 1, 'sec': 1,
+#                   'm': 60, 'min': 60,
+#                   'h': 60*60, 't': 60*60}
 
-    fig, ax = plt.subplots()
+#     fig, ax = plt.subplots()
 
-    ax.plot(df_time_memory.index / time_scale[time_unit], df_time_memory['Memory'], '-', c=colors[0], zorder=2)
-    ax.scatter(df_change_points['Time'] / time_scale[time_unit], df_change_points['Memory'], s=200, c='white', edgecolors='k', zorder=3, label='Change Points')
-    ax.set(xlabel=f'Time [{time_unit}]', ylabel='Memory [GiB]', ylim=(0, None)) # xlim=(0, None)
+#     ax.plot(df_time_memory.index / time_scale[time_unit], df_time_memory['Memory'], '-', c=colors[0], zorder=2)
+#     ax.scatter(df_change_points['Time'] / time_scale[time_unit], df_change_points['Memory'], s=200, c='white', edgecolors='k', zorder=3, label='Change Points')
+#     ax.set(xlabel=f'Time [{time_unit}]', ylabel='Memory [GiB]', ylim=(0, None)) # xlim=(0, None)
 
-    ymax = ax.get_ylim()[1]
-    i = 1
-    for index, row in df_change_points.iterrows():
-        # first_or_last = (i == 0) or (i == len(df_change_points)-1)
-        last = (index == df_change_points.index[-1])
-        large_time_diff = row['TimeDiffRel'] > min_TimeDiffRel # sec
-        large_memory_diff = np.abs(row['MemoryDiffRel']) >  min_MemoryDiffRel # GiB
-        if any([last, large_time_diff, large_memory_diff]):
-            t = row['Time'] / time_scale[time_unit]
-            y = row['Memory']
-            col = colors[(i)%len(colors)]
-            i += 1
-            ax.plot([t, t], [0, y], ls='--',    color=col, zorder=1, label=index)
-            ax.plot([t, t], [y, ymax], ls='--', color=col, zorder=1, alpha=.5)
+#     ymax = ax.get_ylim()[1]
+#     i = 1
+#     for index, row in df_change_points.iterrows():
+#         # first_or_last = (i == 0) or (i == len(df_change_points)-1)
+#         last = (index == df_change_points.index[-1])
+#         large_time_diff = row['TimeDiffRel'] > min_TimeDiffRel # sec
+#         large_memory_diff = np.abs(row['MemoryDiffRel']) >  min_MemoryDiffRel # GiB
+#         if any([last, large_time_diff, large_memory_diff]):
+#             t = row['Time'] / time_scale[time_unit]
+#             y = row['Memory']
+#             col = colors[(i)%len(colors)]
+#             i += 1
+#             ax.plot([t, t], [0, y], ls='--',    color=col, zorder=1, label=index)
+#             ax.plot([t, t], [y, ymax], ls='--', color=col, zorder=1, alpha=.5)
 
-            if row['TimeDiffRel'] > 0.01 or last:
-                kwargs = dict(rotation=90, color=col, fontsize=22, ha='center', va='center', bbox=dict(boxstyle="square", ec=col, fc='white'))
-                if y / ymax > 0.45:
-                    ax.text(t, y/2, index, **kwargs)
-                else:
-                    ax.text(t, (ymax+y)/2, index, **kwargs)
+#             if row['TimeDiffRel'] > 0.01 or last:
+#                 kwargs = dict(rotation=90, color=col, fontsize=22, ha='center', va='center', bbox=dict(boxstyle="square", ec=col, fc='white'))
+#                 if y / ymax > 0.45:
+#                     ax.text(t, y/2, index, **kwargs)
+#                 else:
+#                     ax.text(t, (ymax+y)/2, index, **kwargs)
 
-    # ax.set_yscale('log')
+#     # ax.set_yscale('log')
 
-    ax.legend()
-    return fig, ax
+#     ax.legend()
+#     return fig, ax
 
