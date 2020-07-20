@@ -8,15 +8,15 @@ from numba.typed import List, Dict
 
 import awkward1 as ak # pip install awkward1
 
-try:
-    import simulation_utils
-    from simulation_utils import INTEGER_SIMULATION_PARAMETERS
-except ModuleNotFoundError:
-    try:
-        from src import simulation_utils
-        from src.simulation_utils import INTEGER_SIMULATION_PARAMETERS
-    except ModuleNotFoundError as e:
-        raise e
+# try:
+#     import simulation_utils
+#     from simulation_utils import INTEGER_SIMULATION_PARAMETERS
+# except ModuleNotFoundError:
+#     try:
+from src import simulation_utils
+from src.simulation_utils import INTEGER_SIMULATION_PARAMETERS
+    # except ModuleNotFoundError as e:
+        # raise e
 
 def _is_ipython():
     try:
@@ -49,9 +49,12 @@ def delete_file(filename):
     except FileNotFoundError:
         pass
 
-def make_sure_folder_exist(filename):
-    Path(filename).parent.mkdir(parents=True, exist_ok=True)
-
+def make_sure_folder_exist(filename, delete_file_if_exists=False):
+    if isinstance(filename, str):
+        filename = Path(filename)
+    filename.parent.mkdir(parents=True, exist_ok=True)
+    if delete_file_if_exists and filename.exists():
+        filename.unlink()
 
 
 @njit
@@ -68,17 +71,9 @@ def haversine_scipy(p1, p2):
     lon2, lat2 = p2
     return haversine(lon1, lat1, lon2, lat2)
 
-
-# def dict_to_filename_with_dir(cfg, ID, data_dir='ABN'):
-#     filename = Path('Data') / data_dir
-#     file_string = ''
-#     for key, val in cfg.items():
-#         file_string += f"{key}__{val}__"
-#     file_string = file_string[:-2] # remove trailing _
-#     filename = filename / file_string
-#     file_string += f"__ID__{ID:03d}.csv"
-#     filename = filename / file_string
-#     return str(filename)
+@njit
+def set_numba_random_seed(seed):
+    np.random.seed(seed)
 
 
 # def filename_to_dict(filename, normal_string=False, animation=False): # ,
@@ -128,18 +123,47 @@ def initialize_list_set(N, dtype):
 def get_size_gb(x):
     return x.size * x.itemsize / 10**9
 
-
+import re
 from numba import typeof
-def get_numba_list_dtype(x):
-    dtype = str(typeof(nested_list)).split('[')[-1].split(']')[0]
+def get_numba_list_dtype(x, as_string=False):
+    s = str(typeof(x))
+
+    if 'int' in s:
+        pat = 'int'
+    elif 'float' in s:
+        pat = 'float'
+    else:
+        raise AssertionError('Neither "int", nor "float" in x')
+
+    pat = r'(\w*%s\w*)' % pat       # Not thrilled about this line
+    dtype = re.findall(pat, s)[0]
+
+    if as_string:
+        return dtype
     return getattr(np, dtype)
 
+
 @njit
-def flatten_nested_list(nested_list):
+def sort_and_flatten_nested_list(nested_list):
     res = List()
     for lst in nested_list:
-        for x in lst:
-            res.append(x)
+        # sorted_indices = np.argsort(np.asarray(lst))
+        for index in sorted_indices:
+            res.append(lst[index])
+    return np.asarray(res)
+
+
+@njit
+def flatten_nested_list(nested_list, sort_nested_list=False):
+    res = List()
+    for lst in nested_list:
+        if sort_nested_list:
+            sorted_indices = np.argsort(np.asarray(lst))
+            for index in sorted_indices:
+                res.append(lst[index])
+        else:
+            for x in lst:
+                res.append(x)
     return np.asarray(res)
 
 @njit
@@ -149,14 +173,14 @@ def get_cumulative_indices(nested_list, index_dtype=np.int64):
         index[i+1] = index[i] + len(lst)
     return index
 
-def nested_list_to_awkward_array(nested_list, index_dtype=np.int64, return_lengths=False):
-    content = ak.layout.NumpyArray(flatten_nested_list(nested_list))
-    index = ak.layout.Index64(get_cumulative_indices(nested_list, index_dtype))
+def nested_list_to_awkward_array(nested_list, return_lengths=False, sort_nested_list=False):
+    content = ak.layout.NumpyArray(flatten_nested_list(nested_list, sort_nested_list))
+    index = ak.layout.Index64(get_cumulative_indices(nested_list))
     listoffsetarray = ak.layout.ListOffsetArray64(index, content)
     array = ak.Array(listoffsetarray)
 
     if return_lengths:
-        return array, get_lengths_of_nested_list(nested_list)
+        return array, np.diff(index).astype(np.uint16) #get_lengths_of_nested_list(nested_list)
     else:
         return array
 
@@ -171,11 +195,32 @@ def get_lengths_of_nested_list(nested_list):
 
 
 @njit
-def get_lengths_of_nested_list2(nested_list, dtype=np.uint16):
-    res = List()
-    for i in range(len(nested_list)):
-        res.append(dtype(len(nested_list[i])))
-    return np.asarray(res)
+def binary_search(array, item):
+        first = 0
+        last = len(array) - 1
+        found = False
+
+        while first<=last and not found:
+            index = (first + last)//2
+            if array[index] == item:
+                found = True
+            else:
+                if item < array[index]:
+                    last = index-1
+                else:
+                    first = index+1
+        return found, index
+
+
+# %timeit binary_search(which_connections[contact], 35818)
+# %timeit np.searchsorted(which_connections[contact], 35818)
+
+# @njit
+# def get_lengths_of_nested_list2(nested_list, dtype=np.uint16):
+#     res = List()
+#     for i in range(len(nested_list)):
+#         res.append(dtype(len(nested_list[i])))
+#     return np.asarray(res)
 
 #%%
 # Counters in Numba
@@ -227,6 +272,33 @@ class Counter_uint16_uint32():
 
 
 
+def MetaClassNumbaCounter(key_type, value_type):
+
+    @jitclass({'_counter': types.DictType(key_type, value_type)})
+    class Counter():
+        def __init__(self):
+            self._counter = Dict.empty(key_type=key_type, value_type=value_type)
+
+        def _check_key(self, key):
+            if not key in self._counter:
+                self._counter[key] = 0
+
+        def __getitem__(self, key):
+            self._check_key(key)
+            return self._counter[key]
+
+        def __setitem__(self, key, val):
+            self._check_key(key)
+            self._counter[key] = val
+
+        @property
+        def d(self):
+            return self._counter
+
+    return Counter()
+
+
+
 @njit
 def list_of_counters_to_numpy_array(counter_list, dtype=np.uint32):
 
@@ -246,6 +318,19 @@ def array_to_counter(arr):
     for a in arr:
         counter[a] += 1
     return counter.d
+
+
+@njit
+def array_to_counter2(arr):
+    # counter = Counter_uint16_uint32()
+    counter = MetaClassNumbaCounter(types.uint16, types.uint32)
+    for a in arr:
+        counter[a] += 1
+    return counter.d
+
+
+
+
 
 #%%
 # Cumulative Sums in numba
@@ -302,6 +387,106 @@ def numba_cumsum(x, axis=None):
         axis = 0
     return numba_cumsum_shape(x, axis)
 
+
+#%%
+
+
+# Counters in Numba
+from numba import types
+from numba.experimental import jitclass
+
+def NumbaRaggedArray(offsets, content, dtype):
+
+    spec = [
+        ('offsets', types.int64[:]),            # a simple scalar field
+        ('content', getattr(types, dtype)[:]),          # an array field
+    ]
+
+    @jitclass(spec)
+    class MetaNumbaRaggedArray:
+        def __init__(self, offsets, content):
+            self.offsets = offsets
+            self.content = content
+
+        def __getitem__(self, i):
+            return self.content[self.offsets[i]: self.offsets[i + 1]]
+
+        def copy(self):
+            return MetaNumbaRaggedArray(self.offsets, self.content)
+
+    return MetaNumbaRaggedArray(offsets, content)
+
+
+class RaggedArray:
+    def __init__(self, arraylike_object):
+
+        # if numba List
+        if isinstance(arraylike_object, List):
+            dtype = get_numba_list_dtype(arraylike_object, as_string=True)
+            self._content = np.array(flatten_nested_list(arraylike_object), dtype=getattr(np, dtype)) # float32
+            self._offsets = np.array(get_cumulative_indices(arraylike_object), dtype=np.int64)
+            self._awkward_array = None
+
+        # if awkward array
+        elif isinstance(arraylike_object, ak.Array):
+            dtype = str(ak.type(arraylike_object)).split("* ")[-1]
+            self._content = np.array(arraylike_object.layout.content, dtype=getattr(np, dtype))
+            self._offsets = np.array(arraylike_object.layout.offsets, dtype=np.int64)
+            self._awkward_array = arraylike_object
+
+        else:
+            raise AssertionError(f"arraylike_object is neither numba list or awkward arry, got {type(arraylike_object)}")
+
+        self.dtype = dtype
+        self._initialize_numba_array()
+
+    def _initialize_numba_array(self):
+        self._array = NumbaRaggedArray(self._offsets, self._content, self.dtype)
+
+    def __getitem__(self, i):
+        if isinstance(i, int):
+            return self._content[self._offsets[i]: self._offsets[i + 1]]
+        elif isinstance(i, tuple) and len(i) == 2 and isinstance(i[0], int) and isinstance(i[1], int):
+            x, y = i
+            return self._content[self._offsets[x]: self._offsets[x + 1]][y]
+
+    @property
+    def array(self):
+        return self._array
+
+    def to_awkward(self, return_original_awkward_array=False):
+        if return_original_awkward_array and self._awkward_array:
+            return self._awkward_array
+        elif return_original_awkward_array and not self._awkward_array:
+            raise AssertionError(f"No original awkward array (possibly because it was loaded through pickle")
+
+        offsets = ak.layout.Index64(self._offsets)
+        content = ak.layout.NumpyArray(self._content)
+        listarray = ak.layout.ListOffsetArray64(offsets, content)
+        return ak.Array(listarray)
+
+    def __repr__(self):
+        return repr(self.to_awkward()).replace('Array', 'RaggedArray')
+
+    def __len__(self):
+        return len(self._offsets) - 1
+
+    # make class pickle-able
+    def __getstate__(self):
+        d = {'_content': self._content, '_offsets': self._offsets, 'dtype': self.dtype}
+        return d
+
+    # make class pickle-able
+    def __setstate__(self, d):
+        self._content = d['_content']
+        self._offsets = d['_offsets']
+        self.dtype = d['dtype']
+        self._initialize_numba_array()
+
+
+
+
+
 #%%
 # DotDict
 
@@ -336,39 +521,22 @@ class DotDict(dict):
 #%%
 
 
-class Filename:
-    def __init__(self, filename):
-        self.filename = filename
-        self.d = self._string_to_dict()
+def get_column_dtypes(df, cols_to_str):
+    kwargs = {}
+    if cols_to_str is not None:
+        if isinstance(cols_to_str, str):
+            cols_to_str = [cols_to_str]
+        kwargs['column_dtypes'] = {col: f"<S{int(df[col].str.len().max())}" for col in cols_to_str}
+    return kwargs
 
-    def __repr__(self):
-        return str(self.d)
 
-    def _string_to_dict(self):
-        d = {}
-        filename_stripped = self.filename.replace('.animation', '')
-        keyvals = str(Path(filename_stripped).stem).split('__')
-        keyvals_chunks = [keyvals[i:i + 2] for i in range(0, len(keyvals), 2)]
-        for key, val in keyvals_chunks:
-            if key in INTEGER_SIMULATION_PARAMETERS + ['ID']:
-                d[key] = int(val)
-            else:
-                d[key] = float(val)
-        return DotDict(d)
+def dataframe_to_hdf5_format(df, include_index=False, cols_to_str=None):
+    kwargs = get_column_dtypes(df, cols_to_str)
+    if include_index:
+        kwargs['index_dtypes'] = f"<S{df.index.str.len().max()}"
+    return np.array(df.to_records(index=True, **kwargs))
 
-    def to_dict(self): # ,
-        return DotDict({key: val for key, val in self.d.items() if key != 'ID'})
 
-    @property
-    def simulation_parameters(self):
-        return self.to_dict()
-
-    def to_ID(self):
-        return self.d['ID']
-
-    @property
-    def ID(self):
-        return self.to_ID()
 
 
 #%%
@@ -385,4 +553,7 @@ def human_format(num, decimals=None):
         # if decimals == 0:
             # num = num[0]
     return '{}{}'.format('{:f}'.format(num).rstrip('0').rstrip('.'), ['', 'K', 'M', 'B', 'T'][magnitude])
+
+
+#%%
 
