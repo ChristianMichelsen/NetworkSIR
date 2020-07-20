@@ -21,9 +21,13 @@ from numba.core.errors import NumbaTypeSafetyWarning, NumbaExperimentalFeatureWa
 import awkward as awkward0 # conda install awkward0, conda install -c conda-forge pyarrow
 import awkward1 as ak # pip install awkward1
 
+try:
+    from src import utils
+    from src import simulation_utils
+except ImportError:
+    import utils
+    import simulation_utils
 
-from src import utils
-from src import simulation_utils
 
 # try:
 #     import utils
@@ -522,12 +526,20 @@ class Simulation:
 
         self._prepare_memory_file()
 
-    def _prepare_memory_file(self):
-        self.time_start = Time.time()
-        self.do_track_memory = True # if self.ID == 0 else False
 
-        self.filenames['memory']  = self._Filename.memory_filename
-        utils.make_sure_folder_exist(self.filenames['memory'], delete_file_if_exists=True) # make sure parent folder exists
+    def _prepare_memory_file(self):
+        self.filenames['memory'] = memory_file = self._Filename.memory_filename
+        self.do_track_memory = True # if self.ID == 0 else False
+        self.time_start = Time.time()
+
+        search_string = "Saving network initialization"
+        has_saved_initialization = simulation_utils.does_file_contains_string(memory_file, search_string)
+
+        if utils.file_exists(memory_file) and has_saved_initialization:
+            self.time_start -= simulation_utils.get_search_string_time(memory_file, search_string)
+            self.track_memory('Appending to previous network initialization')
+        else:
+            utils.make_sure_folder_exist(self.filenames['memory'], delete_file_if_exists=True) # make sure parent folder exists
 
 
     @property
@@ -823,11 +835,6 @@ def run_full_simulation(filename, verbose=False, force_rerun=False, only_initial
     # reload(utils)
     # reload(simulation_utils)
 
-    # verbose = True
-    # filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
-    # filename = filename.replace('58000', '580000')
-
-
     with warnings.catch_warnings():
         if not verbose:
             warnings.simplefilter('ignore', NumbaTypeSafetyWarning)
@@ -845,4 +852,10 @@ def run_full_simulation(filename, verbose=False, force_rerun=False, only_initial
 
     if verbose:
         print("\n\nFinished!!!")
-#
+
+
+# verbose = True
+# force_rerun = False
+# filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
+# # filename = filename.replace('58000', '580000')
+

@@ -13,10 +13,12 @@ import awkward1 as ak # pip install awkward1
 #     from simulation_utils import INTEGER_SIMULATION_PARAMETERS
 # except ModuleNotFoundError:
 #     try:
-from src import simulation_utils
-from src.simulation_utils import INTEGER_SIMULATION_PARAMETERS
-    # except ModuleNotFoundError as e:
-        # raise e
+try:
+    from src import simulation_utils
+    from src.simulation_utils import INTEGER_SIMULATION_PARAMETERS
+except ImportError:
+    import simulation_utils
+    from simulation_utils import INTEGER_SIMULATION_PARAMETERS
 
 def _is_ipython():
     try:
@@ -48,6 +50,11 @@ def delete_file(filename):
         Path(filename).unlink()
     except FileNotFoundError:
         pass
+
+def file_exists(filename):
+    if isinstance(filename, str):
+        filename = Path(filename)
+    return filename.exists()
 
 def make_sure_folder_exist(filename, delete_file_if_exists=False):
     if isinstance(filename, str):

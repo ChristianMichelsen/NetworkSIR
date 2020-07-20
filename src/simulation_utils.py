@@ -6,8 +6,12 @@ from numba.typed import List, Dict
 import pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
+import csv
 
-from src import utils
+try:
+    from src import utils
+except ImportError:
+    import utils
 
 INTEGER_SIMULATION_PARAMETERS = ['N_tot', 'N_init',  'N_ages', 'algo']
 
@@ -385,3 +389,31 @@ def plot_memory_comsumption(df_time_memory, df_change_points, min_TimeDiffRel=0.
 
     ax.legend()
     return fig, ax
+
+
+#%%
+
+def does_file_contains_string(filename, string):
+    with open(filename) as f:
+        if string in f.read():
+            return True
+    return False
+
+
+def get_search_string_time(filename, search_string):
+    is_search_string = False
+
+    with open(filename, 'r') as f:
+        reader = csv.reader(f, delimiter='\t')
+        for irow, row in enumerate(reader):
+
+            # if new section
+            if len(row) == 1:
+                if search_string in row[0]:
+                    is_search_string = True
+
+            elif is_search_string and len(row) == 2:
+                time = float(row[0])
+                return time
+    return 0
+
