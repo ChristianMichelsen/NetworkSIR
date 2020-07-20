@@ -498,11 +498,6 @@ def do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_cou
     return continue_run, TotMov, TotInf
 
 
-#%%
-
-
-
-
 
 #%%
 
@@ -525,14 +520,11 @@ class Simulation:
 
         utils.set_numba_random_seed(self.ID)
 
-        self._prepare_memory_file(do_track_memory=True)
+        self._prepare_memory_file()
 
-    def _prepare_memory_file(self, do_track_memory=None):
+    def _prepare_memory_file(self):
         self.time_start = Time.time()
-        if do_track_memory is None:
-            self.do_track_memory = True if self.ID == 0 else False
-        else:
-            self.do_track_memory = do_track_memory
+        self.do_track_memory = True # if self.ID == 0 else False
 
         self.filenames['memory']  = self._Filename.memory_filename
         utils.make_sure_folder_exist(self.filenames['memory'], delete_file_if_exists=True) # make sure parent folder exists

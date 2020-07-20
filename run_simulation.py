@@ -17,34 +17,33 @@ force_overwrite = False
 verbose = True # only for 1 core
 only_initialize_network = True
 
-if dry_run:
-    print("\n\nRunning a dry run, nothing will actually be simulated.!!!\n\n", flush=True)
-
-if only_initialize_network:
-    print("\n\nOnly initializing networks, not running actual simulation\n\n", flush=True)
-
-
 #%%
 
-all_sim_pars = [
+if utils.is_local_computer():
+    all_sim_pars = [
+
+                    {
+                        'N_tot': [58_000],
+                        'sigma_mu': [0, 1],
+                    },
+    ]
 
 
-                {
-                    'N_tot': [58_000],
-                    'sigma_mu': [0, 1],
-                },
+else:
 
-                # {
-                #     'N_tot': [580_000],
-                #     'rho': [0, 5, 10, 15, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500],
-                #     'sigma_mu': [0, 1],
-                # },
+    all_sim_pars = [
 
-                # {
-                #     'N_tot': [5_800_000],
-                #     'rho': [0, 5, 10, 15, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500],
-                #     'sigma_mu': [0, 1],
-                # },
+                    {
+                        'N_tot': [580_000],
+                        'rho': [0, 5, 10, 15, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500],
+                        'sigma_mu': [0, 1],
+                    },
+
+                    {
+                        'N_tot': [5_800_000],
+                        'rho': [0, 5, 10, 15, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500],
+                        'sigma_mu': [0, 1],
+                    },
 
 
                 # # {
@@ -248,6 +247,13 @@ N_loops = 2 if utils.is_local_computer() else N_loops
 
 N_files_total = 0
 if __name__ == '__main__':
+
+    if dry_run:
+        print("\n\nRunning a dry run, nothing will actually be simulated.!!!\n\n")
+
+    if only_initialize_network:
+        print("\n\nOnly initializing networks, not running actual simulation\n\n")
+
 
     for d_sim_pars in all_sim_pars:
         filenames = simulation_utils.generate_filenames(d_sim_pars, N_loops, force_overwrite=force_overwrite)
