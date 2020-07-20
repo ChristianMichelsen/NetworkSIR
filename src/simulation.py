@@ -119,11 +119,6 @@ def update_node_connections(which_connections, coordinates, rho_tmp, rho_scale, 
             which_connections[agent2].append(agent1)
             continue_run = False
 
-            # individual_rates[agent1].append(infection_weight[agent1]) # agent1 -> agent2
-            # individual_rates[agent2].append(infection_weight[agent2]) # Changed from agent1
-            # N_connections[agent1] += 1
-            # N_connections[agent2] += 1
-
     return continue_run
 
 
@@ -185,38 +180,6 @@ def connect_nodes(epsilon_rho, rho, algo, PP_ages, which_connections, coordinate
                         track_memory()
 
 
-# np.random.seed(42)
-# random_agents = np.random.choice(np.arange(58_0000), 100, replace=False)
-
-# @njit
-# def test1(which_connections):
-#     founds = 0
-#     for agent in random_agents:
-#         for contact in which_connections[agent]:
-#             for i, contacts_contacts in enumerate(which_connections[contact]):
-#                 if contacts_contacts == agent:
-#                     founds += 1
-#                     break
-#     return founds
-
-# @njit
-# def test2(which_connections):
-#     founds = 0
-#     founds = 0
-#     for agent in random_agents:
-#         for contact in which_connections[agent]:
-#             found, index = utils.binary_search(which_connections[contact], agent)
-#             if found:
-#                 founds += 1
-#     return founds
-
-# test1(which_connections.array)
-# test2(which_connections.array)
-
-# %timeit test1(which_connections.array)
-# %timeit test2(which_connections.array)
-
-
 @njit
 def make_initial_infections(N_init, which_state, state_total_counts, agents_in_state, csMov, N_connections_reference, which_connections, N_connections, individual_rates, SIR_transition_rates, ages_in_state, initial_ages_exposed, cs_move_individual, N_infectious_states):
 
@@ -242,18 +205,6 @@ def make_initial_infections(N_init, which_state, state_total_counts, agents_in_s
             found, index = utils.binary_search(which_connections[contact], agent)
             if found:
                 individual_rates[contact][index] = 0.0
-
-        # old method
-        # for i1 in range(N_connections_reference[agent]):
-        #     Af = which_connections_reference[agent][i1]
-        #     for i2 in range(N_connections[Af]):
-        #         if which_connections[Af][i2] == agent:
-
-        #             which_connections[Af].pop(i2)
-        #             individual_rates[Af].pop(i2)
-
-        #             N_connections[Af] -= 1
-        #             break
 
     return TotMov #, safe_agents
 
@@ -575,9 +526,6 @@ class Simulation:
         utils.set_numba_random_seed(self.ID)
 
         self._prepare_memory_file(do_track_memory=True)
-        self.track_memory('Load Coordinates')
-        self.coordinates = simulation_utils.load_coordinates(Filename.coordinates_filename, self.cfg.N_tot, self.ID)
-
 
     def _prepare_memory_file(self, do_track_memory=None):
         self.time_start = Time.time()
@@ -609,6 +557,8 @@ class Simulation:
     def _initialize_network(self):
 
         cfg = self.cfg
+        self.track_memory('Loading Coordinates')
+        self.coordinates = simulation_utils.load_coordinates(self._Filename.coordinates_filename, cfg.N_tot, self.ID)
 
         if self.verbose:
             print("INITIALIZE NETWORK")
@@ -675,6 +625,8 @@ class Simulation:
             ages = f["ages"][()]
             N_connections = f["N_connections"][()]
             which_connections = awkward0.hdf5(f)["which_connections"]
+        self.track_memory('Loading Coordinates')
+        self.coordinates = simulation_utils.load_coordinates(self._Filename.coordinates_filename, self.cfg.N_tot, self.ID)
         return ages, N_connections, ak.from_awkward0(which_connections)
 
 
@@ -689,7 +641,7 @@ class Simulation:
         else:
             if self.verbose:
                 print(f"{self.filenames['network_initialisation']} does not exist, creating it")
-            with Timer() as t, warnings.catch_warnings():
+            with Timer() as t:
                 which_connections, ages = self._initialize_network()
             which_connections, N_connections = utils.nested_list_to_awkward_array(which_connections, return_lengths=True, sort_nested_list=True)
             self._save_network_initalization(ages=ages,
@@ -874,7 +826,7 @@ class Simulation:
 
 #%%
 
-def run_full_simulation(filename, verbose=False, force_rerun=False):
+def run_full_simulation(filename, verbose=False, force_rerun=False, only_initialize_network=False):
 
     # reload(utils)
     # reload(simulation_utils)
@@ -891,6 +843,8 @@ def run_full_simulation(filename, verbose=False, force_rerun=False):
 
         simulation = Simulation(filename, verbose)
         simulation.initialize_network(force_rerun=force_rerun)
+        if only_initialize_network:
+            return None
         simulation.make_initial_infections()
         simulation.run_simulation()
         simulation.make_dataframe()

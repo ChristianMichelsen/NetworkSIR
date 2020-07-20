@@ -8,37 +8,43 @@ from src import rc_params
 rc_params.set_rc_params()
 from src import utils
 from src import simulation_utils
+from functools import partial
 
 num_cores_max = 30
 N_loops = 10
 dry_run = False
-force_overwrite = True
+force_overwrite = False
 verbose = True # only for 1 core
+only_initialize_network = True
 
 if dry_run:
-    print("\n\nRunning a dry run, nothing will actually be simulated.!!!\n\n")
+    print("\n\nRunning a dry run, nothing will actually be simulated.!!!\n\n", flush=True)
+
+if only_initialize_network:
+    print("\n\nOnly initializing networks, not running actual simulation\n\n", flush=True)
+
 
 #%%
 
 all_sim_pars = [
 
 
+                {
+                    'N_tot': [58_000],
+                    'sigma_mu': [0, 1],
+                },
+
                 # {
                 #     'N_tot': [580_000],
+                #     'rho': [0, 5, 10, 15, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500],
                 #     'sigma_mu': [0, 1],
                 # },
 
-                {
-                    'N_tot': [580_000],
-                    'rho': [0, 5, 10, 15, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500],
-                    'sigma_mu': [0, 1],
-                },
-
-                {
-                    'N_tot': [5_800_000],
-                    'rho': [0, 5, 10, 15, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500],
-                    'sigma_mu': [0, 1],
-                },
+                # {
+                #     'N_tot': [5_800_000],
+                #     'rho': [0, 5, 10, 15, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500],
+                #     'sigma_mu': [0, 1],
+                # },
 
 
                 # # {
@@ -263,7 +269,9 @@ if __name__ == '__main__':
 
             else:
                 with mp.Pool(num_cores) as p:
-                    list(tqdm(p.imap_unordered(simulation.run_full_simulation, filenames), total=N_files))
+                    kwargs = dict(verbose=False, force_rerun=False, only_initialize_network=only_initialize_network)
+                    f = partial(simulation.run_full_simulation, **kwargs)
+                    list(tqdm(p.imap_unordered(f, filenames), total=N_files))
         else:
             print("No files to generate, everything already generated.")
 
