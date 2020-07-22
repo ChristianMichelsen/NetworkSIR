@@ -15,7 +15,7 @@ N_loops = 10
 dry_run = False
 force_overwrite = False
 verbose = True # only for 1 core
-only_initialize_network = True
+only_initialize_network = False
 
 #%%
 
@@ -23,8 +23,9 @@ if utils.is_local_computer():
     all_sim_pars = [
 
                     {
-                        'N_tot': [58_000],
-                        'sigma_mu': [0, 1],
+                        'N_tot': [580_000, 5_800_000],
+                        # 'N_tot': [580_000],
+                        # 'sigma_mu': [0, 1],
                     },
     ]
 
@@ -268,6 +269,8 @@ if __name__ == '__main__':
 
             if dry_run:
                 continue
+
+            # simulation.make_small_run()
 
             if num_cores == 1:
                 for filename in tqdm(filenames):

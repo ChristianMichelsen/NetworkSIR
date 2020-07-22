@@ -117,6 +117,10 @@ def load_coordinates(coordinates_filename, N_tot, ID):
 
 class Filename:
     def __init__(self, filename):
+
+        if isinstance(filename, dict):
+            filename = generate_filenames(filename, N_loops=1, force_overwrite=True)[0]
+
         self._filename = filename
         self.filename = self.filename_prefix + filename
         self.d = self._string_to_dict
@@ -229,17 +233,20 @@ def set_numba_random_seed(seed):
 
 
 @njit
-def _initialize_individual_rates_nested_list(N_tot, beta, N_connections, ID):
+def _initialize_individual_rates_nested_list(N_tot, beta, sigma_beta, N_connections, ID):
     # np.random.seed(ID)
     res = List()
     for i in range(N_tot):
-        ra = np.random.random() * beta
-        x = np.full(N_connections[i], fill_value=ra, dtype=np.float32)
+        if sigma_beta == 0:
+            val = -np.log(np.random.random()) * beta
+        else:
+            val = beta
+        x = np.full(N_connections[i], fill_value=val, dtype=np.float32)
         res.append(x)
     return res
 
-def initialize_individual_rates(N_tot, beta, N_connections, ID=0):
-    return utils.RaggedArray(_initialize_individual_rates_nested_list(N_tot, beta, N_connections, ID))
+def initialize_individual_rates(N_tot, beta, sigma_beta, N_connections, ID=0):
+    return utils.RaggedArray(_initialize_individual_rates_nested_list(N_tot, beta, sigma_beta, N_connections, ID))
 
 @njit
 def initialize_non_infectable(N_tot, N_connections):
@@ -265,6 +272,35 @@ def compute_ages_in_state(ages, N_ages):
     ages_in_state = _compute_ages_in_state(ages, N_ages)
     ages_in_state = utils.nested_list_to_awkward_array(ages_in_state)
     return ages_in_state
+
+
+def get_hospitalization_variables(cfg):
+
+    # Hospitalization track variables
+    H_N_states = 6 # number of states
+    H_state_total_counts = np.zeros(H_N_states, dtype=np.uint32)
+    # H_which_state = -1*np.ones(N_tot, dtype=np.int8)
+    H_which_state = np.full(cfg.N_tot, -1, dtype=np.int8)
+
+    H_agents_in_state = utils.initialize_nested_lists(H_N_states, dtype=np.uint32)
+    H_probability_matrix = np.ones((cfg.N_ages, H_N_states), dtype=np.float32) / H_N_states
+    H_probability_matrix_csum = utils.numba_cumsum(H_probability_matrix, axis=1)
+
+    H_move_matrix = np.zeros((H_N_states, H_N_states, cfg.N_ages), dtype=np.float32)
+    H_move_matrix[0, 1] = 0.3
+    H_move_matrix[1, 2] = 1.0
+    H_move_matrix[2, 1] = 0.6
+    H_move_matrix[1, 4] = 0.1
+    H_move_matrix[2, 3] = 0.1
+    H_move_matrix[3, 4] = 1.0
+    H_move_matrix[3, 5] = 0.1
+
+    H_move_matrix_sum = np.sum(H_move_matrix, axis=1)
+    H_move_matrix_cumsum = utils.numba_cumsum(H_move_matrix, axis=1)
+
+    H_cumsum_move = np.zeros(H_N_states, dtype=np.float64)
+
+    return H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum
 
 
 #%%
@@ -359,15 +395,21 @@ def plot_memory_comsumption(df_time_memory, df_change_points, min_TimeDiffRel=0.
 
     fig, ax = plt.subplots()
 
-    ax.plot(df_time_memory.index / time_scale[time_unit], df_time_memory['Memory'], '-', c=colors[0], zorder=2)
-    ax.scatter(df_change_points['Time'] / time_scale[time_unit], df_change_points['Memory'], s=200, c='white', edgecolors='k', zorder=3, label='Change Points')
+    #
+    df_change_points_non_compilation = df_change_points.query("index != 'Numba Compilation'")
+    df_change_points_compilation = df_change_points.query("index == 'Numba Compilation'")
+    # marker='s'
+
+    ax.plot(df_time_memory.index / time_scale[time_unit], df_time_memory['Memory'], '.', c=colors[0], zorder=2, label='Data Points')
+    ax.scatter(df_change_points_non_compilation['Time'] / time_scale[time_unit], df_change_points_non_compilation['Memory'], s=200, c='white', edgecolors='k', zorder=3, label='Change Points')
+    ax.scatter(df_change_points_compilation['Time'] / time_scale[time_unit], df_change_points_compilation['Memory'], s=200, c='white', edgecolors='k', zorder=2, label='Numba Compilations', marker='s')
     ax.set(xlabel=f'Time [{time_unit}]', ylabel='Memory [GiB]', ylim=(0, None)) # xlim=(0, None)
 
     ymax = ax.get_ylim()[1]
     i = 1
-    for index, row in df_change_points.iterrows():
+    for index, row in df_change_points_non_compilation.iterrows():
         # first_or_last = (i == 0) or (i == len(df_change_points)-1)
-        last = (index == df_change_points.index[-1])
+        last = (index == df_change_points_non_compilation.index[-1])
         large_time_diff = row['TimeDiffRel'] > min_TimeDiffRel # sec
         large_memory_diff = np.abs(row['MemoryDiffRel']) >  min_MemoryDiffRel # GiB
         if any([last, large_time_diff, large_memory_diff]):

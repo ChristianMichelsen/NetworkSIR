@@ -3,7 +3,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python>=3.8  
+  - python>=3.8
   - pip
   - numpy
   - scipy
@@ -37,7 +37,7 @@ dependencies:
   - h5py
  # - netcdf4
   - pathos
-  - p_tqdm
+  # - p_tqdm
   # - awkward-numba
   - pip:
     - mpl-scatter-density
