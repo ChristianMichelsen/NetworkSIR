@@ -127,8 +127,14 @@ def initialize_list_set(N, dtype):
 
 
 @njit
-def get_size_gb(x):
-    return x.size * x.itemsize / 10**9
+def get_size(x, unit='gb'):
+
+    d_prefix_conversion = {
+        'mb': 10**6,
+        'gb': 10**9,
+    }
+
+    return x.size * x.itemsize / d_prefix_conversion[unit.lower()]
 
 import re
 from numba import typeof

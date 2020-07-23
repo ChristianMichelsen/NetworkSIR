@@ -270,7 +270,6 @@ if __name__ == '__main__':
             if dry_run:
                 continue
 
-            # simulation.make_small_run()
 
             if num_cores == 1:
                 for filename in tqdm(filenames):
