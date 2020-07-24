@@ -829,7 +829,7 @@ class Simulation:
 
 def run_full_simulation(filename, verbose=False, force_rerun=False, only_initialize_network=False):
 
-    with with Timer() as t, warnings.catch_warnings():
+    with Timer() as t, warnings.catch_warnings():
         if not verbose:
             warnings.simplefilter('ignore', NumbaTypeSafetyWarning)
             warnings.simplefilter('ignore', NumbaExperimentalFeatureWarning)
