@@ -784,7 +784,7 @@ class Simulation:
             f.create_dataset("df", data=utils.dataframe_to_hdf5_format(self.df))
 
             if time_elapsed:
-                f.create_dataset("time_elapsed", data=t.elapsed)
+                f.create_dataset("time_elapsed", data=time_elapsed)
 
             if self.do_track_memory:
                 memory_file = self.filenames["memory"]

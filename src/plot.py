@@ -61,11 +61,16 @@ def make_SIR_curves(abn_files, variable='I', force_overwrite=False):
 
             Tmax = max(Tmax, 50)
 
+
+            # checks that the curve has flattened out
             while True:
                 ts = 0.1
                 df_fit = SIR.integrate(cfg, Tmax, dt=0.01, ts=ts)
-
-                if df_fit[variable].iloc[-1] - df_fit[variable].iloc[-1-int(1/ts)]
+                Tmax *= 1.5
+                delta_1_day = (df_fit[variable].iloc[-1] - df_fit[variable].iloc[-1-int(1/ts)])
+                delta_rel = delta_1_day / cfg.N_tot
+                if delta_rel < 1e-5:
+                    break
 
             ax.plot(df_fit['time'], df_fit[variable], lw=2.5, color='red', label='SIR')
             leg = ax.legend(loc=d_label_loc[variable])
