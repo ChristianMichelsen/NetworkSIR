@@ -12,6 +12,8 @@ from importlib import reload
 from contexttimer import Timer
 import os
 from IPython.display import display
+from contexttimer import Timer
+
 
 import numba as nb
 from numba import njit, prange, objmode, typeof # conda install -c numba/label/dev numba
@@ -765,7 +767,7 @@ class Simulation:
         return df
 
 
-    def save_simulation_results(self, save_only_ID_0=False):
+    def save_simulation_results(self, save_only_ID_0=False, time_elapsed=None):
 
         if save_only_ID_0 and self.ID != 0:
             return None
@@ -780,6 +782,9 @@ class Simulation:
             f.create_dataset("ages", data=self.ages)
             f.create_dataset("cfg_str", data=str(self.cfg)) # import ast; ast.literal_eval(str(cfg))
             f.create_dataset("df", data=utils.dataframe_to_hdf5_format(self.df))
+
+            if time_elapsed:
+                f.create_dataset("time_elapsed", data=t.elapsed)
 
             if self.do_track_memory:
                 memory_file = self.filenames["memory"]
@@ -800,8 +805,6 @@ class Simulation:
 
             for key, val in self.cfg.items():
                 f.attrs[key] = val
-
-            # f.create_dataset("time_elapsed", data=t.elapsed)
 
         # self.track_memory('Finished')
         # if verbose:
@@ -826,22 +829,21 @@ class Simulation:
 
 def run_full_simulation(filename, verbose=False, force_rerun=False, only_initialize_network=False):
 
-    with warnings.catch_warnings():
+    with with Timer() as t, warnings.catch_warnings():
         if not verbose:
             warnings.simplefilter('ignore', NumbaTypeSafetyWarning)
             warnings.simplefilter('ignore', NumbaExperimentalFeatureWarning)
             warnings.simplefilter('ignore', NumbaPendingDeprecationWarning)
 
-        # make_small_run()
-
         simulation = Simulation(filename, verbose)
         simulation.initialize_network(force_rerun=force_rerun)
         if only_initialize_network:
             return None
+
         simulation.make_initial_infections()
         simulation.run_simulation()
         simulation.make_dataframe()
-        simulation.save_simulation_results()
+        simulation.save_simulation_results(time_elapsed=t.elapsed)
         simulation.save_memory_figure()
 
         if verbose and simulation.ID == 0:
