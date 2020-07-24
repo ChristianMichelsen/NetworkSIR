@@ -276,6 +276,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
         Csum = 0.0
         ra1 = np.random.rand()
 
+        csInf0 = csInf.copy()
+
         #######/ Here we move infected between states
         accept = False
         if TotMov / Tot > ra1:
@@ -289,6 +291,7 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
             state_after = state_now + 1
             random_agent_id = np.random.randint(state_total_counts[state_now])
             agent = agents_in_state[state_now][random_agent_id]
+            # agent = np.random.choice(agents_in_state[state_now])
 
             # We have chosen agent to move -> here we move it
             agents_in_state[state_after].append(agent)
@@ -339,6 +342,7 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
 
 
 
+
         # Here we infect new states
         elif (TotMov + TotInf) / Tot > ra1:  # XXX HOSPITAL
         # else: # XXX HOSPITAL
@@ -360,9 +364,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
                         if contact not in non_infectable_agents:
                             Csum += rate / Tot
                             if Csum > ra1:
-                                agent = contact
-                                which_state[agent] = 0
-                                agents_in_state[0].append(agent)
+                                which_state[contact] = 0
+                                agents_in_state[0].append(contact)
                                 state_total_counts[0] += 1
                                 TotMov += SIR_transition_rates[0]
                                 csMov += SIR_transition_rates[0]
@@ -378,13 +381,14 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
 
 
             # Here we update infection lists
-            for contact in which_connections[agent]:
-                if contact in active_agents:
-                    for contacts_contacts, rate in zip(which_connections[contact], individual_rates[contact]):
-                        if contacts_contacts == agent:
+            for step_cousin in which_connections[contact]:
+                if step_cousin in active_agents:
+                    for step_cousins_contacts, rate in zip(which_connections[step_cousin],  individual_rates[step_cousin]):
+                        if step_cousins_contacts == contact:
                             TotInf -= rate
-                            InfRat[contact] -= rate
-                            csInf[which_state[contact]:] -= rate
+                            InfRat[step_cousin] -= rate
+                            csInf[which_state[step_cousin]:] -= rate
+                            break
 
 
 
@@ -454,6 +458,7 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
                     track_memory()
 
             click += 1
+
 
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
         # # # # # # # # # # # BUG CHECK  # # # # # # # # # # # # # # # # # # # # # # # #
@@ -847,27 +852,27 @@ def run_full_simulation(filename, verbose=False, force_rerun=False, only_initial
         print("\n\nFinished!!!")
 
 
-reload(utils)
-reload(simulation_utils)
+# reload(utils)
+# reload(simulation_utils)
 
-verbose = True
-force_rerun = False
-filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
-filename = filename.replace('58000', '580000')
+# verbose = True
+# force_rerun = False
+# filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
+# filename = filename.replace('58000', '580000')
 
-simulation = Simulation(filename, verbose)
-simulation.initialize_network(force_rerun=True)
-simulation.make_initial_infections()
-simulation.run_simulation()
-df = simulation.make_dataframe()
-display(df)
+# simulation = Simulation(filename, verbose)
+# simulation.initialize_network(force_rerun=False)
+# simulation.make_initial_infections()
+# simulation.run_simulation()
+# df = simulation.make_dataframe()
+# display(df)
 
-if verbose:
-    print("\n\n")
-    print("coordinates", utils.get_size(simulation.coordinates, 'mb'))
-    print("which_state", utils.get_size(simulation.which_state, 'mb'))
-    print("N_connections", utils.get_size(simulation.N_connections, 'mb'))
-    print("ages", utils.get_size(simulation.ages, 'mb'))
+# if verbose:
+#     print("\n\n")
+#     print("coordinates", utils.get_size(simulation.coordinates, 'mb'))
+#     print("which_state", utils.get_size(simulation.which_state, 'mb'))
+#     print("N_connections", utils.get_size(simulation.N_connections, 'mb'))
+#     print("ages", utils.get_size(simulation.ages, 'mb'))
 
 # simulation.save_simulation_results()
 # simulation.save_memory_figure()

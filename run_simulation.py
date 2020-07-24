@@ -25,7 +25,7 @@ if utils.is_local_computer():
                     {
                         'N_tot': [580_000, 5_800_000],
                         # 'N_tot': [580_000],
-                        # 'sigma_mu': [0, 1],
+                        'sigma_mu': [0, 1],
                     },
     ]
 

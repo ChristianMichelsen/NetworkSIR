@@ -237,11 +237,11 @@ def _initialize_individual_rates_nested_list(N_tot, beta, sigma_beta, N_connecti
     # np.random.seed(ID)
     res = List()
     for i in range(N_tot):
-        if sigma_beta == 0:
+        if sigma_beta == 1:
             val = -np.log(np.random.random()) * beta
         else:
             val = beta
-        x = np.full(N_connections[i], fill_value=val, dtype=np.float32)
+        x = np.full(N_connections[i], fill_value=val, dtype=np.float64)
         res.append(x)
     return res
 
@@ -256,7 +256,7 @@ def initialize_non_infectable(N_tot, N_connections):
     return res
 
 def initialize_SIR_transition_rates(N_states, N_infectious_states, cfg):
-    SIR_transition_rates = np.zeros(N_states, dtype=np.float32)
+    SIR_transition_rates = np.zeros(N_states, dtype=np.float64)
     SIR_transition_rates[:N_infectious_states] = cfg.lambda_E
     SIR_transition_rates[N_infectious_states:2*N_infectious_states] = cfg.lambda_I
     return SIR_transition_rates
