@@ -1,39 +1,37 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from tqdm import tqdm
 from pathlib import Path
-from iminuit import Minuit
-from collections import defaultdict
+# from iminuit import Minuit
+# from collections import defaultdict
 import joblib
 from matplotlib.backends.backend_pdf import PdfPages
-import extra_funcs
 from importlib import reload
-import SimulateDenmarkAgeHospitalization_extra_funcs
-import matplotlib.patches as mpatches
-import rc_params
+from src import utils
+from src import plot
+from src import file_loaders
+from src import rc_params
 rc_params.set_rc_params()
-
 num_cores_max = 10
 
 savefig = False
 do_animate = False
 save_and_show_all_plots = True
-plot_SIR_comparison = False if SimulateDenmarkAgeHospitalization_extra_funcs.is_local_computer() else False
+plot_SIR_comparison = True if utils.is_local_computer() else False
 
 #%%
 
-# reload(extra_funcs)
-filenames = extra_funcs.get_filenames()
-N_files = len(filenames)
+
+reload(plot)
+
+abn_files = file_loaders.ABNFiles()
+N_files = len(abn_files)
 
 if plot_SIR_comparison:
 
-    extra_funcs.plot_SIR_model_comparison('I', force_overwrite=True)
-    extra_funcs.plot_SIR_model_comparison('R', force_overwrite=True)
+    plot.make_SIR_curves(abn_files, 'I', force_overwrite=False)
+    plot.make_SIR_curves(abn_files, 'R', force_overwrite=False)
 
 x=x
 
@@ -48,35 +46,35 @@ if False:
     fit_objects_all = None
 
     extra_funcs.plot_1D_scan('N_tot', fit_objects_all, do_log=True)
-    extra_funcs.plot_1D_scan('N_init', fit_objects_all, do_log=True) 
-    extra_funcs.plot_1D_scan('N_init', fit_objects_all, do_log=True, algo=1) 
+    extra_funcs.plot_1D_scan('N_init', fit_objects_all, do_log=True)
+    extra_funcs.plot_1D_scan('N_init', fit_objects_all, do_log=True, algo=1)
 
     extra_funcs.plot_1D_scan('beta_scaling', fit_objects_all, N_tot=5_800_000, epsilon_rho=0, rho=100, N_init=100)
     extra_funcs.plot_1D_scan('beta_scaling', fit_objects_all, N_tot=5_800_000, epsilon_rho=0, rho=100, N_init=1000)
     extra_funcs.plot_1D_scan('beta_scaling', fit_objects_all, N_tot=580_000, epsilon_rho=0, rho=100, N_init=100)
     extra_funcs.plot_1D_scan('beta_scaling', fit_objects_all, N_tot=580_000, epsilon_rho=0, rho=100, N_init=1000)
 
-    extra_funcs.plot_1D_scan('rho', fit_objects_all) 
-    extra_funcs.plot_1D_scan('rho', fit_objects_all, algo=1) 
-    extra_funcs.plot_1D_scan('rho', fit_objects_all, N_tot=5_800_000) 
+    extra_funcs.plot_1D_scan('rho', fit_objects_all)
+    extra_funcs.plot_1D_scan('rho', fit_objects_all, algo=1)
+    extra_funcs.plot_1D_scan('rho', fit_objects_all, N_tot=5_800_000)
     extra_funcs.plot_1D_scan('epsilon_rho', fit_objects_all, rho=100)
-    extra_funcs.plot_1D_scan('epsilon_rho', fit_objects_all, rho=100, algo=1)  
-    
+    extra_funcs.plot_1D_scan('epsilon_rho', fit_objects_all, rho=100, algo=1)
+
     extra_funcs.plot_1D_scan('mu', fit_objects_all)
     extra_funcs.plot_1D_scan('beta', fit_objects_all)
     extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all)
-    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, algo=1) 
-    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, rho=100) 
-    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, rho=100, algo=1) 
+    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, algo=1)
+    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, rho=100)
+    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, rho=100, algo=1)
     extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, sigma_mu=1)
-    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, sigma_mu=1, rho=100) 
-    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, rho=100) 
-    extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all) 
-    extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all, algo=1) 
-    extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all, rho=100) 
-    extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all, rho=100, algo=1) 
-    extra_funcs.plot_1D_scan('lambda_E', fit_objects_all) 
-    extra_funcs.plot_1D_scan('lambda_I', fit_objects_all) 
+    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, sigma_mu=1, rho=100)
+    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, rho=100)
+    extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all)
+    extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all, algo=1)
+    extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all, rho=100)
+    extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all, rho=100, algo=1)
+    extra_funcs.plot_1D_scan('lambda_E', fit_objects_all)
+    extra_funcs.plot_1D_scan('lambda_I', fit_objects_all)
 
 
 #%%
@@ -124,7 +122,7 @@ if __name__ == '__main__':
                 fit_errors = defaultdict(list)
                 max_y = defaultdict(int)
                 for i, (filename, fit_object) in enumerate(fit_objects.items()):
-                    
+
                     for fit_par in fit_object.parameters:
                         fit_values[fit_par].append(fit_object.fit_values[fit_par])
                         fit_errors[fit_par].append(fit_object.fit_errors[fit_par])
@@ -133,14 +131,14 @@ if __name__ == '__main__':
                     T = df['Time'].values
                     Tmax = max(T)*1.5
                     df_fit = fit_object.calc_df_fit(ts=0.1, Tmax=Tmax)
-                    
-                    
+
+
                     T_min = fit_object.t_interpolated.min()
                     T_max = fit_object.t_interpolated.max()
 
                     lw = 0.1
                     for y, ax in zip(['I', 'R'], axes):
-                        
+
                         label = 'Simulations' if i == 0 else None
                         ax.plot(T, df[y].to_numpy(int), 'k-', lw=lw, label=label)
                         max_y[y] = max(max_y[y], max(df[y].to_numpy(int)))
@@ -164,7 +162,7 @@ if __name__ == '__main__':
 
                     ax.plot(df_SIR['Time'], df_SIR[y], lw=lw*30, color='red', label='SIR')
 
-                    ax.set(ylim=(50, max_y[y]*2), 
+                    ax.set(ylim=(50, max_y[y]*2),
                         #    xlim=(0, x_max),
                         )
 
@@ -194,7 +192,7 @@ if __name__ == '__main__':
                 # ax2 = fig.add_axes([left, bottom, width, height])
                 # ax2.hist(fit_values['beta'])
 
-            
+
                 pdf.savefig(fig, dpi=100)
                 plt.close('all')
 
@@ -217,11 +215,11 @@ if __name__ == '__main__':
 
 
 # fit_object.filename = filename
-# fit_object.I_max_ABN 
-# fit_object.I_max_hat 
-# fit_object.I_max_det 
+# fit_object.I_max_ABN
+# fit_object.I_max_hat
+# fit_object.I_max_det
 
-# fit_object.R_inf_net 
-# fit_object.R_inf_hat 
-# fit_object.R_inf_det 
+# fit_object.R_inf_net
+# fit_object.R_inf_hat
+# fit_object.R_inf_det
 

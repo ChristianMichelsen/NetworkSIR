@@ -533,6 +533,82 @@ class DotDict(dict):
 
 #%%
 
+def string_to_dict(string):
+    d = {}
+    keyvals = string.split('__')
+    keyvals_chunks = [keyvals[i: i+2] for i in range(0, len(keyvals), 2)]
+    for key, val in keyvals_chunks:
+        if key in simulation_utils.INTEGER_SIMULATION_PARAMETERS + ['ID']:
+            d[key] = int(val)
+        else:
+            d[key] = float(val)
+    return DotDict(d)
+
+#%%
+
+
+def get_d_translate():
+    d_translate = { 'N_tot': r'N_\mathrm{tot}',
+                    'N_init': r'N_\mathrm{init}',
+                    'N_ages': r'N_\mathrm{ages}',
+                    'mu': r'\mu',
+                    'sigma_mu': r'\sigma_\mu',
+                    'beta': r'\beta',
+                    'sigma_beta': r'\sigma_\beta',
+                    'rho': r'\rho',
+                    'lambda_E': r'\lambda_E',
+                    'lambda_I': r'\lambda_I',
+                    'epsilon_rho': r'\epsilon_\rho',
+                    'beta_scaling': r'\beta_\mathrm{scaling}',
+                    'age_mixing': r'\mathrm{age}_\mathrm{mixing}',
+                    'algo': r'\mathrm{algo}',
+                    }
+    return d_translate
+
+
+
+def dict_to_title(d, N=None, exclude=None, in_two_line=True):
+
+    # important to make a copy since overwriting below
+    cfg = DotDict(d)
+
+    cfg.N_tot = human_format(cfg.N_tot)
+    cfg.N_init = human_format(cfg.N_init)
+
+    d_translate = get_d_translate()
+
+    title = "$"
+    for sim_par, val in cfg.items():
+        if not sim_par == exclude:
+            title += f"{d_translate[sim_par]} = {val}, \,"
+
+    if in_two_line:
+        if 'lambda_E' in title:
+            title = title.replace(", \\,\\lambda_E", "$\n$\\lambda_E")
+        else:
+            title = title.replace(", \\,\\lambda_I", "$\n$\\lambda_I")
+
+    if N:
+        title += r"\#" + f"{N}, \,"
+
+    title = title[:-4] + '$'
+
+    return title
+
+
+def human_format(num, decimals=None):
+    num = float('{:.3g}'.format(num))
+    magnitude = 0
+    while abs(num) >= 1000:
+        magnitude += 1
+        num /= 1000.0
+    if decimals is not None:
+        num = round(num, decimals)
+    return '{}{}'.format('{:f}'.format(num).rstrip('0').rstrip('.'), ['', 'K', 'M', 'B', 'T'][magnitude])
+
+
+#%%
+
 
 def get_column_dtypes(df, cols_to_str):
     kwargs = {}
@@ -554,18 +630,6 @@ def dataframe_to_hdf5_format(df, include_index=False, cols_to_str=None):
 
 #%%
 
-
-def human_format(num, decimals=None):
-    num = float('{:.3g}'.format(num))
-    magnitude = 0
-    while abs(num) >= 1000:
-        magnitude += 1
-        num /= 1000.0
-    if decimals is not None:
-        num = round(num, decimals)
-        # if decimals == 0:
-            # num = num[0]
-    return '{}{}'.format('{:f}'.format(num).rstrip('0').rstrip('.'), ['', 'K', 'M', 'B', 'T'][magnitude])
 
 
 #%%
