@@ -844,7 +844,7 @@ def run_full_simulation(filename, verbose=False, force_rerun=False, only_initial
         simulation.save_simulation_results()
         simulation.save_memory_figure()
 
-        if simulation.ID == 0:
+        if verbose and simulation.ID == 0:
             print(f"\n\n{simulation.cfg}\n")
             print(simulation.df_change_points)
 

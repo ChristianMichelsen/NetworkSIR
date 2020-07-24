@@ -23,8 +23,8 @@ if utils.is_local_computer():
     all_sim_pars = [
 
                     {
-                        'N_tot': [580_000, 5_800_000],
-                        # 'N_tot': [580_000],
+                        # 'N_tot': [580_000, 5_800_000],
+                        'N_tot': [580_000],
                         'sigma_mu': [0, 1],
                     },
     ]
@@ -277,7 +277,7 @@ if __name__ == '__main__':
 
             else:
                 with mp.Pool(num_cores) as p:
-                    kwargs = dict(verbose=False, force_rerun=False, only_initialize_network=only_initialize_network)
+                    kwargs = dict(verbose=False, force_rerun=False)
                     f = partial(simulation.run_full_simulation, **kwargs)
                     list(tqdm(p.imap_unordered(f, filenames), total=N_files))
         else:
