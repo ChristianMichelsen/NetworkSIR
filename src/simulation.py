@@ -766,8 +766,6 @@ class Simulation:
 
         res = run_simulation(cfg.N_tot, self.TotMov, self.csMov, self.state_total_counts, self.agents_in_state, self.which_state, self.csInf, self.N_states, self.InfRat, self.SIR_transition_rates, self.N_infectious_states, self.N_connections, self.individual_rates.array, self.which_connections.array, self.ages, self.individual_infection_counter, self.cs_move_individual, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, self.nts, self.verbose, self.non_infectable_agents)
 
-        return res
-
         out_time, out_state_counts, out_which_state, out_H_state_total_counts = res
 
         track_memory('Arrays Conversion')
@@ -895,10 +893,7 @@ def run_full_simulation(filename, verbose=False, force_rerun=False, only_initial
 # simulation = Simulation(filename, verbose)
 # simulation.initialize_network(force_rerun=False)
 # simulation.make_initial_infections()
-# step_cousin, active_agents = simulation.run_simulation()
-
-# x=x
-
+# simulation.run_simulation()
 # df = simulation.make_dataframe()
 # display(df)
 
