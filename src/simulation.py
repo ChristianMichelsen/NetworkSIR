@@ -285,8 +285,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
         if TotMov / Tot > ra1:
 
             s = 1
-            if click >= 1608:
-                print(s)
+            # if click >= 1608:
+            #     print(s)
 
             bug_move += Tot / TotMov
 
@@ -351,8 +351,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
         elif (TotMov + TotInf) / Tot > ra1:  # XXX HOSPITAL
         # else: # XXX HOSPITAL
             s = 2
-            if click >= 1608:
-                print(s)
+            # if click >= 1608:
+            #     print(s)
 
             bug_inf += Tot / TotInf
 
@@ -384,23 +384,23 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
 
                 if accept:
                     break
-            if click >= 1608:
-                print("bla", s)
-                print(which_connections[contact])
+            # if click >= 1608:
+            #     print("bla", s)
+            #     print(which_connections[contact])
 
 
             # Here we update infection lists
             for step_cousin in which_connections[contact]:
-                if click >= 1608:
-                    print(step_cousin)
-                    print(active_agents)
-                    # return step_cousin, active_agents
-                    print(step_cousin in active_agents)
+                # if click >= 1608:
+                #     print(step_cousin)
+                #     print(active_agents)
+                #     # return step_cousin, active_agents
+                #     print(step_cousin in active_agents)
 
                 if step_cousin in active_agents:
-                    if click >= 1608:
-                        print(which_connections[step_cousin])
-                        print(individual_rates[step_cousin])
+                    # if click >= 1608:
+                    #     print(which_connections[step_cousin])
+                    #     print(individual_rates[step_cousin])
                     for step_cousins_contacts, rate in zip(which_connections[step_cousin],  individual_rates[step_cousin]):
                         if step_cousins_contacts == contact:
                             TotInf -= rate
@@ -410,14 +410,14 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
                 else:
                     continue
 
-            if click >= 1608:
-                print("bla2", s)
+            # if click >= 1608:
+            #     print("bla2", s)
 
         ## move between hospital tracks
         else:
             s = 3
-            if click >= 1608:
-                print(s)
+            # if click >= 1608:
+            #     print(s)
 
             bug_hos += Tot / H_tot_move
 
@@ -491,8 +491,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
 
         s_counter[s] += 1
 
-        if click > 1600:
-            print(click, RT, counter, s, state_total_counts, continue_run, csInf, csMov)
+        # if click > 1600:
+        #     print(click, RT, counter, s, state_total_counts, continue_run, csInf, csMov)
 
     if verbose:
         print("Simulation counter, ", counter)
