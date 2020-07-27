@@ -498,7 +498,7 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
         print("Simulation counter, ", counter)
         print("s_counter", s_counter)
 
-    # return out_time, out_state_counts, out_which_state, out_H_state_total_counts
+    return out_time, out_state_counts, out_which_state, out_H_state_total_counts
 
 
 #%%
