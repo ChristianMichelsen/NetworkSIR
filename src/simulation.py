@@ -855,34 +855,34 @@ def run_full_simulation(filename, verbose=False, force_rerun=False, only_initial
         print("\n\nFinished!!!")
 
 
-reload(utils)
-reload(simulation_utils)
+# reload(utils)
+# reload(simulation_utils)
 
-verbose = True
-force_rerun = False
-filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
-# filename = filename.replace('58000', '580000')
-filename = filename.replace('ID__000', 'ID__2')
-filename = filename.replace('rho__0.0__', 'rho__25.0__')
-# N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__25.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__2.memory_file
-# filename = filename.replace('ID__000', 'ID__1')
-# N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__2
+# verbose = True
+# force_rerun = False
+# filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
+# # filename = filename.replace('58000', '580000')
+# filename = filename.replace('ID__000', 'ID__2')
+# filename = filename.replace('rho__0.0__', 'rho__25.0__')
+# # N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__25.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__2.memory_file
+# # filename = filename.replace('ID__000', 'ID__1')
+# # N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__2
 
-simulation = Simulation(filename, verbose)
-simulation.initialize_network(force_rerun=False)
-simulation.make_initial_infections()
-simulation.run_simulation()
-df = simulation.make_dataframe()
-display(df)
+# simulation = Simulation(filename, verbose)
+# simulation.initialize_network(force_rerun=False)
+# simulation.make_initial_infections()
+# simulation.run_simulation()
+# df = simulation.make_dataframe()
+# display(df)
 
-if verbose:
-    print("\n\n")
-    print("coordinates", utils.get_size(simulation.coordinates, 'mb'))
-    print("which_state", utils.get_size(simulation.which_state, 'mb'))
-    print("N_connections", utils.get_size(simulation.N_connections, 'mb'))
-    print("ages", utils.get_size(simulation.ages, 'mb'))
+# if verbose:
+#     print("\n\n")
+#     print("coordinates", utils.get_size(simulation.coordinates, 'mb'))
+#     print("which_state", utils.get_size(simulation.which_state, 'mb'))
+#     print("N_connections", utils.get_size(simulation.N_connections, 'mb'))
+#     print("ages", utils.get_size(simulation.ages, 'mb'))
 
-# simulation.save_simulation_results()
-# simulation.save_memory_figure()
-# print(f"\n\n{simulation.cfg}\n")
-# print(simulation.df_change_points)
+# # simulation.save_simulation_results()
+# # simulation.save_memory_figure()
+# # print(f"\n\n{simulation.cfg}\n")
+# # print(simulation.df_change_points)
