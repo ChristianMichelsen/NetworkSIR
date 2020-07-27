@@ -31,7 +31,7 @@ is_ipython = _is_ipython()
 
 
 import platform
-def is_local_computer(N_local_cores=8):
+def is_local_computer(N_local_cores=12):
     if mp.cpu_count() <= N_local_cores and platform.system() == 'Darwin':
         return True
     else:

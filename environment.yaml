@@ -28,7 +28,7 @@ dependencies:
   - plotly-orca
   #- natsort
   - datashader
-  # - awkward
+  - awkward
   - pyarrow
   - networkx
   - fast-histogram
