@@ -203,7 +203,7 @@ def make_initial_infections(N_init, which_state, state_total_counts, agents_in_s
         new_state = np.random.randint(0, N_infectious_states)
         which_state[agent] = new_state
 
-        agents_in_state[new_state].append(agent)
+        agents_in_state[new_state].append(np.uint32(agent))
         state_total_counts[new_state] += 1
         TotMov += SIR_transition_rates[new_state]
         csMov[new_state:] += SIR_transition_rates[new_state]
@@ -449,8 +449,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
             out_H_state_total_counts.append(H_state_total_counts.copy())
             # out_infection_counter.append(utils.array_to_counter(individual_infection_counter))
 
-
             if daily_counter >= 10:
+
                 daily_counter = 0
 
                 # out_N_connections.append(utils.array_to_counter(N_connections))
@@ -466,10 +466,11 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
         # # # # # # # # # # # BUG CHECK  # # # # # # # # # # # # # # # # # # # # # # # #
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-        continue_run, TotMov, TotInf = do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, accept, csMov, ra1, s, idx_H_state, H_old_state, H_agents_in_state, x, bug_move, bug_inf, bug_hos, csInf)
+        continue_run, TotMov, TotInf = do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, accept, csMov, ra1, s, x, bug_move, bug_inf, bug_hos, csInf)
 
         s_counter[s] += 1
 
+        # print(click, RT, counter, s, state_total_counts, continue_run)
 
     if verbose:
         print("Simulation counter, ", counter)
@@ -481,7 +482,7 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
 #%%
 
 @njit
-def do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, accept, csMov, ra1, s, idx_H_state, H_old_state, H_agents_in_state, x, bug_move, bug_inf, bug_hos, csInf):
+def do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, accept, csMov, ra1, s, x, bug_move, bug_inf, bug_hos, csInf):
 
     if counter > 100_000_000:
         # if verbose:
@@ -854,27 +855,32 @@ def run_full_simulation(filename, verbose=False, force_rerun=False, only_initial
         print("\n\nFinished!!!")
 
 
-# reload(utils)
-# reload(simulation_utils)
+reload(utils)
+reload(simulation_utils)
 
-# verbose = True
-# force_rerun = False
-# filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
+verbose = True
+force_rerun = False
+filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
 # filename = filename.replace('58000', '580000')
+filename = filename.replace('ID__000', 'ID__2')
+filename = filename.replace('rho__0.0__', 'rho__25.0__')
+# N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__25.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__2.memory_file
+# filename = filename.replace('ID__000', 'ID__1')
+# N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__2
 
-# simulation = Simulation(filename, verbose)
-# simulation.initialize_network(force_rerun=False)
-# simulation.make_initial_infections()
-# simulation.run_simulation()
-# df = simulation.make_dataframe()
-# display(df)
+simulation = Simulation(filename, verbose)
+simulation.initialize_network(force_rerun=False)
+simulation.make_initial_infections()
+simulation.run_simulation()
+df = simulation.make_dataframe()
+display(df)
 
-# if verbose:
-#     print("\n\n")
-#     print("coordinates", utils.get_size(simulation.coordinates, 'mb'))
-#     print("which_state", utils.get_size(simulation.which_state, 'mb'))
-#     print("N_connections", utils.get_size(simulation.N_connections, 'mb'))
-#     print("ages", utils.get_size(simulation.ages, 'mb'))
+if verbose:
+    print("\n\n")
+    print("coordinates", utils.get_size(simulation.coordinates, 'mb'))
+    print("which_state", utils.get_size(simulation.which_state, 'mb'))
+    print("N_connections", utils.get_size(simulation.N_connections, 'mb'))
+    print("ages", utils.get_size(simulation.ages, 'mb'))
 
 # simulation.save_simulation_results()
 # simulation.save_memory_figure()
