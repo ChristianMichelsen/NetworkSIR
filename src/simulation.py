@@ -285,8 +285,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
         if TotMov / Tot > ra1:
 
             s = 1
-            # if click >= 1608:
-            #     print(s)
+            if click >= 1608:
+                print(s)
 
             bug_move += Tot / TotMov
 
@@ -351,8 +351,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
         elif (TotMov + TotInf) / Tot > ra1:  # XXX HOSPITAL
         # else: # XXX HOSPITAL
             s = 2
-            # if click >= 1608:
-            #     print(s)
+            if click >= 1608:
+                print(s)
 
             bug_inf += Tot / TotInf
 
@@ -384,17 +384,26 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
 
                 if accept:
                     break
-            # if click >= 1608:
-            #     print("bla", s)
-            #     print(which_connections[contact])
+
+            if click >= 1608:
+                print("bla", s)
+                print(which_connections[contact])
 
 
             # Here we update infection lists
             for step_cousin in which_connections[contact]:
-                # if click >= 1608:
-                #     print(step_cousin)
-                #     print(active_agents)
-                #     # return step_cousin, active_agents
+                if click >= 1608:
+                    print(step_cousin)
+                    print(active_agents)
+                    # print(nb.typeof(step_cousin))
+                    # print(nb.typeof(active_agents))
+                    # yyy = {14433}
+                    # print(yyy)
+                    # print(1006 in yyy)
+                    # print(1006 in active_agents)
+                    # xxx = (step_cousin in active_agents)
+                    # print(xxx)
+                    # return step_cousin, active_agents
                 #     print(step_cousin in active_agents)
 
                 if step_cousin in active_agents:
@@ -464,6 +473,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
 
         if nts*click < RT:
 
+            # print(click, RT, counter, s, state_total_counts)
+
             daily_counter += 1
             out_time.append(RT)
             out_state_counts.append(state_total_counts.copy())
@@ -490,9 +501,6 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
         continue_run, TotMov, TotInf = do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, accept, csMov, ra1, s, x, bug_move, bug_inf, bug_hos, csInf)
 
         s_counter[s] += 1
-
-        # if click > 1600:
-        #     print(click, RT, counter, s, state_total_counts, continue_run, csInf, csMov)
 
     if verbose:
         print("Simulation counter, ", counter)
@@ -868,34 +876,32 @@ def run_full_simulation(filename, verbose=False, force_rerun=False, only_initial
     if verbose:
         print("\n\nFinished!!!")
 
-# reload(utils)
-# reload(simulation_utils)
+reload(utils)
+reload(simulation_utils)
 
-# verbose = True
-# force_rerun = False
-# filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
-# # filename = filename.replace('58000', '580000')
-# filename = filename.replace('ID__000', 'ID__2')
-# filename = filename.replace('rho__0.0__', 'rho__25.0__')
-# # N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__25.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__2.memory_file
-# # filename = filename.replace('ID__000', 'ID__1')
-# # N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__2
+verbose = True
+force_rerun = False
+filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
+# filename = filename.replace('58000', '580000')
+filename = filename.replace('ID__000', 'ID__002')
+filename = filename.replace('rho__0.0__', 'rho__25.0__')
 
-# simulation = Simulation(filename, verbose)
-# simulation.initialize_network(force_rerun=False)
-# simulation.make_initial_infections()
-# simulation.run_simulation()
-# df = simulation.make_dataframe()
-# display(df)
+if True:
+    simulation = Simulation(filename, verbose)
+    simulation.initialize_network(force_rerun=force_rerun)
+    simulation.make_initial_infections()
+    simulation.run_simulation()
+    df = simulation.make_dataframe()
+    display(df)
 
-# if verbose:
-#     print("\n\n")
-#     print("coordinates", utils.get_size(simulation.coordinates, 'mb'))
-#     print("which_state", utils.get_size(simulation.which_state, 'mb'))
-#     print("N_connections", utils.get_size(simulation.N_connections, 'mb'))
-#     print("ages", utils.get_size(simulation.ages, 'mb'))
+# # if verbose:
+# #     print("\n\n")
+# #     print("coordinates", utils.get_size(simulation.coordinates, 'mb'))
+# #     print("which_state", utils.get_size(simulation.which_state, 'mb'))
+# #     print("N_connections", utils.get_size(simulation.N_connections, 'mb'))
+# #     print("ages", utils.get_size(simulation.ages, 'mb'))
 
-# # simulation.save_simulation_results()
-# # simulation.save_memory_figure()
-# # print(f"\n\n{simulation.cfg}\n")
-# # print(simulation.df_change_points)
+# # # simulation.save_simulation_results()
+# # # simulation.save_memory_figure()
+# # # print(f"\n\n{simulation.cfg}\n")
+# # # print(simulation.df_change_points)

@@ -15,7 +15,6 @@ N_loops = 10
 dry_run = True
 force_overwrite = False
 verbose = True # only for 1 core
-only_initialize_network = False
 
 #%%
 
@@ -33,6 +32,50 @@ if utils.is_local_computer():
 else:
 
     all_sim_pars = [
+
+
+                {
+                    'mu': [10, 20, 25, 30, 40, 50, 60, 80, 100],
+                },
+
+
+                {
+                    'beta': [0.005, 0.01, 0.02, 0.05, 0.1],
+                },
+
+
+                {
+                    'epsilon_rho': [0, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.9, 0.9, 0.95, 0.99, 1.0],
+                    'rho': [100],
+                    'algo': [2, 1],
+                },
+
+
+                {
+                    'N_tot': [1_000_000],
+                },
+
+                {
+                    'N_tot': [2_000_000],
+                },
+
+                {
+                    'N_tot': [3_000_000],
+                },
+
+                {
+                    'N_tot': [4_000_000],
+                },
+
+                {
+                    'N_tot': [5_000_000],
+                },
+
+                {
+                    'N_tot': [5_800_000],
+                },
+
+
 
                 {
                     'N_tot': [580_000],
@@ -115,9 +158,6 @@ else:
                 },
 
 
-                {
-                    'beta': [0.005, 0.01, 0.02, 0.05, 0.1],
-                },
 
                 {
                     'beta': [0.01*2, 0.01*4],
@@ -134,9 +174,6 @@ else:
                     'sigma_beta': [0, 1],
                 },
 
-                {
-                    'mu': [10, 20, 25, 30, 40, 50, 60, 80, 100],
-                },
 
                 {
                     'lambda_E': [0.5, 1, 2, 4],
@@ -252,9 +289,6 @@ if __name__ == '__main__':
     if dry_run:
         print("\n\nRunning a dry run, nothing will actually be simulated.!!!\n\n")
 
-    if only_initialize_network:
-        print("\n\nOnly initializing networks, not running actual simulation\n\n")
-
 
     for d_sim_pars in all_sim_pars:
         filenames = simulation_utils.generate_filenames(d_sim_pars, N_loops, force_overwrite=force_overwrite)
@@ -269,7 +303,6 @@ if __name__ == '__main__':
 
             if dry_run:
                 continue
-
 
             if num_cores == 1:
                 for filename in tqdm(filenames):

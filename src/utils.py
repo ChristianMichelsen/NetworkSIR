@@ -534,6 +534,10 @@ class DotDict(dict):
 #%%
 
 def string_to_dict(string):
+    # if path-like string
+    if isinstance(string, str) and "/" in string:
+        string = Path(string).stem
+
     d = {}
     keyvals = string.split('__')
     keyvals_chunks = [keyvals[i: i+2] for i in range(0, len(keyvals), 2)]
@@ -577,9 +581,13 @@ def dict_to_title(d, N=None, exclude=None, in_two_line=True):
 
     d_translate = get_d_translate()
 
+    # make "exclude" a list of keys to ignore
+    if isinstance(exclude, str) or exclude is None:
+        exclude = [exclude]
+
     title = "$"
     for sim_par, val in cfg.items():
-        if not sim_par == exclude:
+        if not sim_par in exclude:
             title += f"{d_translate[sim_par]} = {val}, \,"
 
     if in_two_line:

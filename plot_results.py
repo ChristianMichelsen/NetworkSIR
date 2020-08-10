@@ -39,42 +39,47 @@ x=x
 
 if False:
 
-    # reload(extra_funcs)
-    # parameter = 'rho'
+    reload(plot)
+    parameter = 'beta'
     # do_log = False
 
     fit_objects_all = None
 
-    extra_funcs.plot_1D_scan('N_tot', fit_objects_all, do_log=True)
-    extra_funcs.plot_1D_scan('N_init', fit_objects_all, do_log=True)
-    extra_funcs.plot_1D_scan('N_init', fit_objects_all, do_log=True, algo=1)
+    plot.plot_1D_scan('beta', fit_objects_all)
+    plot.plot_1D_scan('mu', fit_objects_all, ylim=(0, 2))
+    plot.plot_1D_scan('epsilon_rho', fit_objects_all, rho=100)
+    plot.plot_1D_scan('epsilon_rho', fit_objects_all, rho=100, algo=1)
 
-    extra_funcs.plot_1D_scan('beta_scaling', fit_objects_all, N_tot=5_800_000, epsilon_rho=0, rho=100, N_init=100)
-    extra_funcs.plot_1D_scan('beta_scaling', fit_objects_all, N_tot=5_800_000, epsilon_rho=0, rho=100, N_init=1000)
-    extra_funcs.plot_1D_scan('beta_scaling', fit_objects_all, N_tot=580_000, epsilon_rho=0, rho=100, N_init=100)
-    extra_funcs.plot_1D_scan('beta_scaling', fit_objects_all, N_tot=580_000, epsilon_rho=0, rho=100, N_init=1000)
+    plot.plot_1D_scan('N_tot', fit_objects_all, do_log=True)
+    plot.plot_1D_scan('N_init', fit_objects_all, do_log=True)
+    plot.plot_1D_scan('N_init', fit_objects_all, do_log=True, algo=1)
 
-    extra_funcs.plot_1D_scan('rho', fit_objects_all)
-    extra_funcs.plot_1D_scan('rho', fit_objects_all, algo=1)
-    extra_funcs.plot_1D_scan('rho', fit_objects_all, N_tot=5_800_000)
-    extra_funcs.plot_1D_scan('epsilon_rho', fit_objects_all, rho=100)
-    extra_funcs.plot_1D_scan('epsilon_rho', fit_objects_all, rho=100, algo=1)
+    # extra_funcs.plot_1D_scan('beta_scaling', fit_objects_all, N_tot=5_800_000, epsilon_rho=0, rho=100, N_init=100)
+    # extra_funcs.plot_1D_scan('beta_scaling', fit_objects_all, N_tot=5_800_000, epsilon_rho=0, rho=100, N_init=1000)
+    # extra_funcs.plot_1D_scan('beta_scaling', fit_objects_all, N_tot=580_000, epsilon_rho=0, rho=100, N_init=100)
+    # extra_funcs.plot_1D_scan('beta_scaling', fit_objects_all, N_tot=580_000, epsilon_rho=0, rho=100, N_init=1000)
 
-    extra_funcs.plot_1D_scan('mu', fit_objects_all)
-    extra_funcs.plot_1D_scan('beta', fit_objects_all)
-    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all)
-    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, algo=1)
-    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, rho=100)
-    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, rho=100, algo=1)
-    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, sigma_mu=1)
-    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, sigma_mu=1, rho=100)
-    extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, rho=100)
-    extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all)
-    extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all, algo=1)
-    extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all, rho=100)
-    extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all, rho=100, algo=1)
-    extra_funcs.plot_1D_scan('lambda_E', fit_objects_all)
-    extra_funcs.plot_1D_scan('lambda_I', fit_objects_all)
+    plot.plot_1D_scan('rho', fit_objects_all)
+    plot.plot_1D_scan('rho', fit_objects_all, algo=1)
+    plot.plot_1D_scan('rho', fit_objects_all, N_tot=5_800_000)
+    # plot.plot_1D_scan('epsilon_rho', fit_objects_all, rho=100)
+    # plot.plot_1D_scan('epsilon_rho', fit_objects_all, rho=100, algo=1)
+
+    # # extra_funcs.plot_1D_scan('mu', fit_objects_all)
+    # # extra_funcs.plot_1D_scan('beta', fit_objects_all)
+    # extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all)
+    # extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, algo=1)
+    # extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, rho=100)
+    # extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, rho=100, algo=1)
+    # extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, sigma_mu=1)
+    # extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, sigma_mu=1, rho=100)
+    # extra_funcs.plot_1D_scan('sigma_beta', fit_objects_all, rho=100)
+    # extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all)
+    # extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all, algo=1)
+    # extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all, rho=100)
+    # extra_funcs.plot_1D_scan('sigma_mu', fit_objects_all, rho=100, algo=1)
+    # extra_funcs.plot_1D_scan('lambda_E', fit_objects_all)
+    # extra_funcs.plot_1D_scan('lambda_I', fit_objects_all)
 
 
 #%%
