@@ -40,7 +40,7 @@ x=x
 if False:
 
     reload(plot)
-    parameter = 'beta'
+    # parameter = 'beta'
     # do_log = False
 
     fit_objects_all = None
