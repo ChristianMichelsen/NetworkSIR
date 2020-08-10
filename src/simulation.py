@@ -723,10 +723,6 @@ class Simulation:
         self.N_infectious_states = 4 # This means the 5'th state
         self.initial_ages_exposed = np.arange(cfg.N_ages)
 
-
-        # self.which_connections_reference = self.which_connections.copy()
-        # self.N_connections = utils.get_lengths_of_nested_list(self.which_connections)
-        # self.N_connections_reference = self.N_connections.copy()
         self.individual_rates = simulation_utils.initialize_individual_rates(cfg.N_tot, cfg.beta, cfg.sigma_beta, self.N_connections, self.ID)
 
         self.which_state = np.full(cfg.N_tot, -1, dtype=np.int8)
@@ -759,10 +755,6 @@ class Simulation:
 
         H = simulation_utils.get_hospitalization_variables(cfg)
         H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum = H
-
-        # tau_I = 1 # start to turn off contacts when infected (I) is more than tau_I * N_tot
-        # delta_days = 10
-        # N_contacts_remove = 0.05 # percent
 
         res = run_simulation(cfg.N_tot, self.TotMov, self.csMov, self.state_total_counts, self.agents_in_state, self.which_state, self.csInf, self.N_states, self.InfRat, self.SIR_transition_rates, self.N_infectious_states, self.N_connections, self.individual_rates.array, self.which_connections.array, self.ages, self.individual_infection_counter, self.cs_move_individual, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, self.nts, self.verbose, self.non_infectable_agents)
 
@@ -875,7 +867,6 @@ def run_full_simulation(filename, verbose=False, force_rerun=False, only_initial
 
     if verbose:
         print("\n\nFinished!!!")
-
 
 # reload(utils)
 # reload(simulation_utils)
