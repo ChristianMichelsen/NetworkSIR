@@ -263,9 +263,9 @@ def initialize_SIR_transition_rates(N_states, N_infectious_states, cfg):
 
 @njit
 def _compute_ages_in_state(ages, N_ages):
-    ages_in_state = utils.initialize_nested_lists(N_ages, dtype=np.int32)
+    ages_in_state = utils.initialize_nested_lists(N_ages, dtype=np.uint32)
     for idx, age in enumerate(ages): # prange
-        ages_in_state[age].append(np.int32(idx))
+        ages_in_state[age].append(np.uint32(idx))
     return ages_in_state
 
 def compute_ages_in_state(ages, N_ages):

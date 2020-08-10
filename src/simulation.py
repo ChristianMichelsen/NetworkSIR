@@ -888,7 +888,7 @@ def run_full_simulation(filename, verbose=False, force_rerun=False, only_initial
 # filename = filename.replace('ID__000', 'ID__002')
 # filename = filename.replace('rho__0.0__', 'rho__25.0__')
 
-# if False:
+# if True:
 #     simulation = Simulation(filename, verbose)
 #     simulation.initialize_network(force_rerun=force_rerun)
 #     simulation.make_initial_infections()
@@ -896,14 +896,14 @@ def run_full_simulation(filename, verbose=False, force_rerun=False, only_initial
 #     df = simulation.make_dataframe()
 #     display(df)
 
-# # # if verbose:
-# # #     print("\n\n")
-# # #     print("coordinates", utils.get_size(simulation.coordinates, 'mb'))
-# # #     print("which_state", utils.get_size(simulation.which_state, 'mb'))
-# # #     print("N_connections", utils.get_size(simulation.N_connections, 'mb'))
-# # #     print("ages", utils.get_size(simulation.ages, 'mb'))
+# # if verbose:
+# #     print("\n\n")
+# #     print("coordinates", utils.get_size(simulation.coordinates, 'mb'))
+# #     print("which_state", utils.get_size(simulation.which_state, 'mb'))
+# #     print("N_connections", utils.get_size(simulation.N_connections, 'mb'))
+# #     print("ages", utils.get_size(simulation.ages, 'mb'))
 
-# # # # simulation.save_simulation_results()
-# # # # simulation.save_memory_figure()
-# # # # print(f"\n\n{simulation.cfg}\n")
-# # # # print(simulation.df_change_points)
+# # # simulation.save_simulation_results()
+# # # simulation.save_memory_figure()
+# # # print(f"\n\n{simulation.cfg}\n")
+# # # print(simulation.df_change_points)
