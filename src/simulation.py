@@ -195,7 +195,8 @@ def make_initial_infections(N_init, which_state, state_total_counts, agents_in_s
         track_memory('Initial Infections')
 
     TotMov = 0.0
-    non_infectable_agents = set()
+    # non_infectable_agents = set()
+    non_infectable_agents = np.zeros(len(N_connections), dtype=np.bool_)
 
     possible_agents = List()
     for age_exposed in initial_ages_exposed:
@@ -213,7 +214,8 @@ def make_initial_infections(N_init, which_state, state_total_counts, agents_in_s
         TotMov += SIR_transition_rates[new_state]
         csMov[new_state:] += SIR_transition_rates[new_state]
 
-        non_infectable_agents.add(agent)
+        # non_infectable_agents.add(agent)
+        non_infectable_agents[agent] = True
 
     with objmode():
         track_memory()
@@ -224,7 +226,7 @@ def make_initial_infections(N_init, which_state, state_total_counts, agents_in_s
 #%%
 
 @njit
-def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, N_infectious_states, N_connections, individual_rates, which_connections, ages, individual_infection_counter, cs_move_individual, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, nts, verbose, non_infectable_agents): # active_agents
+def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, N_infectious_states, N_connections, individual_rates, which_connections, ages, individual_infection_counter, cs_move_individual, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, nts, verbose, non_infectable_agents, coordinates): # active_agents
 
 
     with objmode():
@@ -265,7 +267,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
     # active_agents.remove(N_tot+1)
     # active_agents = set()
     # active_agents = {np.uint32(N_tot+1)} # hack to initialize set with a member that is never found
-    active_agents = List()
+    # active_agents = List()
+    active_agents = np.zeros(N_tot, dtype=np.bool_)
     # print("active_agents", active_agents)
 
     total_printed = 0
@@ -275,6 +278,40 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
 
     with objmode():
         track_memory()
+
+
+#     ##### NEW ####
+#     Ninf = 0 # Total number of infe
+#     NinfObs = 0
+#     NDayTest = 1000
+#     click_test = 1
+#     nts_test = 1
+#     Test_Acc = 0.8
+#     Case_Acc = 0.25
+#     # Observed_agents = set()
+#     NTents = 100
+#     Tents = np.zeros((NTents, 2), np.float32)
+#     for i in range(NTents):
+#         tent = np.random.randint(0,len(N_connections))
+#         Tents[i,0] = coordinates[tent, 0]
+#         Tents[i,1] = coordinates[tent, 1]
+# #    agents_to_tents = utils.initialize_nested_lists(NTents, dtype=np.int32)
+#     cagen = 0
+#     print(N_tot)
+#     for agent_tmp in range(N_tot):
+#         dist_min = 1000000
+        #        for flag_tmp in range(NTents):
+        #            fff = agent_tmp
+        #            r = utils.haversine(coordinates[flag_tmp, 0], coordinates[flag_tmp, 1], coordinates[agent_tmp, 0], coordinates[agent_tmp, 1])
+        #             if (r < dist_min):
+        #                 r = dist_min
+        #                 minage = flag
+
+        #         agents_to_tents[flag].append(agent)
+        #     print(agents_to_tents)
+
+    ###############
+
 
     # Run the simulation ################################
     continue_run = True
@@ -325,26 +362,30 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
             # Moves TO infectious State from non-infectious
             if which_state[agent] == N_infectious_states:
                 for contact, rate in zip(which_connections[agent], individual_rates[agent]): # Loop over row agent
-                    if contact not in non_infectable_agents:
+                    # if contact not in non_infectable_agents:
+                    if not non_infectable_agents[contact]:
                         TotInf += rate
                         InfRat[agent] += rate
                         csInf[which_state[agent]:] += rate
                         time_inf[agent] = RT
                         bug_contacts[agent] = N_connections[agent]
                 # active_agents.add(agent)
-                active_agents.append(agent)
+                # active_agents.append(agent)
+                active_agents[agent] = True
 
 
             # If this moves to Recovered state
             if which_state[agent] == N_states-1:
                 for contact, rate in zip(which_connections[agent], individual_rates[agent]):
-                    if contact not in non_infectable_agents:
+                    # if contact not in non_infectable_agents:
+                    if not non_infectable_agents[contact]:
                         TotInf -= rate
                         InfRat[agent] -= rate
                         csInf[which_state[agent]:] -= rate
                         time_inf[agent] = RT - time_inf[agent]
                 # active_agents.remove(agent)
-                active_agents.remove(agent)
+                # active_agents.remove(agent)
+                active_agents[agent] = False
 
                 # XXX HOSPITAL
                 # Now in hospital track
@@ -381,7 +422,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
 
                 if Csum2 > ra1:
                     for rate, contact in zip(individual_rates[agent], which_connections[agent]):
-                        if contact not in non_infectable_agents:
+                        # if contact not in non_infectable_agents:
+                        if not non_infectable_agents[contact]:
                             Csum += rate / Tot
                             if Csum > ra1:
                                 which_state[contact] = 0
@@ -391,7 +433,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
                                 csMov += SIR_transition_rates[0]
                                 accept = True
                                 individual_infection_counter[agent] += 1
-                                non_infectable_agents.add(contact)
+                                # non_infectable_agents.add(contact)
+                                non_infectable_agents[contact] = True
                                 break
                 else:
                     Csum = Csum2
@@ -410,7 +453,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
                 #     print(step_cousin)
                 #     print(active_agents)
 
-                if step_cousin in active_agents:
+                # if step_cousin in active_agents:
+                if active_agents[step_cousin]:
                     # if counter >= bug_counter:
                     #     print(which_connections[step_cousin])
                     #     print(individual_rates[step_cousin])
@@ -771,7 +815,7 @@ class Simulation:
         # active_agents = {np.uint32(cfg.N_tot+1)}
         # active_agents = {np.int32(-1)}
 
-        res = run_simulation(cfg.N_tot, self.TotMov, self.csMov, self.state_total_counts, self.agents_in_state, self.which_state, self.csInf, self.N_states, self.InfRat, self.SIR_transition_rates, self.N_infectious_states, self.N_connections, self.individual_rates.array, self.which_connections.array, self.ages, self.individual_infection_counter, self.cs_move_individual, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, self.nts, self.verbose, self.non_infectable_agents) # active_agents
+        res = run_simulation(cfg.N_tot, self.TotMov, self.csMov, self.state_total_counts, self.agents_in_state, self.which_state, self.csInf, self.N_states, self.InfRat, self.SIR_transition_rates, self.N_infectious_states, self.N_connections, self.individual_rates.array, self.which_connections.array, self.ages, self.individual_infection_counter, self.cs_move_individual, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, self.nts, self.verbose, self.non_infectable_agents, self.coordinates) # active_agents
 
         out_time, out_state_counts, out_which_state, out_H_state_total_counts = res
 
@@ -895,14 +939,47 @@ def run_full_simulation(filename, verbose=False, force_rerun=False, only_initial
 # filename = filename.replace('ID__000', 'ID__001')
 # filename = filename.replace('mu__40.0__', 'mu__20.0__')
 
-# # if False:
 # if True:
+# # if True:
 #     simulation = Simulation(filename, verbose)
 #     simulation.initialize_network(force_rerun=force_rerun)
 #     simulation.make_initial_infections()
 #     simulation.run_simulation()
 #     df = simulation.make_dataframe()
 #     display(df)
+
+
+#%%
+
+# @njit
+# def foo(coordinates, N_tot):
+
+#     ##### NEW ####
+#     Ninf = 0 # Total number of infe
+#     NinfObs = 0
+#     NDayTest = 1000
+#     click_test = 1
+#     nts_test = 1
+#     Test_Acc = 0.8
+#     Case_Acc = 0.25
+#     # Observed_agents = set()
+#     NTents = 100
+#     Tents = np.zeros((NTents, 2), np.float32)
+#     for i in range(NTents):
+#         tent = np.random.randint(0, N_tot)
+#         Tents[i,0] = coordinates[tent, 0]
+#         Tents[i,1] = coordinates[tent, 1]
+# #    agents_to_tents = utils.initialize_nested_lists(NTents, dtype=np.int32)
+#     cagen = 0
+#     # print(N_tot)
+#     for agent_tmp in range(N_tot):
+#         dist_min = 1000000
+#     return 1
+
+# simulation = Simulation(filename, verbose)
+# simulation.initialize_network(force_rerun=force_rerun)
+
+# foo(simulation.coordinates, simulation.cfg.N_tot)
 
 # # if verbose:
 # #     print("\n\n")

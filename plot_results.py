@@ -45,8 +45,8 @@ if False:
 
     fit_objects_all = None
 
-    plot.plot_1D_scan('beta', fit_objects_all)
     plot.plot_1D_scan('mu', fit_objects_all)
+    plot.plot_1D_scan('beta', fit_objects_all)
     plot.plot_1D_scan('epsilon_rho', fit_objects_all, rho=100)
     plot.plot_1D_scan('epsilon_rho', fit_objects_all, rho=100, algo=1)
 
