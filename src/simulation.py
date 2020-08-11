@@ -766,14 +766,19 @@ class Simulation:
             which_connections, N_connections = utils.nested_list_to_awkward_array(which_connections, return_lengths=True, sort_nested_list=True)
 
             if save_initial_network:
-                self._save_network_initalization(ages=ages,
-                                                 N_connections=N_connections,
-                                                 which_connections=ak.to_awkward0(which_connections),
-                                                 time_elapsed=t.elapsed)
+                try:
+                    self._save_network_initalization(ages=ages,
+                                                     N_connections=N_connections,
+                                                     which_connections=ak.to_awkward0 (which_connections),
+                                                     time_elapsed=t.elapsed)
+                except OSError as e:
+                    print(f"Skipped saving network initialization for {self.filenames['network_initialisation']}")
+                    # print(e)
 
         self.ages = ages
         self.which_connections = utils.RaggedArray(which_connections)
         self.N_connections = N_connections
+
 
     def make_initial_infections(self):
         utils.set_numba_random_seed(self.ID)
