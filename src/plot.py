@@ -49,7 +49,7 @@ def make_SIR_curves(abn_files, variable='I', force_overwrite=False):
             lw = 0.1 * 10 / np.sqrt(len(abn_files[ABN_parameter]))
 
 
-            # file = abn_files[ABN_parameter][0]
+            # file, i = abn_files[ABN_parameter][0], 0
             for i, file in enumerate(abn_files[ABN_parameter]):
                 try:
                     df = file_loaders.pandas_load_file(file)
@@ -57,7 +57,7 @@ def make_SIR_curves(abn_files, variable='I', force_overwrite=False):
                     print(f"Skipping {filename_ID} because empty file")
                     continue
                 label = 'Simulations' if i == 0 else None
-                ax.plot(df['time'].values, df[variable].values, lw=lw, c='k', label=label)
+                ax.plot(df['time'].values, df[variable].values.astype(int), lw=lw, c='k', label=label)
                 if df['time'].max() > Tmax:
                     Tmax = df['time'].max()
 

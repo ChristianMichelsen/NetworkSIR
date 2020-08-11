@@ -38,8 +38,8 @@ np.set_printoptions(linewidth=200)
 @njit
 def initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, beta_scaling):
 
-    # with objmode():
-    #     track_memory('Rates and Connections')
+    with objmode():
+        track_memory('Rates and Connections')
 
     connection_weight = np.ones(N_tot, dtype=np.float32)
     infection_weight = np.ones(N_tot, dtype=np.float32)
@@ -72,8 +72,8 @@ def initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, beta_sca
 @njit
 def initialize_ages(N_tot, N_ages, connection_weight):
 
-    # with objmode():
-    #     track_memory('Ages')
+    with objmode():
+        track_memory('Ages')
 
     ages = np.full(N_tot, fill_value=-1, dtype=np.int8)
     ages_total_counts = np.zeros(N_ages, dtype=np.uint32)
@@ -153,16 +153,16 @@ def run_algo_1(PP_ages, m_i, m_j, which_connections, coordinates, rho_tmp, rho_s
 @njit
 def connect_nodes(epsilon_rho, rho, algo, PP_ages, which_connections, coordinates, rho_scale, N_ages, age_matrix, ages_in_state):
 
-    # with objmode():
-    #     track_memory('Connecting Nodes')
+    with objmode():
+        track_memory('Connecting Nodes')
 
     if (algo == 2):
         run_algo = run_algo_2
     else:
         run_algo = run_algo_1
 
-    # with objmode():
-    #     track_memory()
+    with objmode():
+        track_memory()
 
     for m_i in range(N_ages):
         for m_j in range(N_ages):
@@ -176,18 +176,18 @@ def connect_nodes(epsilon_rho, rho, algo, PP_ages, which_connections, coordinate
 
                 run_algo(PP_ages, m_i, m_j, which_connections, coordinates, rho_tmp, rho_scale, ages_in_state)
 
-                # if (counter % (N_max//30)) == 0:
-                #     with objmode():
-                #         track_memory()
-    # with objmode():
-    #     track_memory()
+                if (counter % (N_max//30)) == 0:
+                    with objmode():
+                        track_memory()
+    with objmode():
+        track_memory()
 
 
 @njit
 def make_initial_infections(N_init, which_state, state_total_counts, agents_in_state, csMov, which_connections, N_connections, individual_rates, SIR_transition_rates, ages_in_state, initial_ages_exposed, cs_move_individual, N_infectious_states):
 
-    # with objmode():
-    #     track_memory('Initial Infections')
+    with objmode():
+        track_memory('Initial Infections')
 
     TotMov = 0.0
     non_infectable_agents = set()
@@ -210,8 +210,8 @@ def make_initial_infections(N_init, which_state, state_total_counts, agents_in_s
 
         non_infectable_agents.add(agent)
 
-    # with objmode():
-    #     track_memory()
+    with objmode():
+        track_memory()
 
     return TotMov, non_infectable_agents
 
@@ -219,11 +219,11 @@ def make_initial_infections(N_init, which_state, state_total_counts, agents_in_s
 #%%
 
 @njit
-def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, N_infectious_states, N_connections, individual_rates, which_connections, ages, individual_infection_counter, cs_move_individual, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, nts, verbose, non_infectable_agents):
+def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, N_infectious_states, N_connections, individual_rates, which_connections, ages, individual_infection_counter, cs_move_individual, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, nts, verbose, non_infectable_agents): # active_agents
 
 
-    # with objmode():
-    #     track_memory('Simulation')
+    with objmode():
+        track_memory('Simulation')
 
 
     out_time = List()
@@ -256,14 +256,18 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
     time_inf = np.zeros(N_tot, np.float32)
     bug_contacts = np.zeros(N_tot, np.int32)
 
-    active_agents = set()
+    # print("active_agents", active_agents)
+    # active_agents.remove(N_tot+1)
+    # active_agents = set()
+    active_agents = {np.uint32(N_tot+1)} # hack to initialize set with a member that is never found
+    # print("active_agents", active_agents)
 
     total_printed = 0
 
     s_counter = np.zeros(4)
 
-    # with objmode():
-    #     track_memory()
+    with objmode():
+        track_memory()
 
     # Run the simulation ################################
     continue_run = True
@@ -285,8 +289,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
         if TotMov / Tot > ra1:
 
             s = 1
-            if click >= 1608:
-                print(s)
+            # if click >= 1608:
+            #     print(s)
 
             bug_move += Tot / TotMov
 
@@ -351,8 +355,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
         elif (TotMov + TotInf) / Tot > ra1:  # XXX HOSPITAL
         # else: # XXX HOSPITAL
             s = 2
-            if click >= 1608:
-                print(s)
+            # if click >= 1608:
+            #     print(s)
 
             bug_inf += Tot / TotInf
 
@@ -385,16 +389,17 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
                 if accept:
                     break
 
-            if click >= 1608:
-                print("bla", s)
-                print(which_connections[contact])
+            # if click >= 1608:
+            #     print("bla", s)
+            #     print(which_connections[contact])
 
 
             # Here we update infection lists
             for step_cousin in which_connections[contact]:
-                if click >= 1608:
-                    print(step_cousin)
-                    print(active_agents)
+                # if click >= 1608:
+                #     print(step_cousin)
+                #     print(active_agents)
+                #     print(len(active_agents))
                     # print(nb.typeof(step_cousin))
                     # print(nb.typeof(active_agents))
                     # yyy = {14433}
@@ -488,8 +493,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
                 # out_N_connections.append(utils.array_to_counter(N_connections))
                 out_which_state.append(which_state.copy())
 
-                # with objmode():
-                #     track_memory()
+                with objmode():
+                    track_memory()
 
             click += 1
 
@@ -764,7 +769,10 @@ class Simulation:
         H = simulation_utils.get_hospitalization_variables(cfg)
         H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum = H
 
-        res = run_simulation(cfg.N_tot, self.TotMov, self.csMov, self.state_total_counts, self.agents_in_state, self.which_state, self.csInf, self.N_states, self.InfRat, self.SIR_transition_rates, self.N_infectious_states, self.N_connections, self.individual_rates.array, self.which_connections.array, self.ages, self.individual_infection_counter, self.cs_move_individual, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, self.nts, self.verbose, self.non_infectable_agents)
+        # active_agents = {np.uint32(cfg.N_tot+1)}
+        # active_agents = {np.int32(-1)}
+
+        res = run_simulation(cfg.N_tot, self.TotMov, self.csMov, self.state_total_counts, self.agents_in_state, self.which_state, self.csInf, self.N_states, self.InfRat, self.SIR_transition_rates, self.N_infectious_states, self.N_connections, self.individual_rates.array, self.which_connections.array, self.ages, self.individual_infection_counter, self.cs_move_individual, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, self.nts, self.verbose, self.non_infectable_agents) # active_agents
 
         out_time, out_state_counts, out_which_state, out_H_state_total_counts = res
 
@@ -882,12 +890,13 @@ def run_full_simulation(filename, verbose=False, force_rerun=False, only_initial
 # reload(simulation_utils)
 
 # verbose = True
-# force_rerun = False
+# force_rerun = True
 # filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
 # # filename = filename.replace('58000', '580000')
 # filename = filename.replace('ID__000', 'ID__002')
 # filename = filename.replace('rho__0.0__', 'rho__25.0__')
 
+# # if False:
 # if True:
 #     simulation = Simulation(filename, verbose)
 #     simulation.initialize_network(force_rerun=force_rerun)
@@ -907,3 +916,41 @@ def run_full_simulation(filename, verbose=False, force_rerun=False, only_initial
 # # # simulation.save_memory_figure()
 # # # print(f"\n\n{simulation.cfg}\n")
 # # # print(simulation.df_change_points)
+
+
+#%%
+
+# @njit
+# def f():
+#     s = set()
+#     s.add(np.uint(42))
+#     print(s)
+#     s.remove(42)
+#     print(s)
+#     return s
+
+# s = f()
+# print(s)
+
+# @njit
+# def g(s):
+#     print(s)
+#     s.remove(32)
+#     print(s)
+#     return s
+
+# ss = {np.uint(32)}
+# ss = g(ss)
+# print(ss)
+
+# @njit
+# def h(s):
+#     print(s)
+#     s.remove(22)
+#     print(s)
+#     return s
+
+# sss = {22}
+# sss = h(sss)
+# print(sss)
+

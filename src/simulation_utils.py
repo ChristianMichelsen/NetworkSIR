@@ -177,7 +177,7 @@ class Filename:
 
 
     def get_filename_network_initialisation(self, extension='.hdf5'):
-        variables_to_save_in_filename = ['N_tot', 'N_ages', 'rho', 'sigma_mu', 'algo', 'ID']
+        variables_to_save_in_filename = ['N_tot', 'N_ages', 'mu', 'sigma_mu', 'rho', 'epsilon_rho', 'algo', 'ID']
         d = {key: self.d[key] for key in variables_to_save_in_filename}
         filename = Path(f'{self.filename_prefix}Data') / 'network_initialization'
         return self._filename_to_network(d, filename, extension)
