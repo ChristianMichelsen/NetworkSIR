@@ -741,17 +741,30 @@ class Simulation:
     def initialize_network(self, force_rerun=False, save_initial_network=True):
         utils.set_numba_random_seed(self.ID)
 
-        if Path(self.filenames['network_initialisation']).exists() and not force_rerun:
-            if self.verbose:
-                print(f"{self.filenames['network_initialisation']} exists")
-            ages, N_connections, which_connections = self._load_network_initalization()
+        OSError_flag = False
 
-        else:
+        # try to load file (except if forced to rerun)
+        if not force_rerun:
+            try:
+                if self.verbose:
+                    print(f"{self.filenames['network_initialisation']} exists")
+                ages, N_connections, which_connections = self._load_network_initalization()
+            except OSError:
+                if self.verbose:
+                    print(f"{self.filenames['network_initialisation']} had OSError")
+                OSError_flag = True
+
+
+        # if ran into OSError above or forced to rerun:
+        if OSError_flag or force_rerun:
+
             if self.verbose:
                 print(f"{self.filenames['network_initialisation']} does not exist, creating it")
+
             with Timer() as t:
                 which_connections, ages = self._initialize_network()
             which_connections, N_connections = utils.nested_list_to_awkward_array(which_connections, return_lengths=True, sort_nested_list=True)
+
             if save_initial_network:
                 self._save_network_initalization(ages=ages,
                                                  N_connections=N_connections,
@@ -761,7 +774,6 @@ class Simulation:
         self.ages = ages
         self.which_connections = utils.RaggedArray(which_connections)
         self.N_connections = N_connections
-
 
     def make_initial_infections(self):
         utils.set_numba_random_seed(self.ID)
