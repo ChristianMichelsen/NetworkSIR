@@ -12,7 +12,7 @@ from functools import partial
 
 num_cores_max = 30
 N_loops = 10
-dry_run = True
+dry_run = False
 force_overwrite = False
 verbose = True # only for 1 core
 
@@ -24,7 +24,8 @@ if utils.is_local_computer():
                     {
                         # 'N_tot': [580_000, 5_800_000],
                         'N_tot': [58_000],
-                        'sigma_mu': [0, 1],
+                        # 'sigma_mu': [0, 1],
+                        'mu': [10, 20, 25, 30, 40, 50, 60, 80, 100],
                     },
     ]
 

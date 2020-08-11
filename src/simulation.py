@@ -182,6 +182,11 @@ def connect_nodes(epsilon_rho, rho, algo, PP_ages, which_connections, coordinate
     with objmode():
         track_memory()
 
+# def remove_from_list(val_to_remove, l):
+#     for i in range(len(l)):
+#         if l[i] == val_to_remove:
+#             l.
+
 
 @njit
 def make_initial_infections(N_init, which_state, state_total_counts, agents_in_state, csMov, which_connections, N_connections, individual_rates, SIR_transition_rates, ages_in_state, initial_ages_exposed, cs_move_individual, N_infectious_states):
@@ -259,10 +264,12 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
     # print("active_agents", active_agents)
     # active_agents.remove(N_tot+1)
     # active_agents = set()
-    active_agents = {np.uint32(N_tot+1)} # hack to initialize set with a member that is never found
+    # active_agents = {np.uint32(N_tot+1)} # hack to initialize set with a member that is never found
+    active_agents = List()
     # print("active_agents", active_agents)
 
     total_printed = 0
+    # bug_counter = 2433+1
 
     s_counter = np.zeros(4)
 
@@ -289,8 +296,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
         if TotMov / Tot > ra1:
 
             s = 1
-            # if click >= 1608:
-            #     print(s)
+            # if counter >= bug_counter:
+            #     print("counter", counter, "s", s)
 
             bug_move += Tot / TotMov
 
@@ -324,7 +331,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
                         csInf[which_state[agent]:] += rate
                         time_inf[agent] = RT
                         bug_contacts[agent] = N_connections[agent]
-                active_agents.add(agent)
+                # active_agents.add(agent)
+                active_agents.append(agent)
 
 
             # If this moves to Recovered state
@@ -335,6 +343,7 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
                         InfRat[agent] -= rate
                         csInf[which_state[agent]:] -= rate
                         time_inf[agent] = RT - time_inf[agent]
+                # active_agents.remove(agent)
                 active_agents.remove(agent)
 
                 # XXX HOSPITAL
@@ -348,15 +357,16 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
                 H_tot_move += H_move_matrix_sum[H_state, ages[agent]]
                 H_cumsum_move[H_state:] += H_move_matrix_sum[H_state, ages[agent]]
 
-
+            # if click >= bug_counter:
+            #     print("bug_counter", bug_counter, "s", s, 'counter', counter)
 
 
         # Here we infect new states
         elif (TotMov + TotInf) / Tot > ra1:  # XXX HOSPITAL
         # else: # XXX HOSPITAL
             s = 2
-            # if click >= 1608:
-            #     print(s)
+            # if counter >= bug_counter:
+            #     print("counter", counter, "s", s)
 
             bug_inf += Tot / TotInf
 
@@ -389,30 +399,19 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
                 if accept:
                     break
 
-            # if click >= 1608:
-            #     print("bla", s)
+            # if counter >= bug_counter:
+            #     print("counter", counter, "s", s, 'bla')
             #     print(which_connections[contact])
 
 
             # Here we update infection lists
             for step_cousin in which_connections[contact]:
-                # if click >= 1608:
+                # if counter >= bug_counter:
                 #     print(step_cousin)
                 #     print(active_agents)
-                #     print(len(active_agents))
-                    # print(nb.typeof(step_cousin))
-                    # print(nb.typeof(active_agents))
-                    # yyy = {14433}
-                    # print(yyy)
-                    # print(1006 in yyy)
-                    # print(1006 in active_agents)
-                    # xxx = (step_cousin in active_agents)
-                    # print(xxx)
-                    # return step_cousin, active_agents
-                #     print(step_cousin in active_agents)
 
                 if step_cousin in active_agents:
-                    # if click >= 1608:
+                    # if counter >= bug_counter:
                     #     print(which_connections[step_cousin])
                     #     print(individual_rates[step_cousin])
                     for step_cousins_contacts, rate in zip(which_connections[step_cousin],  individual_rates[step_cousin]):
@@ -424,14 +423,14 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
                 else:
                     continue
 
-            # if click >= 1608:
-            #     print("bla2", s)
+            # if counter >= bug_counter:
+            #     print("counter", counter, "s", s, 'bla2')
 
         ## move between hospital tracks
         else:
             s = 3
-            # if click >= 1608:
-            #     print(s)
+            # if counter >= bug_counter:
+            #     print("counter", counter, "s", s)
 
             bug_hos += Tot / H_tot_move
 
@@ -890,11 +889,11 @@ def run_full_simulation(filename, verbose=False, force_rerun=False, only_initial
 # reload(simulation_utils)
 
 # verbose = True
-# force_rerun = True
+# force_rerun = False
 # filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
 # # filename = filename.replace('58000', '580000')
-# filename = filename.replace('ID__000', 'ID__002')
-# filename = filename.replace('rho__0.0__', 'rho__25.0__')
+# filename = filename.replace('ID__000', 'ID__001')
+# filename = filename.replace('mu__40.0__', 'mu__20.0__')
 
 # # if False:
 # if True:
