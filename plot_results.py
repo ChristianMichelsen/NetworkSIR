@@ -33,8 +33,6 @@ if plot_SIR_comparison:
     plot.make_SIR_curves(abn_files, 'I', force_overwrite=False)
     plot.make_SIR_curves(abn_files, 'R', force_overwrite=False)
 
-x=x
-
 #%%
 
 if False:
@@ -49,7 +47,7 @@ if False:
     plot.plot_1D_scan('N_init', do_log=True, ylim=(0.9, 1.), non_default_parameters={'algo': 1})
 
     plot.plot_1D_scan('beta_scaling', N_tot=5_800_000, epsilon_rho=0, rho=100, N_init=100)
-    plot.plot_1D_scan('beta_scaling', N_tot=5_800_000, epsilon_rho=0, rho=100, N_init=1000)
+    plot.plot_1D_scan('beta_scalingp', N_tot=5_800_000, epsilon_rho=0, rho=100, N_init=1000)
     plot.plot_1D_scan('beta_scaling', N_tot=580_000, epsilon_rho=0, rho=100, N_init=100)
     plot.plot_1D_scan('beta_scaling', N_tot=580_000, epsilon_rho=0, rho=100, N_init=1000)
 
@@ -78,7 +76,7 @@ if False:
 
 if __name__ == '__main__':
 
-    fit_objects_all = extra_funcs.get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=num_cores_max)
+    fit_objects_all = extra_funcs.get_fit_Imax_results(abn_files, force_rerun=False, num_cores_max=num_cores_max)
 
     # x=x
 

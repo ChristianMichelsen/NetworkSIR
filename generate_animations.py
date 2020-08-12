@@ -15,15 +15,16 @@ import os
 from functools import partial
 
 import awkward
-# from src import extra_funcs
 from importlib import reload
 import h5py
 from src import rc_params
 rc_params.set_rc_params(fig_dpi=50) #
 
 from src import utils
+from src import simulation_utils
+from src import animation_utils
 
-num_cores_max = 1
+num_cores_max = 20
 
 #%%
 
@@ -59,7 +60,7 @@ import matplotlib.font_manager as fm
 fontprops = fm.FontProperties(size=24)
 
 longitudes_per_50km = 0.8392
-compas_rose_img = plt.imread('Figures/CompasRose/CompasRose.png')
+# compas_rose_img = plt.imread('Figures/CompasRose/CompasRose.png')
 
 
 def add_spines(ax, exclude=None):
@@ -167,9 +168,8 @@ class AnimationBase():
                     print(f"N_max has to be 12 or larger (choosing 12 instead of {N_max} for now).")
                     N_max = 12
                 self.N_days = N_max
-        self._Filename = utils.Filename(filename)
+        self._Filename = simulation_utils.Filename(filename)
         self.cfg = self._Filename.simulation_parameters
-        # self.cfg = dict(extra_funcs.filename_to_dotdict(filename, animation=True))
         self.__name__ = 'AnimationBase'
 
     def __len__(self):
@@ -424,40 +424,6 @@ class AnimateSIR(AnimationBase):
         self.dfs_all = {}
         self._initialize_plot()
 
-    # def __getstate__(self):
-    #     d_out = dict(filename=self.filename,
-    #                  do_tqdm=self.do_tqdm,
-    #                  verbose=self.verbose,
-    #                  N_max=self.N_max,
-    #                  load_into_memory=self.load_into_memory,
-    #                  df_counts=self.df_counts,
-    #                  dfs_all=self.dfs_all,
-    #                  d_colors=self.d_colors,
-    #                  )
-    #     return d_out
-
-
-    # def __setstate__(self, d_in):
-    #     self.__init__(
-    #                   filename=d_in['filename'],
-    #                   do_tqdm=d_in['do_tqdm'],
-    #                   verbose=d_in['verbose'],
-    #                   N_max=d_in['N_max'],
-    #                   load_into_memory=d_in['load_into_memory'],
-    #                   df_counts=d_in['df_counts'],
-    #     )
-    #     self.dfs_all = d_in['dfs_all']
-    #     self.d_colors = d_in['d_colors']
-
-
-
-    # def _get_df(self, i_day):
-    #     df = pd.DataFrame(self.coordinates, columns=['x', 'y'])
-    #     df['which_state_num'] = self.which_state[i_day]
-    #     df["which_state"] = df['which_state_num'].replace(self.mapping).astype('category')
-    #     return df
-
-
     def _initialize_plot(self):
 
         self.colors = ['#7F7F7F', '#D62728', '#2CA02C']
@@ -505,9 +471,6 @@ class AnimateSIR(AnimationBase):
             it = tqdm(it, desc="Creating df_counts")
         for i_day in it:
             counts_i_day[i_day] = unique_counter(self.which_state[i_day], mapping=self.mapping)
-            # df = self._get_df(i_day)
-            # dfs = {s: df.query("which_state == @s") for s in self.states}
-            # counts_i_day[i_day] = {key: len(val) for key, val in dfs.items()}
         df_counts = pd.DataFrame(counts_i_day).T
         return df_counts
 
@@ -541,10 +504,6 @@ class AnimateSIR(AnimationBase):
 
     def _plot_i_day(self, i_day, dpi=50):
 
-        # df = self._get_df(i_day)
-        # dfs = {s: df.query("which_state == @s") for s in self.states}
-        # dfs = self.dfs_all[i_day]
-
         # Main plot
         k_scale = 1.7
         fig = plt.figure(figsize=(13*k_scale, 13*k_scale))
@@ -553,10 +512,7 @@ class AnimateSIR(AnimationBase):
         for state in self.states:
             if self.df_counts.loc[i_day, state] > 0:
                 ax.scatter_density(*self.coordinates[self._get_mask(i_day, state)].T, color=self.d_colors[state], dpi=dpi, **self._geo_plot_kwargs[state])
-        # if len(dfs['I']) > 0:
-        #     ax.scatter_density(dfs['I']['x'], dfs['I']['y'], color=self.d_colors['I'], , dpi=dpi)
 
-        # ax.set(xlim=(7.9, 13.7), ylim=(54.4, 58.2), xlabel='Longitude')
         ax.set(xlim=(7.9, 15.3), ylim=(54.5, 58.2), xlabel='Longitude')
         ax.set_ylabel('Latitude', rotation=90) # fontsize=20, labelpad=20
 
@@ -567,7 +523,6 @@ class AnimateSIR(AnimationBase):
                           for state in self.states]
         ax.legend(handles=circles, loc='upper left', fontsize=24, frameon=False)
 
-        # string = "\n".join([human_format(len(dfs[state]), decimals=1) for state in self.states])
         s_legend = [utils.human_format(self.df_counts.loc[i_day, state], decimals=1) for state in self.states]
         delta_s = 0.0261
         for i, s in enumerate(s_legend):
@@ -578,9 +533,8 @@ class AnimateSIR(AnimationBase):
         ax.add_patch(mpatches.Rectangle(*legend_background_box, facecolor='white', edgecolor='white', transform=ax.transAxes))
 
 
-        # cfg = extra_funcs.filename_to_dotdict(self.filename, animation=True)
-        self.cfg = utils.Filename(self.filename)._Filename.simulation_parameters
-        title = extra_funcs.dict_to_title(cfg)
+        # self.cfg = simulation_utils.Filename(self.filename)._Filename.simulation_parameters
+        title = utils.dict_to_title(self.cfg)
         title += "\n\n" + "Simulation of COVID-19 epidemic with no intervention"
         ax.set_title(title, pad=40, fontsize=32)
 
@@ -604,7 +558,7 @@ class AnimateSIR(AnimationBase):
         decimals = max(int(-np.log10(I_max)) - 1, 0) # max important, otherwise decimals=-1
         ax2.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=decimals))
         ax2.text(0, 1.18, 'Infected', fontsize=22, transform=ax2.transAxes, rotation=0, ha="center")
-        ax2.xaxis.set_major_locator(MaxNLocator(5, integer=True))
+        ax2.xaxis.set_major_locator(MaxNLocator(6, integer=True))
         add_spines(ax2)
 
         ax3 = fig.add_axes([left, bottom-height*1.9, width, height])
@@ -625,11 +579,11 @@ class AnimateSIR(AnimationBase):
         ax3.yaxis.set_major_locator(MaxNLocator(3, integer=True))
         add_spines(ax3)
 
-        add_compas_rose = False
-        if add_compas_rose:
-            ax4 = fig.add_axes([0.13, 0.68, 0.1, 0.1])
-            ax4.imshow(compas_rose_img, alpha=0.9)
-            ax4.axis('off')  # clear x-axis and y-axis
+        # add_compas_rose = False
+        # if add_compas_rose:
+        #     ax4 = fig.add_axes([0.13, 0.68, 0.1, 0.1])
+        #     ax4.imshow(compas_rose_img, alpha=0.9)
+        #     ax4.axis('off')  # clear x-axis and y-axis
 
         ax.text(0.70, 0.97, f"Day: {i_day}", fontsize=34, transform=ax.transAxes, backgroundcolor='white')
         # ax.text(0.012, 0.012, f"Simulation of COVID-19 epidemic with no intervention.", fontsize=24, transform=ax.transAxes, backgroundcolor='white')
@@ -722,7 +676,7 @@ class Animate_N_connections(AnimationBase):
         ax.axvline(mean_N, label='Mean S', lw=1.5, alpha=0.8, ls='--')
         ax.hist(N_connections_day0, range=(0, range_max), bins=N_bins, label='Total', color='gray', alpha=0.8, histtype='step', lw=1)
 
-        title = extra_funcs.dict_to_title(self.cfg)
+        title = utils.dict_to_title(self.cfg)
         ax.text(-0.1, -0.13, f"Day: {i_day}", ha='left', va='top', transform=ax.transAxes, fontsize=30)
         ax.set(xlabel='# of connections', ylabel='Counts', title=title, xlim=(0, range_max-1), ylim=(10, None))
         ax.set_yscale('log')
@@ -740,7 +694,6 @@ class Animate_N_connections(AnimationBase):
 #%%
 
 from src.utils import haversine
-# from extra_funcs import human_format
 
 @njit
 def hist2d_numba(data_2D, bins, ranges):
@@ -868,7 +821,7 @@ class InfectionHomogeneityIndex(AnimationBase):
             for col in df:
                 ax.plot(df.index, df[col], label=f"Threshold = {col:.1f}")
             ax.legend()
-            title = extra_funcs.dict_to_title(self.cfg)
+            title = utils.dict_to_title(self.cfg)
             ax.set(xlabel='Day', ylabel='Infection Homogeneity Index ', title=title, ylim=(0, 1))
             if savefig:
                 Path(pdf_name).parent.mkdir(parents=True, exist_ok=True)
@@ -885,26 +838,6 @@ class InfectionHomogeneityIndex(AnimationBase):
             return self._make_plot(verbose=verbose, savefig=savefig, force_rerun=force_rerun)
 
 
-# # def m(x, w):
-#     """Weighted Mean"""
-#     # return np.sum(x * w) / np.sum(w)
-#     # return np.average(x, weights=w)
-
-# def cov(x, y, w):
-#     """Weighted Covariance"""
-#     mx = np.average(x, weights=w)
-#     my = np.average(y, weights=w)
-
-#     # return np.sum(w * (x - m(x, w)) * (y - m(y, w))) / np.sum(w)
-#     return np.average((x - mx) * (y - my), weights=w)
-
-# def corr(x, y, w):
-#     """Weighted Correlation"""
-#     return cov(x, y, w) / np.sqrt(cov(x, x, w) * cov(y, y, w))
-
-
-
-
 
 # %%
 
@@ -912,499 +845,126 @@ def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=T
 
     if make_geo_animation:
         animation = AnimateSIR(filename, do_tqdm=do_tqdm, verbose=verbose)
-        with animation:
-            animation.make_animation(remove_frames=remove_frames,
-                                    force_rerun=force_rerun,
-                                    optimize_gif=optimize_gif,
-                                    dpi=dpi,
-                                    )
+        animation.make_animation(remove_frames=remove_frames,
+                                force_rerun=force_rerun,
+                                optimize_gif=optimize_gif,
+                                dpi=dpi,
+                                )
 
     if make_IHI_plot:
         IHI = InfectionHomogeneityIndex(filename)
-        with IHI:
-            IHI.make_plot(verbose=False, savefig=True, force_rerun=force_rerun)
-            plt.close('all')
+        IHI.make_plot(verbose=False, savefig=True, force_rerun=force_rerun)
+        plt.close('all')
 
     if make_N_connections_animation:
         animation_N_connections = Animate_N_connections(filename, do_tqdm=do_tqdm, verbose=verbose)
-        with animation_N_connections:
-            animation_N_connections.make_animation(remove_frames=remove_frames,
-                                                force_rerun=force_rerun,
-                                                optimize_gif=optimize_gif)
+        animation_N_connections.make_animation(remove_frames=remove_frames,
+                                            force_rerun=force_rerun,
+                                            optimize_gif=optimize_gif)
 
     return None
 
 
-
-def _get_N_bins_xy(coordinates, return_ranges=False):
-
-    lon_min = coordinates[:, 0].min()
-    lon_max = coordinates[:, 0].max()
-    lon_mid = np.mean([lon_min, lon_max])
-
-    lat_min = coordinates[:, 1].min()
-    lat_max = coordinates[:, 1].max()
-    lat_mid = np.mean([lat_min, lat_max])
-
-    N_bins_x = int(haversine(lon_min, lat_mid, lon_max, lat_mid)) + 1
-    N_bins_y = int(haversine(lon_mid, lat_min, lon_mid, lat_max)) + 1
-
-    if not return_ranges:
-        return N_bins_x, N_bins_y
-
-    else:
-        return N_bins_x, N_bins_y, ((lon_min, lon_max), (lat_min, lat_max))
-
-from scipy.stats import binned_statistic_2d
-
 #%%
 
 reload(utils)
+reload(animation_utils)
 num_cores = utils.get_num_cores(num_cores_max)
 
-from src import animation_utils
 
 filenames = animation_utils.get_animation_filenames()
 N_files = len(filenames)
+# filename = filenames[0]
 
-filename = filenames[1]
-
-
-# @njit
-def compute_I_over_N_fraction(i_day, which_state, coordinates, N_bins_x, N_bins_y, ranges, statistic_N=None):
-
-    which_state_i_day = which_state[i_day]
-
-    mask_I = (-1 < which_state_i_day) & (which_state_i_day < 8)
-    coordinates_I = coordinates[mask_I]
-
-    if statistic_N is None:
-        statistic_N = binned_statistic_2d(coordinates[:, 0], coordinates[:, 1], which_state_i_day, bins=(N_bins_x, N_bins_y), range=ranges, statistic='count', expand_binnumbers=True)[0]
-    statistic_I = binned_statistic_2d(coordinates_I[:, 0], coordinates_I[:, 1], which_state_i_day[mask_I], bins=(N_bins_x, N_bins_y), range=ranges, statistic='count', expand_binnumbers=True)[0]
-
-    I_1d = statistic_I.flatten()
-    N_1d = statistic_N.flatten()
-
-    mask = (N_1d > N_box_min)
-    f_1d = I_1d[mask] / N_1d[mask]
-
-    return f_1d, statistic_N
-
-def is_infectious(which_state):
-    return  (-1 < which_state) & (which_state < 8)
+kwargs = dict(do_tqdm=True,
+              verbose=True,
+              force_rerun=False,
+              make_geo_animation=True,
+              make_N_connections_animation=False,
+              make_IHI_plot=False)
 
 
-from numba.typed import List
-from numba import prange
-
-@njit(parallel=True, fastmath=True)
-def _calc_mean_distance(coordinates):
-    N = len(coordinates)
-    mean_dist = 0
-    # dists = np.zeros(N*(N-1) / 2)
-    for i in prange(N):
-        for j in range(i+1, N):
-            mean_dist += haversine(coordinates[i, 0], coordinates[i, 1], coordinates[j, 0], coordinates[j, 1])
-    mean_dist /= N*(N-1) / 2
-    return mean_dist
-
-def calc_mean_distance(coordinates, N_max=None):
-    N = len(coordinates)
-    if N <= 1:
-        return 0.0
-    elif (N_max is not None) and (N > N_max):
-        indices = np.random.choice(coordinates.shape[0], N_max, replace=False)
-        return _calc_mean_distance(coordinates[indices])
-    else:
-        return _calc_mean_distance(coordinates)
-
-x=x
-
-if True:
-
-    # i_days = [25, 33, 47]  # 10k, 100k, peak
-    # i_days = [65, 99, 139] # 10k, 100k, peak
-    # i_days = [20, 29, 42] # 10k, 100k, peak
-
-    filenames = [
-                    'N_tot__5800000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__1.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.0__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.animation.hdf5',
-
-                    'N_tot__5800000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.0__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.animation.hdf5',
-
-                    'N_tot__5800000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.0__beta_scaling__25.0__age_mixing__1.0__algo__2__ID__000.animation.hdf5',
-
-                ]
-
-
-    fig, ax = plt.subplots()
-
-    labels = ['rho=0, beta_scaling=1', 'rho=100, beta_scaling=1', 'rho=100, beta_scaling=25']
-
-    for filename, label in zip(filenames, labels):
-
-        filename = f'Data/animation/{filename}'
-
-        reload(utils)
-        utils.Filename(filename)
-
-
-        animation = AnimateSIR(filename, do_tqdm=True, verbose=True)
-
-        coordinates = animation.coordinates
-        which_state = animation.which_state
-
-        N = len(animation)
-        i_days = np.arange(1, N)
-        mean_dists = np.zeros(N-1)
-        for i_day in tqdm(i_days):
-            mask_newly_infected = is_infectious(which_state[i_day]) & (~is_infectious(which_state[i_day-1]))
-            coordinates_newly_infected = coordinates[mask_newly_infected]
-            mean_dist = calc_mean_distance(coordinates_newly_infected, N_max=None)
-            mean_dists[i_day-1] = mean_dist
-
-        ax.plot(i_days, mean_dists, label=label)
-
-    ax.set(xlabel='Time [days]', ylabel='Distance [km]', title='Mean distance for new infections')
-    ax.legend()
-    fig.tight_layout()
-
-    fig.savefig('test.pdf', dpi=300)
-
-    x=x
-
-
-    N_bins_x, N_bins_y, ranges = _get_N_bins_xy(coordinates, return_ranges=True)
-
-    N_box_min = 100
-    histrange = (0, 1)
-
-    # fig, ax = plt.subplots()
-    N = len(animation)
-    i_days = np.arange(N)
-    i_day = 42
-    statistic_N = None
-    y_percentile = np.zeros(N)
-    y_max = np.zeros(N)
-    # y_std = np.zeros(N)
-    for i_day in tqdm(i_days):
-        f_1d, statistic_N = compute_I_over_N_fraction(i_day, which_state, coordinates, N_bins_x, N_bins_y, ranges, statistic_N)
-        y_percentile[i_day] = np.percentile(f_1d, 99)
-        y_max[i_day] = np.max(f_1d)
-
-    fig, ax = plt.subplots()
-    ax.plot(i_days, y_percentile, label='percentile')
-    ax.plot(i_days, y_max, label='max')
-    ax.legend()
-
-
-        # ax.hist(f_1d, 100, histtype='step', label=f"{i_day=}", range=histrange);
-
-    # ax.legend()
-    # ax.set_yscale('log');
-    # ax.set(xlabel=f'f (N_box > {N_box_min})', ylabel='counts');
-    # title = extra_funcs.dict_to_title(animation.cfg)
-    # ax.set_title(title, pad=40, fontsize=32);
-
-    x=x
-
-# fig, ax = plt.subplots()
-# ax.hist(A_1d[mask], 100, histtype='step', label=f"A_1d");
-# ax.hist(I_1d[mask], 100, histtype='step', label=f"I_1d");
-# ax.set_yscale('log');
-# ax.set_xscale('log');
-# ax.legend()
-
-
-
-#%%
-
-
-
-#%%
-
-
-# digitized = []
-# for i in range(len(bins)):
-#     digitized.append(np.digitize(values[:, i], bins[i], right=False))
-# digitized = np.concatenate(digitized).reshape(10, 2)
-
-
-
-
-# x=x
-
-#%%
-
-from contexttimer import Timer
 if __name__ == '__main__' and True:
 
-    print(f"{num_cores=}")
+    if num_cores == 1:
+        for filename in tqdm(filenames):
+            animate_file(filename, **kwargs)
 
-    # animation = AnimateSIR(filename, do_tqdm=True, verbose=True, N_max=100)
-    animation = AnimateSIR(filename, do_tqdm=True, verbose=True)
-    # animation._initialize_data()
-
-    with Timer() as t:
-        animation.make_animation(remove_frames=True,
-                                 force_rerun=False,
-                                    optimize_gif=True,
-                                    dpi=50,
-                                    n_jobs=7
-                                    )
-    print(f"_make_png_files: {t.elapsed:.1f}s.")
-
-
-x=x
-
-
-# #
-# # IHI = InfectionHomogeneityIndex(filename)
-# # IHI.make_plot(verbose=True, savefig=False, force_rerun=True)
-
-
-# animation_N_connections = Animate_N_connections(filename, do_tqdm=True, verbose=True)
-# animation_N_connections.make_animation(remove_frames=False,
-#                                        force_rerun=True,
-#                                        optimize_gif=True)
-
-# import dill
-
-# test = AnimationBase(filename)
-# test = AnimateSIR(filename, do_tqdm=True, verbose=True, N_max=50)
-# dill.dumps(test)
-
-# with open("test.dill", "wb") as dill_file:
-#      dill.dump(test, dill_file)
-
-# with open("test.dill", "rb") as dill_file:
-#      test = dill.load(dill_file)
-
-# for filename in tqdm(filenames):
-#     animation = AnimateSIR(filename, do_tqdm=False, verbose=False)
-#     # if animation.cfg['N_tot'] < 1_000_000:
-#     animation.make_animation(remove_frames=True,
-#                             force_rerun=True,
-#                             optimize_gif=True,
-#                             dpi=50,
-#                             n_jobs=num_cores,
-#                             )
-# #
-# x=x
+    else:
+        print(f"Generating {N_files} animations using {num_cores} cores, please wait", flush=True)
+        kwargs['do_tqdm'] = False
+        kwargs['verbose'] = False
+        with mp.Pool(num_cores) as p:
+            list(tqdm(p.imap_unordered(partial(animate_file, **kwargs), filenames), total=N_files))
 
 
 
-# def bar(i_day):
-#     return i_day, unique_counter(animation.which_state[i_day], mapping=animation.mapping)
 
-# num_cores = 6
+# def _get_N_bins_xy(coordinates, return_ranges=False):
 
-# if __name__ == '__main__' and True:
-#     with mp.Pool(num_cores) as p:
-#         y = list(tqdm(p.imap_unordered(bar, range(len(animation))), total=len(animation)))
-#         # x=x
-#     y = {key: val for (key, val) in y}
+#     lon_min = coordinates[:, 0].min()
+#     lon_max = coordinates[:, 0].max()
+#     lon_mid = np.mean([lon_min, lon_max])
 
-    # print(y)
+#     lat_min = coordinates[:, 1].min()
+#     lat_max = coordinates[:, 1].max()
+#     lat_mid = np.mean([lat_min, lat_max])
 
-# animation._initialize_data()
+#     N_bins_x = int(haversine(lon_min, lat_mid, lon_max, lat_mid)) + 1
+#     N_bins_y = int(haversine(lon_mid, lat_min, lon_mid, lat_max)) + 1
 
-# x=x
-#
-# import dill
-# dill.dumps(animation)
-
-
-#%%
-
-# if __name__ == '__main__' and True:
-#     animation._make_png_files(do_tqdm=True, force_rerun=True, dpi=50, n_jobs=2)
-#     x=x
-
-
-    # processes
-
-#%%
-
-
-#%%
-
-    # def _make_single_frame(self, i_day, do_tqdm, force_rerun, **kwargs):
-    #     dpi = kwargs.get('dpi', 50)
-    #     png_name = self._get_png_name(i_day)
-    #     if not Path(png_name).exists() or force_rerun:
-    #         fig, _ = self._plot_i_day(i_day, **kwargs)
-    #         Path(png_name).parent.mkdir(parents=True, exist_ok=True)
-    #         fig.savefig(png_name, dpi=dpi, bbox_inches='tight', pad_inches=0.3)
-    #         plt.close(fig)
-    #         plt.close('all')
-
-    # def _make_png_files(self, do_tqdm, force_rerun, **kwargs):
-
-    #     n_jobs = kwargs.get('n_jobs', 1)
-
-    #     it = range(self.N_days)
-    #     if do_tqdm and (n_jobs == 1):
-    #         it = tqdm(it, desc='Make individual frames')
-
-    #     make_single_frame = partial(self._make_single_frame(do_tqdm=do_tqdm, force_rerun=force_rerun, **kwargs))
-
-    #     if n_jobs == 1:
-    #         for i_day in it:
-    #             make_single_frame(i_day)
-    #     else:
-    #         with mp.Pool(num_cores) as p:
-    #             list(tqdm(p.imap_unordered(make_single_frame, it), total=self.N_days)
-    #     return None
-
-
-
-# animation.df_counts
-
-# fig, axes = animation._plot_i_day(0)
-# fig
-
-#%%
-
-# # #%%
-
-
-
-# # # Main plot
-# # k_scale = 1.8
-# # fig = plt.figure(figsize=(10*k_scale, 13*k_scale))
-# # ax = fig.add_subplot(1, 1, 1, projection='scatter_density')
-
-# # state = 'S'
-# # i_day = 0
-# # dpi=50
-
-# # if animation.df_counts.loc[i_day, state] > 0:
-# #     ax.scatter_density(*animation.coordinates[animation._get_mask(i_day, state)].T, color=animation.d_colors[state], dpi=dpi, **animation._geo_plot_kwargs[state])
-
-
-# #%%
-
-
-# # kwargs = dict(do_tqdm=True,
-# #               verbose=True,
-# #               force_rerun=True,
-# #               make_geo_animation=True,
-# #               make_N_connections_animation=True,
-# #               make_IHI_plot=True)
-
-
-
-# kwargs = dict(do_tqdm=True,
-#               verbose=True,
-#               load_into_memory=False,
-#               force_rerun=True,
-#               make_geo_animation=True,
-#               make_N_connections_animation=True,
-#               make_IHI_plot=True)
-
-
-# if __name__ == '__main__' and False:
-
-#     if num_cores == 1:
-
-#         for filename in tqdm(filenames):
-#             animate_file(filename, **kwargs)
+#     if not return_ranges:
+#         return N_bins_x, N_bins_y
 
 #     else:
-#         print(f"Generating {N_files} animations using {num_cores} cores, please wait", flush=True)
-#         kwargs['do_tqdm'] = False
-#         kwargs['verbose'] = False
-#         with mp.Pool(num_cores) as p:
-#             list(tqdm(p.imap_unordered(partial(animate_file, **kwargs), filenames), total=N_files))
+#         return N_bins_x, N_bins_y, ((lon_min, lon_max), (lat_min, lat_max))
 
-# x=x
+# from scipy.stats import binned_statistic_2d
 
-# #%%
+# # @njit
+# def compute_I_over_N_fraction(i_day, which_state, coordinates, N_bins_x, N_bins_y, ranges, statistic_N=None):
 
+#     which_state_i_day = which_state[i_day]
 
-# #%%
+#     mask_I = (-1 < which_state_i_day) & (which_state_i_day < 8)
+#     coordinates_I = coordinates[mask_I]
 
+#     if statistic_N is None:
+#         statistic_N = binned_statistic_2d(coordinates[:, 0], coordinates[:, 1], which_state_i_day, bins=(N_bins_x, N_bins_y), range=ranges, statistic='count', expand_binnumbers=True)[0]
+#     statistic_I = binned_statistic_2d(coordinates_I[:, 0], coordinates_I[:, 1], which_state_i_day[mask_I], bins=(N_bins_x, N_bins_y), range=ranges, statistic='count', expand_binnumbers=True)[0]
 
-# def foo(i_day, animation):
-# # def foo(i_day):
-#     png_name = f"test_{i_day}.png"
-#     fig, _ = animation._plot_i_day(i_day, dpi=50)
-#     fig.savefig(png_name, dpi=50, bbox_inches='tight', pad_inches=0.3)
-#     plt.close(fig)
-#     plt.close('all')
+#     I_1d = statistic_I.flatten()
+#     N_1d = statistic_N.flatten()
 
+#     mask = (N_1d > N_box_min)
+#     f_1d = I_1d[mask] / N_1d[mask]
 
-# if __name__ == '__main__' and True:
+#     return f_1d, statistic_N
 
-#     i_day = 12
-
-#     animation = AnimateSIR(filename, do_tqdm=True, verbose=True, N_max=i_day)
-#     animation._initialize_data()
-
-#     for i_day in tqdm(range(12)):
-#         foo(i_day, animation)
-
-#         # self.coordinates = f["coordinates"][()]
-#         # self.df_raw = pd.DataFrame(f["df"][()])
-#         # self.which_state = f["which_state"]
-#         # self.N_connections
-
-#     # with mp.Pool(6) as p:
-#     #     list(tqdm(p.imap_unordered(partial(foo, animation=animation), range(12)), total=12))
-#     #     # list(tqdm(p.imap_unordered(foo, range(12)), total=12))
+# def is_infectious(which_state):
+#     return  (-1 < which_state) & (which_state < 8)
 
 
+# from numba.typed import List
+# from numba import prange
 
-# #%%
+# @njit(parallel=True, fastmath=True)
+# def _calc_mean_distance(coordinates):
+#     N = len(coordinates)
+#     mean_dist = 0
+#     # dists = np.zeros(N*(N-1) / 2)
+#     for i in prange(N):
+#         for j in range(i+1, N):
+#             mean_dist += haversine(coordinates[i, 0], coordinates[i, 1], coordinates[j, 0], coordinates[j, 1])
+#     mean_dist /= N*(N-1) / 2
+#     return mean_dist
 
-# if False:
-
-#     import pickle
-
-#     pickle.dump(animation, open('animation_test.pickle', 'wb'))
-#     z = pickle.load(open('animation_test.pickle', 'rb'))
-
-
-# #%%
-
-# class SomeClass:
-#     def __init__(self, filename):
-#         self.filename = filename
-#         f = h5py.File(self.filename, "r")
-#         self.f = f
-#         self.coordinates = f["coordinates"][()]
-#         self.df_raw = pd.DataFrame(f["df"][()])
-#         self.which_state = f["which_state"]
-#         self.N_connections = f["N_connections"]
-
-#     def __getstate__(self):
-#         d_out = self.__dict__.copy()  # get attribute dictionary
-#         del d_out['f']  # remove filehandle entry
-#         del d_out['which_state']  # remove filehandle entry
-#         del d_out['N_connections']  # remove filehandle entry
-
-#         d_out = {'filename': self.filename}
-#         return d_out
-
-#     def __setstate__(self, dict):
-#         filename = dict['filename']
-#         self.__init__(filename)
-
-
-
-# x = SomeClass(filename)
-
-# #%%
-
-# if False:
-
-#     pickle.dump(x, open('x.pickle', 'wb'))
-
-#     y = pickle.load(open('x.pickle', 'rb'))
-#     y.f
-#     y.df_raw
-
-# #%%
-
-
-# %%
+# def calc_mean_distance(coordinates, N_max=None):
+#     N = len(coordinates)
+#     if N <= 1:
+#         return 0.0
+#     elif (N_max is not None) and (N > N_max):
+#         indices = np.random.choice(coordinates.shape[0], N_max, replace=False)
+#         return _calc_mean_distance(coordinates[indices])
+#     else:
+#         return _calc_mean_distance(coordinates)
