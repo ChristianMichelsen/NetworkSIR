@@ -459,3 +459,30 @@ def get_search_string_time(filename, search_string):
                 return time
     return 0
 
+
+#%%
+
+
+def get_simulation_parameters_1D_scan(parameter, non_defaults):
+    """ Get a list of simulation parameters (as strings) for a given parameter to be used in a 1D-scan. Can take non-default values ('non_defaults')."""
+
+    base_dir = Path('Data') / 'ABN'
+    simulation_parameters = sorted([x.name for x in base_dir.glob('*') if 'N_tot' in x.name])
+    d_simulation_parameters = {s: utils.string_to_dict(s) for s in simulation_parameters}
+    df_simulation_parameters = pd.DataFrame.from_dict(d_simulation_parameters, orient='index')
+
+    parameters = get_cfg_default()
+    for key, val in non_defaults.items():
+        parameters[key] = val
+
+    if isinstance(parameter, str):
+        parameter = [parameter]
+
+    query = ''
+    for key, val in parameters.items():
+        if not key in parameter:
+            query += f"{key} == {val} & "
+    query = query[:-3]
+
+    df_different_than_default = df_simulation_parameters.query(query).sort_values(parameter)
+    return list(df_different_than_default.index)
