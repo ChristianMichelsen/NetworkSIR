@@ -182,11 +182,6 @@ def connect_nodes(epsilon_rho, rho, algo, PP_ages, which_connections, coordinate
     with objmode():
         track_memory()
 
-# def remove_from_list(val_to_remove, l):
-#     for i in range(len(l)):
-#         if l[i] == val_to_remove:
-#             l.
-
 
 @njit
 def make_initial_infections(N_init, which_state, state_total_counts, agents_in_state, csMov, which_connections, N_connections, individual_rates, SIR_transition_rates, ages_in_state, initial_ages_exposed, cs_move_individual, N_infectious_states):
@@ -195,7 +190,6 @@ def make_initial_infections(N_init, which_state, state_total_counts, agents_in_s
         track_memory('Initial Infections')
 
     TotMov = 0.0
-    # non_infectable_agents = set()
     non_infectable_agents = np.zeros(len(N_connections), dtype=np.bool_)
 
     possible_agents = List()
@@ -213,8 +207,6 @@ def make_initial_infections(N_init, which_state, state_total_counts, agents_in_s
         state_total_counts[new_state] += 1
         TotMov += SIR_transition_rates[new_state]
         csMov[new_state:] += SIR_transition_rates[new_state]
-
-        # non_infectable_agents.add(agent)
         non_infectable_agents[agent] = True
 
     with objmode():
@@ -226,7 +218,7 @@ def make_initial_infections(N_init, which_state, state_total_counts, agents_in_s
 #%%
 
 @njit
-def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, N_infectious_states, N_connections, individual_rates, which_connections, ages, individual_infection_counter, cs_move_individual, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, nts, verbose, non_infectable_agents, coordinates): # active_agents
+def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, N_infectious_states, N_connections, individual_rates, which_connections, ages, individual_infection_counter, cs_move_individual, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, nts, verbose, non_infectable_agents):
 
 
     with objmode():
@@ -265,40 +257,6 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
 
     with objmode():
         track_memory()
-
-
-#     ##### NEW ####
-#     Ninf = 0 # Total number of infe
-#     NinfObs = 0
-#     NDayTest = 1000
-#     click_test = 1
-#     nts_test = 1
-#     Test_Acc = 0.8
-#     Case_Acc = 0.25
-#     # Observed_agents = set()
-#     NTents = 100
-#     Tents = np.zeros((NTents, 2), np.float32)
-#     for i in range(NTents):
-#         tent = np.random.randint(0,len(N_connections))
-#         Tents[i,0] = coordinates[tent, 0]
-#         Tents[i,1] = coordinates[tent, 1]
-# #    agents_to_tents = utils.initialize_nested_lists(NTents, dtype=np.int32)
-#     cagen = 0
-#     print(N_tot)
-#     for agent_tmp in range(N_tot):
-#         dist_min = 1000000
-        #        for flag_tmp in range(NTents):
-        #            fff = agent_tmp
-        #            r = utils.haversine(coordinates[flag_tmp, 0], coordinates[flag_tmp, 1], coordinates[agent_tmp, 0], coordinates[agent_tmp, 1])
-        #             if (r < dist_min):
-        #                 r = dist_min
-        #                 minage = flag
-
-        #         agents_to_tents[flag].append(agent)
-        #     print(agents_to_tents)
-
-    ###############
-
 
     # Run the simulation ################################
     continue_run = True
@@ -775,7 +733,7 @@ class Simulation:
         # active_agents = {np.uint32(cfg.N_tot+1)}
         # active_agents = {np.int32(-1)}
 
-        res = run_simulation(cfg.N_tot, self.TotMov, self.csMov, self.state_total_counts, self.agents_in_state, self.which_state, self.csInf, self.N_states, self.InfRat, self.SIR_transition_rates, self.N_infectious_states, self.N_connections, self.individual_rates.array, self.which_connections.array, self.ages, self.individual_infection_counter, self.cs_move_individual, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, self.nts, self.verbose, self.non_infectable_agents, self.coordinates) # active_agents
+        res = run_simulation(cfg.N_tot, self.TotMov, self.csMov, self.state_total_counts, self.agents_in_state, self.which_state, self.csInf, self.N_states, self.InfRat, self.SIR_transition_rates, self.N_infectious_states, self.N_connections, self.individual_rates.array, self.which_connections.array, self.ages, self.individual_infection_counter, self.cs_move_individual, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, self.nts, self.verbose, self.non_infectable_agents) # active_agents
 
         out_time, out_state_counts, out_which_state, out_H_state_total_counts = res
 
@@ -897,7 +855,7 @@ force_rerun = False
 filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
 # filename = filename.replace('ID__000', 'ID__001')
 
-if False:
+if True:
 # if True:
     simulation = Simulation(filename, verbose)
     simulation.initialize_network(force_rerun=force_rerun)
