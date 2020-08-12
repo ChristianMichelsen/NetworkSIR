@@ -772,7 +772,7 @@ class Simulation:
                                                      which_connections=ak.to_awkward0 (which_connections),
                                                      time_elapsed=t.elapsed)
                 except OSError as e:
-                    print(f"Skipped saving network initialization for {self.filenames['network_initialisation']}")
+                    print(f"\nSkipped saving network initialization for {self.filenames['network_initialisation']}")
                     # print(e)
 
         self.ages = ages
