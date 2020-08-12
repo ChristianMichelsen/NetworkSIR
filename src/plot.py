@@ -96,9 +96,6 @@ def make_SIR_curves(abn_files, variable='I', force_overwrite=False):
 
 # %%
 
-# def filename_to_dotdict(filename):
-#     return utils.string_to_dict(Path(filename).stem)
-
 
 def get_filenames_different_than_default(parameter, **kwargs):
 
