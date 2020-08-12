@@ -730,9 +730,6 @@ class Simulation:
         H = simulation_utils.get_hospitalization_variables(cfg)
         H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum = H
 
-        # active_agents = {np.uint32(cfg.N_tot+1)}
-        # active_agents = {np.int32(-1)}
-
         res = run_simulation(cfg.N_tot, self.TotMov, self.csMov, self.state_total_counts, self.agents_in_state, self.which_state, self.csInf, self.N_states, self.InfRat, self.SIR_transition_rates, self.N_infectious_states, self.N_connections, self.individual_rates.array, self.which_connections.array, self.ages, self.individual_infection_counter, self.cs_move_individual, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, self.nts, self.verbose, self.non_infectable_agents) # active_agents
 
         out_time, out_state_counts, out_which_state, out_H_state_total_counts = res
@@ -742,9 +739,7 @@ class Simulation:
         self.time = np.array(out_time)
         self.state_counts = np.array(out_state_counts)
         self.which_state = np.array(out_which_state)
-        # self.N_connections = utils.list_of_counters_to_numpy_array(out_N_connections)
         self.H_state_total_counts = np.array(out_H_state_total_counts)
-        # out_infection_counter = utils.list_of_counters_to_numpy_array(out_infection_counter)
 
 
     def make_dataframe(self):
@@ -851,17 +846,14 @@ def run_full_simulation(filename, verbose=False, force_rerun=False, only_initial
 # reload(simulation_utils)
 
 # verbose = True
-# force_rerun = False
+# force_rerun = True
 # filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
 # # filename = filename.replace('ID__000', 'ID__001')
 
 # if True:
-# # if True:
 #     simulation = Simulation(filename, verbose)
 #     simulation.initialize_network(force_rerun=force_rerun)
 #     simulation.make_initial_infections()
 #     simulation.run_simulation()
 #     df = simulation.make_dataframe()
 #     display(df)
-
-
