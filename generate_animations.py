@@ -228,10 +228,10 @@ class AnimationBase():
     def _make_animation(self, remove_frames=True, force_rerun=False, optimize_gif=True, **kwargs):
 
         name = f'{self.animation_type}_' + self._get_sim_pars_str() + '.gif'
-        gifname = str(Path(f'Figures/{self.animation_type}') / name)
+        gif_name = str(Path(f'Figures/{self.animation_type}') / name)
+        video_name = gif_name.replace('gif', 'mp4')
 
-
-        if not Path(gifname).exists() or force_rerun:
+        if not Path(video_name).exists() or force_rerun:
             if self.verbose and not self.do_tqdm:
                 print("\nMake individual frames", flush=True)
             try:
@@ -247,13 +247,13 @@ class AnimationBase():
 
             if self.verbose:
                 print("\nMake GIF", flush=True)
-            self._make_gif_file(gifname)
+            self._make_gif_file(gif_name)
             if optimize_gif:
-                self._optimize_gif(gifname)
+                self._optimize_gif(gif_name)
 
             if self.verbose:
                 print("\nMake video", flush=True)
-            self._make_video_file(gifname)
+            self._make_video_file(video_name)
 
             if remove_frames:
                 if self.verbose:
@@ -276,11 +276,11 @@ class AnimationBase():
                 self._make_animation(remove_frames=remove_frames, force_rerun=force_rerun, optimize_gif=optimize_gif, **kwargs)
 
         except OSError as e:
-                print(f"\n\n\nOSError at {filename} \n\n\n")
+                print(f"\n\n\nOSError at {self.filename}")
                 print(e)
 
         except ValueError as e:
-                print(f"\n\n\nValueError at {filename} \n\n\n")
+                print(f"\n\n\nValueError at {self.filename}")
                 print(e)
 
 
@@ -343,17 +343,16 @@ class AnimationBase():
                 # list(tqdm(p.imap_unordered(make_single_frame, it), total=self.N_days))
         return None
 
-    def _make_gif_file(self, gifname):
+    def _make_gif_file(self, gif_name):
         png_name = self._get_png_name(i_day=1)
         files_in = png_name.replace("000001", "*")
-        subprocess.call(f"convert -delay 10 -loop 1 {files_in} {gifname}", shell=True)
-        subprocess.call(f"convert {gifname} \( +clone -set delay 300 \) +swap +delete {gifname}", shell=True)
+        subprocess.call(f"convert -delay 10 -loop 1 {files_in} {gif_name}", shell=True)
+        subprocess.call(f"convert {gif_name} \( +clone -set delay 300 \) +swap +delete {gif_name}", shell=True)
         return None
 
-    def _make_video_file(self, gifname):
+    def _make_video_file(self, video_name):
         png_name = self._get_png_name(i_day=1)
         files_in = png_name.replace("000001", "%06d")
-        video_name = gifname.replace('gif', 'mp4')
         fps = 10
         subprocess.call(f"ffmpeg -loglevel warning -r {fps} -i {files_in} -vcodec mpeg4 -y -vb 40M {video_name}", shell=True)
         return None
@@ -362,12 +361,12 @@ class AnimationBase():
         png_name = self._get_png_name(i_day=1)
         shutil.rmtree(Path(png_name).parent) # Path(png_name).parent.unlink() # delete file
 
-    def _optimize_gif(self, gifname):
+    def _optimize_gif(self, gif_name):
         # pip install pygifsicle
         from pygifsicle import optimize
         if self.verbose:
             print("Optimize gif")
-        optimize(gifname, colors=100)
+        optimize(gif_name, colors=100)
 
 #%%
 
@@ -873,6 +872,10 @@ num_cores = utils.get_num_cores(num_cores_max)
 
 
 filenames = animation_utils.get_animation_filenames()
+print("Only keeping animations with ID_0 for now")
+filenames = [filename for filename in filenames if 'ID__0' in filename]
+
+
 N_files = len(filenames)
 # filename = filenames[0]
 
@@ -897,7 +900,7 @@ if __name__ == '__main__' and True:
         with mp.Pool(num_cores) as p:
             list(tqdm(p.imap_unordered(partial(animate_file, **kwargs), filenames), total=N_files))
 
-
+    print("\n\nFinished generating animations!")
 
 
 # def _get_N_bins_xy(coordinates, return_ranges=False):
