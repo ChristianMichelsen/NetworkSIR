@@ -1,4 +1,4 @@
-name: NetworkSIR
+name: NetworkSIR2
 channels:
   - conda-forge
   - defaults
@@ -18,20 +18,20 @@ dependencies:
   - pyyaml
   - black
   - pysftp
-  - plotly
+  # - plotly
   # - numba
   - numba/label/dev::numba
   - icc_rt
   - joblib
-  - scikit-learn
+  # - scikit-learn
   - psutil
-  - plotly-orca
+  # - plotly-orca
   #- natsort
-  - datashader
+  # - datashader
   - awkward
   - pyarrow
-  - networkx
-  - fast-histogram
+  # - networkx
+  # - fast-histogram
   - astropy
   - imageio-ffmpeg
   - h5py

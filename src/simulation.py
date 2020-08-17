@@ -35,11 +35,15 @@ except ImportError:
 np.set_printoptions(linewidth=200)
 
 
+do_memory_tracking = False
+
+
 @njit
 def initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, beta_scaling):
 
-    with objmode():
-        track_memory('Rates and Connections')
+    if do_memory_tracking:
+        with objmode():
+            track_memory('Rates and Connections')
 
     connection_weight = np.ones(N_tot, dtype=np.float32)
     infection_weight = np.ones(N_tot, dtype=np.float32)
@@ -72,8 +76,9 @@ def initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, beta_sca
 @njit
 def initialize_ages(N_tot, N_ages, connection_weight):
 
-    with objmode():
-        track_memory('Ages')
+    if do_memory_tracking:
+        with objmode():
+            track_memory('Ages')
 
     ages = np.full(N_tot, fill_value=-1, dtype=np.int8)
     ages_total_counts = np.zeros(N_ages, dtype=np.uint32)
@@ -153,16 +158,18 @@ def run_algo_1(PP_ages, m_i, m_j, which_connections, coordinates, rho_tmp, rho_s
 @njit
 def connect_nodes(epsilon_rho, rho, algo, PP_ages, which_connections, coordinates, rho_scale, N_ages, age_matrix, ages_in_state):
 
-    with objmode():
-        track_memory('Connecting Nodes')
+    if do_memory_tracking:
+        with objmode():
+            track_memory('Connecting Nodes')
 
     if (algo == 2):
         run_algo = run_algo_2
     else:
         run_algo = run_algo_1
 
-    with objmode():
-        track_memory()
+    if do_memory_tracking:
+        with objmode():
+            track_memory()
 
     for m_i in range(N_ages):
         for m_j in range(N_ages):
@@ -176,18 +183,21 @@ def connect_nodes(epsilon_rho, rho, algo, PP_ages, which_connections, coordinate
 
                 run_algo(PP_ages, m_i, m_j, which_connections, coordinates, rho_tmp, rho_scale, ages_in_state)
 
-                if (counter % (N_max//30)) == 0:
+                if do_memory_tracking and (counter % (N_max//30)) == 0:
                     with objmode():
                         track_memory()
-    with objmode():
-        track_memory()
+
+    if do_memory_tracking:
+        with objmode():
+            track_memory()
 
 
 @njit
 def make_initial_infections(N_init, which_state, state_total_counts, agents_in_state, csMov, which_connections, N_connections, individual_rates, SIR_transition_rates, ages_in_state, initial_ages_exposed, cs_move_individual, N_infectious_states):
 
-    with objmode():
-        track_memory('Initial Infections')
+    if do_memory_tracking:
+        with objmode():
+            track_memory('Initial Infections')
 
     TotMov = 0.0
     non_infectable_agents = np.zeros(len(N_connections), dtype=np.bool_)
@@ -209,8 +219,9 @@ def make_initial_infections(N_init, which_state, state_total_counts, agents_in_s
         csMov[new_state:] += SIR_transition_rates[new_state]
         non_infectable_agents[agent] = True
 
-    with objmode():
-        track_memory()
+    if do_memory_tracking:
+        with objmode():
+            track_memory()
 
     return TotMov, non_infectable_agents
 
@@ -221,8 +232,9 @@ def make_initial_infections(N_init, which_state, state_total_counts, agents_in_s
 def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, which_state, csInf, N_states, InfRat, SIR_transition_rates, N_infectious_states, N_connections, individual_rates, which_connections, ages, individual_infection_counter, cs_move_individual, H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, nts, verbose, non_infectable_agents):
 
 
-    with objmode():
-        track_memory('Simulation')
+    if do_memory_tracking:
+        with objmode():
+            track_memory('Simulation')
 
 
     out_time = List()
@@ -255,8 +267,9 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
 
     s_counter = np.zeros(4)
 
-    with objmode():
-        track_memory()
+    if do_memory_tracking:
+        with objmode():
+            track_memory()
 
     # Run the simulation ################################
     continue_run = True
@@ -439,8 +452,9 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
                 # out_N_connections.append(utils.array_to_counter(N_connections))
                 out_which_state.append(which_state.copy())
 
-                with objmode():
-                    track_memory()
+                if do_memory_tracking:
+                    with objmode():
+                        track_memory()
 
             click += 1
 
