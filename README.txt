@@ -1,14 +1,18 @@
 >> git clone https://github.com/ChristianMichelsen/NetworkSIR
 >> cd NetworkSIR
->> conda env create -f environment.yaml
+>> conda env create -f environment_specific.yml
+
 >> conda activate NetworkSIR
 
 (or, if already installed)
 
->> conda env update --file environment.yaml
+>> conda env update --file environment_specific.yml
 
-Simulate data:
->> python SimulateDenmark.py
+Generate Simulations:
+>> python run_simulation.py
 
-Analyse results
->> python SIR_advanced.py
+Plot the results:
+>> python plot_results.py
+
+Make animations
+>> python generate_animations.py

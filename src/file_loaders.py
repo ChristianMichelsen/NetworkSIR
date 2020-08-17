@@ -68,3 +68,8 @@ class ABNFiles:
 
     def __len__(self):
         return len(self.all_files)
+
+    def __repr__(self):
+        return (f"ABNFiles(base_dir='{self.base_dir}'). " +
+                f"Contains {len(self.all_files)} files with " +
+                f"{len(self.ABN_parameters)} different simulation parameters.")

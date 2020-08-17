@@ -5,7 +5,10 @@ import joblib
 from pathlib import Path
 from iminuit import Minuit
 
-
+try:
+    from src import utils
+except ImportError:
+    import utils
 
 
 def uniform(a, b):
@@ -155,7 +158,7 @@ def filenames_to_subgroups(filenames):
     return cfg_str
 
 
-def get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=20):
+def get_fit_results(abn_files, force_rerun=False, num_cores_max=20):
 
     all_fits_file = 'fits_Imax.joblib'
 
@@ -166,14 +169,18 @@ def get_fit_Imax_results(filenames, force_rerun=False, num_cores_max=20):
     else:
 
         all_Imax_fits = {}
-        cfg_str = filenames_to_subgroups(filenames)
-        print(f"Fitting I_max for {len(filenames)} simulations spaced on {len(cfg_str.items())} different runs, please wait.", flush=True)
+        print(f"Fitting I_max for {len(abn_files.all_files)} files with on {len(abn_files.ABN_parameters)} different simulation parameters, please wait.", flush=True)
 
-        for sim_pars, files in tqdm(cfg_str.items()):
+        for ABN_parameter in tqdm(abn_files.keys):
+            cfg = utils.string_to_dict(ABN_parameter)
+            for i, file in enumerate(abn_files[ABN_parameter]):
+
+
+        # for sim_pars, files in tqdm(cfg_str.items()):
             # break
             # print(sim_pars)
-            output_filename = Path('Data/fits_Imax') / f'Imax_fits_{sim_pars}.joblib'
-            output_filename.parent.mkdir(parents=True, exist_ok=True)
+            output_filename = Path('Data/fits') / f'fits_{ABN_parameter}.joblib'
+            utils.make_sure_folder_exist(output_filename)
 
             if output_filename.exists() and not force_rerun:
                 all_Imax_fits[sim_pars] = joblib.load(output_filename)

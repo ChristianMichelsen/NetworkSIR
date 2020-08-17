@@ -36,9 +36,9 @@ if plot_SIR_comparison:
 
 #%%
 
-if True:
+if False:
 
-    reload(plot)
+    # reload(plot)
 
     plot.plot_1D_scan('mu')
     plot.plot_1D_scan('beta')
@@ -79,7 +79,7 @@ x=x
 
 if __name__ == '__main__':
 
-    fit_objects_all = extra_funcs.get_fit_Imax_results(abn_files, force_rerun=False, num_cores_max=num_cores_max)
+    fit_objects_all = extra_funcs.get_fit_results(abn_files, force_rerun=False, num_cores_max=num_cores_max)
 
     # x=x
 
