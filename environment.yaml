@@ -1,4 +1,4 @@
-name: NetworkSIR2
+name: NetworkSIR
 channels:
   - conda-forge
   - defaults

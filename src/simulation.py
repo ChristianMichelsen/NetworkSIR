@@ -193,23 +193,74 @@ def connect_nodes(epsilon_rho, rho, algo, PP_ages, which_connections, coordinate
 
 
 @njit
-def make_initial_infections(N_init, which_state, state_total_counts, agents_in_state, csMov, which_connections, N_connections, individual_rates, SIR_transition_rates, ages_in_state, initial_ages_exposed, cs_move_individual, N_infectious_states):
+def initialize_tents(coordinates, N_tot, N_tents):
+
+    tent_positions = np.zeros((N_tents, 2), np.float32)
+    for i in range(N_tents):
+        tent_positions[i] = coordinates[np.random.randint(N_tot)]
+
+    my_closest_tent = np.zeros(N_tot, np.int16)
+    for agent in range(N_tot):
+        closest_tent = -1
+        r_min = 10e10
+        for i_tent, tent_position in enumerate(tent_positions):
+            r = utils.haversine_scipy(coordinates[agent], tent_position)
+            if r < r_min:
+                r_min = r
+                closest_tent = i_tent
+        my_closest_tent[agent] = closest_tent
+
+    return my_closest_tent, tent_positions
+
+
+@njit
+def make_initial_infections(N_init, which_state, state_total_counts, agents_in_state, csMov, which_connections, N_connections, individual_rates, SIR_transition_rates, ages_in_state, initial_ages_exposed, cs_move_individual, N_infectious_states, coordinates):
 
     if do_memory_tracking:
         with objmode():
             track_memory('Initial Infections')
 
     TotMov = 0.0
-    non_infectable_agents = np.zeros(len(N_connections), dtype=np.bool_)
+    N_tot = len(N_connections)
+    non_infectable_agents = np.zeros(N_tot, dtype=np.bool_)
 
     possible_agents = List()
     for age_exposed in initial_ages_exposed:
         for agent in ages_in_state[age_exposed]:
             possible_agents.append(agent)
 
+
     ##  Now make initial infections
-    random_agents = np.random.choice(np.asarray(possible_agents), size=N_init, replace=False)
-    for i, agent in enumerate(random_agents):
+    make_random_infections = False
+
+
+    ##  Standard outbreak type, infecting randomly
+    if make_random_infections:
+        initial_agents_to_infect = np.random.choice(np.asarray(possible_agents), size=N_init, replace=False)
+        # initial_agents_to_infect = np.random.choice(np.asarray(possible_agents), size=N_init, replace=False)
+
+
+    # Local outbreak type, infecting around a point:
+    else:
+
+        rho_init = 100
+        rho_init_scale = 1000
+
+        outbreak_agent = np.random.randint(N_tot) # this is where the outbreak starts
+
+        initial_agents_to_infect = List()
+        initial_agents_to_infect.append(np.int32(outbreak_agent))
+
+        while len(initial_agents_to_infect) < N_init:
+            proposed_agent = np.random.randint(N_tot)
+
+            r = utils.haversine_scipy(coordinates[outbreak_agent], coordinates[proposed_agent])
+            if np.exp(-r*rho_init/rho_init_scale) > np.random.rand():
+                initial_agents_to_infect.append(proposed_agent)
+        initial_agents_to_infect = np.asarray(initial_agents_to_infect, dtype=np.int32)
+        # print(initial_agents_to_infect)
+
+    for i, agent in enumerate(initial_agents_to_infect):
         new_state = np.random.randint(0, N_infectious_states)
         which_state[agent] = new_state
 
@@ -224,6 +275,11 @@ def make_initial_infections(N_init, which_state, state_total_counts, agents_in_s
             track_memory()
 
     return TotMov, non_infectable_agents
+
+
+
+
+
 
 
 #%%
@@ -264,6 +320,7 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, wh
     bug_contacts = np.zeros(N_tot, np.int32)
 
     active_agents = np.zeros(N_tot, dtype=np.bool_)
+
 
     s_counter = np.zeros(4)
 
@@ -626,16 +683,29 @@ class Simulation:
 
         connect_nodes(cfg.epsilon_rho, cfg.rho, cfg.algo, PP_ages, which_connections, self.coordinates, rho_scale, cfg.N_ages, age_matrix, ages_in_state)
 
-        return which_connections, ages
+        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+        # # # # # # # # # # # Find closests test tents  # # # # # # # # # # # # # # # # # # #
+        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 
-    def _save_network_initalization(self, ages, N_connections, which_connections, time_elapsed):
+        if self.verbose:
+            print("Connect tents")
+        self.track_memory('Connect tents')
+
+        my_closest_tent, tent_positions = initialize_tents(self.coordinates, self.cfg.N_tot, N_tents=10)
+
+        return which_connections, ages, my_closest_tent, tent_positions
+
+
+    def _save_network_initalization(self, ages, N_connections, my_closest_tent, tent_positions, which_connections, time_elapsed):
         self.track_memory('Saving network initialization')
         utils.make_sure_folder_exist(self.filenames['network_initialisation'])
         with h5py.File(self.filenames['network_initialisation'], "w") as f: #
             f.create_dataset("cfg_str", data=str(self.cfg)) # import ast; ast.literal_eval(str(cfg))
             f.create_dataset("ages", data=ages)
             f.create_dataset("N_connections", data=N_connections)
+            f.create_dataset("my_closest_tent", data=my_closest_tent)
+            f.create_dataset("tent_positions", data=tent_positions)
             awkward0.hdf5(f)["which_connections"] = which_connections
             for key, val in self.cfg.items():
                 f.attrs[key] = val
@@ -647,10 +717,12 @@ class Simulation:
         with h5py.File(self.filenames['network_initialisation'], 'r') as f:
             ages = f["ages"][()]
             N_connections = f["N_connections"][()]
+            my_closest_tent = f["my_closest_tent"][()]
+            tent_positions = f["tent_positions"][()]
             which_connections = awkward0.hdf5(f)["which_connections"]
         self.track_memory('Loading Coordinates')
         self.coordinates = simulation_utils.load_coordinates(self._Filename.coordinates_filename, self.cfg.N_tot, self.ID)
-        return ages, N_connections, ak.from_awkward0(which_connections)
+        return ages, N_connections, my_closest_tent, tent_positions, ak.from_awkward0(which_connections)
 
 
     def initialize_network(self, force_rerun=False, save_initial_network=True):
@@ -663,7 +735,7 @@ class Simulation:
             try:
                 if self.verbose:
                     print(f"{self.filenames['network_initialisation']} exists")
-                ages, N_connections, which_connections = self._load_network_initalization()
+                ages, N_connections, my_closest_tent, tent_positions, which_connections = self._load_network_initalization()
             except OSError:
                 if self.verbose:
                     print(f"{self.filenames['network_initialisation']} had OSError")
@@ -677,13 +749,15 @@ class Simulation:
                 print(f"{self.filenames['network_initialisation']} does not exist, creating it")
 
             with Timer() as t:
-                which_connections, ages = self._initialize_network()
+                which_connections, ages, my_closest_tent, tent_positions = self._initialize_network()
             which_connections, N_connections = utils.nested_list_to_awkward_array(which_connections, return_lengths=True, sort_nested_list=True)
 
             if save_initial_network:
                 try:
                     self._save_network_initalization(ages=ages,
                                                      N_connections=N_connections,
+                                                     my_closest_tent=my_closest_tent,
+                                                     tent_positions=tent_positions,
                                                      which_connections=ak.to_awkward0 (which_connections),
                                                      time_elapsed=t.elapsed)
                 except OSError as e:
@@ -693,6 +767,8 @@ class Simulation:
         self.ages = ages
         self.which_connections = utils.RaggedArray(which_connections)
         self.N_connections = N_connections
+        self.my_closest_tent = my_closest_tent
+        self.tent_positions = tent_positions
 
 
     def make_initial_infections(self):
@@ -727,7 +803,7 @@ class Simulation:
 
         self.ages_in_state = simulation_utils.compute_ages_in_state(self.ages, cfg.N_ages)
 
-        self.TotMov, self.non_infectable_agents = make_initial_infections(cfg.N_init, self.which_state, self.state_total_counts, self.agents_in_state, self.csMov, self.which_connections.array, self.N_connections, self.individual_rates.array, self.SIR_transition_rates, self.ages_in_state, self.initial_ages_exposed, self.cs_move_individual, self.N_infectious_states)
+        self.TotMov, self.non_infectable_agents = make_initial_infections(cfg.N_init, self.which_state, self.state_total_counts, self.agents_in_state, self.csMov, self.which_connections.array, self.N_connections, self.individual_rates.array, self.SIR_transition_rates, self.ages_in_state, self.initial_ages_exposed, self.cs_move_individual, self.N_infectious_states, self.coordinates)
 
 
     def run_simulation(self):
@@ -856,18 +932,26 @@ def run_full_simulation(filename, verbose=False, force_rerun=False, only_initial
 
 
 
-# reload(utils)
-# reload(simulation_utils)
+reload(utils)
+reload(simulation_utils)
 
-# verbose = True
-# force_rerun = True
-# filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
-# # filename = filename.replace('ID__000', 'ID__001')
+verbose = True
+force_rerun = False
+filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
+# filename = filename.replace('ID__000', 'ID__001')
 
-# if True:
-#     simulation = Simulation(filename, verbose)
-#     simulation.initialize_network(force_rerun=force_rerun)
-#     simulation.make_initial_infections()
-#     simulation.run_simulation()
-#     df = simulation.make_dataframe()
-#     display(df)
+if True:
+    simulation = Simulation(filename, verbose)
+    simulation.initialize_network(force_rerun=force_rerun)
+    # simulation.make_initial_infections()
+    # simulation.run_simulation()
+    # df = simulation.make_dataframe()
+    # display(df)
+
+
+
+# coordinates = np.load(simulation._Filename.coordinates_filename)
+# N_tot = 50_000
+
+# N_tents = 10
+
