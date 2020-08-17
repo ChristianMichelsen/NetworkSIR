@@ -33,9 +33,10 @@ if plot_SIR_comparison:
     plot.make_SIR_curves(abn_files, 'I', force_overwrite=False)
     plot.make_SIR_curves(abn_files, 'R', force_overwrite=False)
 
+
 #%%
 
-if False:
+if True:
 
     reload(plot)
 
@@ -44,32 +45,34 @@ if False:
 
     plot.plot_1D_scan('N_tot', do_log=True)
     plot.plot_1D_scan('N_init', do_log=True, ylim=(0.9, 1.))
-    plot.plot_1D_scan('N_init', do_log=True, ylim=(0.9, 1.), non_default_parameters={'algo': 1})
+    plot.plot_1D_scan('N_init', do_log=True, ylim=(0.9, 1.), non_default_parameters=dict(algo= 1))
 
-    plot.plot_1D_scan('beta_scaling', N_tot=5_800_000, epsilon_rho=0, rho=100, N_init=100)
-    plot.plot_1D_scan('beta_scalingp', N_tot=5_800_000, epsilon_rho=0, rho=100, N_init=1000)
-    plot.plot_1D_scan('beta_scaling', N_tot=580_000, epsilon_rho=0, rho=100, N_init=100)
-    plot.plot_1D_scan('beta_scaling', N_tot=580_000, epsilon_rho=0, rho=100, N_init=1000)
+    plot.plot_1D_scan('beta_scaling',  non_default_parameters=dict(N_tot=5_800_000, epsilon_rho=0, rho=100, N_init=100))
+    plot.plot_1D_scan('beta_scaling', non_default_parameters=dict(N_tot=5_800_000, epsilon_rho=0, rho=100, N_init=1000))
+    plot.plot_1D_scan('beta_scaling',  non_default_parameters=dict(N_tot=580_000,   epsilon_rho=0, rho=100, N_init=100))
+    plot.plot_1D_scan('beta_scaling',  non_default_parameters=dict(N_tot=580_000,   epsilon_rho=0, rho=100, N_init=1000))
 
     plot.plot_1D_scan('rho')
-    plot.plot_1D_scan('rho', algo=1)
-    plot.plot_1D_scan('rho', N_tot=5_800_000)
-    plot.plot_1D_scan('epsilon_rho', rho=100)
-    plot.plot_1D_scan('epsilon_rho', rho=100, algo=1)
+    plot.plot_1D_scan('rho', non_default_parameters=dict(algo=1))
+    plot.plot_1D_scan('rho', non_default_parameters=dict(N_tot=5_800_000))
+    plot.plot_1D_scan('epsilon_rho', non_default_parameters=dict(rho=100))
+    plot.plot_1D_scan('epsilon_rho', non_default_parameters=dict(rho=100, algo=1))
 
     plot.plot_1D_scan('sigma_beta')
-    plot.plot_1D_scan('sigma_beta', algo=1)
-    plot.plot_1D_scan('sigma_beta', rho=100)
-    plot.plot_1D_scan('sigma_beta', rho=100, algo=1)
-    plot.plot_1D_scan('sigma_beta', sigma_mu=1)
-    plot.plot_1D_scan('sigma_beta', sigma_mu=1, rho=100)
-    plot.plot_1D_scan('sigma_beta', rho=100)
+    plot.plot_1D_scan('sigma_beta', non_default_parameters=dict(algo=1))
+    plot.plot_1D_scan('sigma_beta', non_default_parameters=dict(rho=100))
+    plot.plot_1D_scan('sigma_beta', non_default_parameters=dict(rho=100, algo=1))
+    plot.plot_1D_scan('sigma_beta', non_default_parameters=dict(sigma_mu=1))
+    plot.plot_1D_scan('sigma_beta', non_default_parameters=dict(sigma_mu=1, rho=100))
+    plot.plot_1D_scan('sigma_beta', non_default_parameters=dict(rho=100))
     plot.plot_1D_scan('sigma_mu')
-    plot.plot_1D_scan('sigma_mu', algo=1)
-    plot.plot_1D_scan('sigma_mu', rho=100)
-    plot.plot_1D_scan('sigma_mu', rho=100, algo=1)
+    plot.plot_1D_scan('sigma_mu', non_default_parameters=dict(algo=1))
+    plot.plot_1D_scan('sigma_mu', non_default_parameters=dict(rho=100))
+    plot.plot_1D_scan('sigma_mu', non_default_parameters=dict(rho=100, algo=1))
     plot.plot_1D_scan('lambda_E')
     plot.plot_1D_scan('lambda_I')
+
+x=x
 
 
 #%%

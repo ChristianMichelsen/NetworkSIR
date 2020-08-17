@@ -276,12 +276,14 @@ class AnimationBase():
                 self._make_animation(remove_frames=remove_frames, force_rerun=force_rerun, optimize_gif=optimize_gif, **kwargs)
 
         except OSError as e:
-                print(f"\n\n\nOSError at {self.filename}")
+                print(f"\n\nOSError at {self.filename}")
                 print(e)
+                print("\n")
 
         except ValueError as e:
-                print(f"\n\n\nValueError at {self.filename}")
+                print(f"\n\nValueError at {self.filename}")
                 print(e)
+                print("\n")
 
 
 
