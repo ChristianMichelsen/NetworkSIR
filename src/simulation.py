@@ -733,19 +733,19 @@ class Simulation:
         # try to load file (except if forced to rerun)
         if not force_rerun:
             try:
+                ages, N_connections, my_closest_tent, tent_positions, my_connections = self._load_network_initalization()
                 if self.verbose:
                     print(f"{self.filenames['network_initialisation']} exists")
-                ages, N_connections, my_closest_tent, tent_positions, my_connections = self._load_network_initalization()
             except OSError:
                 if self.verbose:
-                    print(f"{self.filenames['network_initialisation']} had OSError")
+                    print(f"{self.filenames['network_initialisation']} had OSError, creating it")
                 OSError_flag = True
 
 
         # if ran into OSError above or forced to rerun:
         if OSError_flag or force_rerun:
 
-            if self.verbose:
+            if self.verbose and not OSError_flag:
                 print(f"{self.filenames['network_initialisation']} does not exist, creating it")
 
             with Timer() as t:
@@ -758,7 +758,7 @@ class Simulation:
                                                      N_connections=N_connections,
                                                      my_closest_tent=my_closest_tent,
                                                      tent_positions=tent_positions,
-                                                     my_connections=ak.to_awkward0 (my_connections),
+                                                     my_connections=ak.to_awkward0(my_connections),
                                                      time_elapsed=t.elapsed)
                 except OSError as e:
                     print(f"\nSkipped saving network initialization for {self.filenames['network_initialisation']}")
@@ -766,6 +766,7 @@ class Simulation:
 
         self.ages = ages
         self.my_connections = utils.RaggedArray(my_connections)
+        # self.my_connections = my_connections
         self.N_connections = N_connections
         self.my_closest_tent = my_closest_tent
         self.tent_positions = tent_positions
@@ -940,7 +941,8 @@ force_rerun = False
 filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__10__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
 # filename = filename.replace('ID__000', 'ID__001')
 
-if True:
+# if running just til file
+if Path('').cwd().stem == 'src':
     simulation = Simulation(filename, verbose)
     simulation.initialize_network(force_rerun=force_rerun)
     simulation.make_initial_infections()
