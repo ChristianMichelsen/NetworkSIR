@@ -225,8 +225,8 @@ def binary_search(array, item):
         return found, index
 
 
-# %timeit binary_search(which_connections[contact], 35818)
-# %timeit np.searchsorted(which_connections[contact], 35818)
+# %timeit binary_search(my_connections[contact], 35818)
+# %timeit np.searchsorted(my_connections[contact], 35818)
 
 # @njit
 # def get_lengths_of_nested_list2(nested_list, dtype=np.uint16):

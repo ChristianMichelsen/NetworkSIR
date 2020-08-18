@@ -233,7 +233,7 @@ def set_numba_random_seed(seed):
 
 
 @njit
-def _initialize_individual_rates_nested_list(N_tot, beta, sigma_beta, N_connections, ID):
+def _initialize_my_rates_nested_list(N_tot, beta, sigma_beta, N_connections, ID):
     # np.random.seed(ID)
     res = List()
     for i in range(N_tot):
@@ -245,8 +245,8 @@ def _initialize_individual_rates_nested_list(N_tot, beta, sigma_beta, N_connecti
         res.append(x)
     return res
 
-def initialize_individual_rates(N_tot, beta, sigma_beta, N_connections, ID=0):
-    return utils.RaggedArray(_initialize_individual_rates_nested_list(N_tot, beta, sigma_beta, N_connections, ID))
+def initialize_my_rates(N_tot, beta, sigma_beta, N_connections, ID=0):
+    return utils.RaggedArray(_initialize_my_rates_nested_list(N_tot, beta, sigma_beta, N_connections, ID))
 
 @njit
 def initialize_non_infectable(N_tot, N_connections):
@@ -279,8 +279,8 @@ def get_hospitalization_variables(cfg):
     # Hospitalization track variables
     H_N_states = 6 # number of states
     H_state_total_counts = np.zeros(H_N_states, dtype=np.uint32)
-    # H_which_state = -1*np.ones(N_tot, dtype=np.int8)
-    H_which_state = np.full(cfg.N_tot, -1, dtype=np.int8)
+    # H_my_state = -1*np.ones(N_tot, dtype=np.int8)
+    H_my_state = np.full(cfg.N_tot, -1, dtype=np.int8)
 
     H_agents_in_state = utils.initialize_nested_lists(H_N_states, dtype=np.uint32)
     H_probability_matrix = np.ones((cfg.N_ages, H_N_states), dtype=np.float32) / H_N_states
@@ -300,7 +300,7 @@ def get_hospitalization_variables(cfg):
 
     H_cumsum_move = np.zeros(H_N_states, dtype=np.float64)
 
-    return H_probability_matrix_csum, H_which_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum
+    return H_probability_matrix_csum, H_my_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum
 
 
 #%%

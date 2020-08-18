@@ -162,7 +162,7 @@ class AnimationBase():
         self.N_max = N_max
         if self.is_valid_file:
             if N_max is None:
-                self.N_days = len(self.which_state)
+                self.N_days = len(self.my_state)
             else:
                 if N_max < 12:
                     print(f"N_max has to be 12 or larger (choosing 12 instead of {N_max} for now).")
@@ -182,7 +182,7 @@ class AnimationBase():
             self.coordinates = f["coordinates"][()]
             self.df_raw = pd.DataFrame(f["df"][()]).drop('index', axis=1)
             self.ages = f["ages"][()]
-            self.which_state = f["which_state"][()]
+            self.my_state = f["my_state"][()]
             self.N_connections = f["N_connections"][()]
 
             if 'df_time_memory' in f.keys():
@@ -194,8 +194,8 @@ class AnimationBase():
                                                              .rename(columns={"index": "ChangePoint"}))
 
         # g = awkward.hdf5(f)
-        # g["which_connections"]
-        # g["individual_rates"]
+        # g["my_connections"]
+        # g["my_rates"]
 
     def _load_hdf5_file(self):
         try:
@@ -471,7 +471,7 @@ class AnimateSIR(AnimationBase):
         if self.do_tqdm:
             it = tqdm(it, desc="Creating df_counts")
         for i_day in it:
-            counts_i_day[i_day] = unique_counter(self.which_state[i_day], mapping=self.mapping)
+            counts_i_day[i_day] = unique_counter(self.my_state[i_day], mapping=self.mapping)
         df_counts = pd.DataFrame(counts_i_day).T
         return df_counts
 
@@ -501,7 +501,7 @@ class AnimateSIR(AnimationBase):
         return df_R_eff
 
     def _get_mask(self, i_day, state):
-        return np.isin(self.which_state[i_day], self.inverse_mapping[state])
+        return np.isin(self.my_state[i_day], self.inverse_mapping[state])
 
     def _plot_i_day(self, i_day, dpi=50):
 
@@ -659,7 +659,7 @@ class Animate_N_connections(AnimationBase):
 
     def _plot_i_day(self, i_day):
 
-        which_state_day = self.which_state[i_day]
+        my_state_day = self.my_state[i_day]
         N_connections_day0 = self.N_connections[0]
 
         N_connections_max = len(N_connections_day0)
@@ -670,10 +670,10 @@ class Animate_N_connections(AnimationBase):
         N_bins = int(range_max)
 
         fig, ax = plt.subplots()
-        counts, edges, _ = ax.hist(N_connections_day0[which_state_day == -1], range=(0, range_max), bins=N_bins, label='S', histtype='step', lw=2)
-        ax.hist(N_connections_day0[which_state_day != -1], range=(0, range_max), bins=N_bins, label='EIR', histtype='step', lw=2)
+        counts, edges, _ = ax.hist(N_connections_day0[my_state_day == -1], range=(0, range_max), bins=N_bins, label='S', histtype='step', lw=2)
+        ax.hist(N_connections_day0[my_state_day != -1], range=(0, range_max), bins=N_bins, label='EIR', histtype='step', lw=2)
 
-        mean_N = np.mean(N_connections_day0[which_state_day == -1])
+        mean_N = np.mean(N_connections_day0[my_state_day == -1])
         ax.axvline(mean_N, label='Mean S', lw=1.5, alpha=0.8, ls='--')
         ax.hist(N_connections_day0, range=(0, range_max), bins=N_bins, label='Total', color='gray', alpha=0.8, histtype='step', lw=1)
 
@@ -748,10 +748,10 @@ def compute_N_box_index(coordinates, N_bins_x, N_bins_y, threshold=0.8, verbose=
     return index, counts_1d
 
 
-def compute_spatial_correlation_day(coordinates, which_state_day, N_bins_x, N_bins_y, verbose=False):
+def compute_spatial_correlation_day(coordinates, my_state_day, N_bins_x, N_bins_y, verbose=False):
 
     counts_1d_all = histogram2d(coordinates, bins=(N_bins_x, N_bins_y)).flatten()
-    counts_1d_I = histogram2d(coordinates[(-1 < which_state_day) & (which_state_day < 8)], bins=(N_bins_x, N_bins_y)).flatten()
+    counts_1d_I = histogram2d(coordinates[(-1 < my_state_day) & (my_state_day < 8)], bins=(N_bins_x, N_bins_y)).flatten()
 
     counts_1d_nonzero_all = counts_1d_all[counts_1d_all > 0]
     counts_1d_nonzero_I = counts_1d_I[counts_1d_all > 0]
@@ -794,13 +794,13 @@ class InfectionHomogeneityIndex(AnimationBase):
 
         N_bins_x, N_bins_y = self._get_N_bins_xy()
 
-        N = len(self.which_state)
+        N = len(self.my_state)
         x = np.arange(N-1)
         IHI = np.zeros(len(x))
         N_box_all, counts_1d_all = compute_N_box_index(self.coordinates, N_bins_x, N_bins_y, threshold=threshold)
         for i_day in x:
-            which_state_day = self.which_state[i_day]
-            coordinates_infected = self.coordinates[(-1 < which_state_day) & (which_state_day < 8)]
+            my_state_day = self.my_state[i_day]
+            coordinates_infected = self.coordinates[(-1 < my_state_day) & (my_state_day < 8)]
             N_box_infected, counts_1d_infected = compute_N_box_index(coordinates_infected, N_bins_x, N_bins_y, threshold=threshold)
             ratio_N_box = N_box_infected / N_box_all
             IHI[i_day] = ratio_N_box
@@ -927,16 +927,16 @@ if __name__ == '__main__' and True:
 # from scipy.stats import binned_statistic_2d
 
 # # @njit
-# def compute_I_over_N_fraction(i_day, which_state, coordinates, N_bins_x, N_bins_y, ranges, statistic_N=None):
+# def compute_I_over_N_fraction(i_day, my_state, coordinates, N_bins_x, N_bins_y, ranges, statistic_N=None):
 
-#     which_state_i_day = which_state[i_day]
+#     my_state_i_day = my_state[i_day]
 
-#     mask_I = (-1 < which_state_i_day) & (which_state_i_day < 8)
+#     mask_I = (-1 < my_state_i_day) & (my_state_i_day < 8)
 #     coordinates_I = coordinates[mask_I]
 
 #     if statistic_N is None:
-#         statistic_N = binned_statistic_2d(coordinates[:, 0], coordinates[:, 1], which_state_i_day, bins=(N_bins_x, N_bins_y), range=ranges, statistic='count', expand_binnumbers=True)[0]
-#     statistic_I = binned_statistic_2d(coordinates_I[:, 0], coordinates_I[:, 1], which_state_i_day[mask_I], bins=(N_bins_x, N_bins_y), range=ranges, statistic='count', expand_binnumbers=True)[0]
+#         statistic_N = binned_statistic_2d(coordinates[:, 0], coordinates[:, 1], my_state_i_day, bins=(N_bins_x, N_bins_y), range=ranges, statistic='count', expand_binnumbers=True)[0]
+#     statistic_I = binned_statistic_2d(coordinates_I[:, 0], coordinates_I[:, 1], my_state_i_day[mask_I], bins=(N_bins_x, N_bins_y), range=ranges, statistic='count', expand_binnumbers=True)[0]
 
 #     I_1d = statistic_I.flatten()
 #     N_1d = statistic_N.flatten()
@@ -946,8 +946,8 @@ if __name__ == '__main__' and True:
 
 #     return f_1d, statistic_N
 
-# def is_infectious(which_state):
-#     return  (-1 < which_state) & (which_state < 8)
+# def is_infectious(my_state):
+#     return  (-1 < my_state) & (my_state < 8)
 
 
 # from numba.typed import List
