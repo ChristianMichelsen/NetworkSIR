@@ -192,26 +192,6 @@ def connect_nodes(epsilon_rho, rho, algo, PP_ages, my_connections, coordinates, 
             track_memory()
 
 
-@njit
-def initialize_tents(coordinates, N_tot, N_tents):
-
-    tent_positions = np.zeros((N_tents, 2), np.float32)
-    for i in range(N_tents):
-        tent_positions[i] = coordinates[np.random.randint(N_tot)]
-
-    my_closest_tent = np.zeros(N_tot, np.int16)
-    for agent in range(N_tot):
-        closest_tent = -1
-        r_min = 10e10
-        for i_tent, tent_position in enumerate(tent_positions):
-            r = utils.haversine_scipy(coordinates[agent], tent_position)
-            if r < r_min:
-                r_min = r
-                closest_tent = i_tent
-        my_closest_tent[agent] = closest_tent
-
-    return my_closest_tent, tent_positions
-
 
 @njit
 def make_initial_infections(N_init, my_state, state_total_counts, agents_in_state, csMov, my_connections, N_connections, my_rates, SIR_transition_rates, ages_in_state, initial_ages_exposed, cs_move_individual, N_infectious_states, coordinates):
@@ -583,6 +563,97 @@ def do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_cou
 
 #%%
 
+print("Remember to delete here")
+
+people_in_household, age_distribution_per_people_in_household = simulation_utils.load_household_data(age_dist_as_dict=True)
+
+N_tot = 50_000
+all_coordinates = simulation_utils.load_coordinates('../Data/GPS_coordinates.npy', N_tot, ID=0)
+sigma_mu = 0
+sigma_beta = 0
+beta = 0.01
+
+
+@njit
+def place_and_connect_families(N_tot, people_in_household, age_distribution_per_people_in_household, all_coordinates, sigma_mu, sigma_beta, beta):
+
+    all_indices = np.arange(N_tot)
+    np.random.shuffle(all_indices)
+
+    my_age = np.zeros(N_tot, dtype=np.uint8)
+    my_connections = utils.initialize_nested_lists(N_tot, dtype=np.uint32) # initialize_list_set
+    my_coordinates = np.zeros((N_tot, 2), dtype=np.float32)
+
+    my_connection_weight = np.ones(N_tot, dtype=np.float32)
+    my_infection_weight = np.ones(N_tot, dtype=np.float32)
+
+    agent = 0
+    do_continue = True
+    while do_continue:
+
+        agent0 = agent
+
+        house_index = all_indices[agent]
+
+        N_in_house = simulation_utils.draw_random_nb(people_in_household)
+
+        # if N_in_house would increase agent to over N_tot, set N_in_house such that it fits and break loop
+        if agent + N_in_house >= N_tot:
+            N_in_house = N_tot - agent
+            do_continue = False
+
+        for _ in range(N_in_house):
+            my_age[agent] = simulation_utils.draw_random_nb(age_distribution_per_people_in_household[N_in_house])
+            my_coordinates[agent] = all_coordinates[house_index]
+
+            if (np.random.rand() < sigma_mu):
+                my_connection_weight[agent] = 0.1 - np.log(np.random.rand())# / 1.0
+            else:
+                my_connection_weight[agent] = 1.1
+
+            if (np.random.rand() < sigma_beta):
+                my_infection_weight[agent] = -np.log(np.random.rand())*beta
+            else:
+                my_infection_weight[agent] = beta
+
+            agent += 1
+
+        # add agents to each others networks (connections)
+        for agent1 in range(agent0, agent0+N_in_house):
+            for agent2 in range(agent0, agent0+N_in_house):
+                if agent1 != agent2:
+                    my_connections[agent1].append(agent2)
+
+    return my_age, my_connections, my_coordinates, my_connection_weight, my_infection_weight
+
+my_age, my_connections, my_coordinates, my_connection_weight, my_infection_weight = place_and_connect_families(N_tot, people_in_household, age_distribution_per_people_in_household, all_coordinates, sigma_mu, sigma_beta, beta)
+
+x=x
+
+# TODO: add tents to above
+
+@njit
+def initialize_tents(coordinates, N_tot, N_tents):
+
+    tent_positions = np.zeros((N_tents, 2), np.float32)
+    for i in range(N_tents):
+        tent_positions[i] = coordinates[np.random.randint(N_tot)]
+
+    my_closest_tent = np.zeros(N_tot, np.int16)
+    for agent in range(N_tot):
+        closest_tent = -1
+        r_min = 10e10
+        for i_tent, tent_position in enumerate(tent_positions):
+            r = utils.haversine_scipy(coordinates[agent], tent_position)
+            if r < r_min:
+                r_min = r
+                closest_tent = i_tent
+        my_closest_tent[agent] = closest_tent
+
+    return my_closest_tent, tent_positions
+
+
+
 
 class Simulation:
 
@@ -651,6 +722,23 @@ class Simulation:
 
         rho_scale = 1000 # scale factor of rho
         # cfg.mu /= 2 # fix to factor in that both nodes have connections with each other
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         # age variables
         age_matrix_relative_interactions = simulation_utils.calculate_age_proportions_1D(1.0, cfg.N_ages)

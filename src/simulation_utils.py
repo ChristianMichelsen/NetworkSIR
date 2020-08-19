@@ -7,6 +7,7 @@ import pandas as pd
 from pathlib import Path
 import matplotlib.pyplot as plt
 import csv
+import numba as nb
 
 try:
     from src import utils
@@ -486,3 +487,191 @@ def get_simulation_parameters_1D_scan(parameter, non_defaults):
 
     df_different_than_default = df_simulation_parameters.query(query).sort_values(parameter)
     return list(df_different_than_default.index)
+
+
+#%%
+
+def PyDict2NumbaDict(d_python):
+    "https://github.com/numba/numba/issues/4728"
+
+
+    keys = list(d_python.keys())
+    values = list(d_python.values())
+
+    if isinstance(keys[0], str):
+        key_type = nb.types.string
+    elif isinstance(keys[0], int):
+        key_type = nb.types.int64
+    elif isinstance(keys[0], float):
+        key_type = nb.types.float64
+
+
+    if isinstance(values[0], dict):
+        d_numba = nb.typed.Dict.empty(key_type, nb.typeof(PyDict2NumbaDict(values[0])))
+        for i, subDict in enumerate(values):
+            subDict = PyDict2NumbaDict(subDict)
+            d_numba[keys[i]] = subDict
+        return d_numba
+
+
+    if isinstance(values[0], int):
+        d_numba = nb.typed.Dict.empty(key_type, nb.types.int64)
+
+    elif isinstance(values[0], str):
+        d_numba = nb.typed.Dict.empty(key_type, nb.types.string)
+
+    elif isinstance(values[0], float):
+        d_numba = nb.typed.Dict.empty(key_type, nb.types.float64)
+
+    elif isinstance(values[0], np.ndarray):
+        assert values[0].ndim == 1
+        d_numba = nb.typed.Dict.empty(key_type, nb.types.float64[:])
+
+    for i, key in enumerate(keys):
+        d_numba[key] = values[i]
+    return d_numba
+
+
+
+
+from numba.core import types
+from numba.typed import Dict
+from numba import generated_jit
+
+# # The Dict.empty() constructs a typed dictionary.
+# # The key and value typed must be explicitly declared.
+# d_str2int = Dict.empty(
+#     key_type=types.unicode_type,
+#     value_type=types.int32,
+# )
+
+# d_str2int['one'] = 1
+# d_str2int['two'] = 2
+# d_str2int['three'] = 3
+# d_str2int['four'] = 4
+# d_str2int['five'] = 5
+
+# d_people_in_household_disttribution_str = {'one': 10,
+#                                        'two': 9,
+#                                        'three': 11,
+#                                        'four': 10,
+#                                        'five': 10}
+# d_people_in_household_disttribution_str = PyDict2NumbaDict(d_people_in_household_disttribution_str)
+
+
+# d_people_in_household_disttribution_int = {1: 10,
+#                                        2: 9,
+#                                        3: 11,
+#                                        4: 10,
+#                                        5: 10}
+# d_people_in_household_disttribution_int = PyDict2NumbaDict(d_people_in_household_disttribution_int)
+
+
+
+@njit
+def normalize_probabilities(p):
+    return p / p.sum()
+
+@njit
+def rand_choice_nb_arr(arr, prob):
+    """
+    :param arr: A 1D numpy array of values to sample from.
+    :param prob: A 1D numpy array of probabilities for the given samples.
+    :return: A random sample from the given array with a given probability.
+    """
+    prob = normalize_probabilities(prob)
+    return arr[np.searchsorted(np.cumsum(prob), np.random.random(), side="right")]
+
+
+@njit
+def rand_choice_nb(prob):
+    """
+    :param prob: A 1D numpy array of probabilities for the given samples.
+    :return: A random sample from the given array with a given probability.
+    """
+    prob = normalize_probabilities(prob)
+    return np.searchsorted(np.cumsum(prob), np.random.random(), side="right")
+
+@njit
+def int_keys2array(d_prob):
+    N = len(d_prob)
+    arr = np.empty(N, dtype=np.int64)
+    for i, x in enumerate(d_prob.keys()):
+        arr[i] = x
+    return arr
+
+@njit
+def values2array(d_prob):
+    N = len(d_prob)
+    x = np.empty(N, dtype=np.float64)
+    for i, p in enumerate(d_prob.values()):
+        x[i] = p
+    return x
+
+
+@njit
+def draw_random_number_from_dict(d_prob):
+    arr = int_keys2array(d_prob)
+    prob = values2array(d_prob)
+    return rand_choice_nb_arr(arr, prob)
+
+@njit
+def draw_random_number_from_array(prob):
+    return rand_choice_nb(prob)
+
+
+@generated_jit(nopython=True)
+def draw_random_nb(x):
+    if isinstance(x, types.DictType):
+        return lambda x: draw_random_number_from_dict(x)
+    elif isinstance(x, types.Array):
+        return lambda x: draw_random_number_from_array(x)
+
+
+# %timeit draw_random_nb(people_in_household)
+# %timeit draw_random_nb(age_distribution_per_people_in_household[1])
+
+
+#%%
+
+from collections import defaultdict
+
+def parse_household_data(filename, age_dist_as_dict=True):
+
+    data = defaultdict(list)
+    ages_groups = [20, 30, 40, 50, 60, 70, 80]
+
+
+    with open(filename, 'r') as file:
+        N_persons = -1
+        for line in file:
+            line = line.strip()
+            if line[0] == '#':
+                N_persons = int(line[1:].split()[0])
+            else:
+                try:
+                    x = int(line)
+                except ValueError:
+                    x = float(line)
+                data[N_persons].append(x)
+
+    # make sure all entries are normalized numpy arrays
+    data = dict(data)
+    for key, val in data.items():
+        if len(val) == 1:
+            data[key] = val[0]
+        else:
+            vals = np.array(val)
+            vals = vals / np.sum(vals)
+            if age_dist_as_dict:
+                data[key] = {age: val for age, val in zip(ages_groups, vals)}
+            else:
+                data[key] = vals
+
+    return PyDict2NumbaDict(data)
+
+def load_household_data(age_dist_as_dict=True):
+    people_in_household = parse_household_data('../Data/PeopleInHousehold_NorthJutland.txt')
+    age_distribution_per_people_in_household = parse_household_data('../Data/AgeDistributionPerPeopleInHousehold_NorthJutland.txt', age_dist_as_dict=age_dist_as_dict)
+    return people_in_household, age_distribution_per_people_in_household
+
