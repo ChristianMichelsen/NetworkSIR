@@ -249,6 +249,9 @@ def _initialize_my_rates_nested_list(N_tot, beta, sigma_beta, N_connections, ID)
 def initialize_my_rates(N_tot, beta, sigma_beta, N_connections, ID=0):
     return utils.RaggedArray(_initialize_my_rates_nested_list(N_tot, beta, sigma_beta, N_connections, ID))
 
+# def initialize_my_rates(N_tot, beta, sigma_beta, N_connections, ID=0):
+#     return utils.nested_list_to_awkward_array(_initialize_my_rates_nested_list(N_tot, beta, sigma_beta, N_connections, ID))
+
 @njit
 def initialize_non_infectable(N_tot, N_connections):
     res = List()
@@ -307,21 +310,21 @@ def get_hospitalization_variables(cfg):
 #%%
 
 
-def state_counts_to_df(time, state_counts, H_state_total_counts):
+def state_counts_to_df(time, state_counts): #
 
     header = [
             'Time',
             'E1', 'E2', 'E3', 'E4',
             'I1', 'I2', 'I3', 'I4',
             'R',
-            'H1', 'H2', 'ICU1', 'ICU2', 'R_H', 'D',
+            # 'H1', 'H2', 'ICU1', 'ICU2', 'R_H', 'D',
             ]
 
     df_time = pd.DataFrame(time, columns=header[0:1])
-    df_states = pd.DataFrame(state_counts, columns=header[1:10])
-    df_H_states = pd.DataFrame(H_state_total_counts, columns=header[10:])
-    df = pd.concat([df_time, df_states, df_H_states], axis=1)#.convert_dtypes()
-    assert sum(df_H_states.sum(axis=1) == df_states['R'])
+    df_states = pd.DataFrame(state_counts, columns=header[1:])
+    # df_H_states = pd.DataFrame(H_state_total_counts, columns=header[10:])
+    df = pd.concat([df_time, df_states], axis=1)#.convert_dtypes()
+    # assert sum(df_H_states.sum(axis=1) == df_states['R'])
     return df
 
 

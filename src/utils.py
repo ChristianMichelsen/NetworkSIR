@@ -421,6 +421,9 @@ def numba_cumsum(x, axis=None):
 #%%
 
 
+
+
+
 # Counters in Numba
 from numba import types
 from numba.experimental import jitclass
@@ -448,6 +451,10 @@ def NumbaRaggedArray(offsets, content, dtype):
 
 
 class RaggedArray:
+
+    """ The RaggedArray is basically just a simple version of Awkward Array with mutable data. Also allows the array to be used in zip/enumerate in numba code by using the .array property.
+    """
+
     def __init__(self, arraylike_object):
 
         # if numba List
@@ -653,9 +660,9 @@ def dataframe_to_hdf5_format(df, include_index=False, cols_to_str=None):
 
 #%%
 
-# @njit
-# def numba_random_choice_list(l):
-#     return l[np.random.randint(len(l))]
+@njit
+def numba_random_choice_list(l):
+    return l[np.random.randint(len(l))]
 
 
 
