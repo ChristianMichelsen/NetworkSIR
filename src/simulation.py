@@ -1,3 +1,4 @@
+from matplotlib.pyplot import xticks
 import numpy as np
 import pandas as pd
 
@@ -33,168 +34,219 @@ except ImportError:
     import simulation_utils
 
 np.set_printoptions(linewidth=200)
-
-
 do_memory_tracking = False
 
-
 @njit
-def initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta, beta_scaling):
-
-    if do_memory_tracking:
-        with objmode():
-            track_memory('Rates and Connections')
-
-    connection_weight = np.ones(N_tot, dtype=np.float32)
-    infection_weight = np.ones(N_tot, dtype=np.float32)
-
-    for agent in range(N_tot):
-
-        if (np.random.rand() < sigma_mu):
-            connection_weight[agent] = 0.1 - np.log(np.random.rand())# / 1.0
-        else:
-            connection_weight[agent] = 1.1
-
-        if (np.random.rand() < sigma_beta):
-            infection_weight[agent] = -np.log(np.random.rand())*beta
-        else:
-            infection_weight[agent] = beta
-
-        f = 0.1
-        beta_scaling_up = 1 / (f + (1-f)/beta_scaling)
-        beta_scaling_down = beta_scaling_up / beta_scaling
-
-        ra_R0_change = np.random.rand()
-        if ra_R0_change < f:
-            infection_weight[agent] = infection_weight[agent]*beta_scaling_up
-        else:
-            infection_weight[agent] = infection_weight[agent]*beta_scaling_down
-
-    return connection_weight, infection_weight
-
-
-@njit
-def initialize_ages(N_tot, N_ages, connection_weight):
-
-    if do_memory_tracking:
-        with objmode():
-            track_memory('Ages')
-
-    ages = np.full(N_tot, fill_value=-1, dtype=np.int8)
-    ages_total_counts = np.zeros(N_ages, dtype=np.uint32)
-    ages_in_state = utils.initialize_nested_lists(N_ages, dtype=np.int32)
-
-    for agent in range(N_tot): # prange
-        age = np.random.randint(N_ages)
-        ages[agent] = age
-        ages_total_counts[age] += 1
-        ages_in_state[age].append(np.int32(agent))
-
-
-    PT_ages = np.zeros(N_ages, dtype=np.float32)
-    PC_ages = List()
-    PP_ages = List()
-    for age_group in range(N_ages): # prange
-        indices = np.asarray(ages_in_state[age_group])
-        connection_weight_ages = connection_weight[indices]
-        PT_age = np.sum(connection_weight_ages)
-        PC_age = np.cumsum(connection_weight_ages)
-        PP_age = PC_age / PT_age
-
-        PT_ages[age_group] = PT_age
-        PC_ages.append(PC_age)
-        PP_ages.append(PP_age)
-
-    return ages, ages_total_counts, ages_in_state, PT_ages, PC_ages, PP_ages
-
-
-@njit
-def update_node_connections(my_connections, coordinates, rho_tmp, rho_scale, continue_run, agent1, agent2):
-    if agent1 != agent2:
-        # r = utils.haversine_scipy(coordinates[agent1, :], coordinates[agent2, :])
-        r = utils.haversine(coordinates[agent1, 0], coordinates[agent1, 1], coordinates[agent2, 0], coordinates[agent2, 1])
-        if np.exp(-r*rho_tmp/rho_scale) > np.random.rand():
-
-            my_connections[agent1].append(agent2)
-            my_connections[agent2].append(agent1)
-            continue_run = False
-
-    return continue_run
-
-
-@njit
-def run_algo_2(PP_ages, m_i, m_j, my_connections, coordinates, rho_tmp, rho_scale, ages_in_state):
-
-    continue_run = True
-    while continue_run:
-
-        agent1 = np.searchsorted(PP_ages[m_i], np.random.rand())
-        agent2 = np.searchsorted(PP_ages[m_j], np.random.rand())
-
-        agent1 = ages_in_state[m_i][agent1]
-        agent2 = ages_in_state[m_j][agent2]
-
-        continue_run = update_node_connections(my_connections, coordinates, rho_tmp, rho_scale, continue_run, agent1, agent2)
-
-
-@njit
-def run_algo_1(PP_ages, m_i, m_j, my_connections, coordinates, rho_tmp, rho_scale, ages_in_state):
-
-    ra1 = np.random.rand()
-    agent1 = np.searchsorted(PP_ages[m_i], ra1)
-    agent1 = ages_in_state[m_i][agent1]
-
-    continue_run = True
-    while continue_run:
-        ra2 = np.random.rand()
-        agent2 = np.searchsorted(PP_ages[m_j], ra2)
-        agent2 = ages_in_state[m_j][agent2]
-
-        rho_tmp *= 0.9995
-
-        continue_run = update_node_connections(my_connections, coordinates, rho_tmp, rho_scale, continue_run, agent1, agent2)
-
-
-@njit
-def connect_nodes(epsilon_rho, rho, algo, PP_ages, my_connections, coordinates, rho_scale, N_ages, age_matrix, ages_in_state):
-
-    if do_memory_tracking:
-        with objmode():
-            track_memory('Connecting Nodes')
-
-    if (algo == 2):
-        run_algo = run_algo_2
+def set_connections_weight(my_connection_weight, agent, sigma_mu):
+    if (np.random.rand() < sigma_mu):
+        my_connection_weight[agent] = 0.1 - np.log(np.random.rand())
     else:
-        run_algo = run_algo_1
+        my_connection_weight[agent] = 1.1
 
-    if do_memory_tracking:
-        with objmode():
-            track_memory()
+@njit
+def set_infection_weight(my_infection_weight, agent, sigma_beta, beta):
+    if (np.random.rand() < sigma_beta):
+        my_infection_weight[agent] = -np.log(np.random.rand())*beta
+    else:
+        my_infection_weight[agent] = beta
 
-    for m_i in range(N_ages):
-        for m_j in range(N_ages):
-            N_max = int(age_matrix[m_i, m_j])
-            for counter in range(N_max):
+#%%
 
-                if np.random.rand() > epsilon_rho:
-                    rho_tmp = rho
-                else:
-                    rho_tmp = 0.0
+@njit
+def place_and_connect_families(N_tot, people_in_household, age_distribution_per_people_in_household, coordinates, sigma_mu, sigma_beta, beta):
 
-                run_algo(PP_ages, m_i, m_j, my_connections, coordinates, rho_tmp, rho_scale, ages_in_state)
+    all_indices = np.arange(N_tot)
+    np.random.shuffle(all_indices)
 
-                if do_memory_tracking and (counter % (N_max//30)) == 0:
-                    with objmode():
-                        track_memory()
+    my_age = np.zeros(N_tot, dtype=np.uint8)
+    my_connections = utils.initialize_nested_lists(N_tot, dtype=np.uint32)
+    my_connections_type = utils.initialize_nested_lists(N_tot, dtype=np.uint8)
+    my_coordinates = np.zeros((N_tot, 2), dtype=np.float32)
 
-    if do_memory_tracking:
-        with objmode():
-            track_memory()
+    my_connection_weight = np.ones(N_tot, dtype=np.float32)
+    my_infection_weight = np.ones(N_tot, dtype=np.float32)
 
+    my_number_of_contacts = np.zeros(N_tot, dtype=np.uint16)
+
+    N_dim_people_in_household, N_ages = age_distribution_per_people_in_household.shape
+    assert N_dim_people_in_household == len(people_in_household)
+    people_index_to_value = np.arange(1, N_dim_people_in_household+1)
+
+    counter_ages = np.zeros(N_ages, dtype=np.uint16)
+    agents_in_age_group = utils.initialize_nested_lists(N_ages, dtype=np.uint32)
+
+    mu_counter = 0
+    agent = 0
+    do_continue = True
+    while do_continue:
+
+        agent0 = agent
+
+        house_index = all_indices[agent]
+
+        N_people_in_house_index = simulation_utils.rand_choice_nb(people_in_household)
+        N_people_in_house = people_index_to_value[N_people_in_house_index]
+
+        # if N_in_house would increase agent to over N_tot,
+        # set N_people_in_house such that it fits and break loop
+        if agent + N_people_in_house >= N_tot:
+            N_people_in_house = N_tot - agent
+            do_continue = False
+
+        for _ in range(N_people_in_house):
+
+            age_index = simulation_utils.rand_choice_nb(age_distribution_per_people_in_household[N_people_in_house_index])
+
+            age = age_index # just use age index as substitute for age
+            my_age[agent] = age
+            counter_ages[age_index] += 1
+            agents_in_age_group[age_index].append(np.uint32(agent))
+
+            my_coordinates[agent] = coordinates[house_index]
+
+            set_connections_weight(my_connection_weight, agent, sigma_mu)
+            set_infection_weight(my_infection_weight, agent, sigma_beta, beta)
+
+            agent += 1
+
+        # add agents to each others networks (connections)
+        for agent1 in range(agent0, agent0+N_people_in_house):
+            for agent2 in range(agent1, agent0+N_people_in_house):
+                if agent1 != agent2:
+                    my_connections[agent1].append(np.uint32(agent2))
+                    my_connections[agent2].append(np.uint32(agent1))
+                    my_connections_type[agent1].append(np.uint8(0))
+                    my_connections_type[agent2].append(np.uint8(0))
+                    # my_index_in_contact[agent2].append(my_number_of_contacts[agent1])
+                    my_number_of_contacts[agent1] += 1
+                    my_number_of_contacts[agent2] += 1
+                    mu_counter += 1
+
+    agents_in_age_group = utils.nested_lists_to_list_of_array(agents_in_age_group)
+
+    return my_age, my_connections, my_coordinates, my_connection_weight, my_infection_weight, mu_counter, counter_ages, agents_in_age_group, my_connections_type, my_number_of_contacts
+
+
+#%%
+
+@njit
+def update_node_connections(my_connections, coordinates, rho_tmp, rho_scale, agent1, agent2, my_connections_type, my_number_of_contacts, connection_type):
+    connect_and_stop = False
+    if agent1 != agent2:
+
+        if rho_tmp == 0:
+            connect_and_stop = True
+        else:
+            r = utils.haversine_scipy(coordinates[agent1], coordinates[agent2])
+            if np.exp(-r*rho_tmp/rho_scale) > np.random.rand():
+                connect_and_stop = True
+
+        if connect_and_stop:
+
+            my_connections[agent1].append(np.uint32(agent2))
+            my_connections[agent2].append(np.uint32(agent1))
+
+            my_connections_type[agent1].append(np.uint8(connection_type))
+            my_connections_type[agent2].append(np.uint8(connection_type))
+
+            # my_index_in_contact[agent2].append(my_number_of_contacts[agent1])
+            # my_index_in_contact[agent1].append(my_number_of_contacts[agent2])
+
+            my_number_of_contacts[agent1] += 1
+            my_number_of_contacts[agent2] += 1
+
+    return connect_and_stop
 
 
 @njit
-def make_initial_infections(N_init, my_state, state_total_counts, agents_in_state, csMov, my_connections, N_connections, my_rates, SIR_transition_rates, ages_in_state, initial_ages_exposed, cs_move_individual, N_infectious_states, coordinates):
+def run_algo_other(agents_in_age_group, age1, age2, my_connections, my_connections_type, my_number_of_contacts, coordinates, rho_tmp, rho_scale):
+    while True:
+        # agent1 = np.searchsorted(PP_ages[m_i], np.random.rand())
+        # agent1 = agents_in_age_group[m_i][agent1]
+        # TODO: Add connection weights
+        agent1 = np.random.choice(agents_in_age_group[age1])
+        agent2 = np.random.choice(agents_in_age_group[age2])
+        do_stop = update_node_connections(my_connections, coordinates, rho_tmp, rho_scale, agent1, agent2, my_connections_type, my_number_of_contacts, connection_type=2)
+        if do_stop:
+            break
+
+@njit
+def run_algo_work(agents_in_age_group, age1, age2, my_connections, my_connections_type, my_number_of_contacts, coordinates, rho_tmp, rho_scale):
+    # ra1 = np.random.rand()
+    # agent1 = np.searchsorted(PP_ages[m_i], ra1)
+    # agent1 = agents_in_age_group[m_i][agent1]
+    # TODO: Add connection weights
+    agent1 = np.random.choice(agents_in_age_group[age1])
+
+    while True:
+        agent2 = np.random.choice(agents_in_age_group[age2])
+        rho_tmp *= 0.9995
+        do_stop = update_node_connections(my_connections, coordinates, rho_tmp, rho_scale, agent1, agent2, my_connections_type, my_number_of_contacts, connection_type=1)
+
+        if do_stop:
+            break
+
+
+@njit
+def connect_work_and_others(N_tot, N_ages, mu_counter, mu, work_other_ratio, matrix_work, matrix_other, run_algo_work, run_algo_other, rho, rho_scale, epsilon_rho, coordinates, agents_in_age_group, my_connections, my_connections_type, my_number_of_contacts):
+
+
+    while mu_counter < mu/2*N_tot:
+
+        ra_work_other = np.random.rand()
+        if ra_work_other < work_other_ratio:
+            matrix = matrix_work
+            run_algo = run_algo_work
+            work = True
+        else:
+            matrix = matrix_other
+            run_algo = run_algo_other
+            work = False
+
+        a = 0
+        accept = True
+        ra = np.random.rand()
+        for i in range(N_ages):
+            for j in range(N_ages):
+                a += matrix[i, j]
+                if a > ra:
+                    accept = False
+                    break
+            if not accept:
+                break
+
+        if np.random.rand() > epsilon_rho:
+            rho_tmp = rho
+        else:
+            rho_tmp = 0.0
+
+        run_algo(agents_in_age_group, i, j, my_connections, my_connections_type, my_number_of_contacts, coordinates, rho_tmp, rho_scale)
+        mu_counter += 1
+
+
+@njit
+def initialize_tents(coordinates, N_tot, N_tents):
+
+    tent_positions = np.zeros((N_tents, 2), np.float32)
+    for i in range(N_tents):
+        tent_positions[i] = coordinates[np.random.randint(N_tot)]
+
+    my_closest_tent = np.zeros(N_tot, np.int16)
+    for agent in range(N_tot):
+        closest_tent = -1
+        r_min = 10e10
+        for i_tent, tent_position in enumerate(tent_positions):
+            r = utils.haversine_scipy(coordinates[agent], tent_position)
+            if r < r_min:
+                r_min = r
+                closest_tent = i_tent
+        my_closest_tent[agent] = closest_tent
+
+    return my_closest_tent, tent_positions
+
+
+@njit
+def nb_make_initial_infections(N_init, my_state, state_total_counts, agents_in_state, csMov, my_connections, N_connections, my_rates, SIR_transition_rates, agents_in_age_group, initial_ages_exposed, cs_move_individual, N_infectious_states, coordinates, make_random_infections):
 
     if do_memory_tracking:
         with objmode():
@@ -206,18 +258,13 @@ def make_initial_infections(N_init, my_state, state_total_counts, agents_in_stat
 
     possible_agents = List()
     for age_exposed in initial_ages_exposed:
-        for agent in ages_in_state[age_exposed]:
-            possible_agents.append(agent)
-
-
-    ##  Now make initial infections
-    make_random_infections = False
+        for agent in agents_in_age_group[age_exposed]:
+            possible_agents.append(np.uint32(agent))
 
 
     ##  Standard outbreak type, infecting randomly
     if make_random_infections:
         initial_agents_to_infect = np.random.choice(np.asarray(possible_agents), size=N_init, replace=False)
-        # initial_agents_to_infect = np.random.choice(np.asarray(possible_agents), size=N_init, replace=False)
 
 
     # Local outbreak type, infecting around a point:
@@ -229,7 +276,7 @@ def make_initial_infections(N_init, my_state, state_total_counts, agents_in_stat
         outbreak_agent = np.random.randint(N_tot) # this is where the outbreak starts
 
         initial_agents_to_infect = List()
-        initial_agents_to_infect.append(np.int32(outbreak_agent))
+        initial_agents_to_infect.append(np.uint32(outbreak_agent))
 
         while len(initial_agents_to_infect) < N_init:
             proposed_agent = np.random.randint(N_tot)
@@ -237,9 +284,10 @@ def make_initial_infections(N_init, my_state, state_total_counts, agents_in_stat
             r = utils.haversine_scipy(coordinates[outbreak_agent], coordinates[proposed_agent])
             if np.exp(-r*rho_init/rho_init_scale) > np.random.rand():
                 initial_agents_to_infect.append(proposed_agent)
-        initial_agents_to_infect = np.asarray(initial_agents_to_infect, dtype=np.int32)
-        # print(initial_agents_to_infect)
+        initial_agents_to_infect = np.asarray(initial_agents_to_infect, dtype=np.uint32)
 
+
+    ##  Now make initial infections
     for i, agent in enumerate(initial_agents_to_infect):
         new_state = np.random.randint(0, N_infectious_states)
         my_state[agent] = new_state
@@ -259,13 +307,10 @@ def make_initial_infections(N_init, my_state, state_total_counts, agents_in_stat
 
 
 
-
-
-
 #%%
 
 @njit
-def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, my_state, csInf, N_states, InfRat, SIR_transition_rates, N_infectious_states, N_connections, my_rates, my_connections, ages, individual_infection_counter, cs_move_individual, H_probability_matrix_csum, H_my_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, nts, verbose, non_infectable_agents):
+def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, my_state, csInf, N_states, InfRat, SIR_transition_rates, N_infectious_states, N_connections, my_rates, my_connections, ages, individual_infection_counter, cs_move_individual, H_probability_matrix_csum, H_my_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, nts, verbose, non_infectable_agents):
 
 
     if do_memory_tracking:
@@ -291,18 +336,20 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, my
 
     H_tot_move = 0
 
-    intervention_switch = False
-    intervention_day0 = 0.0
     closed_contacts = utils.initialize_nested_lists(N_tot, dtype=np.int32)
     closed_contacts_rate = utils.initialize_nested_lists(N_tot, dtype=np.float32)
 
     time_inf = np.zeros(N_tot, np.float32)
     bug_contacts = np.zeros(N_tot, np.int32)
 
-    active_agents = np.zeros(N_tot, dtype=np.bool_)
+    agent_is_infectious = np.zeros(N_tot, dtype=np.bool_)
 
 
-    s_counter = np.zeros(4)
+    agent_tested_positive = List()
+    N_positive_tested = List()
+
+
+    s_counter = np.zeros(3)
 
     if do_memory_tracking:
         with objmode():
@@ -359,7 +406,7 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, my
                         csInf[my_state[agent]:] += rate
                         time_inf[agent] = real_time
                         bug_contacts[agent] = N_connections[agent]
-                active_agents[agent] = True
+                agent_is_infectious[agent] = True
 
 
             # If this moves to Recovered state
@@ -370,7 +417,7 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, my
                         InfRat[agent] -= rate
                         csInf[my_state[agent]:] -= rate
                         time_inf[agent] = real_time - time_inf[agent]
-                active_agents[agent] = False
+                agent_is_infectious[agent] = False
 
                 # XXX HOSPITAL
                 # Now in hospital track
@@ -386,8 +433,8 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, my
 
 
         # Here we infect new states
-        elif (TotMov + TotInf) / Tot > ra1:  # XXX HOSPITAL
-        # else: # XXX HOSPITAL
+        # elif (TotMov + TotInf) / Tot > ra1:  # XXX HOSPITAL
+        else: # XXX HOSPITAL
             s = 2
 
             x = TotMov/Tot + csInf/Tot
@@ -419,7 +466,7 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, my
 
             # Here we update infection lists
             for step_cousin in my_connections[contact]:
-                if active_agents[step_cousin]:
+                if agent_is_infectious[step_cousin]:
                     for step_cousins_contacts, rate in zip(my_connections[step_cousin],  my_rates[step_cousin]):
                         if step_cousins_contacts == contact:
                             TotInf -= rate
@@ -428,48 +475,6 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, my
                             break
                 else:
                     continue
-
-        ## move between hospital tracks
-        else:
-            s = 3
-
-            x = (TotMov + TotInf + H_cumsum_move) / Tot
-            H_old_state = np.searchsorted(x, ra1)
-            Csum = (TotMov + TotInf + H_cumsum_move[H_old_state-1]) / Tot # important change from [H_old_state] to [H_old_state-1]
-            for idx_H_state in range(len(H_agents_in_state[H_old_state])):
-
-                agent = H_agents_in_state[H_old_state][idx_H_state]
-                Csum += H_move_matrix_sum[H_old_state, ages[agent]] / Tot
-
-                if Csum > ra1:
-
-                    accept = True
-                    H_ra = np.random.rand()
-
-                    H_tmp = H_move_matrix_cumsum[H_my_state[agent], :, ages[agent]] / H_move_matrix_sum[H_my_state[agent], ages[agent]]
-                    H_new_state = np.searchsorted(H_tmp, H_ra)
-
-                    # We have chosen agent to move -> here we move it
-                    H_agents_in_state[H_old_state].pop(idx_H_state)
-
-                    H_my_state[agent] = H_new_state
-                    H_agents_in_state[H_new_state].append(agent)
-                    H_state_total_counts[H_old_state] -= 1
-                    H_state_total_counts[H_new_state] += 1
-
-                    H_tot_move += H_move_matrix_sum[H_new_state, ages[agent]] - H_move_matrix_sum[H_old_state, ages[agent]]
-
-                    # moving forward
-                    if H_old_state < H_new_state:
-                        H_cumsum_move[H_old_state:H_new_state] -= H_move_matrix_sum[H_old_state, ages[agent]]
-                        H_cumsum_move[H_new_state:] += H_move_matrix_sum[H_new_state, ages[agent]] - H_move_matrix_sum[H_old_state, ages[agent]]
-
-                    #moving backwards
-                    else:
-                        H_cumsum_move[H_new_state:H_old_state] += H_move_matrix_sum[H_old_state, ages[agent]]
-                        H_cumsum_move[H_new_state:] += H_move_matrix_sum[H_new_state, ages[agent]] - H_move_matrix_sum[H_old_state, ages[agent]]
-
-                    break
 
 
         ################
@@ -489,6 +494,38 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, my
                 # out_N_connections.append(utils.array_to_counter(N_connections))
                 out_my_state.append(my_state.copy())
 
+                # tent testing
+                N_daily_tests = 1_000
+                n_test = 0
+                f_test_succes = 0.8
+                N_positive_tested.append(0)
+
+                while n_test < N_daily_tests:
+                    agent = np.random.randint(N_tot)
+                    # if in I state
+                    if (my_state[agent] >= N_infectious_states) and (my_state[agent] < N_states - 1) and (np.random.rand() < f_test_succes):
+
+                        # agent_tested_positive.append(agent)
+                        N_positive_tested[-1] += 1
+
+
+                        for i in range(my_number_of_contacts[agent]):
+                            contact = my_connections[agent][i]
+                            rate = my_rates[agent][i]
+                            connection_type = my_connections_type[agent][i]
+
+                            # only close work/other contacts
+                            if not non_infectable_agents[contact] and connection_type > 0:
+                                TotInf -= rate
+                                InfRat[agent] -= rate
+                                csInf[my_state[agent]:] -= rate
+                                my_rates[agent][i] = 0
+
+                        agent_is_infectious[agent] = False
+
+                    n_test += 1
+
+
                 if do_memory_tracking:
                     with objmode():
                         track_memory()
@@ -500,7 +537,7 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, my
         # # # # # # # # # # # BUG CHECK  # # # # # # # # # # # # # # # # # # # # # # # #
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-        continue_run, TotMov, TotInf = do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, accept, csMov, ra1, s, x, csInf)
+        continue_run, TotMov, TotInf = nb_do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, accept, csMov, ra1, s, x, csInf)
 
         s_counter[s] += 1
 
@@ -514,7 +551,7 @@ def run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, my
 #%%
 
 @njit
-def do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, accept, csMov, ra1, s, x, csInf):
+def nb_do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, accept, csMov, ra1, s, x, csInf):
 
     if counter > 100_000_000:
         print("counter > 100_000_000")
@@ -563,97 +600,6 @@ def do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_cou
 
 #%%
 
-print("Remember to delete here")
-
-people_in_household, age_distribution_per_people_in_household = simulation_utils.load_household_data(age_dist_as_dict=True)
-
-N_tot = 50_000
-all_coordinates = simulation_utils.load_coordinates('../Data/GPS_coordinates.npy', N_tot, ID=0)
-sigma_mu = 0
-sigma_beta = 0
-beta = 0.01
-
-
-@njit
-def place_and_connect_families(N_tot, people_in_household, age_distribution_per_people_in_household, all_coordinates, sigma_mu, sigma_beta, beta):
-
-    all_indices = np.arange(N_tot)
-    np.random.shuffle(all_indices)
-
-    my_age = np.zeros(N_tot, dtype=np.uint8)
-    my_connections = utils.initialize_nested_lists(N_tot, dtype=np.uint32) # initialize_list_set
-    my_coordinates = np.zeros((N_tot, 2), dtype=np.float32)
-
-    my_connection_weight = np.ones(N_tot, dtype=np.float32)
-    my_infection_weight = np.ones(N_tot, dtype=np.float32)
-
-    agent = 0
-    do_continue = True
-    while do_continue:
-
-        agent0 = agent
-
-        house_index = all_indices[agent]
-
-        N_in_house = simulation_utils.draw_random_nb(people_in_household)
-
-        # if N_in_house would increase agent to over N_tot, set N_in_house such that it fits and break loop
-        if agent + N_in_house >= N_tot:
-            N_in_house = N_tot - agent
-            do_continue = False
-
-        for _ in range(N_in_house):
-            my_age[agent] = simulation_utils.draw_random_nb(age_distribution_per_people_in_household[N_in_house])
-            my_coordinates[agent] = all_coordinates[house_index]
-
-            if (np.random.rand() < sigma_mu):
-                my_connection_weight[agent] = 0.1 - np.log(np.random.rand())# / 1.0
-            else:
-                my_connection_weight[agent] = 1.1
-
-            if (np.random.rand() < sigma_beta):
-                my_infection_weight[agent] = -np.log(np.random.rand())*beta
-            else:
-                my_infection_weight[agent] = beta
-
-            agent += 1
-
-        # add agents to each others networks (connections)
-        for agent1 in range(agent0, agent0+N_in_house):
-            for agent2 in range(agent0, agent0+N_in_house):
-                if agent1 != agent2:
-                    my_connections[agent1].append(agent2)
-
-    return my_age, my_connections, my_coordinates, my_connection_weight, my_infection_weight
-
-my_age, my_connections, my_coordinates, my_connection_weight, my_infection_weight = place_and_connect_families(N_tot, people_in_household, age_distribution_per_people_in_household, all_coordinates, sigma_mu, sigma_beta, beta)
-
-x=x
-
-# TODO: add tents to above
-
-@njit
-def initialize_tents(coordinates, N_tot, N_tents):
-
-    tent_positions = np.zeros((N_tents, 2), np.float32)
-    for i in range(N_tents):
-        tent_positions[i] = coordinates[np.random.randint(N_tot)]
-
-    my_closest_tent = np.zeros(N_tot, np.int16)
-    for agent in range(N_tot):
-        closest_tent = -1
-        r_min = 10e10
-        for i_tent, tent_position in enumerate(tent_positions):
-            r = utils.haversine_scipy(coordinates[agent], tent_position)
-            if r < r_min:
-                r_min = r
-                closest_tent = i_tent
-        my_closest_tent[agent] = closest_tent
-
-    return my_closest_tent, tent_positions
-
-
-
 
 class Simulation:
 
@@ -687,7 +633,7 @@ class Simulation:
             self.time_start -= simulation_utils.get_search_string_time(memory_file, search_string)
             self.track_memory('Appending to previous network initialization')
         else:
-            utils.make_sure_folder_exist(self.filenames['memory'], delete_file_if_exists=True) # make sure parent folder exists
+            utils.make_sure_folder_exist(self.filenames['memory'], delete_file_if_exists=True)
 
         global track_memory
         track_memory = self.track_memory
@@ -718,83 +664,55 @@ class Simulation:
             print("INITIALIZE NETWORK")
         self.track_memory('Initialize Network')
 
-        my_connections = utils.initialize_nested_lists(cfg.N_tot, dtype=np.uint32) # initialize_list_set
-
         rho_scale = 1000 # scale factor of rho
-        # cfg.mu /= 2 # fix to factor in that both nodes have connections with each other
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        # age variables
-        age_matrix_relative_interactions = simulation_utils.calculate_age_proportions_1D(1.0, cfg.N_ages)
-        age_relative_proportions = simulation_utils.calculate_age_proportions_2D(cfg.age_mixing, cfg.N_ages)
-        age_matrix = age_matrix_relative_interactions * age_relative_proportions * (cfg.mu / 2) * cfg.N_tot
+        people_in_household, age_distribution_per_people_in_household = simulation_utils.load_household_data()
+        N_dim_people_in_household, N_ages = age_distribution_per_people_in_household.shape
 
         if self.verbose:
-            print("MAKE RATES AND CONNECTIONS")
-        self.track_memory('Numba Compilation')
-
-        connection_weight, infection_weight = initialize_connections_and_rates(cfg.N_tot, cfg.sigma_mu, cfg.beta, cfg.sigma_beta, cfg.beta_scaling)
-
-        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-        # # # # # # # # # # # # # # # # AGES  # # # # # # # # # # # # # # # # # # # # #
-        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+            print("Families")
+        my_age, my_connections, my_coordinates, my_connection_weight, my_infection_weight, mu_counter, counter_ages, agents_in_age_group, my_connections_type, my_number_of_contacts = place_and_connect_families(cfg.N_tot, people_in_household, age_distribution_per_people_in_household, self.coordinates, cfg.sigma_mu, cfg.sigma_beta, cfg.beta)
 
         if self.verbose:
-            print("MAKE AGES")
-        self.track_memory('Numba Compilation')
+            print("Using uniform work and other matrices")
+        # matrix_work = np.random.random((N_ages, N_ages))
+        matrix_work = np.ones((N_ages, N_ages))
+        matrix_work = matrix_work / matrix_work.sum()
+        # matrix_other = np.random.random((N_ages, N_ages))
+        matrix_other = np.ones((N_ages, N_ages))
+        matrix_other = matrix_other / matrix_other.sum()
 
-        ages, ages_total_counts, ages_in_state, PT_ages, PC_ages, PP_ages = initialize_ages(cfg.N_tot, cfg.N_ages, connection_weight)
-
-        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-        # # # # # # # # # # # CONNECT NODES # # # # # # # # # # # # # # # # # # # # # # # # #
-        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+        work_other_ratio = 0.5 # 20% work, 80% other
 
         if self.verbose:
-            print("CONNECT NODES")
-        self.track_memory('Numba Compilation')
+            print("Connecting work and others, currently slow, please wait")
+        connect_work_and_others(cfg.N_tot, N_ages, mu_counter, cfg.mu, work_other_ratio, matrix_work, matrix_other, run_algo_work, run_algo_other, cfg.rho, rho_scale, cfg.epsilon_rho, self.coordinates, agents_in_age_group, my_connections, my_connections_type, my_number_of_contacts)
 
-        connect_nodes(cfg.epsilon_rho, cfg.rho, cfg.algo, PP_ages, my_connections, self.coordinates, rho_scale, cfg.N_ages, age_matrix, ages_in_state)
-
-        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-        # # # # # # # # # # # Find closests test tents  # # # # # # # # # # # # # # # # # # #
-        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
+        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+        # # # # # # # # # # # # Find closests test tents  # # # # # # # # # # # # # # # # # # #
+        # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
         if self.verbose:
             print("CONNECT TENTS")
         self.track_memory('Connect tents')
 
-        my_closest_tent, tent_positions = initialize_tents(self.coordinates, self.cfg.N_tot, N_tents=10)
+        my_closest_tent, tent_positions = initialize_tents(self.coordinates, self.cfg.N_tot, N_tents=100)
 
-        return my_connections, ages, my_closest_tent, tent_positions
+        return my_connections, my_connections_type, my_number_of_contacts, my_age, agents_in_age_group, my_closest_tent, tent_positions
 
 
-    def _save_network_initalization(self, ages, N_connections, my_closest_tent, tent_positions, my_connections, time_elapsed):
+    def _save_network_initalization(self, my_age, agents_in_age_group, my_number_of_contacts, my_closest_tent, tent_positions, my_connections, my_connections_type, time_elapsed):
         self.track_memory('Saving network initialization')
         utils.make_sure_folder_exist(self.filenames['network_initialisation'])
         with h5py.File(self.filenames['network_initialisation'], "w") as f: #
             f.create_dataset("cfg_str", data=str(self.cfg)) # import ast; ast.literal_eval(str(cfg))
-            f.create_dataset("ages", data=ages)
-            f.create_dataset("N_connections", data=N_connections)
+            f.create_dataset("my_age", data=my_age)
+            f.create_dataset("my_number_of_contacts", data=my_number_of_contacts)
             f.create_dataset("my_closest_tent", data=my_closest_tent)
             f.create_dataset("tent_positions", data=tent_positions)
-            awkward0.hdf5(f)["my_connections"] = my_connections
+            awkward0.hdf5(f)["my_connections"] = ak.to_awkward0(my_connections)
+            awkward0.hdf5(f)["my_connections_type"] = ak.to_awkward0(my_connections_type)
+            awkward0.hdf5(f)["agents_in_age_group"] = ak.to_awkward0(agents_in_age_group)
             for key, val in self.cfg.items():
                 f.attrs[key] = val
             f.create_dataset("time_elapsed", data=time_elapsed)
@@ -803,14 +721,16 @@ class Simulation:
     def _load_network_initalization(self):
         self.track_memory('Loading network initialization')
         with h5py.File(self.filenames['network_initialisation'], 'r') as f:
-            ages = f["ages"][()]
-            N_connections = f["N_connections"][()]
+            my_age = f["my_age"][()]
+            my_number_of_contacts = f["my_number_of_contacts"][()]
             my_closest_tent = f["my_closest_tent"][()]
             tent_positions = f["tent_positions"][()]
             my_connections = awkward0.hdf5(f)["my_connections"]
+            my_connections_type = awkward0.hdf5(f)["my_connections_type"]
+            agents_in_age_group = awkward0.hdf5(f)["agents_in_age_group"]
         self.track_memory('Loading Coordinates')
         self.coordinates = simulation_utils.load_coordinates(self._Filename.coordinates_filename, self.cfg.N_tot, self.ID)
-        return ages, N_connections, my_closest_tent, tent_positions, ak.from_awkward0(my_connections)
+        return my_age, ak.from_awkward0(agents_in_age_group), my_number_of_contacts, my_closest_tent, tent_positions, ak.from_awkward0(my_connections), ak.from_awkward0(my_connections_type)
 
 
     def initialize_network(self, force_rerun=False, save_initial_network=True):
@@ -821,7 +741,7 @@ class Simulation:
         # try to load file (except if forced to rerun)
         if not force_rerun:
             try:
-                ages, N_connections, my_closest_tent, tent_positions, my_connections = self._load_network_initalization()
+                my_age, agents_in_age_group, my_number_of_contacts, my_closest_tent, tent_positions, my_connections, my_connections_type = self._load_network_initalization()
                 if self.verbose:
                     print(f"{self.filenames['network_initialisation']} exists")
             except OSError:
@@ -837,25 +757,30 @@ class Simulation:
                 print(f"{self.filenames['network_initialisation']} does not exist, creating it")
 
             with Timer() as t:
-                my_connections, ages, my_closest_tent, tent_positions = self._initialize_network()
-            my_connections, N_connections = utils.nested_list_to_awkward_array(my_connections, return_lengths=True, sort_nested_list=True)
+                my_connections, my_connections_type, my_number_of_contacts, my_age, agents_in_age_group, my_closest_tent, tent_positions = self._initialize_network()
+            my_connections = utils.nested_list_to_awkward_array(my_connections)
+            my_connections_type = utils.nested_list_to_awkward_array(my_connections_type)
 
             if save_initial_network:
                 try:
-                    self._save_network_initalization(ages=ages,
-                                                     N_connections=N_connections,
+                    self._save_network_initalization(my_age=my_age,
+                                                     agents_in_age_group=agents_in_age_group,
+                                                     my_number_of_contacts=ak.to_awkward0(my_number_of_contacts),
                                                      my_closest_tent=my_closest_tent,
                                                      tent_positions=tent_positions,
                                                      my_connections=ak.to_awkward0(my_connections),
+                                                     my_connections_type=ak.to_awkward0(my_connections_type),
                                                      time_elapsed=t.elapsed)
                 except OSError as e:
                     print(f"\nSkipped saving network initialization for {self.filenames['network_initialisation']}")
                     # print(e)
 
-        self.ages = ages
+        self.my_age = my_age
+        self.agents_in_age_group = agents_in_age_group # should not be ragged array
+        self.N_ages = len(self.agents_in_age_group)
         self.my_connections = utils.RaggedArray(my_connections)
-        # self.my_connections = my_connections
-        self.N_connections = N_connections
+        self.my_connections_type = utils.RaggedArray(my_connections_type)
+        self.my_number_of_contacts = my_number_of_contacts
         self.my_closest_tent = my_closest_tent
         self.tent_positions = tent_positions
 
@@ -874,9 +799,10 @@ class Simulation:
         self.nts = 0.1 # Time step (0.1 - ten times a day)
         self.N_states = 9 # number of states
         self.N_infectious_states = 4 # This means the 5'th state
-        self.initial_ages_exposed = np.arange(cfg.N_ages)
+        self.initial_ages_exposed = np.arange(self.N_ages) # means that all ages are exposed
+        make_random_infections = True
 
-        self.my_rates = simulation_utils.initialize_my_rates(cfg.N_tot, cfg.beta, cfg.sigma_beta, self.N_connections, self.ID)
+        self.my_rates = simulation_utils.initialize_my_rates(cfg.N_tot, cfg.beta, cfg.sigma_beta, self.my_number_of_contacts, self.ID)
 
         self.my_state = np.full(cfg.N_tot, -1, dtype=np.int8)
         self.state_total_counts = np.zeros(self.N_states, dtype=np.uint32)
@@ -890,9 +816,7 @@ class Simulation:
 
         self.SIR_transition_rates = simulation_utils.initialize_SIR_transition_rates(self.N_states, self.N_infectious_states, cfg)
 
-        self.ages_in_state = simulation_utils.compute_ages_in_state(self.ages, cfg.N_ages)
-
-        self.TotMov, self.non_infectable_agents = make_initial_infections(cfg.N_init, self.my_state, self.state_total_counts, self.agents_in_state, self.csMov, self.my_connections.array, self.N_connections, self.my_rates.array, self.SIR_transition_rates, self.ages_in_state, self.initial_ages_exposed, self.cs_move_individual, self.N_infectious_states, self.coordinates)
+        self.TotMov, self.non_infectable_agents = nb_make_initial_infections(cfg.N_init, self.my_state, self.state_total_counts, self.agents_in_state, self.csMov, self.my_connections.array, self.my_number_of_contacts, self.my_rates.array, self.SIR_transition_rates, self.agents_in_age_group, self.initial_ages_exposed, self.cs_move_individual, self.N_infectious_states, self.coordinates, make_random_infections)
 
 
     def run_simulation(self):
@@ -909,7 +833,7 @@ class Simulation:
         H = simulation_utils.get_hospitalization_variables(cfg)
         H_probability_matrix_csum, H_my_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum = H
 
-        res = run_simulation(cfg.N_tot, self.TotMov, self.csMov, self.state_total_counts, self.agents_in_state, self.my_state, self.csInf, self.N_states, self.InfRat, self.SIR_transition_rates, self.N_infectious_states, self.N_connections, self.my_rates.array, self.my_connections.array, self.ages, self.individual_infection_counter, self.cs_move_individual, H_probability_matrix_csum, H_my_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, self.nts, self.verbose, self.non_infectable_agents) # active_agents
+        res = nb_run_simulation(cfg.N_tot, self.TotMov, self.csMov, self.state_total_counts, self.agents_in_state, self.my_state, self.csInf, self.N_states, self.InfRat, self.SIR_transition_rates, self.N_infectious_states, self.N_connections, self.my_rates.array, self.my_connections.array, self.ages, self.individual_infection_counter, self.cs_move_individual, H_probability_matrix_csum, H_my_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, self.nts, self.verbose, self.non_infectable_agents) # agent_is_infectious
 
         out_time, out_state_counts, out_my_state, out_H_state_total_counts = res
 
@@ -1028,18 +952,14 @@ verbose = True
 force_rerun = False
 filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__10__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
 # filename = filename.replace('ID__000', 'ID__001')
+# filename = filename.replace('N_tot__58000', 'N_tot__10000')
+
 
 # if running just til file
 if Path('').cwd().stem == 'src':
     simulation = Simulation(filename, verbose)
     simulation.initialize_network(force_rerun=force_rerun)
     simulation.make_initial_infections()
-    simulation.run_simulation()
-    df = simulation.make_dataframe()
-    display(df)
-
-# coordinates = np.load(simulation._Filename.coordinates_filename)
-# N_tot = 50_000
-
-# N_tents = 10
-
+    # simulation.run_simulation()
+    # df = simulation.make_dataframe()
+    # display(df)

@@ -224,6 +224,23 @@ def binary_search(array, item):
                     first = index+1
         return found, index
 
+@njit
+def nested_lists_to_list_of_array(nested_list):
+    out = List()
+    for l in nested_list:
+        out.append(np.asarray(l))
+    return out
+
+@njit
+def list_of_arrays_to_list_of_lists(list_of_arrays):
+    outer = List()
+    for l in list_of_arrays:
+        inner = List()
+        for x in l:
+            inner.append(x)
+        outer.append(inner)
+    return outer
+
 
 # %timeit binary_search(my_connections[contact], 35818)
 # %timeit np.searchsorted(my_connections[contact], 35818)
@@ -634,9 +651,43 @@ def dataframe_to_hdf5_format(df, include_index=False, cols_to_str=None):
     return np.array(df.to_records(index=True, **kwargs))
 
 
+#%%
+
+# @njit
+# def numba_random_choice_list(l):
+#     return l[np.random.randint(len(l))]
+
 
 
 #%%
+
+# @njit
+# def f1(x):
+#     return np.random.choice(x)
+
+# @njit
+# def f2(x):
+#     return numba_random_choice_list(x)
+
+
+# x_np = np.arange(10)
+# x_nb = List()
+# for i in range(10):
+#     x_nb.append(10)
+
+
+# f1(x_np)
+# f1(x_nb)
+
+# f2(x_np)
+# f2(x_nb)
+
+
+# %timeit f1(x_np)
+# # f1(x_nb)
+
+# %timeit f2(x_np)
+# %timeit f2(x_nb)
 
 
 

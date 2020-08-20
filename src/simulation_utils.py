@@ -504,6 +504,8 @@ def PyDict2NumbaDict(d_python):
         key_type = nb.types.int64
     elif isinstance(keys[0], float):
         key_type = nb.types.float64
+    else:
+        raise AssertionError("Unknown Keytype")
 
 
     if isinstance(values[0], dict):
@@ -526,6 +528,9 @@ def PyDict2NumbaDict(d_python):
     elif isinstance(values[0], np.ndarray):
         assert values[0].ndim == 1
         d_numba = nb.typed.Dict.empty(key_type, nb.types.float64[:])
+    else:
+        raise AssertionError("Unknown ValueType")
+
 
     for i, key in enumerate(keys):
         d_numba[key] = values[i]
@@ -533,39 +538,9 @@ def PyDict2NumbaDict(d_python):
 
 
 
-
 from numba.core import types
 from numba.typed import Dict
 from numba import generated_jit
-
-# # The Dict.empty() constructs a typed dictionary.
-# # The key and value typed must be explicitly declared.
-# d_str2int = Dict.empty(
-#     key_type=types.unicode_type,
-#     value_type=types.int32,
-# )
-
-# d_str2int['one'] = 1
-# d_str2int['two'] = 2
-# d_str2int['three'] = 3
-# d_str2int['four'] = 4
-# d_str2int['five'] = 5
-
-# d_people_in_household_disttribution_str = {'one': 10,
-#                                        'two': 9,
-#                                        'three': 11,
-#                                        'four': 10,
-#                                        'five': 10}
-# d_people_in_household_disttribution_str = PyDict2NumbaDict(d_people_in_household_disttribution_str)
-
-
-# d_people_in_household_disttribution_int = {1: 10,
-#                                        2: 9,
-#                                        3: 11,
-#                                        4: 10,
-#                                        5: 10}
-# d_people_in_household_disttribution_int = PyDict2NumbaDict(d_people_in_household_disttribution_int)
-
 
 
 @njit
@@ -616,7 +591,7 @@ def draw_random_number_from_dict(d_prob):
     return rand_choice_nb_arr(arr, prob)
 
 @njit
-def draw_random_number_from_array(prob):
+def draw_random_index_based_on_array(prob):
     return rand_choice_nb(prob)
 
 
@@ -625,11 +600,7 @@ def draw_random_nb(x):
     if isinstance(x, types.DictType):
         return lambda x: draw_random_number_from_dict(x)
     elif isinstance(x, types.Array):
-        return lambda x: draw_random_number_from_array(x)
-
-
-# %timeit draw_random_nb(people_in_household)
-# %timeit draw_random_nb(age_distribution_per_people_in_household[1])
+        return lambda x: draw_random_index_based_on_array(x)
 
 
 #%%
@@ -670,8 +641,49 @@ def parse_household_data(filename, age_dist_as_dict=True):
 
     return PyDict2NumbaDict(data)
 
-def load_household_data(age_dist_as_dict=True):
-    people_in_household = parse_household_data('../Data/PeopleInHousehold_NorthJutland.txt')
-    age_distribution_per_people_in_household = parse_household_data('../Data/AgeDistributionPerPeopleInHousehold_NorthJutland.txt', age_dist_as_dict=age_dist_as_dict)
+
+def parse_household_data_list(filename, convert_to_numpy=False):
+
+    data = defaultdict(list)
+
+    with open(filename, 'r') as file:
+        N_persons = -1
+        for line in file:
+            line = line.strip()
+            if line[0] == '#':
+                N_persons = int(line[1:].split()[0])
+            else:
+                try:
+                    x = int(line)
+                except ValueError:
+                    x = float(line)
+                data[N_persons].append(x)
+
+    # make sure all entries are normalized numpy arrays
+    data = dict(data)
+
+    out = []
+    for key, val in data.items():
+        if len(val) == 1:
+            out.append(val[0])
+        else:
+            vals = np.array(val)
+            vals = vals / np.sum(vals)
+            out.append(vals)
+    if convert_to_numpy:
+        out = np.array(out)
+    return out
+
+
+
+# def load_household_data(age_dist_as_dict=True):
+#     people_in_household = parse_household_data('../Data/PeopleInHousehold_NorthJutland.txt')
+#     age_distribution_per_people_in_household = parse_household_data('../Data/AgeDistributionPerPeopleInHousehold_NorthJutland.txt', age_dist_as_dict=age_dist_as_dict)
+#     return people_in_household, age_distribution_per_people_in_household
+
+
+def load_household_data():
+    people_in_household = parse_household_data_list('../Data/PeopleInHousehold_NorthJutland.txt', convert_to_numpy=True)
+    age_distribution_per_people_in_household = parse_household_data_list('../Data/AgeDistributionPerPeopleInHousehold_NorthJutland.txt', convert_to_numpy=True)
     return people_in_household, age_distribution_per_people_in_household
 
