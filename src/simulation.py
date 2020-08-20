@@ -307,9 +307,37 @@ def nb_make_initial_infections(N_init, my_state, state_total_counts, agents_in_s
 #%%
 
 
+@njit
+def nb_daily_tent_test(N_daily_tests, f_test_succes, n_positive_tested, N_tot, my_state, N_infectious_states, N_states, my_number_of_contacts, my_connections, my_rates, my_connections_type, non_infectable_agents, agent_can_infect, TotInf, InfRat, csInf):
+
+    for _ in range(N_daily_tests):
+        agent = np.random.randint(N_tot)
+
+        # only if in I state and  un-noticed
+        if agent_can_infect[agent] and (np.random.rand() < f_test_succes):
+
+            # agent_tested_positive.append(agent)
+            n_positive_tested += 1
+
+            for i in range(my_number_of_contacts[agent]):
+                contact = my_connections[agent][i]
+                rate = my_rates[agent][i]
+                connection_type = my_connections_type[agent][i]
+
+                # only close work/other contacts
+                if not non_infectable_agents[contact] and connection_type > -1:
+                    TotInf -= rate
+                    InfRat[agent] -= rate
+                    csInf[my_state[agent]:] -= rate
+                    my_rates[agent][i] = 0
+
+            agent_can_infect[agent] = False
+
+    return TotInf, n_positive_tested
+
 
 @njit
-def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, my_state, csInf, N_states, InfRat, SIR_transition_rates, N_infectious_states, N_connections, my_rates, my_connections, ages, individual_infection_counter, cs_move_individual, H_probability_matrix_csum, H_my_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, nts, verbose, non_infectable_agents):
+def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, my_state, csInf, N_states, InfRat, SIR_transition_rates, N_infectious_states, my_number_of_contacts, my_rates, my_connections, my_age, individual_infection_counter, cs_move_individual, H_probability_matrix_csum, H_my_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, nts, verbose, non_infectable_agents, my_connections_type):
 
 
     # if do_memory_tracking:
@@ -321,8 +349,9 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
     out_state_counts = List()
     out_my_state = List()
     # out_infection_counter = List()
-    # out_N_connections = List()
+    # out_my_number_of_contacts = List()
     # out_H_state_total_counts = List()
+    N_positive_tested = List()
 
     daily_counter = 0
 
@@ -338,7 +367,7 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
     time_inf = np.zeros(N_tot, np.float32)
     bug_contacts = np.zeros(N_tot, np.int32)
 
-    active_agents = np.zeros(N_tot, dtype=np.bool_)
+    agent_can_infect = np.zeros(N_tot, dtype=np.bool_)
 
     s_counter = np.zeros(4)
 
@@ -397,8 +426,8 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
                         InfRat[agent] += rate
                         csInf[my_state[agent]:] += rate
                         time_inf[agent] = real_time
-                        bug_contacts[agent] = N_connections[agent]
-                active_agents[agent] = True
+                        bug_contacts[agent] = my_number_of_contacts[agent]
+                agent_can_infect[agent] = True
 
             # If this moves to Recovered state
             if my_state[agent] == N_states-1:
@@ -408,7 +437,7 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
                         InfRat[agent] -= rate
                         csInf[my_state[agent]:] -= rate
                         time_inf[agent] = real_time - time_inf[agent]
-                active_agents[agent] = False
+                agent_can_infect[agent] = False
 
         else:
             s = 2
@@ -418,6 +447,8 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
             Csum = TotMov/Tot + csInf[state_now-1]/Tot # important change from [state_now] to [state_now-1]
 
             for agent in agents_in_state[state_now]:
+                # if agent_can_infect[agent]:
+
                 Csum2 = Csum + InfRat[agent] / Tot
 
                 if Csum2 > ra1:
@@ -442,7 +473,7 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
 
             # Here we update infection lists
             for step_cousin in my_connections[contact]:
-                if active_agents[step_cousin]:
+                if agent_can_infect[step_cousin]:
                     for step_cousins_contacts, rate in zip(my_connections[step_cousin],  my_rates[step_cousin]):
                         if step_cousins_contacts == contact:
                             TotInf -= rate
@@ -463,12 +494,25 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
             # out_H_state_total_counts.append(H_state_total_counts.copy())
             # out_infection_counter.append(utils.array_to_counter(individual_infection_counter))
 
+            # if real_time > 172:
+            #
+
+
             if daily_counter >= 10:
 
                 daily_counter = 0
-
-                # out_N_connections.append(utils.array_to_counter(N_connections))
                 out_my_state.append(my_state.copy())
+
+                # tent testing
+                N_daily_tests = 10_000
+                N_daily_tests = 0
+                f_test_succes = 0.8
+                n_positive_tested = 0
+
+                TotInf, n_positive_tested = nb_daily_tent_test(N_daily_tests, f_test_succes, n_positive_tested, N_tot, my_state, N_infectious_states, N_states, my_number_of_contacts, my_connections, my_rates, my_connections_type, non_infectable_agents, agent_can_infect, TotInf, InfRat, csInf)
+                N_positive_tested.append(n_positive_tested)
+                # N_positive_tested.append(0)
+
 
                 # if do_memory_tracking:
                 #     with objmode():
@@ -481,7 +525,6 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
         # # # # # # # # # # # BUG CHECK  # # # # # # # # # # # # # # # # # # # # # # # #
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-        # print(counter, s)
 
         continue_run, TotMov, TotInf = nb_do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, accept, csMov, ra1, s, x, csInf)
 
@@ -490,6 +533,7 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
     if verbose:
         print("Simulation counter, ", counter)
         print("s_counter", s_counter)
+        print(N_positive_tested)
 
     return out_time, out_state_counts, out_my_state #, out_H_state_total_counts
 
@@ -512,7 +556,7 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
 #     out_state_counts = List()
 #     out_my_state = List()
 #     # out_infection_counter = List()
-#     # out_N_connections = List()
+#     # out_my_number_of_contacts = List()
 #     # out_H_state_total_counts = List()
 
 #     daily_counter = 0
@@ -1168,7 +1212,8 @@ class Simulation:
         self.my_rates.array, self.my_connections.array,
         # ages,
         self.my_age,
-        self.individual_infection_counter, self.cs_move_individual, H_probability_matrix_csum, H_my_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, self.nts, self.verbose, self.non_infectable_agents)
+        self.individual_infection_counter, self.cs_move_individual, H_probability_matrix_csum, H_my_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, self.nts, self.verbose, self.non_infectable_agents, self.my_connections_type.array)
+
         out_time, out_state_counts, out_my_state = res
 
         # res = nb_run_simulation(cfg.N_tot, self.TotMov, self.csMov, self.state_total_counts, self.agents_in_state, self.my_state, self.csInf, self.N_states, self.InfRat, self.SIR_transition_rates, self.N_infectious_states, self.my_number_of_contacts, self.my_rates.array, self.my_connections.array, self.my_connections_type.array, self.my_age, self.individual_infection_counter, self.cs_move_individual, self.nts, self.verbose, self.non_infectable_agents) # agent_is_infectious
