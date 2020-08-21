@@ -414,7 +414,6 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
             Csum = TotMov/Tot + csInf[state_now-1]/Tot # important change from [state_now] to [state_now-1]
 
             for agent in agents_in_state[state_now]:
-                # if agent_can_infect[agent]:
 
                 Csum2 = Csum + InfRat[agent] / Tot
 
@@ -489,7 +488,7 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
                 out_my_state.append(my_state.copy())
 
                 # tent testing
-                N_daily_tests = 10_000
+                N_daily_tests = 1_000
                 # N_daily_tests = 0
                 f_test_succes = 0.8
 
@@ -653,6 +652,28 @@ def nb_do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_
 
 #%%
 
+# simulation._Filename.coordinates_filename, cfg.N_tot, self.ID)
+
+
+@njit
+def nb_load_coordinates_Nordjylland(all_coordinates, N_tot=150_000, verbose=False):
+    coordinates = List()
+    for i in range(len(all_coordinates)):
+        if all_coordinates[i][1] > 57.14:
+            coordinates.append(all_coordinates[i])
+            if len(coordinates) == N_tot:
+                break
+    if verbose:
+        print(i)
+    return coordinates
+
+def load_coordinates_Nordjylland(N_tot=150_000, verbose=False):
+    all_coordinates = np.load('../Data/GPS_coordinates.npy')
+    coordinates = nb_load_coordinates_Nordjylland(all_coordinates, N_tot, verbose)
+    return np.array(coordinates)
+
+# coordinates = load_coordinates_Nordjylland(verbose=True)
+
 
 class Simulation:
 
@@ -711,7 +732,9 @@ class Simulation:
 
         cfg = self.cfg
         self.track_memory('Loading Coordinates')
-        self.coordinates = simulation_utils.load_coordinates(self._Filename.coordinates_filename, cfg.N_tot, self.ID)
+        # self.coordinates = simulation_utils.load_coordinates(self._Filename.coordinates_filename, cfg.N_tot, self.ID)
+        print("Using only Nordjylland")
+        self.coordinates = load_coordinates_Nordjylland(verbose=True)
 
         if self.verbose:
             print("INITIALIZE NETWORK")
@@ -765,7 +788,7 @@ class Simulation:
             print("CONNECT TENTS")
         self.track_memory('Connect tents')
 
-        my_closest_tent, tent_positions = initialize_tents(self.coordinates, self.cfg.N_tot, N_tents=100)
+        my_closest_tent, tent_positions = initialize_tents(self.coordinates, self.cfg.N_tot, N_tents=3)
 
         return my_connections, my_connections_type, my_number_of_contacts, my_age, agents_in_age_group, my_closest_tent, tent_positions
 
@@ -869,7 +892,7 @@ class Simulation:
         self.N_states = 9 # number of states
         self.N_infectious_states = 4 # This means the 5'th state
         self.initial_ages_exposed = np.arange(self.N_ages) # means that all ages are exposed
-        make_random_infections = True
+        make_random_infections = False
 
         self.my_rates = simulation_utils.initialize_my_rates(cfg.N_tot, cfg.beta, cfg.sigma_beta, self.my_number_of_contacts, self.ID)
 
@@ -1031,6 +1054,8 @@ force_rerun = False
 filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__10__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
 # filename = filename.replace('ID__000', 'ID__001')
 filename = filename.replace('N_tot__58000', 'N_tot__10000')
+# filename = filename.replace('N_tot__58000', 'N_tot__150000')
+# filename = filename.replace('rho__0.0_', 'rho__500.0_')
 
 
 # if running just til file
@@ -1043,46 +1068,46 @@ if Path('').cwd().stem == 'src':
         simulation.run_simulation()
         df = simulation.make_dataframe()
         display(df)
-        # simulation.save_simulation_results(time_elapsed=t.elapsed)
+        simulation.save_simulation_results(time_elapsed=t.elapsed)
         # simulation.save_memory_figure()
 
 
-    if False:
-        my_number_of_contacts = simulation.my_number_of_contacts
-        # counter_ages = simulation.counter_ages
-        agents_in_age_group = simulation.agents_in_age_group
-        fig, ax = plt.subplots(figsize=(10, 6))
-        for i, agents in enumerate(agents_in_age_group):
-            ax.hist(my_number_of_contacts[agents], 50, label=i, histtype='step', lw=2)
-        ax.legend()
+    # if False:
+    #     my_number_of_contacts = simulation.my_number_of_contacts
+    #     # counter_ages = simulation.counter_ages
+    #     agents_in_age_group = simulation.agents_in_age_group
+    #     fig, ax = plt.subplots(figsize=(10, 6))
+    #     for i, agents in enumerate(agents_in_age_group):
+    #         ax.hist(my_number_of_contacts[agents], 50, label=i, histtype='step', lw=2)
+    #     ax.legend()
 
 
 
-    if False:
+    # if False:
 
-        import pyarrow as pa
-        import pyarrow.parquet as pq
+    #     import pyarrow as pa
+    #     import pyarrow.parquet as pq
 
 
-        x = List()
-        x.append(np.arange(2))
-        x.append(np.arange(3))
-        y = ak.from_iter(x)
-        ak.to_parquet(x, "x.parquet")
-        ak.to_parquet(y, "y.parquet")
+    #     x = List()
+    #     x.append(np.arange(2))
+    #     x.append(np.arange(3))
+    #     y = ak.from_iter(x)
+    #     ak.to_parquet(x, "x.parquet")
+    #     ak.to_parquet(y, "y.parquet")
 
-        arrow_x = ak.to_arrow(x)
-        arrow_y = ak.to_arrow(y)
+    #     arrow_x = ak.to_arrow(x)
+    #     arrow_y = ak.to_arrow(y)
 
-        table_x = pq.read_table('x.parquet')
-        table_y = pq.read_table('y.parquet')
+    #     table_x = pq.read_table('x.parquet')
+    #     table_y = pq.read_table('y.parquet')
 
-        table_x.to_pandas()
-        table_y.to_pandas()
+    #     table_x.to_pandas()
+    #     table_y.to_pandas()
 
-        table_x.to_pydict()
+    #     table_x.to_pydict()
 
-        # pa.Table.from_pydict({'x': arrow_x, 'y': })
+    #     # pa.Table.from_pydict({'x': arrow_x, 'y': })
 
 
 

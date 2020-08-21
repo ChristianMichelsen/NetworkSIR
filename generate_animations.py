@@ -512,7 +512,8 @@ class AnimateSIR(AnimationBase):
             if self.df_counts.loc[i_day, state] > 0:
                 ax.scatter_density(*self.coordinates[self._get_mask(i_day, state)].T, color=self.d_colors[state], dpi=dpi, **self._geo_plot_kwargs[state])
 
-        ax.set(xlim=(7.9, 15.3), ylim=(54.5, 58.2), xlabel='Longitude')
+        # ax.set(xlim=(7.9, 15.3), ylim=(54.5, 58.2), xlabel='Longitude')
+        ax.set(xlim=(9.2, 11.3), ylim=(57.1, 58), xlabel='Longitude') # NORDJYLLAND
         ax.set_ylabel('Latitude', rotation=90) # fontsize=20, labelpad=20
 
 
@@ -589,14 +590,16 @@ class AnimateSIR(AnimationBase):
         ax.text(0.99, 0.01, f"Niels Bohr Institute\narXiv: 2007.XXXXX", ha='right', fontsize=20, transform=ax.transAxes, backgroundcolor='white')
 
         scalebar = AnchoredSizeBar(ax.transData,
-                                longitudes_per_50km, '50 km',
+                                # longitudes_per_50km, '50 km',
+                                longitudes_per_50km/5, '10 km', # NORDJYLLAND
                                 loc='upper left',
                                 sep=10,
                                 color='black',
                                 frameon=False,
                                 size_vertical=0.003,
                                 fontproperties=fontprops,
-                                bbox_to_anchor=Bbox.from_bounds(8, 57.8, 0, 0),
+                                # bbox_to_anchor=Bbox.from_bounds(8, 57.8, 0, 0),
+                                bbox_to_anchor=Bbox.from_bounds(9.3, 57.89, 0, 0), # NORDJYLLAND
                                 bbox_transform=ax.transData
                                 )
 
@@ -874,12 +877,16 @@ num_cores = utils.get_num_cores(num_cores_max)
 filenames = animation_utils.get_animation_filenames()
 # print("Only keeping animations with ID_0 for now")
 # filenames = [filename for filename in filenames if 'ID__0' in filename]
-print("Only keeping animations with N_tot__58000 for now")
-filenames = [filename for filename in filenames if 'N_tot__58000' in filename]
+# print("Only keeping animations with N_tot__150000 for now")
+print("Only keeping animations with rho__500.0 for now")
+filenames = [filename for filename in filenames if 'rho__500.0' in filename]
 
 
 N_files = len(filenames)
 # filename = filenames[0]
+
+if N_files <= 1:
+    num_cores = 1
 
 kwargs = dict(do_tqdm=True,
               verbose=True,
