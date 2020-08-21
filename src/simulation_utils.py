@@ -690,3 +690,22 @@ def load_household_data():
     age_distribution_per_people_in_household = parse_household_data_list('../Data/AgeDistributionPerPeopleInHousehold_NorthJutland.txt', convert_to_numpy=True)
     return people_in_household, age_distribution_per_people_in_household
 
+
+
+
+@njit
+def nb_load_coordinates_Nordjylland(all_coordinates, N_tot=150_000, verbose=False):
+    coordinates = List()
+    for i in range(len(all_coordinates)):
+        if all_coordinates[i][1] > 57.14:
+            coordinates.append(all_coordinates[i])
+            if len(coordinates) == N_tot:
+                break
+    if verbose:
+        print(i)
+    return coordinates
+
+def load_coordinates_Nordjylland(N_tot=150_000, verbose=False):
+    all_coordinates = np.load('../Data/GPS_coordinates.npy')
+    coordinates = nb_load_coordinates_Nordjylland(all_coordinates, N_tot, verbose)
+    return np.array(coordinates)
