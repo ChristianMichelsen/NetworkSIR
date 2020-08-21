@@ -4,8 +4,6 @@ from scipy import interpolate
 import pandas as pd
 from pathlib import Path
 from scipy.stats import uniform as sp_uniform
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import joblib
 from tqdm import tqdm
 import multiprocessing as mp
@@ -181,9 +179,9 @@ class AnimationBase():
 
             self.coordinates = f["coordinates"][()]
             self.df_raw = pd.DataFrame(f["df"][()]).drop('index', axis=1)
-            self.ages = f["ages"][()]
+            self.my_age = f["my_age"][()]
             self.my_state = f["my_state"][()]
-            self.N_connections = f["N_connections"][()]
+            self.my_number_of_contacts = f["my_number_of_contacts"][()]
 
             if 'df_time_memory' in f.keys():
                 self.df_time_memory = convert_df_byte_cols(pd.DataFrame(f["df_time_memory"][()])
@@ -541,7 +539,7 @@ class AnimateSIR(AnimationBase):
 
         # secondary plots:
 
-        # These are in unitless percentages of the figure size. (0,0 is bottom left)
+        # These are in unitless percentmy_age of the figure size. (0,0 is bottom left)
         left, bottom, width, height = [0.56, 0.75, 0.39*0.8, 0.08*0.8]
 
         background_box = [(0.49, 0.60), 0.49, 0.35]
@@ -650,32 +648,32 @@ def weighted_quantile(values, quantiles, sample_weight=None,
 
 
 
-class Animate_N_connections(AnimationBase):
+class Animate_my_number_of_contacts(AnimationBase):
 
     def __init__(self, filename, do_tqdm=False, verbose=False, N_max=None):
-        super().__init__(filename, animation_type='N_connections', do_tqdm=do_tqdm, verbose=verbose, N_max=N_max)
-        self.__name__ = 'Animate_N_connections'
+        super().__init__(filename, animation_type='my_number_of_contacts', do_tqdm=do_tqdm, verbose=verbose, N_max=N_max)
+        self.__name__ = 'Animate_my_number_of_contacts'
 
 
     def _plot_i_day(self, i_day):
 
         my_state_day = self.my_state[i_day]
-        N_connections_day0 = self.N_connections[0]
+        my_number_of_contacts_day0 = self.my_number_of_contacts[0]
 
-        N_connections_max = len(N_connections_day0)
+        my_number_of_contacts_max = len(my_number_of_contacts_day0)
 
-        weighted_quantile(np.arange(N_connections_max), 99, sample_weight=N_connections_day0)
+        weighted_quantile(np.arange(my_number_of_contacts_max), 99, sample_weight=my_number_of_contacts_day0)
 
-        # range_max = np.percentile(N_connections_day0, 99.9)
+        # range_max = np.percentile(my_number_of_contacts_day0, 99.9)
         N_bins = int(range_max)
 
         fig, ax = plt.subplots()
-        counts, edges, _ = ax.hist(N_connections_day0[my_state_day == -1], range=(0, range_max), bins=N_bins, label='S', histtype='step', lw=2)
-        ax.hist(N_connections_day0[my_state_day != -1], range=(0, range_max), bins=N_bins, label='EIR', histtype='step', lw=2)
+        counts, edges, _ = ax.hist(my_number_of_contacts_day0[my_state_day == -1], range=(0, range_max), bins=N_bins, label='S', histtype='step', lw=2)
+        ax.hist(my_number_of_contacts_day0[my_state_day != -1], range=(0, range_max), bins=N_bins, label='EIR', histtype='step', lw=2)
 
-        mean_N = np.mean(N_connections_day0[my_state_day == -1])
+        mean_N = np.mean(my_number_of_contacts_day0[my_state_day == -1])
         ax.axvline(mean_N, label='Mean S', lw=1.5, alpha=0.8, ls='--')
-        ax.hist(N_connections_day0, range=(0, range_max), bins=N_bins, label='Total', color='gray', alpha=0.8, histtype='step', lw=1)
+        ax.hist(my_number_of_contacts_day0, range=(0, range_max), bins=N_bins, label='Total', color='gray', alpha=0.8, histtype='step', lw=1)
 
         title = utils.dict_to_title(self.cfg)
         ax.text(-0.1, -0.13, f"Day: {i_day}", ha='left', va='top', transform=ax.transAxes, fontsize=30)
@@ -842,7 +840,7 @@ class InfectionHomogeneityIndex(AnimationBase):
 
 # %%
 
-def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=True, force_rerun=False, optimize_gif=True, make_geo_animation=True, make_IHI_plot=True, make_N_connections_animation=True):
+def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=True, force_rerun=False, optimize_gif=True, make_geo_animation=True, make_IHI_plot=True, make_my_number_of_contacts_animation=True):
 
     if make_geo_animation:
         animation = AnimateSIR(filename, do_tqdm=do_tqdm, verbose=verbose)
@@ -857,9 +855,9 @@ def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=T
         IHI.make_plot(verbose=False, savefig=True, force_rerun=force_rerun)
         plt.close('all')
 
-    if make_N_connections_animation:
-        animation_N_connections = Animate_N_connections(filename, do_tqdm=do_tqdm, verbose=verbose)
-        animation_N_connections.make_animation(remove_frames=remove_frames,
+    if make_my_number_of_contacts_animation:
+        animation_my_number_of_contacts = Animate_my_number_of_contacts(filename, do_tqdm=do_tqdm, verbose=verbose)
+        animation_my_number_of_contacts.make_animation(remove_frames=remove_frames,
                                             force_rerun=force_rerun,
                                             optimize_gif=optimize_gif)
 
@@ -874,8 +872,10 @@ num_cores = utils.get_num_cores(num_cores_max)
 
 
 filenames = animation_utils.get_animation_filenames()
-print("Only keeping animations with ID_0 for now")
-filenames = [filename for filename in filenames if 'ID__0' in filename]
+# print("Only keeping animations with ID_0 for now")
+# filenames = [filename for filename in filenames if 'ID__0' in filename]
+print("Only keeping animations with N_tot__58000 for now")
+filenames = [filename for filename in filenames if 'N_tot__58000' in filename]
 
 
 N_files = len(filenames)
@@ -885,7 +885,7 @@ kwargs = dict(do_tqdm=True,
               verbose=True,
               force_rerun=False,
               make_geo_animation=True,
-              make_N_connections_animation=False,
+              make_my_number_of_contacts_animation=False,
               make_IHI_plot=False)
 
 

@@ -431,8 +431,8 @@ from numba.experimental import jitclass
 def NumbaRaggedArray(offsets, content, dtype):
 
     spec = [
-        ('offsets', types.int64[:]),            # a simple scalar field
-        ('content', getattr(types, dtype)[:]),          # an array field
+        ('offsets', types.int64[:]),
+        ('content', getattr(types, dtype)[:]),
     ]
 
     @jitclass(spec)
