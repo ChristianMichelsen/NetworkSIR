@@ -4,7 +4,7 @@ import pandas as pd
 from tqdm import tqdm
 from pathlib import Path
 # from iminuit import Minuit
-# from collections import defaultdict
+from collections import defaultdict
 import joblib
 from matplotlib.backends.backend_pdf import PdfPages
 from importlib import reload
@@ -30,20 +30,10 @@ abn_files = file_loaders.ABNFiles()
 N_files = len(abn_files)
 
 
-num_cores = utils.get_num_cores(num_cores_max)
-fit_objects_all = all_fits = fits.get_fit_results(abn_files, force_rerun=False, num_cores=num_cores)
-
-
-
-x=x
-
 if plot_SIR_comparison:
 
     plot.make_SIR_curves(abn_files, 'I', force_overwrite=False)
     plot.make_SIR_curves(abn_files, 'R', force_overwrite=False)
-
-
-x=x
 
 
 
@@ -85,131 +75,106 @@ if False:
     plot.plot_1D_scan('lambda_E')
     plot.plot_1D_scan('lambda_I')
 
-x=x
-
 
 #%%
 
 
 #%%
 
+num_cores = utils.get_num_cores(num_cores_max)
+all_fits = fits.get_fit_results(abn_files, force_rerun=False, num_cores=num_cores)
+
 
 #%%
 
-if False:
+def plot_fit_simulation_SIR_comparison(all_fits, force_overwrite=False, verbose=False, do_log=False):
 
-    def plot_fit_simulation_SIR_comparison(fit_objects_all, force_overwrite=False, verbose=False, do_log=True):
+    pdf_name = f"Figures/Fits.pdf"
+    Path(pdf_name).parent.mkdir(parents=True, exist_ok=True)
 
-        pdf_name = f"Figures/Fits_IR.pdf"
-        Path(pdf_name).parent.mkdir(parents=True, exist_ok=True)
+    if Path(pdf_name).exists() and not force_overwrite:
+        print(f"{pdf_name} already exists")
+        return None
 
-        if Path(pdf_name).exists() and not force_overwrite:
-            print(f"{pdf_name} already exists")
-            return None
+    with PdfPages(pdf_name) as pdf:
 
-        with PdfPages(pdf_name) as pdf:
+        leg_loc = {'I': 'upper right', 'R': 'lower right'}
+        d_ylabel = {'I': 'Infected', 'R': 'Recovered'}
 
-            # sim_par, fit_objects = list(fit_objects_all.items())[0]
-            for sim_par, fit_objects in tqdm(fit_objects_all.items()):
+        for ABN_parameter, fit_objects in tqdm(all_fits.items()):
+            # break
+
+            if len(fit_objects) == 0:
+                if verbose:
+                    print(f"Skipping {ABN_parameter}")
+                continue
+
+            cfg = utils.string_to_dict(ABN_parameter)
+
+            fit_values_deterministic = {'lambda_E': cfg.lambda_E,
+                          'lambda_I': cfg.lambda_I,
+                          'beta': cfg.beta,
+                          'tau': 0}
+
+
+            fig, axes = plt.subplots(ncols=2, figsize=(18, 7), constrained_layout=True)
+            fig.subplots_adjust(top=0.8)
+
+            for i, (filename, fit_object) in enumerate(fit_objects.items()):
                 # break
 
-                if len(fit_objects) == 0:
-                    if verbose:
-                        print(f"Skipping {sim_par}")
-                    continue
-
-                cfg = extra_funcs.string_to_dict(sim_par)
-
-                fig, axes = plt.subplots(ncols=2, figsize=(18, 8), constrained_layout=True)
-                fig.subplots_adjust(top=0.9)
-
-                leg_loc = {'I': 'upper right', 'R': 'lower right'}
-                d_ylabel = {'I': 'Infected', 'R': 'Recovered'}
-
-                fit_values = defaultdict(list)
-                fit_errors = defaultdict(list)
-                max_y = defaultdict(int)
-                for i, (filename, fit_object) in enumerate(fit_objects.items()):
-
-                    for fit_par in fit_object.parameters:
-                        fit_values[fit_par].append(fit_object.fit_values[fit_par])
-                        fit_errors[fit_par].append(fit_object.fit_errors[fit_par])
-
-                    df = extra_funcs.pandas_load_file(filename, return_only_df=True)
-                    T = df['Time'].values
-                    Tmax = max(T)*1.5
-                    df_fit = fit_object.calc_df_fit(ts=0.1, Tmax=Tmax)
+                df = file_loaders.pandas_load_file(filename)
+                t = df['time'].values
+                T_max = max(t)*1.1
+                df_fit = fit_object.calc_df_fit(ts=0.1, T_max=T_max)
 
 
-                    T_min = fit_object.t_interpolated.min()
-                    T_max = fit_object.t_interpolated.max()
-
-                    lw = 0.1
-                    for y, ax in zip(['I', 'R'], axes):
-
-                        label = 'Simulations' if i == 0 else None
-                        ax.plot(T, df[y].to_numpy(int), 'k-', lw=lw, label=label)
-                        max_y[y] = max(max_y[y], max(df[y].to_numpy(int)))
-
-                        label_min = 'Min/Max' if i == 0 else None
-                        ax.axvline(T_min, lw=lw, alpha=0.2, label=label_min)
-                        ax.axvline(T_max, lw=lw, alpha=0.2)
-
-                        label = 'Fits' if i == 0 else None
-                        ax.plot(df_fit['Time'], df_fit[y], lw=lw, color='green', label=label)
-                        max_y[y] = max(max_y[y], max(df_fit[y].to_numpy(int)))
-
-                SIR_values = cfg.lambda_E, cfg.lambda_I, cfg.beta, 0
-                df_SIR = fit_object.calc_df_fit(values=SIR_values, ts=0.1, Tmax=Tmax)
-
-                # where I SIR is less than 50 and after the peak
-                x_max = np.argmax((df_SIR['I'] < 50) & (np.argmax(df_SIR['I']) < df_SIR.index))
-                x_max = df_SIR['Time'].iloc[x_max] * 1.5
-
+                lw = 0.8
                 for y, ax in zip(['I', 'R'], axes):
 
-                    ax.plot(df_SIR['Time'], df_SIR[y], lw=lw*30, color='red', label='SIR')
+                    label = 'Simulations' if i == 0 else None
+                    ax.plot(t, df[y], 'k-', lw=lw, label=label)
 
-                    ax.set(ylim=(50, max_y[y]*2),
-                        #    xlim=(0, x_max),
-                        )
+                    label_min = 'Min/Max' if i == 0 else None
+                    ax.axvline(fit_object.t.min(), lw=lw, alpha=0.8, label=label_min)
+                    ax.axvline(fit_object.t.max(), lw=lw, alpha=0.8)
 
-                    if do_log:
-                        ax.set_yscale('log', nonposy='clip')
+                    label = 'Fits' if i == 0 else None
+                    ax.plot(df_fit['time'], df_fit[y], lw=lw, color='green', label=label)
 
-                    ax.set(xlabel='Time', ylabel=d_ylabel[y])
-                    ax.set_rasterized(True)
-                    ax.set_rasterization_zorder(0)
+            df_SIR = fit_object.calc_df_fit(fit_values=fit_values_deterministic, ts=0.1, T_max=T_max)
 
-                    leg = ax.legend(loc=leg_loc[y])
-                    for legobj in leg.legendHandles:
-                        legobj.set_linewidth(2.0)
-                        legobj.set_alpha(1.0)
+            for y, ax in zip(['I', 'R'], axes):
 
-                title = extra_funcs.dict_to_title(cfg, len(fit_objects))
-                fig.suptitle(title, fontsize=24)
+                ax.plot(df_SIR['time'], df_SIR[y], lw=lw*5, color='red', label='SIR', zorder=0)
 
+                if do_log:
+                    ax.set_yscale('log', nonposy='clip')
 
-                # # These are in unitless percentages of the figure size. (0,0 is bottom left)
-                # left, bottom, width, height = [0.62, 0.76, 0.3*0.95, 0.08*0.9]
+                ax.set(xlim=(0, None), ylim=(0, None))
 
-                # # background_box = [(0.51, 0.61), 0.47, 0.36]
-                # # ax.add_patch(mpatches.Rectangle(*background_box, facecolor='white', edgecolor='lightgray', transform=ax.transAxes))
+                ax.set(xlabel='Time', ylabel=d_ylabel[y])
+                ax.set_rasterized(True)
+                ax.set_rasterization_zorder(0)
 
-                # # delta_width = 0 * width / 100
-                # ax2 = fig.add_axes([left, bottom, width, height])
-                # ax2.hist(fit_values['beta'])
+                leg = ax.legend(loc=leg_loc[y])
+                for legobj in leg.legendHandles:
+                    legobj.set_linewidth(2.0)
+                    legobj.set_alpha(1.0)
 
-
-                pdf.savefig(fig, dpi=100)
-                plt.close('all')
+            title = utils.dict_to_title(cfg, len(fit_objects))
+            fig.suptitle(title, fontsize=24)
+            plt.subplots_adjust(wspace=0.3)
 
 
-    import warnings
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", message="This figure was using constrained_layout==True")
-        plot_fit_simulation_SIR_comparison(fit_objects_all, force_overwrite=True)
+            pdf.savefig(fig, dpi=100)
+            plt.close('all')
 
+
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", message="This figure was using constrained_layout==True")
+    plot_fit_simulation_SIR_comparison(all_fits, force_overwrite=False, verbose=False, do_log=False)
 
 
 #%%
