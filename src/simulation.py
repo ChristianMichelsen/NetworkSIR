@@ -129,6 +129,7 @@ def place_and_connect_families(N_tot, people_in_household, age_distribution_per_
 
 #%%
 
+
 @njit
 def update_node_connections(my_connections, coordinates, rho_tmp, rho_scale, agent1, agent2, my_connections_type, my_number_of_contacts, connection_type):
     connect_and_stop = False
@@ -143,17 +144,23 @@ def update_node_connections(my_connections, coordinates, rho_tmp, rho_scale, age
 
         if connect_and_stop:
 
-            my_connections[agent1].append(np.uint32(agent2))
-            my_connections[agent2].append(np.uint32(agent1))
+            if agent1 not in my_connections[agent2] and agent2 not in my_connections[agent1]:
 
-            my_connections_type[agent1].append(np.uint8(connection_type))
-            my_connections_type[agent2].append(np.uint8(connection_type))
+                my_connections[agent1].append(np.uint32(agent2))
+                my_connections[agent2].append(np.uint32(agent1))
 
-            # my_index_in_contact[agent2].append(my_number_of_contacts[agent1])
-            # my_index_in_contact[agent1].append(my_number_of_contacts[agent2])
+                my_connections_type[agent1].append(np.uint8(connection_type))
+                my_connections_type[agent2].append(np.uint8(connection_type))
 
-            my_number_of_contacts[agent1] += 1
-            my_number_of_contacts[agent2] += 1
+                # my_index_in_contact[agent2].append(my_number_of_contacts[agent1])
+                # my_index_in_contact[agent1].append(my_number_of_contacts[agent2])
+
+                my_number_of_contacts[agent1] += 1
+                my_number_of_contacts[agent2] += 1
+
+            # else:
+            #     print(agent1, my_connections[agent2])
+            #     print(agent2, my_connections[agent1])
 
     return connect_and_stop
 
@@ -441,11 +448,15 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
             # Here we update infection lists
             for step_cousin in my_connections[contact]:
                 if agent_can_infect[step_cousin]:
-                    for step_cousins_contacts, rate in zip(my_connections[step_cousin],  my_rates[step_cousin]):
+                    # for step_cousins_contacts, rate in zip(my_connections[step_cousin],  my_rates[step_cousin]):
+                    for i_step_cousins in range(my_number_of_contacts[step_cousin]):
+                        step_cousins_contacts = my_connections[step_cousin][i_step_cousins]
+                        rate = my_rates[step_cousin][i_step_cousins]
                         if step_cousins_contacts == contact:
                             TotInf -= rate
                             InfRat[step_cousin] -= rate
                             csInf[my_state[step_cousin]:] -= rate
+                            my_rates[step_cousin][i_step_cousins] = 0
                             break
                 else:
                     continue
@@ -473,7 +484,7 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
         #         print(counter, s, agent, my_rates[agent], np.sum(my_rates[agent]), InfRat[agent])
 
         # if np.abs(csInf[7] - TotInf) > 0.001:
-            # print(counter, s, csInf, TotInf)
+        #     print(counter, s, csInf, TotInf)
 
 
         if nts*click < real_time:
@@ -1043,8 +1054,8 @@ if Path('').cwd().stem == 'src':
         simulation.run_simulation()
         df = simulation.make_dataframe()
         display(df)
-        # simulation.save_simulation_results(time_elapsed=t.elapsed)
-        # simulation.save_memory_figure()
+        simulation.save_simulation_results(time_elapsed=t.elapsed)
+        simulation.save_memory_figure()
 
 
     # if False:
