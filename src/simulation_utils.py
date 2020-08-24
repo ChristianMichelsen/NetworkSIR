@@ -202,6 +202,10 @@ class Filename:
         return self.filename_prefix + 'Data/GPS_coordinates.npy'
 
 
+    @property
+    def household_data_filenames(self):
+        return (self.filename_prefix + 'Data/PeopleInHousehold_NorthJutland.txt',
+                self.filename_prefix + 'Data/AgeDistributionPerPeopleInHousehold_NorthJutland.txt')
 
 
 #%%
@@ -678,20 +682,10 @@ def parse_household_data_list(filename, convert_to_numpy=False):
     return out
 
 
-
-# def load_household_data(age_dist_as_dict=True):
-#     people_in_household = parse_household_data('../Data/PeopleInHousehold_NorthJutland.txt')
-#     age_distribution_per_people_in_household = parse_household_data('../Data/AgeDistributionPerPeopleInHousehold_NorthJutland.txt', age_dist_as_dict=age_dist_as_dict)
-#     return people_in_household, age_distribution_per_people_in_household
-
-
-def load_household_data():
-    people_in_household = parse_household_data_list('../Data/PeopleInHousehold_NorthJutland.txt', convert_to_numpy=True)
-    age_distribution_per_people_in_household = parse_household_data_list('../Data/AgeDistributionPerPeopleInHousehold_NorthJutland.txt', convert_to_numpy=True)
+def load_household_data(household_data_filenames):
+    people_in_household = parse_household_data_list(household_data_filenames[0], convert_to_numpy=True)
+    age_distribution_per_people_in_household = parse_household_data_list(household_data_filenames[1], convert_to_numpy=True)
     return people_in_household, age_distribution_per_people_in_household
-
-
-
 
 @njit
 def nb_load_coordinates_Nordjylland(all_coordinates, N_tot=150_000, verbose=False):

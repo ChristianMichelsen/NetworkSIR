@@ -730,7 +730,7 @@ class Simulation:
 
         rho_scale = 1000 # scale factor of rho
 
-        people_in_household, age_distribution_per_people_in_household = simulation_utils.load_household_data()
+        people_in_household, age_distribution_per_people_in_household = simulation_utils.load_household_data(self._Filename.household_data_filenames)
         N_dim_people_in_household, N_ages = age_distribution_per_people_in_household.shape
 
         if self.verbose:

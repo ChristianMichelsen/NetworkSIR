@@ -34,6 +34,8 @@ if plot_SIR_comparison:
     plot.make_SIR_curves(abn_files, 'R', force_overwrite=False)
 
 
+x=x
+
 #%%
 
 if False:
