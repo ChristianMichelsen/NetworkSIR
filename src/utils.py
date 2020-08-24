@@ -559,8 +559,13 @@ class DotDict(dict):
 
 def string_to_dict(string):
     # if path-like string
+
+    if isinstance(string, Path):
+        string = str(string)
+
     if isinstance(string, str) and "/" in string:
         string = Path(string).stem
+
 
     d = {}
     keyvals = string.split('__')

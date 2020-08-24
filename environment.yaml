@@ -23,7 +23,7 @@ dependencies:
   - numba/label/dev::numba
   - icc_rt
   - joblib
-  # - scikit-learn
+  - scikit-learn # uses ParameterSampler to fit multiple times
   - psutil
   # - plotly-orca
   #- natsort

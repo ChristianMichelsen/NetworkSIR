@@ -2,13 +2,25 @@
 from collections import defaultdict
 from sklearn.model_selection import ParameterSampler
 import joblib
+import numpy as np
 from pathlib import Path
 from iminuit import Minuit
+import multiprocessing as mp
+from tqdm import tqdm
+from scipy.stats import uniform as sp_uniform
+from importlib import reload
 
 try:
     from src import utils
+    from src import file_loaders
+    from src import SIR
+    from src import parallel
 except ImportError:
     import utils
+    import file_loaders
+    import SIR
+    import parallel
+
 
 
 def uniform(a, b):
@@ -17,23 +29,9 @@ def uniform(a, b):
     return sp_uniform(loc, scale)
 
 
-@lru_cache(maxsize=None)
-def calc_Imax_R_inf_SIRerministic(mu, lambda_E, lambda_I, beta, y0, Tmax, dt, ts):
-    ODE_result_SIR = ODE_integrate(y0, Tmax, dt, ts, mu, lambda_E, lambda_I, beta)
-    I_max = np.max(ODE_result_SIR[:, 2])
-    R_inf = ODE_result_SIR[-1, 3]
-    return I_max, R_inf
-
-# N_peak_fits = 20
-dark_figure = 40
-I_lockdown_DK = 350*dark_figure
-I_lockdown_rel = I_lockdown_DK / 5_824_857
-
 def try_refit(fit_object, cfg, FIT_MAX):
     N_refits = 0
-    # if (not minuit.get_fmin().is_valid) :
-    continue_fit = True
-    while continue_fit:
+    while True:
         N_refits += 1
         param_grid = {'lambda_E': uniform(cfg.lambda_E/10, cfg.lambda_E*5),
                       'lambda_I': uniform(cfg.lambda_I/10, cfg.lambda_I*5),
@@ -45,70 +43,89 @@ def try_refit(fit_object, cfg, FIT_MAX):
         minuit.migrad()
         fit_object.set_minuit(minuit)
         if (0.001 <= fit_object.chi2 / fit_object.N <= 10) or N_refits > FIT_MAX:
-            continue_fit = False
+            break
     return fit_object, N_refits
 
 
-def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
+def run_actual_fit(t, y, cfg, dt, ts, filename):
 
-    cfg = filename_to_dotdict(filename)
+    fit_object = SIR.FitSIR(t, y, cfg, dt=dt, ts=ts)
 
-    df, df_interpolated, time, t_interpolated = pandas_load_file(filename, return_only_df=False)
-    R_inf_ABN = df['R'].iloc[-1]
-
-    Tmax = int(df['Time'].max())+1 # max number of days
-    N_tot = cfg.N_tot
-    y0 = N_tot-cfg.N_init, N_tot,   cfg.N_init,0,0,0,      0,0,0,0,   0#, cfg.N_init
-
-    I_min = 100
-    I_lockdown = I_lockdown_rel * cfg.N_tot # percent
-    iloc_start = np.argmax(I_min <= df_interpolated['I'])
-    iloc_lockdown = np.argmax(I_lockdown <= df_interpolated['I']) + 1
-
-    #return None if simulation never reaches minimum requirements
-    if I_lockdown < I_min:
-        print(f"\nI_lockdown < I_min ({I_lockdown:.1f} < {I_min}) for file: \n{filename}\n")
-        return filename, None
-    if df_interpolated['I'].max() < I_min:
-        print(f"Never reached I_min={I_min}, only {df_interpolated['I'].max():.1f} for file: \n{filename}\n", flush=True)
-        return filename, None
-    if df_interpolated['I'].max() < I_lockdown:
-        print(f"Never reached I_lockdown={I_lockdown:.1f}, only {df_interpolated['I'].max():.1f} for file: \n{filename}\n", flush=True)
-        return filename, None
-    if iloc_lockdown - iloc_start < 10:
-        print(f"Fit period less than 10 days, only ={iloc_lockdown - iloc_start:.1f}, for file: \n{filename}\n", flush=True)
-        return filename, None
-
-    y_truth_interpolated = df_interpolated['I']
-    I_max_SIR, R_inf_SIR = calc_Imax_R_inf_SIRerministic(cfg.mu, cfg.lambda_E, cfg.lambda_I, cfg.beta, y0, Tmax*2, dt, ts)
-    Tmax_peak = df_interpolated['I'].argmax()*1.2
-    I_max_ABN = np.max(df['I'])
-
-    fit_object = CustomChi2(t_interpolated[iloc_start:iloc_lockdown], y_truth_interpolated.to_numpy(float)[iloc_start:iloc_lockdown], y0, Tmax_peak, dt=dt, ts=ts, mu=cfg.mu, y_min=I_min)
-
-    minuit = Minuit(fit_object, pedantic=False, print_level=0, lambda_E=cfg.lambda_E, lambda_I=cfg.lambda_I, beta=cfg.beta, tau=0)
+    p0 = dict(lambda_E=cfg.lambda_E, lambda_I=cfg.lambda_I, beta=cfg.beta, tau=0)
+    minuit = Minuit(fit_object, pedantic=False, print_level=0, **p0)
 
     minuit.migrad()
     fit_object.set_chi2(minuit)
 
+    fit_failed = False
     if fit_object.chi2 / fit_object.N > 100:
         FIT_MAX = 100
         fit_object, N_refits = try_refit(fit_object, cfg, FIT_MAX)
         fit_object.N_refits = N_refits
         if N_refits > FIT_MAX:
-            print(f"\n\n{filename} was discarded after {N_refits} tries\n", flush=True)
-            return filename, None
+            # print(f"\n{filename} was rejected after {N_refits} tries\n", flush=True)
+            fit_failed = True
 
     fit_object.set_minuit(minuit)
 
+    return fit_object, fit_failed
+
+
+def extract_data(t, y, T_max, N_tot):
+    """ Extract data where:
+        1) y is larger than 1‰ (permille) of N_tot
+        1) y is smaller than 1% (percent) of N_tot
+        1) t is less than T_max"""
+    mask_min_1_permille = (y > N_tot*1/1000)
+    mask_max_1_percent = (y < N_tot*1/100)
+    mask_T_max = t < T_max
+    mask = mask_min_1_permille & mask_max_1_percent & mask_T_max
+    return t[mask], y[mask]
+
+
+def add_fit_results_to_fit_object(fit_object, filename, cfg, T_max, df):
+
     fit_object.filename = filename
-    fit_object.I_max_ABN = I_max_ABN
+
+    I_max_SIR, R_inf_SIR = SIR.calc_deterministic_results(cfg, T_max*1.2, dt=0.01, ts=0.1)
+
+    fit_object.I_max_ABN = np.max(df['I'])
     fit_object.I_max_fit = fit_object.compute_I_max()
     fit_object.I_max_SIR = I_max_SIR
 
-    fit_object.R_inf_ABN = R_inf_ABN
-    fit_object.R_inf_fit = fit_object.compute_R_inf(Tmax=Tmax*2)
+    fit_object.R_inf_ABN = df['R'].iloc[-1]
+    fit_object.R_inf_fit = fit_object.compute_R_inf(T_max=T_max*2)
     fit_object.R_inf_SIR = R_inf_SIR
+
+
+def fit_single_file(filename, ts=0.1, dt=0.01):
+
+    cfg = utils.string_to_dict(filename)
+    df = file_loaders.pandas_load_file(filename)
+
+    df_interpolated = SIR.interpolate_df(df)
+
+    # Time at end of simulation
+    T_max = df['time'].max()
+
+    # time at peak I (peak infection)
+    T_peak = df['time'].iloc[df['I'].argmax()]
+
+    # extract data between 1 permille and 1 percent I of N_tot and lower than T_max
+    t, y = extract_data(t=df_interpolated['time'].values,
+                        y=df_interpolated['I'].values,
+                        T_max=T_peak,
+                        N_tot=cfg.N_tot)
+
+    if len(t) < 5:
+        # print(f"\n\n{filename} was rejected since len(t) = {len(t)}\n", flush=True)
+        return filename, f'Too few datapoints (N = {len(t)})'
+
+    fit_object, fit_failed = run_actual_fit(t, y, cfg, dt, ts, filename)
+    if fit_failed:
+        return filename, 'Too many fit retries'
+
+    add_fit_results_to_fit_object(fit_object, filename, cfg, T_max, df)
 
     return filename, fit_object
 
@@ -117,50 +134,35 @@ def fit_single_file_Imax(filename, ts=0.1, dt=0.01):
 #%%
 
 
+def fit_multiple_files(filenames, num_cores=1, do_tqdm=True):
 
-import multiprocessing as mp
-from tqdm import tqdm
+    if num_cores == 1:
+        if do_tqdm:
+            filenames = tqdm(filenames)
+        results = [fit_single_file(filename) for filename in filenames]
 
-
-def calc_fit_Imax_results(filenames, num_cores_max=30):
-
-    N_files = len(filenames)
-
-    num_cores = mp.cpu_count() - 1
-    if num_cores >= num_cores_max:
-        num_cores = num_cores_max
-
-    with mp.Pool(num_cores) as p:
-        # results = list(tqdm(p.imap_unordered(fit_single_file_Imax, filenames), total=N_files))
-        results = list(p.imap_unordered(fit_single_file_Imax, filenames))
+    else:
+        results = parallel.p_umap(fit_single_file, filenames, num_cpus=num_cores, do_tqdm=False)
+        # with mp.Pool(num_cores) as p:
+            # results = list(p.imap_unordered(fit_single_file, filenames))
 
     # postprocess results from multiprocessing:
     fit_objects = {}
-    for filename, fit_object in results:
-        if fit_object:
-            fit_objects[filename] = fit_object#.fit_objects_Imax
+    for filename, fit_result in results:
+
+        if isinstance(fit_result, str):
+            print(f"\n\n{filename} was rejected due to {fit_result.lower()}")
+
+        else:
+            fit_object = fit_result
+            fit_objects[filename] = fit_object
     return fit_objects
 
 
 
-def filename_to_ID(filename):
-    return int(filename.split('ID_')[1].strip('.csv'))
+def get_fit_results(abn_files, force_rerun=False, num_cores=1):
 
-def filename_to_par_string(filename):
-    return dict_to_str(filename_to_dotdict(filename))
-
-
-def filenames_to_subgroups(filenames):
-    cfg_str = defaultdict(list)
-    for filename in sorted(filenames):
-        s = dict_to_str(filename_to_dotdict(filename))
-        cfg_str[s].append(filename)
-    return cfg_str
-
-
-def get_fit_results(abn_files, force_rerun=False, num_cores_max=20):
-
-    all_fits_file = 'fits_Imax.joblib'
+    all_fits_file = 'Data/fits.joblib'
 
     if Path(all_fits_file).exists() and not force_rerun:
         print("Loading all Imax fits", flush=True)
@@ -168,29 +170,24 @@ def get_fit_results(abn_files, force_rerun=False, num_cores_max=20):
 
     else:
 
-        all_Imax_fits = {}
-        print(f"Fitting I_max for {len(abn_files.all_files)} files with on {len(abn_files.ABN_parameters)} different simulation parameters, please wait.", flush=True)
+        all_fits = {}
+        print(f"Fitting {len(abn_files.all_files)} files with {len(abn_files.ABN_parameters)} different simulation parameters, please wait.", flush=True)
 
         for ABN_parameter in tqdm(abn_files.keys):
-            cfg = utils.string_to_dict(ABN_parameter)
-            for i, file in enumerate(abn_files[ABN_parameter]):
-
-
-        # for sim_pars, files in tqdm(cfg_str.items()):
             # break
-            # print(sim_pars)
+            cfg = utils.string_to_dict(ABN_parameter)
+            files = abn_files[ABN_parameter]
             output_filename = Path('Data/fits') / f'fits_{ABN_parameter}.joblib'
             utils.make_sure_folder_exist(output_filename)
 
             if output_filename.exists() and not force_rerun:
-                all_Imax_fits[sim_pars] = joblib.load(output_filename)
+                all_fits[ABN_parameter] = joblib.load(output_filename)
 
             else:
-                fit_results = calc_fit_Imax_results(files, num_cores_max=num_cores_max)
+                fit_results = fit_multiple_files(files, num_cores=num_cores)
                 joblib.dump(fit_results, output_filename)
-                all_Imax_fits[sim_pars] = fit_results
+                all_fits[ABN_parameter] = fit_results
 
-
-        joblib.dump(all_Imax_fits, all_fits_file)
-        return all_Imax_fits
+        joblib.dump(all_fits, all_fits_file)
+        return all_fits
 

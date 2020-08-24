@@ -12,8 +12,9 @@ from src import utils
 from src import plot
 from src import file_loaders
 from src import rc_params
+from src import fits
 rc_params.set_rc_params()
-num_cores_max = 10
+num_cores_max = 30
 
 savefig = False
 do_animate = False
@@ -28,6 +29,14 @@ reload(plot)
 abn_files = file_loaders.ABNFiles()
 N_files = len(abn_files)
 
+
+num_cores = utils.get_num_cores(num_cores_max)
+fit_objects_all = all_fits = fits.get_fit_results(abn_files, force_rerun=False, num_cores=num_cores)
+
+
+
+x=x
+
 if plot_SIR_comparison:
 
     plot.make_SIR_curves(abn_files, 'I', force_overwrite=False)
@@ -35,6 +44,8 @@ if plot_SIR_comparison:
 
 
 x=x
+
+
 
 #%%
 
@@ -79,16 +90,13 @@ x=x
 
 #%%
 
-if __name__ == '__main__':
-
-    fit_objects_all = extra_funcs.get_fit_results(abn_files, force_rerun=False, num_cores_max=num_cores_max)
-
-    # x=x
 
 #%%
 
 
 #%%
+
+if False:
 
     def plot_fit_simulation_SIR_comparison(fit_objects_all, force_overwrite=False, verbose=False, do_log=True):
 

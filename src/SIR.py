@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy import interpolate
 from numba import njit
+from functools import lru_cache
 
 # from scipy.signal import savgol_filter
 def interpolate_array(y, time, t_interpolated, force_positive=True):
@@ -27,7 +28,10 @@ def interpolate_dataframe(df, time, t_interpolated, cols_to_interpolate):
     return df_interpolated
 
 
-def interpolate_df(df, t_interpolated=None):
+def interpolate_df(df, t_interpolated=None, cols_to_interpolate=None):
+
+    """ Interpolates a the columns of a dataframe (df) based on t_interpolated.
+    By default it downsamples the dataframe to one observation daily (unless t_interpolated is specifically set) for the columns E, I, and R (unless specifically set). """
 
     # make first value at time 0
     t0 = df['time'].min()
@@ -36,21 +40,24 @@ def interpolate_df(df, t_interpolated=None):
 
     if not t_interpolated:
         t_interpolated = np.arange(int(time.max())+1)
-    cols_to_interpolate = ['E', 'I', 'R']
+
+    if not cols_to_interpolate:
+        cols_to_interpolate = ['E', 'I', 'R']
+
     df_interpolated = interpolate_dataframe(df, time, t_interpolated, cols_to_interpolate)
+
     return df_interpolated
 
 
-
 @njit
-def _integrate(y0, Tmax, dt, ts, mu, lambda_E, lambda_I, beta):
+def _numba_SIR_integrate(y0, T_max, dt, ts, mu, lambda_E, lambda_I, beta):
 
     S, N_tot, E1, E2, E3, E4, I1, I2, I3, I4, R = y0
     mu /= 2 # to correct for mu scaling
 
     click = 0
-    SIR_result = np.zeros((int(Tmax/ts)+1, 5))
-    times = np.linspace(0, Tmax, int(Tmax/dt)+1)
+    SIR_result = np.zeros((int(T_max/ts)+1, 5))
+    times = np.linspace(0, T_max, int(T_max/dt)+1)
 
     for time in times:
 
@@ -92,10 +99,183 @@ def _integrate(y0, Tmax, dt, ts, mu, lambda_E, lambda_I, beta):
             click += 1
     return SIR_result
 
+@lru_cache(maxsize=None)
+def numba_SIR_integrate(y0, T_max, dt, ts, mu, lambda_E, lambda_I, beta):
+    """ Wrapper function for '_numba_SIR_integrate' which is cached """
+    SIR_result = _numba_SIR_integrate(y0, T_max, dt, ts, mu, lambda_E, lambda_I, beta)
+    if SIR_result_to_R(SIR_result)[-1] == 0:
+        SIR_result = SIR_result[:-1]
+    return SIR_result
 
-def integrate(cfg, Tmax, dt=0.01, ts=0.1):
+def cfg_to_y0(cfg):
     y0 = cfg.N_tot-cfg.N_init, cfg.N_tot,   cfg.N_init,0,0,0,      0,0,0,0,   0
-    SIR_result = _integrate(y0, Tmax, dt, ts, mu=cfg.mu, lambda_E=cfg.lambda_E, lambda_I=cfg.lambda_I, beta=cfg.beta)
+    return y0
+
+def SIR_result_to_dataframe(SIR_result):
     cols = ['time', 'S', 'E', 'I', 'R']
-    df_fit = pd.DataFrame(SIR_result, columns=cols).convert_dtypes()
-    return df_fit
+    return pd.DataFrame(SIR_result, columns=cols).convert_dtypes()
+
+
+def integrate(cfg, T_max, dt=0.01, ts=0.1, return_dataframe=True):
+    y0 = cfg_to_y0(cfg)
+    SIR_result = numba_SIR_integrate(y0, T_max, dt, ts, mu=cfg.mu, lambda_E=cfg.lambda_E, lambda_I=cfg.lambda_I, beta=cfg.beta)
+    if return_dataframe:
+        return SIR_result_to_dataframe(SIR_result)
+    else:
+        return SIR_result
+
+def SIR_result_to_time(SIR_result):
+    return SIR_result[:, 0]
+
+def SIR_result_to_I(SIR_result):
+    return SIR_result[:, -2]
+
+def SIR_result_to_R(SIR_result):
+    return SIR_result[:, -1]
+
+
+def get_I_max(I):
+    return np.max(I)
+
+def get_R_inf(R):
+    return R[-1]
+
+def calc_deterministic_results(cfg, T_max, dt=0.01, ts=0.1):
+    SIR_result = integrate(cfg, T_max, dt, ts, return_dataframe=False)
+    I_max = get_I_max(SIR_result_to_I(SIR_result))
+    R_inf = get_R_inf(SIR_result_to_R(SIR_result))
+    return I_max, R_inf
+
+#%%
+
+
+
+from functools import lru_cache
+from iminuit.util import make_func_code
+from iminuit import describe
+
+
+class FitSIR:  # override the class with a better one
+
+    def __init__(self, t, y, cfg, dt, ts):
+
+        self.t = t
+        self.y = y
+        self.cfg = cfg
+        self.y0 = cfg_to_y0(cfg)
+        self.mu = cfg.mu
+        self.T_max = np.max(t)
+        self.dt = dt
+        self.ts = ts
+        self.sy = np.sqrt(self.y) #if sy is None else sy
+        self.N_refits = 0
+        self.minuit_is_set = False
+        self.N = len(t)
+        self.mask = self.y > 0 # max to exclude 0 divisions
+
+    def __call__(self, lambda_E, lambda_I, beta, tau):  # parameter are a variable number of model parameters
+        # compute the function value
+        y_hat = self._compute_yhat(lambda_E, lambda_I, beta, tau)
+        # compute the chi2-value
+        chi2 = np.sum((self.y[self.mask] - y_hat[self.mask])**2/self.sy[self.mask]**2)
+        if np.isnan(chi2):
+            return 1e10
+        return chi2
+
+    def __repr__(self):
+        return f'FitSIR(\n\tself.t=[{self.t[0]}, ..., {self.t[-1]}], \n\tself.y=[{self.y[0]:.1f}, ..., {self.y[-1]:.1f}], \n\t{self.T_max=}, \n\t{self.dt=}, \n\t{self.ts=}, \n\t{self.N=})'.replace('=', ' = ').replace('array(', '').replace('])', ']')
+
+
+    def _compute_result_SIR(self, lambda_E, lambda_I, beta, ts=None, T_max=None):
+        if not ts:
+            ts = self.ts
+        if not T_max:
+            T_max = self.T_max
+        return numba_SIR_integrate(self.y0, T_max, self.dt, ts, self.mu, lambda_E, lambda_I, beta)
+
+
+    def _compute_yhat(self, lambda_E, lambda_I, beta, tau):
+        SIR_result = self._compute_result_SIR(lambda_E, lambda_I, beta)
+        I = SIR_result_to_I(SIR_result)
+        time = SIR_result_to_time(SIR_result)
+        y_hat = interpolate_array(I, time, self.t+tau)
+        return y_hat
+
+    def set_chi2(self, minuit):
+        self.chi2 = self.__call__(**minuit.values)
+        return self.chi2
+
+    def set_minuit(self, minuit):
+        self.minuit_is_set = True
+        # self.minuit = minuit
+        # self.m = minuit
+        self.parameters = minuit.parameters
+        self.values = minuit.np_values()
+        self.errors = minuit.np_values()
+
+        self.fit_values = dict(minuit.values)
+        self.fit_errors = dict(minuit.errors)
+
+        self.chi2 = self.__call__(**self.fit_values)
+        self.is_valid = minuit.get_fmin().is_valid
+
+        try:
+            self.correlations = minuit.np_matrix(correlation=True)
+            self.covariances = minuit.np_matrix(correlation=False)
+
+        except RuntimeError:
+            pass
+
+
+    def get_fit_parameter(self, parameter):
+        return self.fit_values[parameter], self.fit_errors[parameter]
+
+    def get_fit_parameters(self):
+
+        if not self.minuit_is_set:
+            raise AssertionError("Minuit has to be set ('.set_minuit(minuit)')")
+
+        fit_parameters = {}
+        for parameter in self.parameters:
+            fit_parameters[parameter] = self.get_fit_parameter(parameter)
+        df_fit_parameters = pd.DataFrame(fit_parameters, index=['mean', 'std'])
+        return df_fit_parameters
+
+    def get_correlations(self):
+        return pd.DataFrame(self.correlations,
+                            index=self.parameters,
+                            columns=self.parameters)
+
+    def _fit_values(self, fit_values):
+
+        if fit_values is None:
+            fit_values = self.fit_values
+
+        if not isinstance(fit_values, dict):
+            raise AssertionError("fit_values has to be a dictionary")
+
+        lambda_E = fit_values['lambda_E']
+        lambda_I = fit_values['lambda_I']
+        beta = fit_values['beta']
+        tau = fit_values['tau']
+        return lambda_E, lambda_I, beta, tau
+
+    def calc_df_fit(self, ts=0.01, fit_values=None, T_max=None):
+        lambda_E, lambda_I, beta, tau = self._fit_values(fit_values)
+        SIR_result = self._compute_result_SIR(lambda_E, lambda_I, beta, ts=ts, T_max=T_max)
+        df_fit = SIR_result_to_dataframe(SIR_result)
+        df_fit['time'] -= tau
+        df_fit['N'] = df_fit[['S', 'E', 'I', 'R']].sum(axis=1)
+        return df_fit
+
+    def compute_I_max(self, ts=0.1, fit_values=None):
+        lambda_E, lambda_I, beta, tau = self._fit_values(fit_values)
+        SIR_result = self._compute_result_SIR(lambda_E, lambda_I, beta, ts=ts)
+        I_max = get_I_max(SIR_result_to_I(SIR_result))
+        return I_max
+
+    def compute_R_inf(self, ts=0.1, fit_values=None, T_max=None):
+        lambda_E, lambda_I, beta, tau = self._fit_values(fit_values)
+        SIR_result = self._compute_result_SIR(lambda_E, lambda_I, beta, ts=ts, T_max=T_max)
+        R_inf = get_R_inf(SIR_result_to_R(SIR_result))
+        return R_inf

@@ -3,13 +3,13 @@ from pathlib import Path
 
 
 def pandas_load_file(file, return_only_df=False):
-    df_raw = pd.read_csv(file).convert_dtypes()
+    df_raw = pd.read_csv(file)#.convert_dtypes()
 
     for state in ['E', 'I']:
         df_raw[state] = sum((df_raw[col] for col in df_raw.columns if state in col and len(col) == 2))
 
     # only keep relevant columns
-    df = df_raw[['Time', 'E', 'I', 'R']]
+    df = df_raw[['Time', 'E', 'I', 'R']].copy()
     df.rename(columns={'Time': 'time'}, inplace=True)
     return df
 
