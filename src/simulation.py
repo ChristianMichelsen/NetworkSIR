@@ -38,6 +38,7 @@ do_memory_tracking = False
 
 @njit
 def set_connections_weight(my_connection_weight, agent, sigma_mu):
+    """ How introvert / extrovert you are. How likely you are at having many contacts in your network."""
     if (np.random.rand() < sigma_mu):
         my_connection_weight[agent] = 0.1 - np.log(np.random.rand())
     else:
@@ -45,6 +46,7 @@ def set_connections_weight(my_connection_weight, agent, sigma_mu):
 
 @njit
 def set_infection_weight(my_infection_weight, agent, sigma_beta, beta):
+    " How much of a super sheader are you?"
     if (np.random.rand() < sigma_beta):
         my_infection_weight[agent] = -np.log(np.random.rand())*beta
     else:
@@ -253,13 +255,13 @@ def initialize_tents(coordinates, N_tot, N_tents):
 
 
 @njit
-def nb_make_initial_infections(N_init, my_state, state_total_counts, agents_in_state, csMov, my_connections, my_number_of_contacts, my_rates, SIR_transition_rates, agents_in_age_group, initial_ages_exposed, cs_move_individual, N_infectious_states, coordinates, make_random_infections):
+def nb_make_initial_infections(N_init, my_state, state_total_counts, agents_in_state, g_cumulative_sum_of_state_changes, my_connections, my_number_of_contacts, my_rates, SIR_transition_rates, agents_in_age_group, initial_ages_exposed, cs_move_individual, N_infectious_states, coordinates, make_random_infections):
 
     if do_memory_tracking:
         with objmode():
             track_memory('Initial Infections')
 
-    TotMov = 0.0
+    g_total_sum_of_state_changes = 0.0
     N_tot = len(my_number_of_contacts)
     non_infectable_agents = np.zeros(N_tot, dtype=np.bool_)
 
@@ -290,32 +292,36 @@ def nb_make_initial_infections(N_init, my_state, state_total_counts, agents_in_s
 
             r = utils.haversine_scipy(coordinates[outbreak_agent], coordinates[proposed_agent])
             if np.exp(-r*rho_init/rho_init_scale) > np.random.rand():
-                initial_agents_to_infect.append(proposed_agent)
+                initial_agents_to_infect.append(np.uint32(proposed_agent))
         initial_agents_to_infect = np.asarray(initial_agents_to_infect, dtype=np.uint32)
 
 
     ##  Now make initial infections
     for i, agent in enumerate(initial_agents_to_infect):
-        new_state = np.random.randint(0, N_infectious_states)
+        new_state = np.random.randint(N_infectious_states) # E1, E2, E3 or E4
         my_state[agent] = new_state
 
         agents_in_state[new_state].append(np.uint32(agent))
         state_total_counts[new_state] += 1
-        TotMov += SIR_transition_rates[new_state]
-        csMov[new_state:] += SIR_transition_rates[new_state]
-        non_infectable_agents[agent] = True
+
+        # g_total_sum_of_state_changes += SIR_transition_rates[new_state]
+        # g_cumulative_sum_of_state_changes[new_state:] += SIR_transition_rates[new_state]
+        g_total_sum_of_state_changes += SIR_transition_rates[new_state] # 'g_' = gillespie variable
+        g_cumulative_sum_of_state_changes[new_state:] += SIR_transition_rates[new_state]
+
+        non_infectable_agents[agent] = True # TODO: remove
 
     if do_memory_tracking:
         with objmode():
             track_memory()
 
-    return TotMov, non_infectable_agents
+    return g_total_sum_of_state_changes, non_infectable_agents
 
 #%%
 
 
 @njit
-def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state, my_state, csInf, N_states, InfRat, SIR_transition_rates, N_infectious_states, my_number_of_contacts, my_rates, my_connections, my_age, individual_infection_counter, cs_move_individual, H_probability_matrix_csum, H_my_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, nts, verbose, non_infectable_agents, my_connections_type):
+def nb_run_simulation(N_tot, g_total_sum_of_state_changes, g_cumulative_sum_of_state_changes, state_total_counts, agents_in_state, my_state, g_cumulative_sum_infection_rates, N_states, my_sum_of_rates, SIR_transition_rates, N_infectious_states, my_number_of_contacts, my_rates, my_connections, my_age, individual_infection_counter, cs_move_individual, H_probability_matrix_csum, H_my_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, nts, verbose, non_infectable_agents, my_connections_type):
 
 
     # if do_memory_tracking:
@@ -332,11 +338,20 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
 
     daily_counter = 0
 
-    Tot = 0.0
-    TotInf = 0.0
+    # g_total_sum = 0.0
+    # g_total_sum_infections = 0.0
+    # click = 0
+    # step_number = 0
+    # g_cumulative_sum = 0.0
+    # real_time = 0.0
+
+    g_total_sum = 0.0
+    g_total_sum_infections = 0.0
+    g_cumulative_sum = 0.0
+
     click = 0
-    counter = 0
-    Csum = 0.0
+    step_number = 0
+
     real_time = 0.0
 
     H_tot_move = 0
@@ -344,9 +359,14 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
     time_inf = np.zeros(N_tot, np.float32)
     bug_contacts = np.zeros(N_tot, np.int32)
 
-    agent_can_infect = np.zeros(N_tot, dtype=np.bool_)
+    # agent_can_infect = np.zeros(N_tot, dtype=np.bool_)
 
     s_counter = np.zeros(4)
+
+    # infectious_states = np.array([4, 5, 6, 7], dtype=np.int8) #TODO: fix
+    infectious_states = {4, 5, 6, 7} #TODO: fix
+    infectable_states = {-1, 0, 1, 2, 3} #TODO: fix
+
 
     # if do_memory_tracking:
     #     with objmode():
@@ -358,24 +378,25 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
 
         s = 0
 
-        counter += 1
-        Tot = TotMov + TotInf #+ H_tot_move XXX Hospitals
-        dt = - np.log(np.random.rand()) / Tot
+        step_number += 1
+        g_total_sum = g_total_sum_of_state_changes + g_total_sum_infections #+ H_tot_move XXX Hospitals
+
+        dt = - np.log(np.random.rand()) / g_total_sum
         real_time += dt
-        Csum = 0.0
+
+        g_cumulative_sum = 0.0
         ra1 = np.random.rand()
 
-        csInf0 = csInf.copy()
-
-        #######/ Here we move infected between states
+        #######/ Here we move between infected between states
         accept = False
-        if TotMov / Tot > ra1:
+        if g_total_sum_of_state_changes / g_total_sum > ra1:
 
             s = 1
 
-            x = csMov / Tot
+            x = g_cumulative_sum_of_state_changes / g_total_sum
             state_now = np.searchsorted(x, ra1)
             state_after = state_now + 1
+
             agent = utils.numba_random_choice_list(agents_in_state[state_now])
 
             # We have chosen agent to move -> here we move it
@@ -383,108 +404,136 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
             agents_in_state[state_now].remove(agent)
 
             my_state[agent] += 1
+
             state_total_counts[state_now] -= 1
             state_total_counts[state_after] += 1
-            TotMov -= SIR_transition_rates[state_now]
-            TotMov += SIR_transition_rates[state_after]
-            csMov[state_now] -= SIR_transition_rates[state_now]
-            csMov[state_after:N_states] += SIR_transition_rates[state_after]-SIR_transition_rates[state_now]
-            csInf[state_now] -= InfRat[agent]
+
+            g_total_sum_of_state_changes -= SIR_transition_rates[state_now]
+            g_total_sum_of_state_changes += SIR_transition_rates[state_after]
+
+            g_cumulative_sum_of_state_changes[state_now] -= SIR_transition_rates[state_now]
+            g_cumulative_sum_of_state_changes[state_after:] += SIR_transition_rates[state_after]-SIR_transition_rates[state_now]
+
+            g_cumulative_sum_infection_rates[state_now] -= my_sum_of_rates[agent]
+
             accept = True
 
             # Moves TO infectious State from non-infectious
             if my_state[agent] == N_infectious_states:
                 for contact, rate in zip(my_connections[agent], my_rates[agent]): # Loop over row agent
-                    if not non_infectable_agents[contact]:
-                        TotInf += rate
-                        InfRat[agent] += rate
-                        csInf[my_state[agent]:] += rate
-                        time_inf[agent] = real_time
-                        bug_contacts[agent] = my_number_of_contacts[agent]
-                agent_can_infect[agent] = True
+                    if my_state[contact] in infectious_states:
+                        g_total_sum_infections += rate
+                        my_sum_of_rates[agent] += rate
+                        g_cumulative_sum_infection_rates[my_state[agent]:] += rate
+                # agent_can_infect[agent] = True # TODO: remove
 
             # If this moves to Recovered state
             if my_state[agent] == N_states-1:
                 for contact, rate in zip(my_connections[agent], my_rates[agent]):
-                    if not non_infectable_agents[contact]:
-                        TotInf -= rate
-                        InfRat[agent] -= rate
-                        csInf[my_state[agent]:] -= rate
-                        time_inf[agent] = real_time - time_inf[agent]
-                agent_can_infect[agent] = False
+                    if my_state[contact] in infectious_states:
+                        g_total_sum_infections -= rate
+                        my_sum_of_rates[agent] -= rate
+                        g_cumulative_sum_infection_rates[my_state[agent]:] -= rate
+                # agent_can_infect[agent] = False # TODO: remove
 
+
+        #######/ Here we infect new states
         else:
             s = 2
 
-            x = TotMov/Tot + csInf/Tot
+            x = (g_total_sum_of_state_changes + g_cumulative_sum_infection_rates) / g_total_sum
             state_now = np.searchsorted(x, ra1)
-            Csum = TotMov/Tot + csInf[state_now-1]/Tot # important change from [state_now] to [state_now-1]
+            g_cumulative_sum = g_total_sum_of_state_changes/g_total_sum + g_cumulative_sum_infection_rates[state_now-1]/g_total_sum # important change from [state_now] to [state_now-1]
 
+            agent_getting_infected = -1
             for agent in agents_in_state[state_now]:
-                # if agent_can_infect[agent]:
 
-                Csum2 = Csum + InfRat[agent] / Tot
+                # suggested cumulative sum
+                suggested_cumulative_sum = g_cumulative_sum + my_sum_of_rates[agent] / g_total_sum
 
-                if Csum2 > ra1:
+                if suggested_cumulative_sum > ra1:
                     for rate, contact in zip(my_rates[agent], my_connections[agent]):
+                        # if my_state[contact] in infectable_states:
                         if not non_infectable_agents[contact]:
-                            Csum += rate / Tot
-                            if Csum > ra1:
+
+                            g_cumulative_sum += rate / g_total_sum
+
+                            # here agent infect contact
+                            if g_cumulative_sum > ra1:
                                 my_state[contact] = 0
                                 agents_in_state[0].append(contact)
                                 state_total_counts[0] += 1
-                                TotMov += SIR_transition_rates[0]
-                                csMov += SIR_transition_rates[0]
+                                g_total_sum_of_state_changes += SIR_transition_rates[0]
+                                g_cumulative_sum_of_state_changes += SIR_transition_rates[0]
                                 accept = True
-                                individual_infection_counter[agent] += 1
-                                non_infectable_agents[contact] = True
+                                non_infectable_agents[contact] = True # TODO: possibly remove
+                                agent_getting_infected = contact
                                 break
                 else:
-                    Csum = Csum2
+                    g_cumulative_sum = suggested_cumulative_sum
 
                 if accept:
                     break
 
-            # Here we update infection lists
-            for step_cousin in my_connections[contact]:
-                if agent_can_infect[step_cousin]:
-                    # for step_cousins_contacts, rate in zip(my_connections[step_cousin],  my_rates[step_cousin]):
-                    for i_step_cousins in range(my_number_of_contacts[step_cousin]):
-                        step_cousins_contacts = my_connections[step_cousin][i_step_cousins]
-                        rate = my_rates[step_cousin][i_step_cousins]
-                        if step_cousins_contacts == contact:
-                            TotInf -= rate
-                            InfRat[step_cousin] -= rate
-                            csInf[my_state[step_cousin]:] -= rate
-                            my_rates[step_cousin][i_step_cousins] = 0
-                            break
-                else:
-                    continue
+            if agent_getting_infected != -1:
+                print("Error here")
+
+            # Here we update infection lists so that newly infected cannot be infected again
+
+            # loop over contacts of the newly infected agent in order to:
+            # 1) remove newly infected agent from contact list (find_myself) by setting rate to 0
+            # 2) remove rates from contacts gillespie sums (only if they are in infections state (I))
+            for contact_of_agent_getting_infected in my_connections[agent_getting_infected]:
+
+                # loop over indexes of the contact to find_myself and set rate to 0
+                for ith_contact_of_agent_getting_infected in range(my_number_of_contacts[contact_of_agent_getting_infected]):
+
+                    find_myself = my_connections[contact_of_agent_getting_infected][ith_contact_of_agent_getting_infected]
+
+                    # check if the contact found is myself
+                    if find_myself == agent_getting_infected:
+
+                        rate = my_rates[contact_of_agent_getting_infected][ith_contact_of_agent_getting_infected]
+
+                        # set rates to myself to 0 (I cannot get infected again)
+                        my_rates[contact_of_agent_getting_infected][ith_contact_of_agent_getting_infected] = 0
+
+                        # if the contact can infect, then remove the rates from the overall gillespie accounting
+                        if my_state[contact_of_agent_getting_infected] in infectious_states:
+                            g_total_sum_infections -= rate
+                            my_sum_of_rates[contact_of_agent_getting_infected] -= rate
+                            g_cumulative_sum_infection_rates[my_state[contact_of_agent_getting_infected]:] -= rate
+
+                        break
+
+
+                # else:
+                #     continue
 
 
         ################
 
-        if np.abs(csInf[7] - csInf[8]) > 0.001:
-            print("csInf 78")
-            print(counter, s, agent, csInf)
-            break
+        # if np.abs(g_cumulative_sum_infection_rates[7] - g_cumulative_sum_infection_rates[8]) > 0.001:
+        #     print("g_cumulative_sum_infection_rates 78")
+        #     print(step_number, s, agent, g_cumulative_sum_infection_rates)
+        #     break
 
-        if np.any(csInf < -0.001):
-            print("csInf negative")
-            print(counter, s, agent, csInf)
-            break
+        # if np.any(g_cumulative_sum_infection_rates < -0.001):
+        #     print("g_cumulative_sum_infection_rates negative")
+        #     print(step_number, s, agent, g_cumulative_sum_infection_rates)
+        #     break
 
-        if np.abs(csInf[8] - TotInf) > 0.001:
-            print("csInf TotInf")
-            print(counter, s, agent, csInf, TotInf)
-            break
+        # if np.abs(g_cumulative_sum_infection_rates[8] - g_total_sum_infections) > 0.001:
+        #     print("g_cumulative_sum_infection_rates g_total_sum_infections")
+        #     print(step_number, s, agent, g_cumulative_sum_infection_rates, g_total_sum_infections)
+        #     break
 
         # for agent in range(N_tot):
-        #     if np.abs(np.sum(my_rates[agent]) - InfRat[agent]) > 0.001:
-        #         print(counter, s, agent, my_rates[agent], np.sum(my_rates[agent]), InfRat[agent])
+        #     if np.abs(np.sum(my_rates[agent]) - my_sum_of_rates[agent]) > 0.001:
+        #         print(step_number, s, agent, my_rates[agent], np.sum(my_rates[agent]), my_sum_of_rates[agent])
 
-        # if np.abs(csInf[7] - TotInf) > 0.001:
-        #     print(counter, s, csInf, TotInf)
+        # if np.abs(g_cumulative_sum_infection_rates[7] - g_total_sum_infections) > 0.001:
+        #     print(step_number, s, g_cumulative_sum_infection_rates, g_total_sum_infections)
 
 
         if nts*click < real_time:
@@ -500,11 +549,11 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
                 out_my_state.append(my_state.copy())
 
                 # tent testing
-                N_daily_tests = 1_000
-                # N_daily_tests = 0
+                # N_daily_tests = 1_000
+                N_daily_tests = 0
                 f_test_succes = 0.8
 
-                TotInf, n_positive_tested = nb_daily_tent_test(N_daily_tests, f_test_succes, N_tot, my_state, N_infectious_states, N_states, my_number_of_contacts, my_connections, my_rates, my_connections_type, non_infectable_agents, agent_can_infect, TotInf, InfRat, csInf)
+                g_total_sum_infections, n_positive_tested = nb_daily_tent_test(N_daily_tests, f_test_succes, N_tot, my_state, N_infectious_states, N_states, my_number_of_contacts, my_connections, my_rates, my_connections_type, non_infectable_agents, infectious_states, g_total_sum_infections, my_sum_of_rates, g_cumulative_sum_infection_rates)
                 N_positive_tested.append(n_positive_tested)
 
                 # if do_memory_tracking:
@@ -519,12 +568,12 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 
-        continue_run, TotMov, TotInf = nb_do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, accept, csMov, ra1, s, x, csInf)
+        continue_run, g_total_sum_of_state_changes, g_total_sum_infections = nb_do_bug_check(step_number, continue_run, g_total_sum_infections, g_total_sum_of_state_changes, verbose, state_total_counts, N_states, N_tot, accept, g_cumulative_sum_of_state_changes, ra1, s, x, g_cumulative_sum_infection_rates)
 
         s_counter[s] += 1
 
     if verbose:
-        print("Simulation counter, ", counter)
+        print("Simulation step_number, ", step_number)
         print("s_counter", s_counter)
         print("N_daily_tests", N_daily_tests)
         print("N_positive_tested", N_positive_tested)
@@ -534,7 +583,7 @@ def nb_run_simulation(N_tot, TotMov, csMov, state_total_counts, agents_in_state,
 
 
 @njit
-def nb_daily_tent_test(N_daily_tests, f_test_succes, N_tot, my_state, N_infectious_states, N_states, my_number_of_contacts, my_connections, my_rates, my_connections_type, non_infectable_agents, agent_can_infect, TotInf, InfRat, csInf):
+def nb_daily_tent_test(N_daily_tests, f_test_succes, N_tot, my_state, N_infectious_states, N_states, my_number_of_contacts, my_connections, my_rates, my_connections_type, non_infectable_agents, infectious_states, g_total_sum_infections, my_sum_of_rates, g_cumulative_sum_infection_rates):
 
     n_positive_tested = 0
 
@@ -542,7 +591,7 @@ def nb_daily_tent_test(N_daily_tests, f_test_succes, N_tot, my_state, N_infectio
         agent = np.random.randint(N_tot)
 
         # only if in I state and  un-noticed
-        if agent_can_infect[agent] and (np.random.rand() < f_test_succes):
+        if (my_state[agent] in infectious_states) and (np.random.rand() < f_test_succes):
 
             # agent_tested_positive.append(agent)
             n_positive_tested += 1
@@ -554,14 +603,12 @@ def nb_daily_tent_test(N_daily_tests, f_test_succes, N_tot, my_state, N_infectio
 
                 # only close work/other contacts
                 if not non_infectable_agents[contact] and connection_type > -1:
-                    TotInf -= rate
-                    InfRat[agent] -= rate
-                    csInf[my_state[agent]:] -= rate
+                    g_total_sum_infections -= rate
+                    my_sum_of_rates[agent] -= rate
+                    g_cumulative_sum_infection_rates[my_state[agent]:] -= rate
                     my_rates[agent][i] = 0
 
-            agent_can_infect[agent] = False
-
-    return TotInf, n_positive_tested
+    return g_total_sum_infections, n_positive_tested
 
 
 
@@ -569,14 +616,14 @@ def nb_daily_tent_test(N_daily_tests, f_test_succes, N_tot, my_state, N_infectio
 #%%
 
 @njit
-def nb_do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, accept, csMov, ra1, s, x, csInf):
+def nb_do_bug_check(step_number, continue_run, g_total_sum_infections, g_total_sum_of_state_changes, verbose, state_total_counts, N_states, N_tot, accept, g_cumulative_sum_of_state_changes, ra1, s, x, g_cumulative_sum_infection_rates):
 
 
-    if counter > 100_000_000:
-        print("counter > 100_000_000")
+    if step_number > 100_000_000:
+        print("step_number > 100_000_000")
         continue_run = False
 
-    if (TotInf + TotMov < 0.0001) and (TotMov + TotInf > -0.00001):
+    if (g_total_sum_infections + g_total_sum_of_state_changes < 0.0001) and (g_total_sum_of_state_changes + g_total_sum_infections > -0.00001):
         continue_run = False
         if verbose:
             print("Equilibrium")
@@ -590,75 +637,75 @@ def nb_do_bug_check(counter, continue_run, TotInf, TotMov, verbose, state_total_
     if not accept:
         print("\nNo Chosen rate")
         print("s: \t", s)
-        print("TotInf: \t", TotInf)
-        print("csInf: \t", csInf)
-        print("csMov: \t", csMov)
+        print("g_total_sum_infections: \t", g_total_sum_infections)
+        print("g_cumulative_sum_infection_rates: \t", g_cumulative_sum_infection_rates)
+        print("g_cumulative_sum_of_state_changes: \t", g_cumulative_sum_of_state_changes)
         print("x: \t", x)
         print("ra1: \t", ra1)
         continue_run = False
 
-    if (TotMov < 0) and (TotMov > -0.001):
-        TotMov = 0
+    if (g_total_sum_of_state_changes < 0) and (g_total_sum_of_state_changes > -0.001):
+        g_total_sum_of_state_changes = 0
 
-    if (TotInf < 0) and (TotInf > -0.001):
-        TotInf = 0
+    if (g_total_sum_infections < 0) and (g_total_sum_infections > -0.001):
+        g_total_sum_infections = 0
 
-    if (TotMov < 0) or (TotInf < 0):
-        print("\nNegative Problem", TotMov, TotInf)
+    if (g_total_sum_of_state_changes < 0) or (g_total_sum_infections < 0):
+        print("\nNegative Problem", g_total_sum_of_state_changes, g_total_sum_infections)
         print("s: \t", s)
-        print("TotInf: \t", TotInf)
-        print("csInf: \t", csInf)
-        print("csMov: \t", csMov)
+        print("g_total_sum_infections: \t", g_total_sum_infections)
+        print("g_cumulative_sum_infection_rates: \t", g_cumulative_sum_infection_rates)
+        print("g_cumulative_sum_of_state_changes: \t", g_cumulative_sum_of_state_changes)
         print("x: \t", x)
         print("ra1: \t", ra1)
         continue_run = False
 
-    # if np.abs(TotInf - np.sum(InfRat)) > 0.001:
-    #     print("\nTotInf IndRat Problem", TotInf, np.sum(InfRat))
+    # if np.abs(g_total_sum_infections - np.sum(my_sum_of_rates)) > 0.001:
+    #     print("\nTotInf IndRat Problem", g_total_sum_infections, np.sum(my_sum_of_rates))
     #     print("s: \t", s)
-    #     print("TotInf: \t", TotInf)
-    #     print("csInf: \t", csInf)
-    #     print("csMov: \t", csMov)
+    #     print("g_total_sum_infections: \t", g_total_sum_infections)
+    #     print("g_cumulative_sum_infection_rates: \t", g_cumulative_sum_infection_rates)
+    #     print("g_cumulative_sum_of_state_changes: \t", g_cumulative_sum_of_state_changes)
     #     print("x: \t", x)
     #     print("ra1: \t", ra1)
-    #     # print(InfRat)
+    #     # print(my_sum_of_rates)
     #     continue_run = False
 
-    # if InfRat.min() < -0.001:
-    #     print("\nInfRat Negative Problem", InfRat.min())
+    # if my_sum_of_rates.min() < -0.001:
+    #     print("\nInfRat Negative Problem", my_sum_of_rates.min())
     #     print("s: \t", s)
-    #     print("TotInf: \t", TotInf)
-    #     print("csInf: \t", csInf)
-    #     print("csMov: \t", csMov)
+    #     print("g_total_sum_infections: \t", g_total_sum_infections)
+    #     print("g_cumulative_sum_infection_rates: \t", g_cumulative_sum_infection_rates)
+    #     print("g_cumulative_sum_of_state_changes: \t", g_cumulative_sum_of_state_changes)
     #     print("x: \t", x)
     #     print("ra1: \t", ra1)
-    #     print(InfRat)
+    #     print(my_sum_of_rates)
     #     continue_run = False
 
-    # if np.any(csInf < -0.001):
+    # if np.any(g_cumulative_sum_infection_rates < -0.001):
     #     print("\ncsInf Negative Problem")
     #     print("s: \t", s)
-    #     print("TotInf: \t", TotInf)
-    #     print("csInf: \t", csInf)
-    #     print("csMov: \t", csMov)
+    #     print("g_total_sum_infections: \t", g_total_sum_infections)
+    #     print("g_cumulative_sum_infection_rates: \t", g_cumulative_sum_infection_rates)
+    #     print("g_cumulative_sum_of_state_changes: \t", g_cumulative_sum_of_state_changes)
     #     print("x: \t", x)
     #     print("ra1: \t", ra1)
-    #     print(InfRat)
+    #     print(my_sum_of_rates)
     #     continue_run = False
 
-    # if my_state[agent] >= 0 and my_state[agent] < N_infectious_states and InfRat[agent] > 0.01:
+    # if my_state[agent] >= 0 and my_state[agent] < N_infectious_states and my_sum_of_rates[agent] > 0.01:
     #     print("\nInfRat[agent] Problem")
     #     print("s: \t", s)
     #     print("x: \t", x)
     #     print("ra1: \t", ra1)
     #     print(my_state[agent])
-    #     print(InfRat[agent])
+    #     print(my_sum_of_rates[agent])
     #     print(agent)
     #     continue_run = False
 
 
 
-    return continue_run, TotMov, TotInf
+    return continue_run, g_total_sum_of_state_changes, g_total_sum_infections
 
 
 
@@ -882,21 +929,22 @@ class Simulation:
         self.initial_ages_exposed = np.arange(self.N_ages) # means that all ages are exposed
         make_random_infections = True
 
+        # TODO XXX
         self.my_rates = simulation_utils.initialize_my_rates(cfg.N_tot, cfg.beta, cfg.sigma_beta, self.my_number_of_contacts, self.ID)
 
         self.my_state = np.full(cfg.N_tot, -1, dtype=np.int8)
         self.state_total_counts = np.zeros(self.N_states, dtype=np.uint32)
         self.agents_in_state = utils.initialize_nested_lists(self.N_states, dtype=np.uint32)
 
-        self.csMov = np.zeros(self.N_states, dtype=np.float64)
-        self.csInf = np.zeros(self.N_states, dtype=np.float64)
-        self.InfRat = np.zeros(cfg.N_tot, dtype=np.float64)
+        self.g_cumulative_sum_of_state_changes = np.zeros(self.N_states, dtype=np.float64)
+        self.g_cumulative_sum_infection_rates = np.zeros(self.N_states, dtype=np.float64)
+        self.my_sum_of_rates = np.zeros(cfg.N_tot, dtype=np.float64)
 
         self.cs_move_individual = utils.initialize_nested_lists(self.N_states, dtype=np.float64)
 
         self.SIR_transition_rates = simulation_utils.initialize_SIR_transition_rates(self.N_states, self.N_infectious_states, cfg)
 
-        self.TotMov, self.non_infectable_agents = nb_make_initial_infections(cfg.N_init, self.my_state, self.state_total_counts, self.agents_in_state, self.csMov, self.my_connections.array, self.my_number_of_contacts, self.my_rates.array, self.SIR_transition_rates, self.agents_in_age_group, self.initial_ages_exposed, self.cs_move_individual, self.N_infectious_states, self.coordinates, make_random_infections)
+        self.g_total_sum_of_state_changes, self.non_infectable_agents = nb_make_initial_infections(cfg.N_init, self.my_state, self.state_total_counts, self.agents_in_state, self.g_cumulative_sum_of_state_changes, self.my_connections.array, self.my_number_of_contacts, self.my_rates.array, self.SIR_transition_rates, self.agents_in_age_group, self.initial_ages_exposed, self.cs_move_individual, self.N_infectious_states, self.coordinates, make_random_infections)
 
 
     def run_simulation(self):
@@ -913,7 +961,7 @@ class Simulation:
         H = simulation_utils.get_hospitalization_variables(cfg)
         H_probability_matrix_csum, H_my_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum = H
 
-        res = nb_run_simulation(cfg.N_tot, self.TotMov, self.csMov, self.state_total_counts, self.agents_in_state, self.my_state, self.csInf, self.N_states, self.InfRat, self.SIR_transition_rates, self.N_infectious_states,
+        res = nb_run_simulation(cfg.N_tot, self.g_total_sum_of_state_changes, self.g_cumulative_sum_of_state_changes, self.state_total_counts, self.agents_in_state, self.my_state, self.g_cumulative_sum_infection_rates, self.N_states, self.my_sum_of_rates, self.SIR_transition_rates, self.N_infectious_states,
         # N_connections,
         self.my_number_of_contacts,
         self.my_rates.array, self.my_connections.array,
@@ -923,7 +971,7 @@ class Simulation:
 
         out_time, out_state_counts, out_my_state = res
 
-        # res = nb_run_simulation(cfg.N_tot, self.TotMov, self.csMov, self.state_total_counts, self.agents_in_state, self.my_state, self.csInf, self.N_states, self.InfRat, self.SIR_transition_rates, self.N_infectious_states, self.my_number_of_contacts, self.my_rates.array, self.my_connections.array, self.my_connections_type.array, self.my_age, self.individual_infection_counter, self.cs_move_individual, self.nts, self.verbose, self.non_infectable_agents) # agent_is_infectious
+        # res = nb_run_simulation(cfg.N_tot, self.g_total_sum_of_state_changes, self.g_cumulative_sum_of_state_changes, self.state_total_counts, self.agents_in_state, self.my_state, self.g_cumulative_sum_infection_rates, self.N_states, self.my_sum_of_rates, self.SIR_transition_rates, self.N_infectious_states, self.my_number_of_contacts, self.my_rates.array, self.my_connections.array, self.my_connections_type.array, self.my_age, self.individual_infection_counter, self.cs_move_individual, self.nts, self.verbose, self.non_infectable_agents) # agent_is_infectious
         # out_time, out_state_counts, out_my_state = res # out_H_state_total_counts
 
         track_memory('Arrays Conversion')
@@ -1054,8 +1102,8 @@ if Path('').cwd().stem == 'src':
         simulation.run_simulation()
         df = simulation.make_dataframe()
         display(df)
-        simulation.save_simulation_results(time_elapsed=t.elapsed)
-        simulation.save_memory_figure()
+        # simulation.save_simulation_results(time_elapsed=t.elapsed)
+        # simulation.save_memory_figure()
 
 
     # if False:
@@ -1097,3 +1145,17 @@ if Path('').cwd().stem == 'src':
 
 
 
+
+
+
+# @njit
+# def test(my_state):
+#     contact = np.uint32(0)
+#     # infectious_states = np.array([4, 5, 6, 7], dtype=np.int8) #TODO: fix
+#     infectious_states = {4, 5, 6, 7}
+#     if my_state[contact] in infectious_states:
+#         print("got here")
+#     else:
+#         print("else")
+
+# test(simulation.my_state)

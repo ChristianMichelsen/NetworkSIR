@@ -88,6 +88,9 @@ all_fits = fits.get_fit_results(abn_files, force_rerun=False, num_cores=num_core
 
 #%%
 
+from matplotlib.ticker import EngFormatter
+
+do_log = False
 def plot_fit_simulation_SIR_comparison(all_fits, force_overwrite=False, verbose=False, do_log=False):
 
     pdf_name = f"Figures/Fits.pdf"
@@ -112,6 +115,9 @@ def plot_fit_simulation_SIR_comparison(all_fits, force_overwrite=False, verbose=
 
             cfg = utils.string_to_dict(ABN_parameter)
 
+            if cfg.N_tot > 5_000_000 and cfg.rho == 100:
+                assert False
+
             fit_values_deterministic = {'lambda_E': cfg.lambda_E,
                           'lambda_I': cfg.lambda_I,
                           'beta': cfg.beta,
@@ -129,6 +135,10 @@ def plot_fit_simulation_SIR_comparison(all_fits, force_overwrite=False, verbose=
                 T_max = max(t)*1.1
                 df_fit = fit_object.calc_df_fit(ts=0.1, T_max=T_max)
 
+                if df_fit['I'].iloc[3000] > 5_000_000:
+                    assert False
+
+
 
                 lw = 0.8
                 for I_or_R, ax in zip(['I', 'R'], axes):
@@ -143,9 +153,6 @@ def plot_fit_simulation_SIR_comparison(all_fits, force_overwrite=False, verbose=
                     label = 'Fits' if i == 0 else None
                     ax.plot(df_fit['time'], df_fit[I_or_R], lw=lw, color='green', label=label)
 
-                    if np.any(df_fit[I_or_R] > 20e6):
-                        print(filename)
-                        assert False
 
             df_SIR = fit_object.calc_df_fit(fit_values=fit_values_deterministic, ts=0.1, T_max=T_max)
 
@@ -161,6 +168,7 @@ def plot_fit_simulation_SIR_comparison(all_fits, force_overwrite=False, verbose=
                 ax.set(xlabel='Time', ylabel=d_ylabel[I_or_R])
                 ax.set_rasterized(True)
                 ax.set_rasterization_zorder(0)
+                ax.yaxis.set_major_formatter(EngFormatter())
 
                 leg = ax.legend(loc=leg_loc[I_or_R])
                 for legobj in leg.legendHandles:

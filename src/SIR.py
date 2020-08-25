@@ -149,6 +149,9 @@ def calc_deterministic_results(cfg, T_max, dt=0.01, ts=0.1):
 #%%
 
 
+#%%
+
+
 
 from functools import lru_cache
 from iminuit.util import make_func_code
@@ -157,17 +160,17 @@ from iminuit import describe
 
 class FitSIR:  # override the class with a better one
 
-    def __init__(self, t, y, cfg, dt, ts):
+    def __init__(self, t, y, sy, cfg, dt, ts):
 
         self.t = t
         self.y = y
+        self.sy = sy
         self.cfg = cfg
         self.y0 = cfg_to_y0(cfg)
         self.mu = cfg.mu
         self.T_max = np.max(t)
         self.dt = dt
         self.ts = ts
-        self.sy = np.sqrt(self.y) #if sy is None else sy
         self.N_refits = 0
         self.minuit_is_set = False
         self.N = len(t)
@@ -208,6 +211,7 @@ class FitSIR:  # override the class with a better one
 
     def set_chi2(self, minuit):
         self.chi2 = self.__call__(**minuit.values)
+        self.reduced_chi2 = self.chi2 / self.N
         return self.chi2
 
     def set_minuit(self, minuit):
@@ -222,14 +226,16 @@ class FitSIR:  # override the class with a better one
         self.fit_errors = dict(minuit.errors)
 
         self.chi2 = self.__call__(**self.fit_values)
+        self.reduced_chi2 = self.chi2 / self.N
         self.is_valid = minuit.get_fmin().is_valid
 
         try:
+            self.has_correlations = True
             self.correlations = minuit.np_matrix(correlation=True)
             self.covariances = minuit.np_matrix(correlation=False)
 
         except RuntimeError:
-            pass
+            self.has_correlations = False
 
 
     def get_fit_parameter(self, parameter):
@@ -255,6 +261,10 @@ class FitSIR:  # override the class with a better one
 
         if fit_values is None:
             fit_values = self.fit_values
+
+        if isinstance(fit_values, (list, np.ndarray)):
+            names = ['lambda_E', 'lambda_I', 'beta', 'tau']
+            fit_values = dict(zip(names, fit_values))
 
         if not isinstance(fit_values, dict):
             raise AssertionError("fit_values has to be a dictionary")
@@ -284,3 +294,33 @@ class FitSIR:  # override the class with a better one
         SIR_result = self._compute_result_SIR(lambda_E, lambda_I, beta, ts=ts, T_max=T_max)
         R_inf = get_R_inf(SIR_result_to_R(SIR_result))
         return R_inf
+
+    def _random_sample_fit_parameters(self, N_samples):
+        mean = self.get_fit_parameters().loc['mean'].values
+        cov = self.covariances
+        rng = np.random.default_rng()
+        samples = rng.multivariate_normal(mean, cov, N_samples)
+        return samples
+
+    def _random_samples_to_SIR_results(self, N_samples, T_max, ts):
+        samples = self._random_sample_fit_parameters(N_samples)
+        SIR_results = []
+        for sample in samples:
+            lambda_E, lambda_I, beta, tau = self._fit_values(sample)
+            SIR_result = self._compute_result_SIR(lambda_E, lambda_I, beta, ts=ts, T_max=T_max)
+            SIR_results.append(SIR_result)
+        SIR_results = np.array(SIR_results)
+        return SIR_results
+
+    def make_monte_carlo_fits(self, N_samples, T_max=None, ts=0.1):
+        SIR_results = self._random_samples_to_SIR_results(N_samples, T_max, ts)
+        I_max_MC = np.zeros(N_samples)
+        R_inf_MC = np.zeros(N_samples)
+        for i, SIR_result in enumerate(SIR_results):
+            t = SIR_result_to_time(SIR_result)
+            I = SIR_result_to_I(SIR_result)
+            R = SIR_result_to_R(SIR_result)
+            I_max_MC[i] = get_I_max(I)
+            R_inf_MC[i] = get_R_inf(R)
+        return SIR_results, I_max_MC, R_inf_MC
+
