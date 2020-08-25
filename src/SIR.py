@@ -183,7 +183,12 @@ class FitSIR:  # override the class with a better one
         return chi2
 
     def __repr__(self):
-        return f'FitSIR(\n\tself.t=[{self.t[0]}, ..., {self.t[-1]}], \n\tself.y=[{self.y[0]:.1f}, ..., {self.y[-1]:.1f}], \n\t{self.T_max=}, \n\t{self.dt=}, \n\t{self.ts=}, \n\t{self.N=})'.replace('=', ' = ').replace('array(', '').replace('])', ']')
+        s = f'FitSIR(\n\tself.t=[{self.t[0]}, ..., {self.t[-1]}], \n\tself.y=[{self.y[0]:.1f}, ..., {self.y[-1]:.1f}], \n\t{self.T_max=}, \n\t{self.dt=}, \n\t{self.ts=}, \n\t{self.N=})'.replace('=', ' = ').replace('array(', '').replace('])', ']')
+        if self.minuit_is_set:
+            s += '\n\n'
+            s += f"chi2 = {self.chi2:.1f} \n\n"
+            s += str(self.get_fit_parameters())
+        return s
 
 
     def _compute_result_SIR(self, lambda_E, lambda_I, beta, ts=None, T_max=None):

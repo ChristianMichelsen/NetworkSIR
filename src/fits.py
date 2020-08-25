@@ -21,7 +21,7 @@ except ImportError:
     import SIR
     import parallel
 
-
+reload(SIR)
 
 def uniform(a, b):
     loc = a
@@ -29,7 +29,7 @@ def uniform(a, b):
     return sp_uniform(loc, scale)
 
 
-def try_refit(fit_object, cfg, FIT_MAX):
+def try_refit(fit_object, cfg, FIT_MAX, bounds):
     N_refits = 0
     while True:
         N_refits += 1
@@ -39,7 +39,7 @@ def try_refit(fit_object, cfg, FIT_MAX):
                        'tau': uniform(-10, 10),
                     }
         param_list = list(ParameterSampler(param_grid, n_iter=1))[0]
-        minuit = Minuit(fit_object, pedantic=False, print_level=0, **param_list)
+        minuit = Minuit(fit_object, pedantic=False, print_level=0, **param_list, **bounds)
         minuit.migrad()
         fit_object.set_minuit(minuit)
         if (0.001 <= fit_object.chi2 / fit_object.N <= 10) or N_refits > FIT_MAX:
@@ -52,21 +52,20 @@ def run_actual_fit(t, y, cfg, dt, ts, filename):
     fit_object = SIR.FitSIR(t, y, cfg, dt=dt, ts=ts)
 
     p0 = dict(lambda_E=cfg.lambda_E, lambda_I=cfg.lambda_I, beta=cfg.beta, tau=0)
-    minuit = Minuit(fit_object, pedantic=False, print_level=0, **p0)
+    bounds = dict(limit_lambda_E=(0, None), limit_lambda_I=(0, None), limit_beta=(0, None))
+    minuit = Minuit(fit_object, pedantic=False, print_level=0, **p0, **bounds, errordef=Minuit.LEAST_SQUARES)
 
     minuit.migrad()
     fit_object.set_chi2(minuit)
+    fit_object.set_minuit(minuit)
 
     fit_failed = False
-    if fit_object.chi2 / fit_object.N > 100:
+    if fit_object.chi2 / fit_object.N > 10:
         FIT_MAX = 100
-        fit_object, N_refits = try_refit(fit_object, cfg, FIT_MAX)
+        fit_object, N_refits = try_refit(fit_object, cfg, FIT_MAX, bounds)
         fit_object.N_refits = N_refits
         if N_refits > FIT_MAX:
-            # print(f"\n{filename} was rejected after {N_refits} tries\n", flush=True)
             fit_failed = True
-
-    fit_object.set_minuit(minuit)
 
     return fit_object, fit_failed
 
@@ -97,6 +96,8 @@ def add_fit_results_to_fit_object(fit_object, filename, cfg, T_max, df):
     fit_object.R_inf_fit = fit_object.compute_R_inf(T_max=T_max*2)
     fit_object.R_inf_SIR = R_inf_SIR
 
+
+# filename = 'Data/ABN/N_tot__5800000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__5800000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__002.csv'
 
 def fit_single_file(filename, ts=0.1, dt=0.01):
 

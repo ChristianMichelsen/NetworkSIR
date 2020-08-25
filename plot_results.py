@@ -85,6 +85,7 @@ num_cores = utils.get_num_cores(num_cores_max)
 all_fits = fits.get_fit_results(abn_files, force_rerun=False, num_cores=num_cores)
 
 
+
 #%%
 
 def plot_fit_simulation_SIR_comparison(all_fits, force_overwrite=False, verbose=False, do_log=False):
@@ -130,34 +131,38 @@ def plot_fit_simulation_SIR_comparison(all_fits, force_overwrite=False, verbose=
 
 
                 lw = 0.8
-                for y, ax in zip(['I', 'R'], axes):
+                for I_or_R, ax in zip(['I', 'R'], axes):
 
                     label = 'Simulations' if i == 0 else None
-                    ax.plot(t, df[y], 'k-', lw=lw, label=label)
+                    ax.plot(t, df[I_or_R], 'k-', lw=lw, label=label)
 
                     label_min = 'Min/Max' if i == 0 else None
                     ax.axvline(fit_object.t.min(), lw=lw, alpha=0.8, label=label_min)
                     ax.axvline(fit_object.t.max(), lw=lw, alpha=0.8)
 
                     label = 'Fits' if i == 0 else None
-                    ax.plot(df_fit['time'], df_fit[y], lw=lw, color='green', label=label)
+                    ax.plot(df_fit['time'], df_fit[I_or_R], lw=lw, color='green', label=label)
+
+                    if np.any(df_fit[I_or_R] > 20e6):
+                        print(filename)
+                        assert False
 
             df_SIR = fit_object.calc_df_fit(fit_values=fit_values_deterministic, ts=0.1, T_max=T_max)
 
-            for y, ax in zip(['I', 'R'], axes):
+            for I_or_R, ax in zip(['I', 'R'], axes):
 
-                ax.plot(df_SIR['time'], df_SIR[y], lw=lw*5, color='red', label='SIR', zorder=0)
+                ax.plot(df_SIR['time'], df_SIR[I_or_R], lw=lw*5, color='red', label='SIR', zorder=0)
 
                 if do_log:
                     ax.set_yscale('log', nonposy='clip')
 
                 ax.set(xlim=(0, None), ylim=(0, None))
 
-                ax.set(xlabel='Time', ylabel=d_ylabel[y])
+                ax.set(xlabel='Time', ylabel=d_ylabel[I_or_R])
                 ax.set_rasterized(True)
                 ax.set_rasterization_zorder(0)
 
-                leg = ax.legend(loc=leg_loc[y])
+                leg = ax.legend(loc=leg_loc[I_or_R])
                 for legobj in leg.legendHandles:
                     legobj.set_linewidth(2.0)
                     legobj.set_alpha(1.0)
