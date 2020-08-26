@@ -238,29 +238,25 @@ def set_numba_random_seed(seed):
 
 
 @njit
-def _initialize_my_rates_nested_list(N_tot, beta, sigma_beta, N_connections, ID):
-    # np.random.seed(ID)
+def _initialize_my_rates_nested_list(my_infection_weight, my_number_of_contacts):
+    N_tot = len(my_infection_weight)
     res = List()
     for i in range(N_tot):
-        if sigma_beta == 1:
-            val = -np.log(np.random.random()) * beta
-        else:
-            val = beta
-        x = np.full(N_connections[i], fill_value=val, dtype=np.float64)
+        x = np.full(my_number_of_contacts[i], fill_value=my_infection_weight[i], dtype=np.float64)
         res.append(x)
     return res
 
-def initialize_my_rates(N_tot, beta, sigma_beta, N_connections, ID=0):
-    return utils.RaggedArray(_initialize_my_rates_nested_list(N_tot, beta, sigma_beta, N_connections, ID))
+def initialize_my_rates(my_infection_weight, my_number_of_contacts):
+    return utils.RaggedArray(_initialize_my_rates_nested_list(my_infection_weight, my_number_of_contacts))
 
-# def initialize_my_rates(N_tot, beta, sigma_beta, N_connections, ID=0):
-#     return utils.nested_list_to_awkward_array(_initialize_my_rates_nested_list(N_tot, beta, sigma_beta, N_connections, ID))
+# def initialize_my_rates(N_tot, beta, sigma_beta, my_number_of_contacts, ID=0):
+#     return utils.nested_list_to_awkward_array(_initialize_my_rates_nested_list(N_tot, beta, sigma_beta, my_number_of_contacts, ID))
 
 @njit
-def initialize_non_infectable(N_tot, N_connections):
+def initialize_non_infectable(N_tot, my_number_of_contacts):
     res = List()
     for i in range(N_tot):
-        res.append(np.ones(N_connections[i], dtype=np.bool_))
+        res.append(np.ones(my_number_of_contacts[i], dtype=np.bool_))
     return res
 
 def initialize_SIR_transition_rates(N_states, N_infectious_states, cfg):
