@@ -428,7 +428,7 @@ def numba_cumsum(x, axis=None):
 from numba import types
 from numba.experimental import jitclass
 
-def NumbaRaggedArray(offsets, content, dtype):
+def NumbaMutableArray(offsets, content, dtype):
 
     spec = [
         ('offsets', types.int64[:]),
@@ -436,7 +436,7 @@ def NumbaRaggedArray(offsets, content, dtype):
     ]
 
     @jitclass(spec)
-    class MetaNumbaRaggedArray:
+    class MetaNumbaMutableArray:
         def __init__(self, offsets, content):
             self.offsets = offsets
             self.content = content
@@ -445,14 +445,14 @@ def NumbaRaggedArray(offsets, content, dtype):
             return self.content[self.offsets[i]: self.offsets[i + 1]]
 
         def copy(self):
-            return MetaNumbaRaggedArray(self.offsets, self.content)
+            return MetaNumbaMutableArray(self.offsets, self.content)
 
-    return MetaNumbaRaggedArray(offsets, content)
+    return MetaNumbaMutableArray(offsets, content)
 
 
-class RaggedArray:
+class MutableArray:
 
-    """ The RaggedArray is basically just a simple version of Awkward Array with mutable data. Also allows the array to be used in zip/enumerate in numba code by using the .array property.
+    """ The MutableArray is basically just a simple version of Awkward Array with _mutable_ data. Also allows the array to be used in zip/enumerate in numba code by using the .array property (not needed in awkward version >= 0.2.32).
     """
 
     def __init__(self, arraylike_object):
@@ -478,7 +478,7 @@ class RaggedArray:
         self._initialize_numba_array()
 
     def _initialize_numba_array(self):
-        self._array = NumbaRaggedArray(self._offsets, self._content, self.dtype)
+        self._array = NumbaMutableArray(self._offsets, self._content, self.dtype)
 
     def __getitem__(self, i):
         if isinstance(i, int):
@@ -495,7 +495,7 @@ class RaggedArray:
         if return_original_awkward_array and self._awkward_array:
             return self._awkward_array
         elif return_original_awkward_array and not self._awkward_array:
-            raise AssertionError(f"No original awkward array (possibly because it was loaded through pickle")
+            raise AssertionError(f"No original awkward array (possibly because it was loaded through pickle)")
 
         offsets = ak.layout.Index64(self._offsets)
         content = ak.layout.NumpyArray(self._content)
@@ -503,7 +503,7 @@ class RaggedArray:
         return ak.Array(listarray)
 
     def __repr__(self):
-        return repr(self.to_awkward()).replace('Array', 'RaggedArray')
+        return repr(self.to_awkward()).replace('Array', 'MutableArray')
 
     def __len__(self):
         return len(self._offsets) - 1
@@ -519,9 +519,6 @@ class RaggedArray:
         self._offsets = d['_offsets']
         self.dtype = d['dtype']
         self._initialize_numba_array()
-
-
-
 
 
 #%%

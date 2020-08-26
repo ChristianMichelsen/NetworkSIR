@@ -247,10 +247,14 @@ def _initialize_my_rates_nested_list(my_infection_weight, my_number_of_contacts)
     return res
 
 def initialize_my_rates(my_infection_weight, my_number_of_contacts):
-    return utils.RaggedArray(_initialize_my_rates_nested_list(my_infection_weight, my_number_of_contacts))
+    return utils.MutableArray(_initialize_my_rates_nested_list(my_infection_weight, my_number_of_contacts))
 
-# def initialize_my_rates(N_tot, beta, sigma_beta, my_number_of_contacts, ID=0):
-#     return utils.nested_list_to_awkward_array(_initialize_my_rates_nested_list(N_tot, beta, sigma_beta, my_number_of_contacts, ID))
+
+# def initialize_my_rates(my_infection_weight, my_number_of_contacts):
+#     return ak.Array(_initialize_my_rates_nested_list(my_infection_weight, my_number_of_contacts))
+
+
+
 
 @njit
 def initialize_non_infectable(N_tot, my_number_of_contacts):

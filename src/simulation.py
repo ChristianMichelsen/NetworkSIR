@@ -853,10 +853,10 @@ class Simulation:
                     # print(e)
 
         self.my_age = my_age
-        self.agents_in_age_group = agents_in_age_group # should not be ragged array
+        self.agents_in_age_group = agents_in_age_group
         self.N_ages = len(self.agents_in_age_group)
-        self.my_connections = utils.RaggedArray(my_connections)
-        self.my_connections_type = utils.RaggedArray(my_connections_type)
+        self.my_connections = utils.MutableArray(my_connections)
+        self.my_connections_type = utils.MutableArray(my_connections_type)
         self.my_number_of_contacts = my_number_of_contacts
         self.my_infection_weight = my_infection_weight
         self.my_closest_tent = my_closest_tent
@@ -1034,11 +1034,11 @@ reload(utils)
 reload(simulation_utils)
 
 verbose = True
-force_rerun = True
+force_rerun = False
 filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__10__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
 # filename = filename.replace('ID__000', 'ID__001')
-filename = filename.replace('N_tot__58000', 'N_tot__10000')
-# filename = filename.replace('N_tot__58000', 'N_tot__100000')
+# filename = filename.replace('N_tot__58000', 'N_tot__10000')
+filename = filename.replace('N_tot__58000', 'N_tot__100000')
 
 
 # if running just til file
@@ -1091,6 +1091,3 @@ if Path('').cwd().stem == 'src':
     #     table_x.to_pydict()
 
         # pa.Table.from_pydict({'x': arrow_x, 'y': })
-
-
-

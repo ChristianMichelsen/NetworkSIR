@@ -43,5 +43,5 @@ dependencies:
     - mpl-scatter-density
     - pygifsicle
     - contexttimer
-    - awkward1
+    - awkward1>=0.2.32
     - range-key-dict

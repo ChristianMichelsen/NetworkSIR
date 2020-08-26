@@ -189,7 +189,7 @@ class FitSIR:  # override the class with a better one
         s = f'FitSIR(\n\tself.t=[{self.t[0]}, ..., {self.t[-1]}], \n\tself.y=[{self.y[0]:.1f}, ..., {self.y[-1]:.1f}], \n\t{self.T_max=}, \n\t{self.dt=}, \n\t{self.ts=}, \n\t{self.N=})'.replace('=', ' = ').replace('array(', '').replace('])', ']')
         if self.minuit_is_set:
             s += '\n\n'
-            s += f"chi2 = {self.chi2:.1f} \n\n"
+            s += f"chi2 = {self.chi2:.1f}, is_valid_fit = {self.is_valid_fit} \n\n"
             s += str(self.get_fit_parameters())
         return s
 

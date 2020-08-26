@@ -85,7 +85,6 @@ num_cores = utils.get_num_cores(num_cores_max)
 all_fits = fits.get_fit_results(abn_files, force_rerun=False, num_cores=num_cores)
 
 
-
 #%%
 
 from matplotlib.ticker import EngFormatter
@@ -115,9 +114,6 @@ def plot_fit_simulation_SIR_comparison(all_fits, force_overwrite=False, verbose=
 
             cfg = utils.string_to_dict(ABN_parameter)
 
-            if cfg.N_tot > 5_000_000 and cfg.rho == 100:
-                assert False
-
             fit_values_deterministic = {'lambda_E': cfg.lambda_E,
                           'lambda_I': cfg.lambda_I,
                           'beta': cfg.beta,
@@ -134,11 +130,6 @@ def plot_fit_simulation_SIR_comparison(all_fits, force_overwrite=False, verbose=
                 t = df['time'].values
                 T_max = max(t)*1.1
                 df_fit = fit_object.calc_df_fit(ts=0.1, T_max=T_max)
-
-                if df_fit['I'].iloc[3000] > 5_000_000:
-                    assert False
-
-
 
                 lw = 0.8
                 for I_or_R, ax in zip(['I', 'R'], axes):
