@@ -309,19 +309,18 @@ def nb_make_initial_infections(N_init, my_state, state_total_counts, agents_in_s
         g_total_sum_of_state_changes += SIR_transition_rates[new_state] # 'g_' = gillespie variable
         g_cumulative_sum_of_state_changes[new_state:] += SIR_transition_rates[new_state]
 
-        non_infectable_agents[agent] = True # TODO: remove
 
     if do_memory_tracking:
         with objmode():
             track_memory()
 
-    return g_total_sum_of_state_changes, non_infectable_agents
+    return g_total_sum_of_state_changes#, non_infectable_agents
 
 #%%
 
 
 @njit
-def nb_run_simulation(N_tot, g_total_sum_of_state_changes, g_cumulative_sum_of_state_changes, state_total_counts, agents_in_state, my_state, g_cumulative_sum_infection_rates, N_states, my_sum_of_rates, SIR_transition_rates, N_infectious_states, my_number_of_contacts, my_rates, my_connections, my_age, individual_infection_counter, cs_move_individual, H_probability_matrix_csum, H_my_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, nts, verbose, non_infectable_agents, my_connections_type):
+def nb_run_simulation(N_tot, g_total_sum_of_state_changes, g_cumulative_sum_of_state_changes, state_total_counts, agents_in_state, my_state, g_cumulative_sum_infection_rates, N_states, my_sum_of_rates, SIR_transition_rates, N_infectious_states, my_number_of_contacts, my_rates, my_connections, my_age, individual_infection_counter, cs_move_individual, H_probability_matrix_csum, H_my_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, nts, verbose, my_connections_type):
 
 
     # if do_memory_tracking:
@@ -365,7 +364,7 @@ def nb_run_simulation(N_tot, g_total_sum_of_state_changes, g_cumulative_sum_of_s
 
     # infectious_states = np.array([4, 5, 6, 7], dtype=np.int8) #TODO: fix
     infectious_states = {4, 5, 6, 7} #TODO: fix
-    infectable_states = {-1, 0, 1, 2, 3} #TODO: fix
+    # infectable_states = {-1} #TODO: fix
 
 
     # if do_memory_tracking:
@@ -421,7 +420,8 @@ def nb_run_simulation(N_tot, g_total_sum_of_state_changes, g_cumulative_sum_of_s
             # Moves TO infectious State from non-infectious
             if my_state[agent] == N_infectious_states:
                 for contact, rate in zip(my_connections[agent], my_rates[agent]): # Loop over row agent
-                    if my_state[contact] in infectious_states:
+                    # if contact is susceptible
+                    if my_state[contact] == -1:
                         g_total_sum_infections += rate
                         my_sum_of_rates[agent] += rate
                         g_cumulative_sum_infection_rates[my_state[agent]:] += rate
@@ -430,7 +430,8 @@ def nb_run_simulation(N_tot, g_total_sum_of_state_changes, g_cumulative_sum_of_s
             # If this moves to Recovered state
             if my_state[agent] == N_states-1:
                 for contact, rate in zip(my_connections[agent], my_rates[agent]):
-                    if my_state[contact] in infectious_states:
+                    # if contact is susceptible
+                    if my_state[contact] == -1:
                         g_total_sum_infections -= rate
                         my_sum_of_rates[agent] -= rate
                         g_cumulative_sum_infection_rates[my_state[agent]:] -= rate
@@ -443,7 +444,7 @@ def nb_run_simulation(N_tot, g_total_sum_of_state_changes, g_cumulative_sum_of_s
 
             x = (g_total_sum_of_state_changes + g_cumulative_sum_infection_rates) / g_total_sum
             state_now = np.searchsorted(x, ra1)
-            g_cumulative_sum = g_total_sum_of_state_changes/g_total_sum + g_cumulative_sum_infection_rates[state_now-1]/g_total_sum # important change from [state_now] to [state_now-1]
+            g_cumulative_sum = (g_total_sum_of_state_changes + g_cumulative_sum_infection_rates[state_now-1]) / g_total_sum # important change from [state_now] to [state_now-1]
 
             agent_getting_infected = -1
             for agent in agents_in_state[state_now]:
@@ -453,8 +454,9 @@ def nb_run_simulation(N_tot, g_total_sum_of_state_changes, g_cumulative_sum_of_s
 
                 if suggested_cumulative_sum > ra1:
                     for rate, contact in zip(my_rates[agent], my_connections[agent]):
-                        # if my_state[contact] in infectable_states:
-                        if not non_infectable_agents[contact]:
+
+                        # if contact is susceptible
+                        if my_state[contact] == -1:
 
                             g_cumulative_sum += rate / g_total_sum
 
@@ -466,7 +468,7 @@ def nb_run_simulation(N_tot, g_total_sum_of_state_changes, g_cumulative_sum_of_s
                                 g_total_sum_of_state_changes += SIR_transition_rates[0]
                                 g_cumulative_sum_of_state_changes += SIR_transition_rates[0]
                                 accept = True
-                                non_infectable_agents[contact] = True # TODO: possibly remove
+                                # non_infectable_agents[contact] = True
                                 agent_getting_infected = contact
                                 break
                 else:
@@ -475,8 +477,9 @@ def nb_run_simulation(N_tot, g_total_sum_of_state_changes, g_cumulative_sum_of_s
                 if accept:
                     break
 
-            if agent_getting_infected != -1:
-                print("Error here")
+            if agent_getting_infected == -1:
+                print("Error here", accept, agent_getting_infected, step_number)
+                break
 
             # Here we update infection lists so that newly infected cannot be infected again
 
@@ -549,11 +552,11 @@ def nb_run_simulation(N_tot, g_total_sum_of_state_changes, g_cumulative_sum_of_s
                 out_my_state.append(my_state.copy())
 
                 # tent testing
-                # N_daily_tests = 1_000
-                N_daily_tests = 0
+                N_daily_tests = 10_000
+                # N_daily_tests = 0
                 f_test_succes = 0.8
 
-                g_total_sum_infections, n_positive_tested = nb_daily_tent_test(N_daily_tests, f_test_succes, N_tot, my_state, N_infectious_states, N_states, my_number_of_contacts, my_connections, my_rates, my_connections_type, non_infectable_agents, infectious_states, g_total_sum_infections, my_sum_of_rates, g_cumulative_sum_infection_rates)
+                g_total_sum_infections, n_positive_tested = nb_daily_tent_test(N_daily_tests, f_test_succes, N_tot, my_state, N_infectious_states, N_states, my_number_of_contacts, my_connections, my_rates, my_connections_type, infectious_states, g_total_sum_infections, my_sum_of_rates, g_cumulative_sum_infection_rates)
                 N_positive_tested.append(n_positive_tested)
 
                 # if do_memory_tracking:
@@ -583,7 +586,7 @@ def nb_run_simulation(N_tot, g_total_sum_of_state_changes, g_cumulative_sum_of_s
 
 
 @njit
-def nb_daily_tent_test(N_daily_tests, f_test_succes, N_tot, my_state, N_infectious_states, N_states, my_number_of_contacts, my_connections, my_rates, my_connections_type, non_infectable_agents, infectious_states, g_total_sum_infections, my_sum_of_rates, g_cumulative_sum_infection_rates):
+def nb_daily_tent_test(N_daily_tests, f_test_succes, N_tot, my_state, N_infectious_states, N_states, my_number_of_contacts, my_connections, my_rates, my_connections_type, infectious_states, g_total_sum_infections, my_sum_of_rates, g_cumulative_sum_infection_rates):
 
     n_positive_tested = 0
 
@@ -602,7 +605,7 @@ def nb_daily_tent_test(N_daily_tests, f_test_succes, N_tot, my_state, N_infectio
                 connection_type = my_connections_type[agent][i]
 
                 # only close work/other contacts
-                if not non_infectable_agents[contact] and connection_type > -1:
+                if my_state[contact] == -1 and connection_type > -1:
                     g_total_sum_infections -= rate
                     my_sum_of_rates[agent] -= rate
                     g_cumulative_sum_infection_rates[my_state[agent]:] -= rate
@@ -944,7 +947,7 @@ class Simulation:
 
         self.SIR_transition_rates = simulation_utils.initialize_SIR_transition_rates(self.N_states, self.N_infectious_states, cfg)
 
-        self.g_total_sum_of_state_changes, self.non_infectable_agents = nb_make_initial_infections(cfg.N_init, self.my_state, self.state_total_counts, self.agents_in_state, self.g_cumulative_sum_of_state_changes, self.my_connections.array, self.my_number_of_contacts, self.my_rates.array, self.SIR_transition_rates, self.agents_in_age_group, self.initial_ages_exposed, self.cs_move_individual, self.N_infectious_states, self.coordinates, make_random_infections)
+        self.g_total_sum_of_state_changes = nb_make_initial_infections(cfg.N_init, self.my_state, self.state_total_counts, self.agents_in_state, self.g_cumulative_sum_of_state_changes, self.my_connections.array, self.my_number_of_contacts, self.my_rates.array, self.SIR_transition_rates, self.agents_in_age_group, self.initial_ages_exposed, self.cs_move_individual, self.N_infectious_states, self.coordinates, make_random_infections)
 
 
     def run_simulation(self):
@@ -967,7 +970,7 @@ class Simulation:
         self.my_rates.array, self.my_connections.array,
         # ages,
         self.my_age,
-        self.individual_infection_counter, self.cs_move_individual, H_probability_matrix_csum, H_my_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, self.nts, self.verbose, self.non_infectable_agents, self.my_connections_type.array)
+        self.individual_infection_counter, self.cs_move_individual, H_probability_matrix_csum, H_my_state, H_agents_in_state, H_state_total_counts, H_move_matrix_sum, H_cumsum_move, H_move_matrix_cumsum, self.nts, self.verbose, self.my_connections_type.array)
 
         out_time, out_state_counts, out_my_state = res
 
@@ -1089,7 +1092,8 @@ verbose = True
 force_rerun = False
 filename = 'Data/ABN/N_tot__58000__N_init__100__N_ages__10__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv'
 # filename = filename.replace('ID__000', 'ID__001')
-filename = filename.replace('N_tot__58000', 'N_tot__10000')
+# filename = filename.replace('N_tot__58000', 'N_tot__10000')
+filename = filename.replace('N_tot__58000', 'N_tot__100000')
 
 
 # if running just til file

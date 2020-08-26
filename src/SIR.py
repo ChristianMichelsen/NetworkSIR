@@ -214,6 +214,14 @@ class FitSIR:  # override the class with a better one
         self.reduced_chi2 = self.chi2 / self.N
         return self.chi2
 
+    def _is_valid_fit(self, minuit, max_reduced_chi2):
+        good_chi2 = (0.001 <= self.reduced_chi2 <= max_reduced_chi2)
+        has_correlations = self.has_correlations
+        valid_hesse = not minuit.get_fmin().hesse_failed
+        is_valid_fit = (good_chi2 and has_correlations and valid_hesse)
+        return is_valid_fit
+
+
     def set_minuit(self, minuit):
         self.minuit_is_set = True
         # self.minuit = minuit
@@ -236,6 +244,9 @@ class FitSIR:  # override the class with a better one
 
         except RuntimeError:
             self.has_correlations = False
+
+        self.max_reduced_chi2 = 10
+        self.is_valid_fit = self._is_valid_fit(minuit, self.max_reduced_chi2)
 
 
     def get_fit_parameter(self, parameter):
@@ -323,4 +334,5 @@ class FitSIR:  # override the class with a better one
             I_max_MC[i] = get_I_max(I)
             R_inf_MC[i] = get_R_inf(R)
         return SIR_results, I_max_MC, R_inf_MC
+
 

@@ -41,11 +41,11 @@ def extract_data(t, y, T_max, N_tot):
     return t[mask], y[mask]
 
 
-def refit_if_needed(fit_object, cfg, bounds, FIT_MAX, max_reduced_chi2):
+def refit_if_needed(fit_object, cfg, bounds, FIT_MAX):
 
     fit_failed = True
 
-    if fit_object.reduced_chi2 < max_reduced_chi2:
+    if fit_object.is_valid_fit:
         fit_failed = False
         N_refits = 0
 
@@ -56,11 +56,13 @@ def refit_if_needed(fit_object, cfg, bounds, FIT_MAX, max_reduced_chi2):
                         'beta': uniform(cfg.beta/10, cfg.beta*5),
                         'tau': uniform(-10, 10),
                         }
+
             param_list = list(ParameterSampler(param_grid, n_iter=1))[0]
             minuit = Minuit(fit_object, pedantic=False, print_level=0, **param_list, **bounds)
             minuit.migrad()
             fit_object.set_minuit(minuit)
-            if (0.001 <= fit_object.reduced_chi2 <= max_reduced_chi2 and fit_object.has_correlations):
+
+            if fit_object.is_valid_fit:
                 fit_failed = False
                 break
 
@@ -82,7 +84,7 @@ def run_actual_fit(t, y, sy, cfg, dt, ts, filename):
     fit_object.set_chi2(minuit)
     fit_object.set_minuit(minuit)
 
-    fit_object, fit_failed = refit_if_needed(fit_object, cfg, bounds, FIT_MAX=100, max_reduced_chi2=10)
+    fit_object, fit_failed = refit_if_needed(fit_object, cfg, bounds, FIT_MAX=100)
 
     return fit_object, fit_failed
 
@@ -106,13 +108,15 @@ def add_fit_results_to_fit_object(fit_object, filename, cfg, T_max, df):
     fit_object.I_max_MC = I_max_MC
     fit_object.R_inf_MC = R_inf_MC
 
+
+
 # filename = 'Data/ABN/N_tot__5800000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__5800000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__002.csv'
 
 # filename = 'Data/ABN/N_tot__5800000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__5800000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__007.csv'
 
 filename = 'Data/ABN/N_tot__100000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__1/N_tot__100000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__1__ID__007.csv'
-ts=0.1
-dt=0.01
+ts = 0.1
+dt = 0.01
 
 
 def fit_single_file(filename, ts=0.1, dt=0.01):
