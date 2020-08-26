@@ -189,7 +189,7 @@ class FitSIR:  # override the class with a better one
         s = f'FitSIR(\n\tself.t=[{self.t[0]}, ..., {self.t[-1]}], \n\tself.y=[{self.y[0]:.1f}, ..., {self.y[-1]:.1f}], \n\t{self.T_max=}, \n\t{self.dt=}, \n\t{self.ts=}, \n\t{self.N=})'.replace('=', ' = ').replace('array(', '').replace('])', ']')
         if self.minuit_is_set:
             s += '\n\n'
-            s += f"chi2 = {self.chi2:.1f}, is_valid_fit = {self.is_valid_fit} \n\n"
+            s += f"chi2 = {self.chi2:.1f}, valid_fit = {self.valid_fit} \n\n"
             s += str(self.get_fit_parameters())
         return s
 
@@ -214,28 +214,27 @@ class FitSIR:  # override the class with a better one
         self.reduced_chi2 = self.chi2 / self.N
         return self.chi2
 
-    def _is_valid_fit(self, minuit, max_reduced_chi2):
+    def _valid_fit(self, minuit, max_reduced_chi2):
         good_chi2 = (0.001 <= self.reduced_chi2 <= max_reduced_chi2)
         has_correlations = self.has_correlations
         valid_hesse = not minuit.get_fmin().hesse_failed
-        is_valid_fit = (good_chi2 and has_correlations and valid_hesse)
-        return is_valid_fit
+        # valid_min = minuit.valid
+        valid_fit = (good_chi2 and has_correlations)
+        valid_fit = (good_chi2 and valid_hesse)
+        return valid_fit
 
 
     def set_minuit(self, minuit):
         self.minuit_is_set = True
         # self.minuit = minuit
         # self.m = minuit
-        self.parameters = minuit.parameters
-        self.values = minuit.np_values()
-        self.errors = minuit.np_values()
 
         self.fit_values = dict(minuit.values)
         self.fit_errors = dict(minuit.errors)
 
-        self.chi2 = self.__call__(**self.fit_values)
+        self.chi2 = minuit.fval
         self.reduced_chi2 = self.chi2 / self.N
-        self.is_valid = minuit.get_fmin().is_valid
+        # self.is_valid = minuit.get_fmin().is_valid
 
         try:
             self.has_correlations = True
@@ -246,7 +245,7 @@ class FitSIR:  # override the class with a better one
             self.has_correlations = False
 
         self.max_reduced_chi2 = 10
-        self.is_valid_fit = self._is_valid_fit(minuit, self.max_reduced_chi2)
+        self.valid_fit = self._valid_fit(minuit, self.max_reduced_chi2)
 
 
     def get_fit_parameter(self, parameter):
@@ -258,7 +257,7 @@ class FitSIR:  # override the class with a better one
             raise AssertionError("Minuit has to be set ('.set_minuit(minuit)')")
 
         fit_parameters = {}
-        for parameter in self.parameters:
+        for parameter in self.fit_values.keys():
             fit_parameters[parameter] = self.get_fit_parameter(parameter)
         df_fit_parameters = pd.DataFrame(fit_parameters, index=['mean', 'std'])
         return df_fit_parameters
@@ -286,7 +285,7 @@ class FitSIR:  # override the class with a better one
         tau = fit_values['tau']
         return lambda_E, lambda_I, beta, tau
 
-    def calc_df_fit(self, ts=0.01, fit_values=None, T_max=None):
+    def calc_df_fit(self, ts=0.1, fit_values=None, T_max=None):
         lambda_E, lambda_I, beta, tau = self._fit_values(fit_values)
         SIR_result = self._compute_result_SIR(lambda_E, lambda_I, beta, ts=ts, T_max=T_max)
         df_fit = SIR_result_to_dataframe(SIR_result)
@@ -294,23 +293,23 @@ class FitSIR:  # override the class with a better one
         df_fit['N'] = df_fit[['S', 'E', 'I', 'R']].sum(axis=1)
         return df_fit
 
-    def compute_I_max(self, ts=0.1, fit_values=None):
-        lambda_E, lambda_I, beta, tau = self._fit_values(fit_values)
-        SIR_result = self._compute_result_SIR(lambda_E, lambda_I, beta, ts=ts)
-        I_max = get_I_max(SIR_result_to_I(SIR_result))
-        return I_max
-
-    def compute_R_inf(self, ts=0.1, fit_values=None, T_max=None):
+    def compute_I_max_R_inf(self, ts=0.1, fit_values=None, T_max=None):
         lambda_E, lambda_I, beta, tau = self._fit_values(fit_values)
         SIR_result = self._compute_result_SIR(lambda_E, lambda_I, beta, ts=ts, T_max=T_max)
+        I_max = get_I_max(SIR_result_to_I(SIR_result))
         R_inf = get_R_inf(SIR_result_to_R(SIR_result))
-        return R_inf
+        return I_max, R_inf
 
     def _random_sample_fit_parameters(self, N_samples):
         mean = self.get_fit_parameters().loc['mean'].values
         cov = self.covariances
         rng = np.random.default_rng()
-        samples = rng.multivariate_normal(mean, cov, N_samples)
+        samples = []
+        while len(samples) < N_samples:
+            # sample = [lambda_E, lambda_I, beta, tau]
+            sample = rng.multivariate_normal(mean, cov, 1)[0]
+            if not np.any(sample[:-1] <= 0):
+                samples.append(sample)
         return samples
 
     def _random_samples_to_SIR_results(self, N_samples, T_max, ts):

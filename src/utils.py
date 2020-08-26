@@ -630,16 +630,40 @@ def dict_to_title(d, N=None, exclude=None, in_two_line=True):
     return title
 
 
-def human_format(num, decimals=None):
-    num = float('{:.3g}'.format(num))
+def human_format(num, digits=3):
+    num = float(f"{num:.{digits}g}")
     magnitude = 0
     while abs(num) >= 1000:
         magnitude += 1
         num /= 1000.0
-    if decimals is not None:
-        num = round(num, decimals)
-    return '{}{}'.format('{:f}'.format(num).rstrip('0').rstrip('.'), ['', 'K', 'M', 'B', 'T'][magnitude])
+    return '{}{}'.format('{:f}'.format(num).rstrip('0').rstrip('.'), ['', 'K', 'M', 'G', 'T'][magnitude])
 
+
+def format_uncertanties(median, errors, name='I'):
+
+    s_main = human_format(median, digits=3)
+    prefix = s_main[-1]
+
+    if name == 'I':
+        name = r'I_\mathrm{max}^\mathrm{fit}'
+    elif name == 'R':
+        name = r'R_\mathrm{inf}^\mathrm{fit}'
+    else:
+        raise AssertionError(f"name = {name} not defined")
+
+
+    d = {'K': 1000, 'M': 1000**2, 'G': 1000**3, 'T': 1000**4}
+    d2 = {'K': '10^3', 'M': '10^6', 'G': '10^9', 'T': '10^12'}
+
+    out = []
+    for error in errors:
+        try:
+            out.append(error / d[prefix])
+        except KeyError as e:
+            print(prefix, s_main)
+
+    s = r"$" + f"{name}" +  r" = " + f"{s_main[:-1]}" + r"_{" + f"-{out[0]:.1f}" + r"}^{+" + f"{out[1]:.1f}" + r"} \cdot " + f"{d2[prefix]}" + r"$"
+    return s
 
 #%%
 

@@ -82,7 +82,26 @@ if False:
 #%%
 
 num_cores = utils.get_num_cores(num_cores_max)
-all_fits = fits.get_fit_results(abn_files, force_rerun=False, num_cores=num_cores)
+
+import warnings
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", message="covariance is not positive-semidefinite.")
+    all_fits = fits.get_fit_results(abn_files, force_rerun=False, num_cores=num_cores)
+
+
+#%%
+
+
+from scipy.special import erf
+def get_confidence_intervals_median(x, N_sigma=1):
+    median = np.median(x)
+    sigma = 100*erf(N_sigma/np.sqrt(2))
+    p_lower = 50 - sigma/2
+    p_upper = 50 + sigma/2
+    lower_bound = np.percentile(x, p_lower)
+    upper_bound = np.percentile(x, p_upper)
+    errors = median-lower_bound, upper_bound-median
+    return median, errors
 
 
 #%%
@@ -90,7 +109,7 @@ all_fits = fits.get_fit_results(abn_files, force_rerun=False, num_cores=num_core
 from matplotlib.ticker import EngFormatter
 
 do_log = False
-def plot_fit_simulation_SIR_comparison(all_fits, force_overwrite=False, verbose=False, do_log=False):
+def plot_fits(all_fits, force_overwrite=False, verbose=False, do_log=False):
 
     pdf_name = f"Figures/Fits.pdf"
     Path(pdf_name).parent.mkdir(parents=True, exist_ok=True)
@@ -108,8 +127,7 @@ def plot_fit_simulation_SIR_comparison(all_fits, force_overwrite=False, verbose=
             # break
 
             if len(fit_objects) == 0:
-                if verbose:
-                    print(f"Skipping {ABN_parameter}")
+                print(f"Skipping {ABN_parameter}")
                 continue
 
             cfg = utils.string_to_dict(ABN_parameter)
@@ -123,13 +141,17 @@ def plot_fit_simulation_SIR_comparison(all_fits, force_overwrite=False, verbose=
             fig, axes = plt.subplots(ncols=2, figsize=(18, 7), constrained_layout=True)
             fig.subplots_adjust(top=0.8)
 
-            for i, (filename, fit_object) in enumerate(fit_objects.items()):
+
+            for i, fit_object in enumerate(fit_objects.values()):
                 # break
 
-                df = file_loaders.pandas_load_file(filename)
+                df = file_loaders.pandas_load_file(fit_object.filename)
                 t = df['time'].values
                 T_max = max(t)*1.1
                 df_fit = fit_object.calc_df_fit(ts=0.1, T_max=T_max)
+
+                # if df_fit['I'].max() > 150_000:
+                #     assert False
 
                 lw = 0.8
                 for I_or_R, ax in zip(['I', 'R'], axes):
@@ -137,12 +159,33 @@ def plot_fit_simulation_SIR_comparison(all_fits, force_overwrite=False, verbose=
                     label = 'Simulations' if i == 0 else None
                     ax.plot(t, df[I_or_R], 'k-', lw=lw, label=label)
 
-                    label_min = 'Min/Max' if i == 0 else None
+                    label_min = 'Fit Range' if i == 0 else None
                     ax.axvline(fit_object.t.min(), lw=lw, alpha=0.8, label=label_min)
                     ax.axvline(fit_object.t.max(), lw=lw, alpha=0.8)
 
                     label = 'Fits' if i == 0 else None
                     ax.plot(df_fit['time'], df_fit[I_or_R], lw=lw, color='green', label=label)
+
+
+            human = utils.human_format
+
+
+            all_I_max_MC = []
+            all_R_inf_MC = []
+            for i, fit_object in enumerate(fit_objects.values()):
+                all_I_max_MC.extend(fit_object.I_max_MC)
+                all_R_inf_MC.extend(fit_object.R_inf_MC)
+
+            I_median, I_errors = get_confidence_intervals_median(all_I_max_MC)
+            s = utils.format_uncertanties(I_median, I_errors, 'I')
+            axes[0].text(-0.15, -0.25, s, horizontalalignment='left',
+                    transform=axes[0].transAxes, fontsize=24)
+
+
+            R_median, R_errors = get_confidence_intervals_median(all_R_inf_MC)
+            s = utils.format_uncertanties(R_median, R_errors, 'R')
+            axes[1].text(-0.15, -0.25, s, horizontalalignment='left',
+                    transform=axes[1].transAxes, fontsize=24)
 
 
             df_SIR = fit_object.calc_df_fit(fit_values=fit_values_deterministic, ts=0.1, T_max=T_max)
@@ -178,25 +221,13 @@ def plot_fit_simulation_SIR_comparison(all_fits, force_overwrite=False, verbose=
 import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", message="This figure was using constrained_layout==True")
-    plot_fit_simulation_SIR_comparison(all_fits, force_overwrite=False, verbose=False, do_log=False)
-
-
-#%%
-
-    # %%
-    print("Finished running")
-
+    plot_fits(all_fits, force_overwrite=False, verbose=False, do_log=False)
 
 
 #%%
 
 
-# fit_object.filename = filename
-# fit_object.I_max_ABN
-# fit_object.I_max_hat
-# fit_object.I_max_det
 
-# fit_object.R_inf_net
-# fit_object.R_inf_hat
-# fit_object.R_inf_det
+
+
 

@@ -23,6 +23,7 @@ except ImportError:
 
 reload(SIR)
 
+
 def uniform(a, b):
     loc = a
     scale = b-a
@@ -41,16 +42,44 @@ def extract_data(t, y, T_max, N_tot):
     return t[mask], y[mask]
 
 
-def refit_if_needed(fit_object, cfg, bounds, FIT_MAX):
+def add_fit_results_to_fit_object(fit_object, filename, cfg, T_max, df):
+
+    fit_object.filename = filename
+
+    I_max_SIR, R_inf_SIR = SIR.calc_deterministic_results(cfg, T_max*1.2, dt=0.01, ts=0.1)
+    I_max_fit, R_inf_fit = fit_object.compute_I_max_R_inf(T_max=T_max*1.5)
+
+
+    fit_object.I_max_ABN = np.max(df['I'])
+    fit_object.I_max_fit = I_max_fit
+    fit_object.I_max_SIR = I_max_SIR
+
+    fit_object.R_inf_ABN = df['R'].iloc[-1]
+    fit_object.R_inf_fit = R_inf_fit
+    fit_object.R_inf_SIR = R_inf_SIR
+
+    SIR_results, I_max_MC, R_inf_MC = fit_object.make_monte_carlo_fits(N_samples=100, T_max=T_max*1.5, ts=0.1)
+    # fit_object.SIR_results = SIR_results
+    fit_object.I_max_MC = I_max_MC
+    fit_object.R_inf_MC = R_inf_MC
+
+
+
+def refit_if_needed(fit_object, cfg, bounds, minuit, FIT_MAX):
+
 
     fit_failed = True
+    N_refits = 0
 
-    if fit_object.is_valid_fit:
+    if fit_object.valid_fit:
         fit_failed = False
-        N_refits = 0
 
     else:
+
+        minuit_dict = dict(pedantic=False, print_level=0, **bounds, errordef=Minuit.LEAST_SQUARES)
+
         for N_refits in range(FIT_MAX):
+
             param_grid = {'lambda_E': uniform(cfg.lambda_E/10, cfg.lambda_E*5),
                         'lambda_I': uniform(cfg.lambda_I/10, cfg.lambda_I*5),
                         'beta': uniform(cfg.beta/10, cfg.beta*5),
@@ -58,13 +87,21 @@ def refit_if_needed(fit_object, cfg, bounds, FIT_MAX):
                         }
 
             param_list = list(ParameterSampler(param_grid, n_iter=1))[0]
-            minuit = Minuit(fit_object, pedantic=False, print_level=0, **param_list, **bounds)
+            minuit = Minuit(fit_object, **param_list, **minuit_dict)
             minuit.migrad()
             fit_object.set_minuit(minuit)
 
-            if fit_object.is_valid_fit:
+            if fit_object.valid_fit:
                 fit_failed = False
                 break
+
+    # if unable to fit the data, stop the fit
+    if fit_failed:
+        return fit_object, fit_failed
+
+    # compute better errors (slow!)
+    # minuit.minos()
+    fit_object.set_minuit(minuit)
 
     fit_object.N_refits = N_refits
     return fit_object, fit_failed
@@ -84,29 +121,9 @@ def run_actual_fit(t, y, sy, cfg, dt, ts, filename):
     fit_object.set_chi2(minuit)
     fit_object.set_minuit(minuit)
 
-    fit_object, fit_failed = refit_if_needed(fit_object, cfg, bounds, FIT_MAX=100)
+    fit_object, fit_failed = refit_if_needed(fit_object, cfg, bounds, minuit, FIT_MAX=100)
 
     return fit_object, fit_failed
-
-
-def add_fit_results_to_fit_object(fit_object, filename, cfg, T_max, df):
-
-    fit_object.filename = filename
-
-    I_max_SIR, R_inf_SIR = SIR.calc_deterministic_results(cfg, T_max*1.2, dt=0.01, ts=0.1)
-
-    fit_object.I_max_ABN = np.max(df['I'])
-    fit_object.I_max_fit = fit_object.compute_I_max()
-    fit_object.I_max_SIR = I_max_SIR
-
-    fit_object.R_inf_ABN = df['R'].iloc[-1]
-    fit_object.R_inf_fit = fit_object.compute_R_inf(T_max=T_max*1.5)
-    fit_object.R_inf_SIR = R_inf_SIR
-
-    SIR_results, I_max_MC, R_inf_MC = fit_object.make_monte_carlo_fits(N_samples=100, T_max=T_max*1.5, ts=0.1)
-    # fit_object.SIR_results = SIR_results
-    fit_object.I_max_MC = I_max_MC
-    fit_object.R_inf_MC = R_inf_MC
 
 
 def fit_single_file(filename, ts=0.1, dt=0.01):
@@ -130,12 +147,11 @@ def fit_single_file(filename, ts=0.1, dt=0.01):
     sy = np.sqrt(y)
 
     if len(t) < 5:
-        # print(f"\n\n{filename} was rejected since len(t) = {len(t)}\n", flush=True)
         return filename, f'Too few datapoints (N = {len(t)})'
 
     fit_object, fit_failed = run_actual_fit(t, y, sy, cfg, dt, ts, filename)
     if fit_failed:
-        return filename, 'Too many fit retries'
+        return filename, 'Fit failed'
 
     try:
         add_fit_results_to_fit_object(fit_object, filename, cfg, T_max, df)
@@ -150,6 +166,7 @@ def fit_single_file(filename, ts=0.1, dt=0.01):
 
 #%%
 
+import warnings
 
 def fit_multiple_files(filenames, num_cores=1, do_tqdm=True):
 
@@ -208,3 +225,25 @@ def get_fit_results(abn_files, force_rerun=False, num_cores=1):
         joblib.dump(all_fits, all_fits_file)
         return all_fits
 
+
+
+
+filename = '../Data/ABN/N_tot__580000__N_init__1000__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.0__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__580000__N_init__1000__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.0__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__003.csv'
+ts = 0.1
+dt = 0.01
+
+import matplotlib.pyplot as plt
+
+if False:
+
+    plt.plot(t, y)
+
+    fig, ax = plt.subplots()
+    for i, SIR_result in enumerate(SIR_results):
+        t = SIR_result[:, 0]
+        I = SIR_result[:, -2]
+        R = SIR_result[:, -1]
+        ax.plot(t, I)
+
+    fig2, ax2 = plt.subplots()
+    ax2.hist(fit_object.I_max_MC, 50)

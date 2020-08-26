@@ -7,7 +7,8 @@ import multiprocessing as mp
 import matplotlib.pyplot as plt
 import time as Time
 import h5py
-import psutil
+# import psutil
+from resource import getrusage, RUSAGE_SELF
 import warnings
 from importlib import reload
 from contexttimer import Timer
@@ -707,8 +708,9 @@ class Simulation:
     @property
     def current_memory_usage(self):
         "Returns current memory usage of entire process in GiB"
-        process = psutil.Process()
-        return process.memory_info().rss / 2**30
+        # process = psutil.Process()
+        # return process.memory_info().rss / 2**30
+        return getrusage(RUSAGE_SELF).ru_maxrss / 2**30
 
 
     def track_memory(self, s=None):
