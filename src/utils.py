@@ -762,37 +762,25 @@ def numba_random_choice_list(l):
 
 
 
-#%%
-
-# @njit
-# def f1(x):
-#     return np.random.choice(x)
-
-# @njit
-# def f2(x):
-#     return numba_random_choice_list(x)
-
-
-# x_np = np.arange(10)
-# x_nb = List()
-# for i in range(10):
-#     x_nb.append(10)
-
-
-# f1(x_np)
-# f1(x_nb)
-
-# f2(x_np)
-# f2(x_nb)
-
-
-# %timeit f1(x_np)
-# # f1(x_nb)
-
-# %timeit f2(x_np)
-# %timeit f2(x_nb)
-
-
 
 #%%
+
+
+
+from scipy.special import erf
+def get_central_confidence_intervals(x, agg_func=np.median, N_sigma=1):
+    agg = agg_func(x)
+    sigma = 100*erf(N_sigma/np.sqrt(2))
+    p_lower = 50 - sigma/2
+    p_upper = 50 + sigma/2
+    lower_bound = np.percentile(x, p_lower)
+    upper_bound = np.percentile(x, p_upper)
+    errors = agg-lower_bound, upper_bound-agg
+    return agg, errors
+
+
+def SDOM(x):
+    "standard deviation of the mean"
+    return np.std(x) / np.sqrt(len(x))
+
 
