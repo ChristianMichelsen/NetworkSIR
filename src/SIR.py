@@ -108,6 +108,7 @@ def numba_SIR_integrate(y0, T_max, dt, ts, mu, lambda_E, lambda_I, beta):
     return SIR_result
 
 def cfg_to_y0(cfg):
+    """ S, N_tot, E1, E2, E3, E4, I1, I2, I3, I4, R = y0 """
     y0 = cfg.N_tot-cfg.N_init, cfg.N_tot,   cfg.N_init,0,0,0,      0,0,0,0,   0
     return y0
 
@@ -160,11 +161,14 @@ from iminuit import describe
 
 class FitSIR:  # override the class with a better one
 
-    def __init__(self, t, y, sy, cfg, dt, ts):
+    def __init__(self, t, y, sy, priors, cfg, dt, ts):
+
+        """ priors: dict(multiplier=0.1, lambda_E={'mean': mean, 'std': std}, lambda_I={'mean': mean, 'std': std} ...) """
 
         self.t = t
         self.y = y
         self.sy = sy
+        self.priors = priors
         self.cfg = cfg
         self.y0 = cfg_to_y0(cfg)
         self.mu = cfg.mu
@@ -181,9 +185,37 @@ class FitSIR:  # override the class with a better one
         y_hat = self._compute_yhat(lambda_E, lambda_I, beta, tau)
         # compute the chi2-value
         chi2 = np.sum((self.y[self.mask] - y_hat[self.mask])**2/self.sy[self.mask]**2)
+
+        # prior = self._add_prior(self.priors, lambda_E, lambda_I, beta, tau)
+        # alpha = self.priors['multiplier']
+
+        # chi2_tilde = 1/(1+alpha)*chi2 + (alpha/prior)*(1/1+alpha) * chi2
+
+        # chi2_tilde = chi2 + self.priors['multiplier'] * prior
+        # chi2 = chi2_tilde
+        # chi2 = chi2 + prior*alpha*self.N
+        # chi2 = chi2
+
         if np.isnan(chi2):
             return 1e10
         return chi2
+
+    # def _add_gaussian_prior(self, x, mean_x, std_x):
+    #     return ((x-mean_x)/std_x)**2
+
+    # def _add_prior(self, priors, lambda_E, lambda_I, beta, tau):
+    #     prior = 0
+    #     if 'lambda_E' in priors:
+    #         prior += self._add_gaussian_prior(lambda_E, priors['lambda_E']['mean'], priors['lambda_E']['std'])
+    #     if 'lambda_I' in priors:
+    #         prior += self._add_gaussian_prior(lambda_I, priors['lambda_I']['mean'], priors['lambda_I']['std'])
+    #     if 'beta' in priors:
+    #         prior += self._add_gaussian_prior(beta, priors['beta']['mean'], priors['beta']['std'])
+    #     if 'tau' in priors:
+    #         prior += self._add_gaussian_prior(tau, priors['tau']['mean'], priors['tau']['std'])
+    #     # prior *= self.N
+    #     return prior
+
 
     def __repr__(self):
         s = f'FitSIR(\n\tself.t=[{self.t[0]}, ..., {self.t[-1]}], \n\tself.y=[{self.y[0]:.1f}, ..., {self.y[-1]:.1f}], \n\t{self.T_max=}, \n\t{self.dt=}, \n\t{self.ts=}, \n\t{self.N=})'.replace('=', ' = ').replace('array(', '').replace('])', ']')
@@ -214,23 +246,36 @@ class FitSIR:  # override the class with a better one
         self.reduced_chi2 = self.chi2 / self.N
         return self.chi2
 
-    def _valid_fit(self, minuit, max_reduced_chi2):
-        good_chi2 = (0.001 <= self.reduced_chi2 <= max_reduced_chi2)
+    def _valid_fit(self, minuit, max_reduced_chi2=100, verbose=False):
+        if max_reduced_chi2:
+            good_chi2 = (0.001 <= self.reduced_chi2 <= max_reduced_chi2)
+        else:
+            good_chi2 = 0.001 <= self.reduced_chi2
+
         has_correlations = self.has_correlations
         valid_hesse = not minuit.get_fmin().hesse_failed
-        # valid_min = minuit.valid
-        valid_fit = (good_chi2 and has_correlations)
-        valid_fit = (good_chi2 and valid_hesse)
+        good_errors = np.all( minuit.np_errors()[:-1] / np.abs(minuit.np_values()[:-1]) < 2)
+        valid_fit = (good_chi2 and has_correlations and valid_hesse and good_errors)
+
+        if verbose:
+            print(f"{good_chi2=}, {has_correlations=}, {valid_hesse=}, {good_errors=}")
+
         return valid_fit
 
 
-    def set_minuit(self, minuit):
+    def set_minuit(self, minuit, max_reduced_chi2=100):
         self.minuit_is_set = True
         # self.minuit = minuit
         # self.m = minuit
 
         self.fit_values = dict(minuit.values)
         self.fit_errors = dict(minuit.errors)
+        self.fit_fixed = dict(minuit.fixed)
+        self.fit_names = list(minuit.parameters)
+        for parameter in self.fit_names:
+            if self.fit_fixed[parameter]:
+                self.fit_values[parameter] = 'Fixed'
+                self.fit_errors[parameter] = 'Fixed'
 
         self.chi2 = minuit.fval
         self.reduced_chi2 = self.chi2 / self.N
@@ -244,9 +289,10 @@ class FitSIR:  # override the class with a better one
         except RuntimeError:
             self.has_correlations = False
 
-        self.max_reduced_chi2 = 10
-        self.valid_fit = self._valid_fit(minuit, self.max_reduced_chi2)
-
+        self.max_reduced_chi2 = max_reduced_chi2
+        with np.errstate(divide='ignore',invalid='ignore'):
+            self.valid_fit = self._valid_fit(minuit, self.max_reduced_chi2)
+        return self
 
     def get_fit_parameter(self, parameter):
         return self.fit_values[parameter], self.fit_errors[parameter]
@@ -257,7 +303,7 @@ class FitSIR:  # override the class with a better one
             raise AssertionError("Minuit has to be set ('.set_minuit(minuit)')")
 
         fit_parameters = {}
-        for parameter in self.fit_values.keys():
+        for parameter in self.fit_names:
             fit_parameters[parameter] = self.get_fit_parameter(parameter)
         df_fit_parameters = pd.DataFrame(fit_parameters, index=['mean', 'std'])
         return df_fit_parameters
@@ -267,26 +313,44 @@ class FitSIR:  # override the class with a better one
                             index=self.parameters,
                             columns=self.parameters)
 
-    def _fit_values(self, fit_values):
+    def _fix_fixed_parameters(self, fit_values, parameter):
+        if fit_values[parameter] == 'Fixed':
+            return self.cfg[parameter]
+        else:
+            return fit_values[parameter]
+
+    def _get_fit_values(self, fit_values):
 
         if fit_values is None:
             fit_values = self.fit_values
 
         if isinstance(fit_values, (list, np.ndarray)):
+            # if some values are fixed
+            if len(fit_values) != 4:
+                tmp = []
+                i = 0
+                for parameter in self.fit_names:
+                    if self.fit_fixed[parameter]:
+                        tmp.append(self.cfg[parameter])
+                    else:
+                        # assume the fit_values arre ordered
+                        tmp.append(fit_values[i])
+                        i += 1
+                fit_values = tmp
             names = ['lambda_E', 'lambda_I', 'beta', 'tau']
             fit_values = dict(zip(names, fit_values))
 
         if not isinstance(fit_values, dict):
             raise AssertionError("fit_values has to be a dictionary")
 
-        lambda_E = fit_values['lambda_E']
-        lambda_I = fit_values['lambda_I']
-        beta = fit_values['beta']
-        tau = fit_values['tau']
+        lambda_E = self._fix_fixed_parameters(fit_values, 'lambda_E')
+        lambda_I = self._fix_fixed_parameters(fit_values, 'lambda_I')
+        beta = self._fix_fixed_parameters(fit_values, 'beta')
+        tau = self._fix_fixed_parameters(fit_values, 'tau')
         return lambda_E, lambda_I, beta, tau
 
     def calc_df_fit(self, ts=0.1, fit_values=None, T_max=None):
-        lambda_E, lambda_I, beta, tau = self._fit_values(fit_values)
+        lambda_E, lambda_I, beta, tau = self._get_fit_values(fit_values)
         SIR_result = self._compute_result_SIR(lambda_E, lambda_I, beta, ts=ts, T_max=T_max)
         df_fit = SIR_result_to_dataframe(SIR_result)
         df_fit['time'] -= tau
@@ -294,21 +358,26 @@ class FitSIR:  # override the class with a better one
         return df_fit
 
     def compute_I_max_R_inf(self, ts=0.1, fit_values=None, T_max=None):
-        lambda_E, lambda_I, beta, tau = self._fit_values(fit_values)
+        lambda_E, lambda_I, beta, tau = self._get_fit_values(fit_values)
         SIR_result = self._compute_result_SIR(lambda_E, lambda_I, beta, ts=ts, T_max=T_max)
         I_max = get_I_max(SIR_result_to_I(SIR_result))
         R_inf = get_R_inf(SIR_result_to_R(SIR_result))
         return I_max, R_inf
 
+    def _remove_fixed(self, x):
+        return np.array([xi for xi in x if not xi == 'Fixed'])
+
     def _random_sample_fit_parameters(self, N_samples):
-        mean = self.get_fit_parameters().loc['mean'].values
+        mean = self._remove_fixed(self.get_fit_parameters().loc['mean'].values)
         cov = self.covariances
+        if len(mean) != len(cov):
+            raise AssertionError(f"mean and cov does not match in shape: mean = {mean}, cov = {cov}.")
         rng = np.random.default_rng()
         samples = []
         while len(samples) < N_samples:
             # sample = [lambda_E, lambda_I, beta, tau]
             sample = rng.multivariate_normal(mean, cov, 1)[0]
-            if not np.any(sample[:-1] <= 0):
+            if np.all(sample[:-1] >= 0):
                 samples.append(sample)
         return samples
 
@@ -316,7 +385,12 @@ class FitSIR:  # override the class with a better one
         samples = self._random_sample_fit_parameters(N_samples)
         SIR_results = []
         for sample in samples:
-            lambda_E, lambda_I, beta, tau = self._fit_values(sample)
+            # if len(sample) == 2:
+            #     lambda_E = self.cfg.lambda_E
+            #     lambda_I = self.cfg.lambda_I
+            #     beta, tau = sample
+            # else:
+            lambda_E, lambda_I, beta, tau = self._get_fit_values(sample)
             SIR_result = self._compute_result_SIR(lambda_E, lambda_I, beta, ts=ts, T_max=T_max)
             SIR_results.append(SIR_result)
         SIR_results = np.array(SIR_results)

@@ -8,6 +8,7 @@ from iminuit import Minuit
 import multiprocessing as mp
 from tqdm import tqdm
 from scipy.stats import uniform as sp_uniform
+from copy import copy, deepcopy
 from importlib import reload
 
 try:
@@ -64,36 +65,59 @@ def add_fit_results_to_fit_object(fit_object, filename, cfg, T_max, df):
     fit_object.R_inf_MC = R_inf_MC
 
 
+def draw_random_p0(cfg, N_max_fits):
+    param_grid = {
+                #   'lambda_E': uniform(cfg.lambda_E/10, cfg.lambda_E*5),
+                #   'lambda_I': uniform(cfg.lambda_I/10, cfg.lambda_I*5),
+                  'beta':     uniform(cfg.beta/10,     cfg.beta*5),
+                  'tau':      uniform(-10, 10),
+                }
+    i = 0
+    while i < N_max_fits:
+        random_p0 = list(ParameterSampler(param_grid, n_iter=1))[0]
+        yield i, random_p0
+        i += 1
 
-def refit_if_needed(fit_object, cfg, bounds, minuit, FIT_MAX):
 
+
+def refit_if_needed(fit_object, cfg, bounds, fix, minuit, N_max_fits=10, debug=False):
 
     fit_failed = True
-    N_refits = 0
+    i_refits = 0
 
     if fit_object.valid_fit:
         fit_failed = False
 
     else:
 
-        minuit_dict = dict(pedantic=False, print_level=0, **bounds, errordef=Minuit.LEAST_SQUARES)
+        minuit_dict = dict(pedantic=False, print_level=0, **bounds, errordef=Minuit.LEAST_SQUARES, **fix)
 
-        for N_refits in range(FIT_MAX):
+        # max_reduced_chi2 = np.linspace(3, 3, N_max_fits)
 
-            param_grid = {'lambda_E': uniform(cfg.lambda_E/10, cfg.lambda_E*5),
-                        'lambda_I': uniform(cfg.lambda_I/10, cfg.lambda_I*5),
-                        'beta': uniform(cfg.beta/10, cfg.beta*5),
-                        'tau': uniform(-10, 10),
-                        }
+        best_fit_red_chi2 = 1e10
+        best_fit = None
 
-            param_list = list(ParameterSampler(param_grid, n_iter=1))[0]
-            minuit = Minuit(fit_object, **param_list, **minuit_dict)
+        for i_refits, random_p0 in draw_random_p0(cfg, N_max_fits):
+
+            minuit = Minuit(fit_object, **random_p0, **minuit_dict)
             minuit.migrad()
-            fit_object.set_minuit(minuit)
+            # fit_object.set_minuit(minuit, max_reduced_chi2[i_refits])
+            fit_object.set_minuit(minuit, max_reduced_chi2=100)
+
+            better_chi2 = fit_object.reduced_chi2 < best_fit_red_chi2
+            semi_valid = fit_object._valid_fit(minuit, max_reduced_chi2=None)
+            if better_chi2 and semi_valid:
+                best_fit = copy(fit_object)
+                best_fit_red_chi2 = fit_object.reduced_chi2
+
+            if debug:
+                print(i_refits, fit_object.reduced_chi2)
 
             if fit_object.valid_fit:
                 fit_failed = False
+                fit_object = best_fit
                 break
+
 
     # if unable to fit the data, stop the fit
     if fit_failed:
@@ -101,27 +125,79 @@ def refit_if_needed(fit_object, cfg, bounds, minuit, FIT_MAX):
 
     # compute better errors (slow!)
     # minuit.minos()
-    fit_object.set_minuit(minuit)
+    # fit_object.set_minuit(minuit)
 
-    fit_object.N_refits = N_refits
+    fit_object.N_refits = i_refits
     return fit_object, fit_failed
 
 
-def run_actual_fit(t, y, sy, cfg, dt, ts, filename):
+def run_actual_fit(t, y, sy, cfg, dt, ts):
+
+    debug = False
+    # debug = True
+
+    np.random.seed(cfg.ID)
+
+    if debug:
+        reload(SIR)
+        print('delete this')
 
     # reload(SIR)
-    fit_object = SIR.FitSIR(t, y, sy, cfg, dt=dt, ts=ts)
+    normal_priors = dict(
+                        # multiplier=0,
+                        # lambda_E={'mean': cfg.lambda_E, 'std': cfg.lambda_E/10},
+                        # lambda_I={'mean': cfg.lambda_I, 'std': cfg.lambda_I/10},
+                        # beta=    {'mean': 0.01, 'std': 0.05},
+                        )
 
-    p0 = dict(lambda_E=cfg.lambda_E, lambda_I=cfg.lambda_I, beta=cfg.beta, tau=0)
-    bounds = dict(limit_lambda_E=(0, None), limit_lambda_I=(0, None), limit_beta=(0, None))
+    p0 = dict(
+                lambda_E=cfg.lambda_E,
+                lambda_I=cfg.lambda_I,
+                beta=cfg.beta,
+                tau=0,
+            )
 
-    minuit = Minuit(fit_object, pedantic=False, print_level=0, **p0, **bounds, errordef=Minuit.LEAST_SQUARES)
+    bounds = dict(
+                    limit_lambda_E=(1e-6, None),
+                    limit_lambda_I=(1e-6, None),
+                    limit_beta=(1e-6, None),
+                )
+
+    fix = dict(
+                fix_lambda_E=True,
+                fix_lambda_I=True,
+                )
+
+
+    fit_object = SIR.FitSIR(t, y, sy, normal_priors, cfg, dt=dt, ts=ts)
+    minuit = Minuit(fit_object, pedantic=False, print_level=0, **p0, **bounds, **fix, errordef=Minuit.LEAST_SQUARES)
 
     minuit.migrad()
-    fit_object.set_chi2(minuit)
+
     fit_object.set_minuit(minuit)
 
-    fit_object, fit_failed = refit_if_needed(fit_object, cfg, bounds, minuit, FIT_MAX=100)
+    fit_object, fit_failed = refit_if_needed(fit_object, cfg, bounds, fix, minuit, debug=debug)
+
+    if debug:
+        print(f"chi2 = {fit_object.chi2:.3f}")
+        print("")
+        print(fit_object.get_fit_parameters())
+        print("")
+        print(normal_priors)
+        print("")
+        print(fit_object.correlations)
+        print("")
+
+        I_max_SIR, R_inf_SIR = SIR.calc_deterministic_results(cfg, 500, dt=0.01, ts=0.1)
+        print(f"I_max_SIR = {I_max_SIR/1e6:.2f} * 10^6")
+
+        I_max_fit, R_inf_fit = fit_object.compute_I_max_R_inf(T_max=500)
+        print(f"I_max_fit = {I_max_fit/1e6:.2f} * 10^6")
+
+        SIR_results, I_max_MC, R_inf_MC = fit_object.make_monte_carlo_fits(N_samples=100, T_max=500, ts=0.1)
+        fig, ax = plt.subplots()
+        ax.hist(I_max_MC, 50);
+        ax.xaxis.set_major_formatter(EngFormatter())
 
     return fit_object, fit_failed
 
@@ -149,7 +225,7 @@ def fit_single_file(filename, ts=0.1, dt=0.01):
     if len(t) < 5:
         return filename, f'Too few datapoints (N = {len(t)})'
 
-    fit_object, fit_failed = run_actual_fit(t, y, sy, cfg, dt, ts, filename)
+    fit_object, fit_failed = run_actual_fit(t, y, sy, cfg, dt, ts)
     if fit_failed:
         return filename, 'Fit failed'
 
@@ -228,15 +304,42 @@ def get_fit_results(abn_files, force_rerun=False, num_cores=1):
 
 
 
-filename = '../Data/ABN/N_tot__580000__N_init__1000__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.0__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__580000__N_init__1000__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__100.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.0__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__003.csv'
+filename = '../Data/ABN/N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__1.0__beta__0.04__sigma_beta__1.0__rho__0.0__lambda_E__1.0__lambda_I__2.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__1.0__beta__0.04__sigma_beta__1.0__rho__0.0__lambda_E__1.0__lambda_I__2.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__006.csv'
 ts = 0.1
 dt = 0.01
+# filename = filename.replace('N_tot__580000__', 'N_tot__5800000__')
+# filename = filename.replace('N_init__1000__', 'N_init__100__')
+# filename = filename.replace('rho__100.0__', 'rho__15.0__')
 
 import matplotlib.pyplot as plt
+from matplotlib.ticker import EngFormatter
+
 
 if False:
 
-    plt.plot(t, y)
+
+    cfg = utils.string_to_dict(filename)
+    df = file_loaders.pandas_load_file(filename)
+
+    plt.plot(df['time'], df['I'])
+
+    df_interpolated = SIR.interpolate_df(df)
+
+    # Time at end of simulation
+    T_max = df['time'].max()
+
+    # time at peak I (peak infection)
+    T_peak = df['time'].iloc[df['I'].argmax()]
+
+    # extract data between 1 permille and 1 percent I of N_tot and lower than T_max
+    t, y = extract_data(t=df_interpolated['time'].values,
+                        y=df_interpolated['I'].values,
+                        T_max=T_peak,
+                        N_tot=cfg.N_tot)
+    sy = np.sqrt(y)
+
+
+    plt.errorbar(t, y, yerr=sy, fmt='.')
 
     fig, ax = plt.subplots()
     for i, SIR_result in enumerate(SIR_results):
@@ -244,6 +347,29 @@ if False:
         I = SIR_result[:, -2]
         R = SIR_result[:, -1]
         ax.plot(t, I)
+    # ax.legend()
+
 
     fig2, ax2 = plt.subplots()
     ax2.hist(fit_object.I_max_MC, 50)
+
+
+    df = fit_object.calc_df_fit(T_max=100)
+    fig3, ax3 = plt.subplots()
+    ax3.plot(df['time'], df['I'])
+    ax3.errorbar(fit_object.t, fit_object.y, yerr=fit_object.sy, fmt='.')
+    ax3.set(xlim=(fit_object.t.min()*0.9, fit_object.t.max()*1.1),
+            ylim=(fit_object.y.min()*0.9, fit_object.y.max()*1.1), )
+
+
+
+    fit_object, fit_failed = run_actual_fit(t, y, sy, cfg, dt, ts, filename)
+    add_fit_results_to_fit_object(fit_object, filename, cfg, T_max, df)
+    print(f"{fit_object.I_max_SIR/1e6=}")
+    print(f"{fit_object.I_max_ABN/1e6=}")
+    print(f"{fit_object.I_max_fit/1e6=}")
+    fig4, ax4 = plt.subplots()
+    ax4.hist(fit_object.I_max_MC, 50);
+
+
+    SIR.calc_deterministic_results(cfg, T_max*1.2, dt=0.01, ts=0.1)

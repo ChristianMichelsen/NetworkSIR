@@ -88,20 +88,24 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", message="covariance is not positive-semidefinite.")
     all_fits = fits.get_fit_results(abn_files, force_rerun=False, num_cores=num_cores)
 
-
 #%%
 
 
 from scipy.special import erf
-def get_confidence_intervals_median(x, N_sigma=1):
-    median = np.median(x)
+def get_confidence_intervals(x, agg_func=np.median, N_sigma=1):
+    agg = agg_func(x)
     sigma = 100*erf(N_sigma/np.sqrt(2))
     p_lower = 50 - sigma/2
     p_upper = 50 + sigma/2
     lower_bound = np.percentile(x, p_lower)
     upper_bound = np.percentile(x, p_upper)
-    errors = median-lower_bound, upper_bound-median
-    return median, errors
+    errors = agg-lower_bound, upper_bound-agg
+    return agg, errors
+
+
+def SDOM(x):
+    "standard deviation of the mean"
+    return np.std(x) / np.sqrt(len(x))
 
 
 #%%
@@ -137,6 +141,9 @@ def plot_fits(all_fits, force_overwrite=False, verbose=False, do_log=False):
                           'beta': cfg.beta,
                           'tau': 0}
 
+            # if cfg.N_tot == 580e3 and cfg.sigma_mu==1 and cfg.beta==0.04 and cfg.sigma_beta == 1 and cfg.lambda_I == 2.0:
+            #     assert False
+
 
             fig, axes = plt.subplots(ncols=2, figsize=(18, 7), constrained_layout=True)
             fig.subplots_adjust(top=0.8)
@@ -150,7 +157,7 @@ def plot_fits(all_fits, force_overwrite=False, verbose=False, do_log=False):
                 T_max = max(t)*1.1
                 df_fit = fit_object.calc_df_fit(ts=0.1, T_max=T_max)
 
-                # if df_fit['I'].max() > 150_000:
+                # if df_fit['I'].max() > 150e3:
                 #     assert False
 
                 lw = 0.8
@@ -167,26 +174,50 @@ def plot_fits(all_fits, force_overwrite=False, verbose=False, do_log=False):
                     ax.plot(df_fit['time'], df_fit[I_or_R], lw=lw, color='green', label=label)
 
 
-            human = utils.human_format
-
-
             all_I_max_MC = []
             all_R_inf_MC = []
+
+            # means = []
+            # sdoms = []
+
+            fits = []
+
+            # fig, ax = plt.subplots()
+
             for i, fit_object in enumerate(fit_objects.values()):
+                fits.append(fit_object.I_max_fit)
+                # # if np.any(fit_object.I_max_MC > 0.8e6):
+                # #     assert False
+
+                # mean = np.mean(fit_object.I_max_MC)
+                # sdom = SDOM(fit_object.I_max_MC)
+
+                # means.append(mean)
+                # sdoms.append(sdom)
+
                 all_I_max_MC.extend(fit_object.I_max_MC)
                 all_R_inf_MC.extend(fit_object.R_inf_MC)
 
-            I_median, I_errors = get_confidence_intervals_median(all_I_max_MC)
-            s = utils.format_uncertanties(I_median, I_errors, 'I')
+                # ax.hist(fit_object.I_max_MC, 50, range=(7_000, 9_500), label=i)
+
+            # ax.legend()
+
+            # means = np.array(means)
+            # sdoms = np.array(sdoms)
+            # w2_sum = np.sum(1/sdoms**2)
+            # np.sum(means / sdoms**2) / w2_sum
+            # np.average(means, weights=1/sdoms**2)
+            # np.sqrt(1/w2_sum)
+
+            I_median, I_errors = get_confidence_intervals(all_I_max_MC)
+            s = utils.format_asymmetric_uncertanties(I_median, I_errors, 'I')
             axes[0].text(-0.15, -0.25, s, horizontalalignment='left',
                     transform=axes[0].transAxes, fontsize=24)
 
-
-            R_median, R_errors = get_confidence_intervals_median(all_R_inf_MC)
-            s = utils.format_uncertanties(R_median, R_errors, 'R')
+            R_median, R_errors = get_confidence_intervals(all_R_inf_MC)
+            s = utils.format_asymmetric_uncertanties(R_median, R_errors, 'R')
             axes[1].text(-0.15, -0.25, s, horizontalalignment='left',
                     transform=axes[1].transAxes, fontsize=24)
-
 
             df_SIR = fit_object.calc_df_fit(fit_values=fit_values_deterministic, ts=0.1, T_max=T_max)
 
@@ -225,9 +256,6 @@ with warnings.catch_warnings():
 
 
 #%%
-
-
-
 
 
 

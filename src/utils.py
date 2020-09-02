@@ -639,31 +639,101 @@ def human_format(num, digits=3):
     return '{}{}'.format('{:f}'.format(num).rstrip('0').rstrip('.'), ['', 'K', 'M', 'G', 'T'][magnitude])
 
 
-def format_uncertanties(median, errors, name='I'):
+# def format_uncertanties(median, errors, name='I'):
 
-    s_main = human_format(median, digits=3)
-    prefix = s_main[-1]
+#     s_main = human_format(median, digits=3)
+#     prefix = s_main[-1]
+
+#     if name == 'I':
+#         name = r'I_\mathrm{max}^\mathrm{fit}'
+#     elif name == 'R':
+#         name = r'R_\mathrm{inf}^\mathrm{fit}'
+#     else:
+#         raise AssertionError(f"name = {name} not defined")
+
+
+#     d = {'K': 1000, 'M': 1000**2, 'G': 1000**3, 'T': 1000**4}
+#     d2 = {'K': '10^3', 'M': '10^6', 'G': '10^9', 'T': '10^12'}
+
+#     out = []
+#     for error in errors:
+#         try:
+#             out.append(error / d[prefix])
+#         except KeyError as e:
+#             print(prefix, s_main)
+#             raise e
+
+#     s = r"$" + f"{name}" +  r" = " + f"{s_main[:-1]}" + r"_{" + f"-{out[0]:.1f}" + r"}^{+" + f"{out[1]:.1f}" + r"} \cdot " + f"{d2[prefix]}" + r"$"
+#     return s
+
+
+
+from decimal import Decimal
+
+def round_to_uncertainty(value, uncertainty):
+    # round the uncertainty to 1-2 significant digits
+    u = Decimal(uncertainty).normalize()
+    exponent = u.adjusted()  # find position of the most significant digit
+    precision = (u.as_tuple().digits[0] == 1)  # is the first digit 1?
+    u = u.scaleb(-exponent).quantize(Decimal(10)**-precision)
+    # round the value to remove excess digits
+    return round(Decimal(value).scaleb(-exponent).quantize(u)), u, exponent
+
+# import sigfig
+
+def format_asymmetric_uncertanties(value, errors, name='I'):
 
     if name == 'I':
         name = r'I_\mathrm{max}^\mathrm{fit}'
     elif name == 'R':
-        name = r'R_\mathrm{inf}^\mathrm{fit}'
+        name = r'R_\infty^\mathrm{fit}'
     else:
         raise AssertionError(f"name = {name} not defined")
 
+    mu, std_lower, exponent = round_to_uncertainty(value, errors[0])
+    mu1, std_higher, exponent1 = round_to_uncertainty(value, errors[1])
 
-    d = {'K': 1000, 'M': 1000**2, 'G': 1000**3, 'T': 1000**4}
-    d2 = {'K': '10^3', 'M': '10^6', 'G': '10^9', 'T': '10^12'}
+    if mu != mu1 or exponent != exponent1:
 
-    out = []
-    for error in errors:
-        try:
-            out.append(error / d[prefix])
-        except KeyError as e:
-            print(prefix, s_main)
+        if np.abs(10*mu-mu1) <= 9 and exponent-1 == exponent1:
+            mu = mu1
+            # std_lower = Decimal(std_lower*10).normalize()
+            std_lower = str(std_lower*10).replace('.0', '')
+            exponent = exponent1
 
-    s = r"$" + f"{name}" +  r" = " + f"{s_main[:-1]}" + r"_{" + f"-{out[0]:.1f}" + r"}^{+" + f"{out[1]:.1f}" + r"} \cdot " + f"{d2[prefix]}" + r"$"
+        elif np.abs(mu - 10*mu1) <= 9 and exponent == exponent1-1:
+            mu = mu / 10
+            std_lower = std_lower / 10
+            std_higher = std_higher
+            exponent = exponent1
+
+        elif np.abs(100*mu-mu1) <= 99 and exponent-2 == exponent1:
+            mu = mu1
+            std_lower = str(std_lower*100).replace('.0', '')
+            exponent = exponent1
+
+        elif np.abs(mu - 100*mu1) <= 99 and exponent == exponent1-2:
+            mu = mu / 100
+            std_lower = std_lower / 100
+            std_higher = std_higher
+            exponent = exponent1
+
+        elif np.abs(mu-mu1) == 1 and exponent == exponent1:
+            if np.abs(mu*10**exponent-value) < mu1*10**exponent1 - value:
+                mu = mu
+            else:
+                mu = mu1
+
+        else:
+            raise AssertionError("The errors do not fit (not yet implemented)")
+
+    if 'E' in str(std_lower):
+        assert False
+
+    s = r"$" + f"{name}" +  r" = " + f"{mu}" + r"_{" + f"-{std_lower}" + r"}^{+" + f"{std_higher}" + r"} \cdot 10^{" + f"{exponent}" + r"}$"
+
     return s
+
 
 #%%
 
