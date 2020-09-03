@@ -597,6 +597,25 @@ def get_d_translate():
 
 
 
+def human_format(num, digits=3):
+    num = float(f"{num:.{digits}g}")
+    magnitude = 0
+    while abs(num) >= 1000:
+        magnitude += 1
+        num /= 1000.0
+    return '{}{}'.format('{:f}'.format(num).rstrip('0').rstrip('.'), ['', 'K', 'M', 'G', 'T'][magnitude])
+
+
+def human_format_scientific(num, digits=3):
+    num = float(f"{num:.{digits}g}")
+    magnitude = 0
+    while abs(num) >= 1000:
+        magnitude += 1
+        num /= 1000.0
+    return '{}'.format('{:f}'.format(num).rstrip('0').rstrip('.')), f"{['', '10^3', '10^6', '10^9', '10^12'][magnitude]}"
+
+
+
 def dict_to_title(d, N=None, exclude=None, in_two_line=True):
 
     # important to make a copy since overwriting below
@@ -629,14 +648,6 @@ def dict_to_title(d, N=None, exclude=None, in_two_line=True):
 
     return title
 
-
-def human_format(num, digits=3):
-    num = float(f"{num:.{digits}g}")
-    magnitude = 0
-    while abs(num) >= 1000:
-        magnitude += 1
-        num /= 1000.0
-    return '{}{}'.format('{:f}'.format(num).rstrip('0').rstrip('.'), ['', 'K', 'M', 'G', 'T'][magnitude])
 
 
 # def format_uncertanties(median, errors, name='I'):

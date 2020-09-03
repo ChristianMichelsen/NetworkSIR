@@ -7,6 +7,8 @@ rc_params.set_rc_params()
 from matplotlib.backends.backend_pdf import PdfPages
 from pathlib import Path
 import pandas as pd
+from matplotlib.ticker import EngFormatter
+from collections import defaultdict
 
 try:
     from src import utils
@@ -21,74 +23,102 @@ except ImportError:
 
 
 
-def make_SIR_curves(abn_files, variable='I', force_overwrite=False):
+def compute_df_deterministic(cfg, variable, T_max=100):
+    # checks that the curve has flattened out
+    while True:
+        df_deterministic = SIR.integrate(cfg, T_max, dt=0.01, ts=1)
+        delta_1_day = (df_deterministic[variable].iloc[-2] - df_deterministic[variable].iloc[-1])
+        if variable == 'R':
+            delta_1_day *= -1
+        delta_rel = delta_1_day / cfg.N_tot
+        if 0 <= delta_rel < 1e-5:
+            break
+        T_max *= 1.1
+    return df_deterministic
 
-    d_ylabel = {'I': 'Infected', 'R': 'Recovered'}
-    d_label_loc = {'I': 'upper right', 'R': 'lower right'}
+
+def plot_ABM_simulations(abn_files, force_overwrite=False):
 
     # pdf_name = "test.pdf"
-    pdf_name = Path(f"Figures/ABN_{variable}.pdf")
+    pdf_name = Path(f"Figures/ABM_simulations.pdf")
     utils.make_sure_folder_exist(pdf_name)
 
     if pdf_name.exists() and not force_overwrite:
         print(f"{pdf_name} already exists")
         return None
 
-
     with PdfPages(pdf_name) as pdf:
 
+        d_ylabel = {'I': 'Infected', 'R': 'Recovered'}
+        d_label_loc = {'I': 'upper right', 'R': 'lower right'}
 
         for ABN_parameter in tqdm(abn_files.keys):
             # break
 
             cfg = utils.string_to_dict(ABN_parameter)
 
-            fig, ax = plt.subplots() # figsize=(20, 10)
+            fig, axes = plt.subplots(ncols=2, figsize=(18, 7), constrained_layout=True)
+            fig.subplots_adjust(top=0.8)
 
-            Tmax = 0
+            T_max = 0
             lw = 0.1 * 10 / np.sqrt(len(abn_files[ABN_parameter]))
 
+            stochastic_noise_I = []
+            stochastic_noise_R = []
 
             # file, i = abn_files[ABN_parameter][0], 0
             for i, file in enumerate(abn_files[ABN_parameter]):
-                try:
-                    df = file_loaders.pandas_load_file(file)
-                except EmptyDataError as e:
-                    print(f"Skipping {filename_ID} because empty file")
-                    continue
-                label = 'Simulations' if i == 0 else None
-                ax.plot(df['time'].values, df[variable].values.astype(int), lw=lw, c='k', label=label)
-                if df['time'].max() > Tmax:
-                    Tmax = df['time'].max()
+                df = file_loaders.pandas_load_file(file)
+                t = df['time'].values
+                label = 'ABM' if i == 0 else None
 
-            Tmax = max(Tmax, 50)
+                axes[0].plot(t, df['I'], lw=lw, c='k', label=label)
+                axes[1].plot(t, df['R'], lw=lw, c='k', label=label)
+
+                if t.max() > T_max:
+                    T_max = t.max()
+
+                stochastic_noise_I.append(df['I'].max())
+                stochastic_noise_R.append(df['R'].iloc[-1])
+
+            for variable, ax in zip(['I', 'R'], axes):
+
+                df_deterministic = compute_df_deterministic(cfg, variable, T_max=T_max)
+
+                ax.plot(df_deterministic['time'], df_deterministic[variable], lw=2.5, color='red', label='SEIR')
+                leg = ax.legend(loc=d_label_loc[variable])
+                for legobj in leg.legendHandles:
+                    legobj.set_linewidth(2.0)
+
+                ax.set(xlabel='Time', ylim=(0, None), ylabel=d_ylabel[variable])
+                # ax.set_xlabel('Time', ha='right')
+                ax.xaxis.set_label_coords(0.91, -0.14)
+
+                ax.yaxis.set_major_formatter(EngFormatter())
+
+                ax.set_rasterized(True)
+                ax.set_rasterization_zorder(0)
 
 
-            # checks that the curve has flattened out
-            while True:
-                ts = 0.1
-                df_deterministic = SIR.integrate(cfg, Tmax, dt=0.01, ts=ts)
-                Tmax *= 1.5
-                delta_1_day = (df_deterministic[variable].iloc[-1] - df_deterministic[variable].iloc[-1-int(1/ts)])
-                delta_rel = delta_1_day / cfg.N_tot
-                if delta_rel < 1e-5:
-                    break
+            names = [r"I_\mathrm{max}^\mathrm{ABM}", r"R_\infty^\mathrm{ABM}"]
+            for name, x, ax in zip(names, [stochastic_noise_I, stochastic_noise_R], axes):
 
-            ax.plot(df_deterministic['time'], df_deterministic[variable], lw=2.5, color='red', label='SIR')
-            leg = ax.legend(loc=d_label_loc[variable])
-            for legobj in leg.legendHandles:
-                legobj.set_linewidth(2.0)
+                mu, std = np.mean(x), utils.SDOM(x)
 
-            try:
-                title = utils.dict_to_title(cfg, len(abn_files[ABN_parameter]))
-            except KeyError as e:
-                print(cfg)
-                raise e
+                n_digits = int(np.log10(utils.round_to_uncertainty(mu, std)[0]))+1
+                rel_uncertainty = std / mu
+                s_mu = utils.human_format_scientific(mu, digits=n_digits)
 
-            ax.set(title=title, xlabel='Time', ylim=(0, None), ylabel=d_ylabel[variable])
+                s = (r"$ " + f"{name} = ({s_mu[0]}" + r"\pm "
+                    + f"{rel_uncertainty*100:.2}" + r"\% )"
+                    + r"\cdot " + f"{s_mu[1]}" + r"$")
+                ax.text(-0.1, -0.2, s, horizontalalignment='left',
+                        transform=ax.transAxes, fontsize=24)
 
-            ax.set_rasterized(True)
-            ax.set_rasterization_zorder(0)
+
+            title = utils.dict_to_title(cfg, len(abn_files[ABN_parameter]))
+            fig.suptitle(title, fontsize=24)
+            plt.subplots_adjust(wspace=0.3)
 
             pdf.savefig(fig, dpi=100)
             plt.close('all')
@@ -113,9 +143,9 @@ def compute_ABN_mSEIR_proportions(filenames):
     I_max_ABN = np.array(I_max_ABN)
     R_inf_ABN = np.array(R_inf_ABN)
 
-    Tmax = max(df['time'].max()*1.2, 300)
+    T_max = max(df['time'].max()*1.2, 300)
     cfg = utils.string_to_dict(filename)
-    df_SIR = SIR.integrate(cfg, Tmax, dt=0.01, ts=0.1)
+    df_SIR = SIR.integrate(cfg, T_max, dt=0.01, ts=0.1)
 
     z_rel_I = I_max_ABN / df_SIR['I'].max()
     z_rel_R = R_inf_ABN / df_SIR['R'].iloc[-1]
@@ -233,8 +263,6 @@ def plot_1D_scan(scan_parameter, do_log=False, ylim=None, non_default_parameters
 #%%
 
 
-
-from matplotlib.ticker import EngFormatter
 
 def plot_fits(all_fits, force_overwrite=False, verbose=False, do_log=False):
 

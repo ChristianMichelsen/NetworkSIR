@@ -20,7 +20,7 @@ savefig = False
 do_animate = False
 save_and_show_all_plots = True
 plot_SIR_comparison = True if utils.is_local_computer() else False
-do_make_1D_scan = True
+do_make_1D_scan = False
 
 #%%
 
@@ -33,13 +33,12 @@ N_files = len(abn_files)
 
 if plot_SIR_comparison:
 
-    plot.make_SIR_curves(abn_files, 'I', force_overwrite=False)
-    plot.make_SIR_curves(abn_files, 'R', force_overwrite=False)
+    plot.plot_ABM_simulations(abn_files, force_overwrite=True)
 
 
+x=x
 
 #%%
-
 
 parameters_1D_scan = [
     dict(scan_parameter='mu'),

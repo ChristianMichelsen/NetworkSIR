@@ -523,7 +523,7 @@ class AnimateSIR(AnimationBase):
                           for state in self.states]
         ax.legend(handles=circles, loc='upper left', fontsize=24, frameon=False)
 
-        s_legend = [utils.human_format(self.df_counts.loc[i_day, state], decimals=1) for state in self.states]
+        s_legend = [utils.human_format(self.df_counts.loc[i_day, state], digits=1) for state in self.states]
         delta_s = 0.0261
         for i, s in enumerate(s_legend):
             ax.text(0.41, 0.9698-i*delta_s, s, fontsize=24, transform=ax.transAxes, ha='right')

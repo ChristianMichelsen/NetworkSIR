@@ -30,7 +30,7 @@ def get_cfg_default():
                     rho = 0.0, # Spacial dependency. Average distance to connect with.
                     lambda_E = 1.0, # E->I, Lambda(from E states)
                     lambda_I = 1.0, # I->R, Lambda(from I states)
-                    epsilon_rho = 0.01, # fraction of connections not depending on distance
+                    epsilon_rho = 0.04, # fraction of connections not depending on distance
                     beta_scaling = 1.0, # anmunt of beta scaling
                     age_mixing = 1.0,
                     algo = 2, # node connection algorithm
