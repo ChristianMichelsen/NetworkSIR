@@ -51,11 +51,11 @@ def add_fit_results_to_fit_object(fit_object, filename, cfg, T_max, df):
     I_max_fit, R_inf_fit = fit_object.compute_I_max_R_inf(T_max=T_max*1.5)
 
 
-    fit_object.I_max_ABN = np.max(df['I'])
+    fit_object.I_max_ABM = np.max(df['I'])
     fit_object.I_max_fit = I_max_fit
     fit_object.I_max_SIR = I_max_SIR
 
-    fit_object.R_inf_ABN = df['R'].iloc[-1]
+    fit_object.R_inf_ABM = df['R'].iloc[-1]
     fit_object.R_inf_fit = R_inf_fit
     fit_object.R_inf_SIR = R_inf_SIR
 
@@ -270,7 +270,7 @@ def fit_multiple_files(filenames, num_cores=1, do_tqdm=True):
 
 
 
-def get_fit_results(abn_files, force_rerun=False, num_cores=1):
+def get_fit_results(abm_files, force_rerun=False, num_cores=1):
 
     all_fits_file = 'Data/fits.joblib'
 
@@ -281,22 +281,22 @@ def get_fit_results(abn_files, force_rerun=False, num_cores=1):
     else:
 
         all_fits = {}
-        print(f"Fitting {len(abn_files.all_files)} files with {len(abn_files.ABN_parameters)} different simulation parameters, please wait.", flush=True)
+        print(f"Fitting {len(abm_files.all_files)} files with {len(abm_files.ABM_parameters)} different simulation parameters, please wait.", flush=True)
 
-        for ABN_parameter in tqdm(abn_files.keys):
+        for ABM_parameter in tqdm(abm_files.keys):
             # break
-            cfg = utils.string_to_dict(ABN_parameter)
-            files = abn_files[ABN_parameter]
-            output_filename = Path('Data/fits') / f'fits_{ABN_parameter}.joblib'
+            cfg = utils.string_to_dict(ABM_parameter)
+            files = abm_files[ABM_parameter]
+            output_filename = Path('Data/fits') / f'fits_{ABM_parameter}.joblib'
             utils.make_sure_folder_exist(output_filename)
 
             if output_filename.exists() and not force_rerun:
-                all_fits[ABN_parameter] = joblib.load(output_filename)
+                all_fits[ABM_parameter] = joblib.load(output_filename)
 
             else:
                 fit_results = fit_multiple_files(files, num_cores=num_cores)
                 joblib.dump(fit_results, output_filename)
-                all_fits[ABN_parameter] = fit_results
+                all_fits[ABM_parameter] = fit_results
 
         joblib.dump(all_fits, all_fits_file)
         return all_fits
@@ -304,7 +304,7 @@ def get_fit_results(abn_files, force_rerun=False, num_cores=1):
 
 
 
-filename = '../Data/ABN/N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__1.0__beta__0.04__sigma_beta__1.0__rho__0.0__lambda_E__1.0__lambda_I__2.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__1.0__beta__0.04__sigma_beta__1.0__rho__0.0__lambda_E__1.0__lambda_I__2.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__006.csv'
+filename = '../Data/ABM/N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__1.0__beta__0.04__sigma_beta__1.0__rho__0.0__lambda_E__1.0__lambda_I__2.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__1.0__beta__0.04__sigma_beta__1.0__rho__0.0__lambda_E__1.0__lambda_I__2.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__006.csv'
 ts = 0.1
 dt = 0.01
 # filename = filename.replace('N_tot__580000__', 'N_tot__5800000__')
@@ -366,7 +366,7 @@ if False:
     fit_object, fit_failed = run_actual_fit(t, y, sy, cfg, dt, ts, filename)
     add_fit_results_to_fit_object(fit_object, filename, cfg, T_max, df)
     print(f"{fit_object.I_max_SIR/1e6=}")
-    print(f"{fit_object.I_max_ABN/1e6=}")
+    print(f"{fit_object.I_max_ABM/1e6=}")
     print(f"{fit_object.I_max_fit/1e6=}")
     fig4, ax4 = plt.subplots()
     ax4.hist(fit_object.I_max_MC, 50);

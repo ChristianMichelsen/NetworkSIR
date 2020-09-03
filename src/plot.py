@@ -37,13 +37,13 @@ def compute_df_deterministic(cfg, variable, T_max=100):
     return df_deterministic
 
 
-def plot_ABM_simulations(abn_files, force_overwrite=False):
+def plot_ABM_simulations(abm_files, force_rerun=False):
 
     # pdf_name = "test.pdf"
     pdf_name = Path(f"Figures/ABM_simulations.pdf")
     utils.make_sure_folder_exist(pdf_name)
 
-    if pdf_name.exists() and not force_overwrite:
+    if pdf_name.exists() and not force_rerun:
         print(f"{pdf_name} already exists")
         return None
 
@@ -52,22 +52,22 @@ def plot_ABM_simulations(abn_files, force_overwrite=False):
         d_ylabel = {'I': 'Infected', 'R': 'Recovered'}
         d_label_loc = {'I': 'upper right', 'R': 'lower right'}
 
-        for ABN_parameter in tqdm(abn_files.keys):
+        for ABM_parameter in tqdm(abm_files.keys):
             # break
 
-            cfg = utils.string_to_dict(ABN_parameter)
+            cfg = utils.string_to_dict(ABM_parameter)
 
             fig, axes = plt.subplots(ncols=2, figsize=(18, 7), constrained_layout=True)
             fig.subplots_adjust(top=0.8)
 
             T_max = 0
-            lw = 0.1 * 10 / np.sqrt(len(abn_files[ABN_parameter]))
+            lw = 0.1 * 10 / np.sqrt(len(abm_files[ABM_parameter]))
 
             stochastic_noise_I = []
             stochastic_noise_R = []
 
-            # file, i = abn_files[ABN_parameter][0], 0
-            for i, file in enumerate(abn_files[ABN_parameter]):
+            # file, i = abm_files[ABM_parameter][0], 0
+            for i, file in enumerate(abm_files[ABM_parameter]):
                 df = file_loaders.pandas_load_file(file)
                 t = df['time'].values
                 label = 'ABM' if i == 0 else None
@@ -116,7 +116,7 @@ def plot_ABM_simulations(abn_files, force_overwrite=False):
                         transform=ax.transAxes, fontsize=24)
 
 
-            title = utils.dict_to_title(cfg, len(abn_files[ABN_parameter]))
+            title = utils.dict_to_title(cfg, len(abm_files[ABM_parameter]))
             fig.suptitle(title, fontsize=24)
             plt.subplots_adjust(wspace=0.3)
 
@@ -127,42 +127,42 @@ def plot_ABM_simulations(abn_files, force_overwrite=False):
 # %%
 
 
-def compute_ABN_mSEIR_proportions(filenames):
-    "Compute the fraction (z) between ABN and mSEIR for I_max and R_inf "
+def compute_ABM_mSEIR_proportions(filenames):
+    "Compute the fraction (z) between ABM and mSEIR for I_max and R_inf "
 
-    I_max_ABN = []
-    R_inf_ABN = []
+    I_max_ABM = []
+    R_inf_ABM = []
     for filename in filenames:
         try:
             df = file_loaders.pandas_load_file(filename)
         except EmptyDataError:
             print(f"Empty file error at {filename}")
             continue
-        I_max_ABN.append(df['I'].max())
-        R_inf_ABN.append(df['R'].iloc[-1])
-    I_max_ABN = np.array(I_max_ABN)
-    R_inf_ABN = np.array(R_inf_ABN)
+        I_max_ABM.append(df['I'].max())
+        R_inf_ABM.append(df['R'].iloc[-1])
+    I_max_ABM = np.array(I_max_ABM)
+    R_inf_ABM = np.array(R_inf_ABM)
 
     T_max = max(df['time'].max()*1.2, 300)
     cfg = utils.string_to_dict(filename)
     df_SIR = SIR.integrate(cfg, T_max, dt=0.01, ts=0.1)
 
-    z_rel_I = I_max_ABN / df_SIR['I'].max()
-    z_rel_R = R_inf_ABN / df_SIR['R'].iloc[-1]
+    z_rel_I = I_max_ABM / df_SIR['I'].max()
+    z_rel_R = R_inf_ABM / df_SIR['R'].iloc[-1]
 
     return z_rel_I, z_rel_R, cfg
 
 
 
 def get_1D_scan_results(scan_parameter, non_default_parameters):
-    "Compute the fraction between ABN and mSEIR for all simulations related to the scan_parameter"
+    "Compute the fraction between ABM and mSEIR for all simulations related to the scan_parameter"
 
     simulation_parameters_1D_scan = simulation_utils.get_simulation_parameters_1D_scan(scan_parameter, non_default_parameters)
     N_simulation_parameters = len(simulation_parameters_1D_scan)
     if N_simulation_parameters == 0:
         return None
 
-    base_dir = Path('Data') / 'ABN'
+    base_dir = Path('Data') / 'ABM'
 
     x = np.zeros(N_simulation_parameters)
     y_I = np.zeros(N_simulation_parameters)
@@ -171,11 +171,11 @@ def get_1D_scan_results(scan_parameter, non_default_parameters):
     sy_R = np.zeros(N_simulation_parameters)
     n = np.zeros(N_simulation_parameters)
 
-    # ABN_parameter = simulation_parameters_1D_scan[0]
-    for i, ABN_parameter in enumerate(tqdm(simulation_parameters_1D_scan, desc=scan_parameter)):
-        filenames = [str(filename) for filename in base_dir.rglob('*.csv') if f"{ABN_parameter}/" in str(filename)]
+    # ABM_parameter = simulation_parameters_1D_scan[0]
+    for i, ABM_parameter in enumerate(tqdm(simulation_parameters_1D_scan, desc=scan_parameter)):
+        filenames = [str(filename) for filename in base_dir.rglob('*.csv') if f"{ABM_parameter}/" in str(filename)]
 
-        z_rel_I, z_rel_R, cfg = compute_ABN_mSEIR_proportions(filenames)
+        z_rel_I, z_rel_R, cfg = compute_ABM_mSEIR_proportions(filenames)
 
         x[i] = cfg[scan_parameter]
         y_I[i] = np.mean(z_rel_I)
@@ -247,8 +247,8 @@ def plot_1D_scan(scan_parameter, do_log=False, ylim=None, non_default_parameters
 
     fig, (ax0, ax1) = _plot_1D_scan_res(res, scan_parameter, ylim, do_log)
 
-    ax0.set(ylabel=r'$I_\mathrm{max}^\mathrm{ABN} \, / \,\, I_\mathrm{max}^\mathrm{mSEIR}$')
-    ax1.set(ylabel=r'$R_\infty^\mathrm{ABN} \, / \,\, R_\infty^\mathrm{mSEIR}$')
+    ax0.set(ylabel=r'$I_\mathrm{max}^\mathrm{ABM} \, / \,\, I_\mathrm{max}^\mathrm{mSEIR}$')
+    ax1.set(ylabel=r'$R_\infty^\mathrm{ABM} \, / \,\, R_\infty^\mathrm{mSEIR}$')
 
     figname_pdf = f"Figures/1D_scan/1D_scan_{scan_parameter}"
     for key, val in non_default_parameters.items():
@@ -264,12 +264,12 @@ def plot_1D_scan(scan_parameter, do_log=False, ylim=None, non_default_parameters
 
 
 
-def plot_fits(all_fits, force_overwrite=False, verbose=False, do_log=False):
+def plot_fits(all_fits, force_rerun=False, verbose=False, do_log=False):
 
     pdf_name = f"Figures/Fits.pdf"
     Path(pdf_name).parent.mkdir(parents=True, exist_ok=True)
 
-    if Path(pdf_name).exists() and not force_overwrite:
+    if Path(pdf_name).exists() and not force_rerun:
         print(f"{pdf_name} already exists")
         return None
 
@@ -278,15 +278,15 @@ def plot_fits(all_fits, force_overwrite=False, verbose=False, do_log=False):
         leg_loc = {'I': 'upper right', 'R': 'lower right'}
         d_ylabel = {'I': 'Infected', 'R': 'Recovered'}
 
-        for ABN_parameter, fit_objects in tqdm(all_fits.items()):
+        for ABM_parameter, fit_objects in tqdm(all_fits.items()):
             # break
 
             # skip if no fits
             if len(fit_objects) == 0:
-                print(f"Skipping {ABN_parameter}")
+                print(f"Skipping {ABM_parameter}")
                 continue
 
-            cfg = utils.string_to_dict(ABN_parameter)
+            cfg = utils.string_to_dict(ABM_parameter)
 
             fig, axes = plt.subplots(ncols=2, figsize=(18, 7), constrained_layout=True)
             fig.subplots_adjust(top=0.8)
@@ -303,7 +303,7 @@ def plot_fits(all_fits, force_overwrite=False, verbose=False, do_log=False):
                 lw = 0.8
                 for I_or_R, ax in zip(['I', 'R'], axes):
 
-                    label = 'ABN' if i == 0 else None
+                    label = 'ABM' if i == 0 else None
                     ax.plot(t, df[I_or_R], 'k-', lw=lw, label=label)
 
                     label_min = 'Fit Range' if i == 0 else None
@@ -318,7 +318,6 @@ def plot_fits(all_fits, force_overwrite=False, verbose=False, do_log=False):
             all_R_inf_MC = []
 
             for i, fit_object in enumerate(fit_objects.values()):
-                fits.append(fit_object.I_max_fit)
 
                 all_I_max_MC.extend(fit_object.I_max_MC)
                 all_R_inf_MC.extend(fit_object.R_inf_MC)
@@ -372,22 +371,22 @@ def plot_fits(all_fits, force_overwrite=False, verbose=False, do_log=False):
 #%%
 
 
-def compute_fit_ABN_proportions(fit_objects):
-    "Compute the fraction (z) between the fits and the ABN simulations for I_max and R_inf "
+def compute_fit_ABM_proportions(fit_objects):
+    "Compute the fraction (z) between the fits and the ABM simulations for I_max and R_inf "
 
     N = len(fit_objects)
 
     I_max_fit = np.zeros(N)
     R_inf_fit = np.zeros(N)
-    I_max_ABN = np.zeros(N)
-    R_inf_ABN = np.zeros(N)
+    I_max_ABM = np.zeros(N)
+    R_inf_ABM = np.zeros(N)
 
     for i, fit_object in enumerate(fit_objects.values()):
         # break
 
         df = file_loaders.pandas_load_file(fit_object.filename)
-        I_max_ABN[i] = df['I'].max()
-        R_inf_ABN[i] = df['R'].iloc[-1]
+        I_max_ABM[i] = df['I'].max()
+        R_inf_ABM[i] = df['R'].iloc[-1]
 
         t = df['time'].values
         T_max = max(t)*1.1
@@ -395,15 +394,15 @@ def compute_fit_ABN_proportions(fit_objects):
         I_max_fit[i] = df_fit['I'].max()
         R_inf_fit[i] = df_fit['R'].iloc[-1]
 
-    z_rel_I = I_max_fit / I_max_ABN
-    z_rel_R = R_inf_fit / R_inf_ABN
+    z_rel_I = I_max_fit / I_max_ABM
+    z_rel_R = R_inf_fit / R_inf_ABM
 
     return z_rel_I, z_rel_R
 
 
 
 def get_1D_scan_fit_results(all_fits, scan_parameter, non_default_parameters):
-    "Compute the fraction between ABN and mSEIR for all simulations related to the scan_parameter"
+    "Compute the fraction between ABM and mSEIR for all simulations related to the scan_parameter"
 
     simulation_parameters_1D_scan = simulation_utils.get_simulation_parameters_1D_scan(scan_parameter, non_default_parameters)
 
@@ -423,11 +422,11 @@ def get_1D_scan_fit_results(all_fits, scan_parameter, non_default_parameters):
     n = np.zeros(N)
 
     it = tqdm(enumerate(selected_fits.items()), desc=scan_parameter, total=N)
-    for i, (ABN_parameter, fit_objects) in it:
+    for i, (ABM_parameter, fit_objects) in it:
         # break
 
-        cfg = utils.string_to_dict(ABN_parameter)
-        z_rel_I, z_rel_R = compute_fit_ABN_proportions(fit_objects)
+        cfg = utils.string_to_dict(ABM_parameter)
+        z_rel_I, z_rel_R = compute_fit_ABM_proportions(fit_objects)
 
         x[i] = cfg[scan_parameter]
         y_I[i] = np.mean(z_rel_I)
@@ -452,8 +451,8 @@ def plot_1D_scan_fit_results(all_fits, scan_parameter, do_log=False, ylim=None, 
 
     fig, (ax0, ax1) = _plot_1D_scan_res(res, scan_parameter, ylim, do_log)
 
-    ax0.set(ylabel=r'$I_\mathrm{max}^\mathrm{fit} \, / \,\, I_\mathrm{max}^\mathrm{ABN}$')
-    ax1.set(ylabel=r'$R_\infty^\mathrm{fit} \, / \,\, R_\infty^\mathrm{ABN}$')
+    ax0.set(ylabel=r'$I_\mathrm{max}^\mathrm{fit} \, / \,\, I_\mathrm{max}^\mathrm{ABM}$')
+    ax1.set(ylabel=r'$R_\infty^\mathrm{fit} \, / \,\, R_\infty^\mathrm{ABM}$')
 
     figname_pdf = f"Figures/1D_scan_fits/1D_scan_fit_{scan_parameter}"
     for key, val in non_default_parameters.items():

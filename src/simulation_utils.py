@@ -30,7 +30,7 @@ def get_cfg_default():
                     rho = 0.0, # Spacial dependency. Average distance to connect with.
                     lambda_E = 1.0, # E->I, Lambda(from E states)
                     lambda_I = 1.0, # I->R, Lambda(from I states)
-                    epsilon_rho = 0.04, # fraction of connections not depending on distance
+                    epsilon_rho = 0.01, # fraction of connections not depending on distance
                     beta_scaling = 1.0, # anmunt of beta scaling
                     age_mixing = 1.0,
                     algo = 2, # node connection algorithm
@@ -38,7 +38,7 @@ def get_cfg_default():
     return cfg_default
 
 
-def dict_to_filename_with_dir(cfg, ID, data_dir='ABN'):
+def dict_to_filename_with_dir(cfg, ID, data_dir='ABM'):
     filename = Path('Data') / data_dir
     file_string = ''
     for key, val in cfg.items():
@@ -474,7 +474,7 @@ def get_search_string_time(filename, search_string):
 def get_simulation_parameters_1D_scan(parameter, non_defaults):
     """ Get a list of simulation parameters (as strings) for a given parameter to be used in a 1D-scan. Can take non-default values ('non_defaults')."""
 
-    base_dir = Path('Data') / 'ABN'
+    base_dir = Path('Data') / 'ABM'
     simulation_parameters = sorted([x.name for x in base_dir.glob('*') if 'N_tot' in x.name])
     d_simulation_parameters = {s: utils.string_to_dict(s) for s in simulation_parameters}
     df_simulation_parameters = pd.DataFrame.from_dict(d_simulation_parameters, orient='index')

@@ -24,29 +24,29 @@ def file_is_empty(file):
     return (path(file).stat().st_size == 0)
 
 
-def get_all_ABN_files(base_dir='Data/ABN'):
-    "get all csv ABN result files"
+def get_all_ABM_files(base_dir='Data/ABM'):
+    "get all csv ABM result files"
     files = path(base_dir).rglob(f'*.csv')
     return sorted([file for file in files if not file_is_empty(file)])
 
-def get_ABN_parameters(files):
+def get_ABM_parameters(files):
     return list(dict.fromkeys((path(file).parent.name for file in files)))
 
 
-class ABNFiles:
+class ABM_simulations:
 
-    def __init__(self, base_dir='Data/ABN'):
+    def __init__(self, base_dir='Data/ABM'):
         self.base_dir = Path(base_dir)
-        self.all_files = get_all_ABN_files(base_dir)
-        self.ABN_parameters = self.keys = get_ABN_parameters(self.all_files)
+        self.all_files = get_all_ABM_files(base_dir)
+        self.ABM_parameters = self.keys = get_ABM_parameters(self.all_files)
         self.d = self._convert_all_files_to_dict()
 
     def _convert_all_files_to_dict(self):
         """converts all files to a dict where the simulation parameter is the key
         and the value is a set of all files in that folder"""
         d = {}
-        for ABN_parameter in self.ABN_parameters:
-            d[ABN_parameter] = list((self.base_dir/ABN_parameter).rglob('*.csv'))
+        for ABM_parameter in self.ABM_parameters:
+            d[ABM_parameter] = list((self.base_dir/ABM_parameter).rglob('*.csv'))
         return d
 
     def __iter__(self):
@@ -58,7 +58,7 @@ class ABNFiles:
             yield file
 
     def iter_folders(self):
-        return self.ABN_parameters
+        return self.ABM_parameters
 
     def __getitem__(self, key):
         if isinstance(key, str):
@@ -70,6 +70,6 @@ class ABNFiles:
         return len(self.all_files)
 
     def __repr__(self):
-        return (f"ABNFiles(base_dir='{self.base_dir}'). " +
+        return (f"ABM_simulations(base_dir='{self.base_dir}'). " +
                 f"Contains {len(self.all_files)} files with " +
-                f"{len(self.ABN_parameters)} different simulation parameters.")
+                f"{len(self.ABM_parameters)} different simulation parameters.")

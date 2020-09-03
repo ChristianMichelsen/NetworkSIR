@@ -16,27 +16,21 @@ from src import fits
 rc_params.set_rc_params()
 num_cores_max = 30
 
-savefig = False
-do_animate = False
-save_and_show_all_plots = True
-plot_SIR_comparison = True if utils.is_local_computer() else False
-do_make_1D_scan = False
+do_make_1D_scan = True
+force_rerun = True
 
 #%%
 
 
 reload(plot)
 
-abn_files = file_loaders.ABNFiles()
-N_files = len(abn_files)
+abm_files = file_loaders.ABM_simulations()
+N_files = len(abm_files)
 
+#%%
 
-if plot_SIR_comparison:
+plot.plot_ABM_simulations(abm_files, force_rerun=force_rerun)
 
-    plot.plot_ABM_simulations(abn_files, force_overwrite=True)
-
-
-x=x
 
 #%%
 
@@ -78,7 +72,7 @@ num_cores = utils.get_num_cores(num_cores_max)
 import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", message="covariance is not positive-semidefinite.")
-    all_fits = fits.get_fit_results(abn_files, force_rerun=False, num_cores=num_cores)
+    all_fits = fits.get_fit_results(abm_files, force_rerun=False, num_cores=num_cores)
 
 #%%
 
@@ -87,7 +81,7 @@ with warnings.catch_warnings():
 
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", message="This figure was using constrained_layout==True")
-    plot.plot_fits(all_fits, force_overwrite=False, verbose=False, do_log=False)
+    plot.plot_fits(all_fits, force_rerun=force_rerun)
 
 
 #%%
