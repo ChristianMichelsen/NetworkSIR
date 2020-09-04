@@ -30,7 +30,7 @@ def get_cfg_default():
                     rho = 0.0, # Spacial dependency. Average distance to connect with.
                     lambda_E = 1.0, # E->I, Lambda(from E states)
                     lambda_I = 1.0, # I->R, Lambda(from I states)
-                    epsilon_rho = 0.01, # fraction of connections not depending on distance
+                    epsilon_rho = 0.04, # fraction of connections not depending on distance
                     beta_scaling = 1.0, # anmunt of beta scaling
                     age_mixing = 1.0,
                     algo = 2, # node connection algorithm
@@ -217,6 +217,7 @@ def calculate_epsilon(alpha_age, N_ages):
 
 @njit
 def calculate_age_proportions_1D(alpha_age, N_ages):
+    """ Only used in v1 of simulation"""
     epsilon = calculate_epsilon(alpha_age, N_ages)
     x = epsilon * np.ones(N_ages, dtype=np.float32)
     x[0] = 1-x[1:].sum()
@@ -225,6 +226,7 @@ def calculate_age_proportions_1D(alpha_age, N_ages):
 
 @njit
 def calculate_age_proportions_2D(alpha_age, N_ages):
+    """ Only used in v1 of simulation"""
     epsilon = calculate_epsilon(alpha_age, N_ages)
     A = epsilon * np.ones((N_ages, N_ages), dtype=np.float32)
     for i in range(N_ages):

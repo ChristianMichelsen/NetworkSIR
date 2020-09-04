@@ -3,7 +3,7 @@ from tqdm import tqdm
 import multiprocessing as mp
 from pathlib import Path
 from importlib import reload
-from src import simulation
+from src import simulation_v1
 from src import rc_params
 rc_params.set_rc_params()
 from src import utils
@@ -217,12 +217,12 @@ if __name__ == '__main__':
 
             if num_cores == 1:
                 for filename in tqdm(filenames):
-                    simulation.run_full_simulation(filename, verbose=verbose, force_rerun=False)
+                    simulation_v1.run_full_simulation(filename, verbose=verbose, force_rerun=False)
 
             else:
                 with mp.Pool(num_cores) as p:
                     kwargs = dict(verbose=False, force_rerun=False)
-                    f = partial(simulation.run_full_simulation, **kwargs)
+                    f = partial(simulation_v1.run_full_simulation, **kwargs)
                     list(tqdm(p.imap_unordered(f, filenames), total=N_files))
         else:
             print("No files to generate, everything already generated.")
