@@ -512,8 +512,8 @@ class AnimateSIR(AnimationBase):
             if self.df_counts.loc[i_day, state] > 0:
                 ax.scatter_density(*self.coordinates[self._get_mask(i_day, state)].T, color=self.d_colors[state], dpi=dpi, **self._geo_plot_kwargs[state])
 
-        # ax.set(xlim=(7.9, 15.3), ylim=(54.5, 58.2), xlabel='Longitude')
-        ax.set(xlim=(9.2, 11.3), ylim=(57.1, 58), xlabel='Longitude') # NORDJYLLAND
+        ax.set(xlim=(7.9, 15.3), ylim=(54.5, 58.2), xlabel='Longitude')
+        # ax.set(xlim=(9.2, 11.3), ylim=(57.1, 58), xlabel='Longitude') # NORDJYLLAND
         ax.set_ylabel('Latitude', rotation=90) # fontsize=20, labelpad=20
 
 
@@ -590,16 +590,16 @@ class AnimateSIR(AnimationBase):
         ax.text(0.99, 0.01, f"Niels Bohr Institute\narXiv: 2007.XXXXX", ha='right', fontsize=20, transform=ax.transAxes, backgroundcolor='white')
 
         scalebar = AnchoredSizeBar(ax.transData,
-                                # longitudes_per_50km, '50 km',
-                                longitudes_per_50km/5, '10 km', # NORDJYLLAND
+                                longitudes_per_50km, '50 km',
+                                # longitudes_per_50km/5, '10 km', # NORDJYLLAND
                                 loc='upper left',
                                 sep=10,
                                 color='black',
                                 frameon=False,
                                 size_vertical=0.003,
                                 fontproperties=fontprops,
-                                # bbox_to_anchor=Bbox.from_bounds(8, 57.8, 0, 0),
-                                bbox_to_anchor=Bbox.from_bounds(9.3, 57.89, 0, 0), # NORDJYLLAND
+                                bbox_to_anchor=Bbox.from_bounds(8, 57.8, 0, 0),
+                                # bbox_to_anchor=Bbox.from_bounds(9.3, 57.89, 0, 0), # NORDJYLLAND
                                 bbox_transform=ax.transData
                                 )
 
@@ -667,7 +667,7 @@ class Animate_my_number_of_contacts(AnimationBase):
 
         weighted_quantile(np.arange(my_number_of_contacts_max), 99, sample_weight=my_number_of_contacts_day0)
 
-        # range_max = np.percentile(my_number_of_contacts_day0, 99.9)
+        range_max = np.percentile(my_number_of_contacts_day0, 99.9)
         N_bins = int(range_max)
 
         fig, ax = plt.subplots()
@@ -843,28 +843,14 @@ class InfectionHomogeneityIndex(AnimationBase):
 
 # %%
 
-def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=True, force_rerun=False, optimize_gif=True, make_geo_animation=True, make_IHI_plot=True, make_my_number_of_contacts_animation=True):
+def animate_file(filename, do_tqdm=False, verbose=False, dpi=50, remove_frames=True, force_rerun=False, optimize_gif=True):
 
-    if make_geo_animation:
-        animation = AnimateSIR(filename, do_tqdm=do_tqdm, verbose=verbose)
-        animation.make_animation(remove_frames=remove_frames,
-                                force_rerun=force_rerun,
-                                optimize_gif=optimize_gif,
-                                dpi=dpi,
-                                )
-
-    if make_IHI_plot:
-        IHI = InfectionHomogeneityIndex(filename)
-        IHI.make_plot(verbose=False, savefig=True, force_rerun=force_rerun)
-        plt.close('all')
-
-    if make_my_number_of_contacts_animation:
-        animation_my_number_of_contacts = Animate_my_number_of_contacts(filename, do_tqdm=do_tqdm, verbose=verbose)
-        animation_my_number_of_contacts.make_animation(remove_frames=remove_frames,
-                                            force_rerun=force_rerun,
-                                            optimize_gif=optimize_gif)
-
-    return None
+    animation = AnimateSIR(filename, do_tqdm=do_tqdm, verbose=verbose)
+    animation.make_animation(remove_frames=remove_frames,
+                            force_rerun=force_rerun,
+                            optimize_gif=optimize_gif,
+                            dpi=dpi,
+                            )
 
 
 #%%
@@ -877,9 +863,6 @@ num_cores = utils.get_num_cores(num_cores_max)
 filenames = animation_utils.get_animation_filenames()
 # print("Only keeping animations with ID_0 for now")
 # filenames = [filename for filename in filenames if 'ID__0' in filename]
-# print("Only keeping animations with N_tot__150000 for now")
-print("Only keeping animations with rho__500.0 for now")
-filenames = [filename for filename in filenames if 'rho__500.0' in filename]
 
 
 N_files = len(filenames)
@@ -911,72 +894,3 @@ if __name__ == '__main__' and True:
 
     print("\n\nFinished generating animations!")
 
-
-# def _get_N_bins_xy(coordinates, return_ranges=False):
-
-#     lon_min = coordinates[:, 0].min()
-#     lon_max = coordinates[:, 0].max()
-#     lon_mid = np.mean([lon_min, lon_max])
-
-#     lat_min = coordinates[:, 1].min()
-#     lat_max = coordinates[:, 1].max()
-#     lat_mid = np.mean([lat_min, lat_max])
-
-#     N_bins_x = int(haversine(lon_min, lat_mid, lon_max, lat_mid)) + 1
-#     N_bins_y = int(haversine(lon_mid, lat_min, lon_mid, lat_max)) + 1
-
-#     if not return_ranges:
-#         return N_bins_x, N_bins_y
-
-#     else:
-#         return N_bins_x, N_bins_y, ((lon_min, lon_max), (lat_min, lat_max))
-
-# from scipy.stats import binned_statistic_2d
-
-# # @njit
-# def compute_I_over_N_fraction(i_day, my_state, coordinates, N_bins_x, N_bins_y, ranges, statistic_N=None):
-
-#     my_state_i_day = my_state[i_day]
-
-#     mask_I = (-1 < my_state_i_day) & (my_state_i_day < 8)
-#     coordinates_I = coordinates[mask_I]
-
-#     if statistic_N is None:
-#         statistic_N = binned_statistic_2d(coordinates[:, 0], coordinates[:, 1], my_state_i_day, bins=(N_bins_x, N_bins_y), range=ranges, statistic='count', expand_binnumbers=True)[0]
-#     statistic_I = binned_statistic_2d(coordinates_I[:, 0], coordinates_I[:, 1], my_state_i_day[mask_I], bins=(N_bins_x, N_bins_y), range=ranges, statistic='count', expand_binnumbers=True)[0]
-
-#     I_1d = statistic_I.flatten()
-#     N_1d = statistic_N.flatten()
-
-#     mask = (N_1d > N_box_min)
-#     f_1d = I_1d[mask] / N_1d[mask]
-
-#     return f_1d, statistic_N
-
-# def is_infectious(my_state):
-#     return  (-1 < my_state) & (my_state < 8)
-
-
-# from numba.typed import List
-# from numba import prange
-
-# @njit(parallel=True, fastmath=True)
-# def _calc_mean_distance(coordinates):
-#     N = len(coordinates)
-#     mean_dist = 0
-#     # dists = np.zeros(N*(N-1) / 2)
-#     for i in prange(N):
-#         for j in range(i+1, N):
-#             mean_dist += haversine(coordinates[i, 0], coordinates[i, 1], coordinates[j, 0], coordinates[j, 1])
-#     mean_dist /= N*(N-1) / 2
-#     return mean_dist
-
-# def calc_mean_distance(coordinates, N_max=None):
-#     N = len(coordinates)
-#     if N <= 1:
-#         return 0.0
-#     elif (N_max is not None) and (N > N_max):
-#         indices = np.random.choice(coordinates.shape[0], N_max, replace=False)
-#         return _calc_mean_distance(coordinates[indices])
-#     else:
-#         return _calc_mean_distance(coordinates)

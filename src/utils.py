@@ -352,7 +352,6 @@ def array_to_counter(arr):
 
 @njit
 def array_to_counter2(arr):
-    # counter = Counter_uint16_uint32()
     counter = MetaClassNumbaCounter(types.uint16, types.uint32)
     for a in arr:
         counter[a] += 1
@@ -580,17 +579,17 @@ def string_to_dict(string):
 def get_d_translate():
     d_translate = { 'N_tot': r'N_\mathrm{tot}',
                     'N_init': r'N_\mathrm{init}',
-                    'N_ages': r'N_\mathrm{ages}',
+                    # 'N_ages': r'N_\mathrm{ages}',
+                    'rho': r'\rho',
+                    'epsilon_rho': r'\epsilon_\rho',
                     'mu': r'\mu',
                     'sigma_mu': r'\sigma_\mu',
                     'beta': r'\beta',
                     'sigma_beta': r'\sigma_\beta',
-                    'rho': r'\rho',
                     'lambda_E': r'\lambda_E',
                     'lambda_I': r'\lambda_I',
-                    'epsilon_rho': r'\epsilon_\rho',
-                    'beta_scaling': r'\beta_\mathrm{scaling}',
-                    'age_mixing': r'\mathrm{age}_\mathrm{mixing}',
+                    # 'beta_scaling': r'\beta_\mathrm{scaling}',
+                    # 'age_mixing': r'\mathrm{age}_\mathrm{mixing}',
                     'algo': r'\mathrm{algo}',
                     }
     return d_translate

@@ -22,17 +22,16 @@ def get_cfg_default():
     cfg_default = dict(
                     N_tot = 580_000, # Total number of nodes!
                     N_init = 100, # Initial Infected
-                    N_ages = 1, # Number of age categories
+                    rho = 0.0, # Spacial dependency. Average distance to connect with.
+                    epsilon_rho = 0.04, # fraction of connections not depending on distance
                     mu = 40.0,  # Average number of connections of a node (init: 20)
                     sigma_mu = 0.0, # Spread (skewness) in N connections
                     beta = 0.01, # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
                     sigma_beta = 0.0, # Spread in rates, beta
-                    rho = 0.0, # Spacial dependency. Average distance to connect with.
                     lambda_E = 1.0, # E->I, Lambda(from E states)
                     lambda_I = 1.0, # I->R, Lambda(from I states)
-                    epsilon_rho = 0.04, # fraction of connections not depending on distance
-                    beta_scaling = 1.0, # anmunt of beta scaling
-                    age_mixing = 1.0,
+                    # beta_scaling = 1.0, # anmunt of beta scaling
+                    # age_mixing = 1.0,
                     algo = 2, # node connection algorithm
                     )
     return cfg_default
@@ -178,7 +177,7 @@ class Filename:
 
 
     def get_filename_network_initialisation(self, extension='.hdf5'):
-        variables_to_save_in_filename = ['N_tot', 'N_ages', 'mu', 'sigma_mu', 'rho', 'epsilon_rho', 'algo', 'ID']
+        variables_to_save_in_filename = ['N_tot', 'mu', 'sigma_mu', 'rho', 'epsilon_rho', 'algo', 'ID']
         d = {key: self.d[key] for key in variables_to_save_in_filename}
         filename = Path(f'{self.filename_prefix}Data') / 'network_initialization'
         return self._filename_to_network(d, filename, extension)
@@ -284,19 +283,19 @@ def compute_ages_in_state(ages, N_ages):
     return ages_in_state
 
 
-def get_hospitalization_variables(cfg):
+def get_hospitalization_variables(N_tot, N_ages=1):
 
     # Hospitalization track variables
     H_N_states = 6 # number of states
     H_state_total_counts = np.zeros(H_N_states, dtype=np.uint32)
     # H_my_state = -1*np.ones(N_tot, dtype=np.int8)
-    H_my_state = np.full(cfg.N_tot, -1, dtype=np.int8)
+    H_my_state = np.full(N_tot, -1, dtype=np.int8)
 
     H_agents_in_state = utils.initialize_nested_lists(H_N_states, dtype=np.uint32)
-    H_probability_matrix = np.ones((cfg.N_ages, H_N_states), dtype=np.float32) / H_N_states
+    H_probability_matrix = np.ones((N_ages, H_N_states), dtype=np.float32) / H_N_states
     H_probability_matrix_csum = utils.numba_cumsum(H_probability_matrix, axis=1)
 
-    H_move_matrix = np.zeros((H_N_states, H_N_states, cfg.N_ages), dtype=np.float32)
+    H_move_matrix = np.zeros((H_N_states, H_N_states, N_ages), dtype=np.float32)
     H_move_matrix[0, 1] = 0.3
     H_move_matrix[1, 2] = 1.0
     H_move_matrix[2, 1] = 0.6
