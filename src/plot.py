@@ -263,7 +263,6 @@ def plot_1D_scan(scan_parameter, do_log=False, ylim=None, non_default_parameters
 #%%
 
 
-
 def plot_fits(all_fits, force_rerun=False, verbose=False, do_log=False):
 
     pdf_name = f"Figures/Fits.pdf"
