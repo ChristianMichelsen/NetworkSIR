@@ -3,9 +3,7 @@ from tqdm import tqdm
 import multiprocessing as mp
 from pathlib import Path
 from importlib import reload
-from src import simulation_v1
-
-# from src import simulation # TODO XXX
+from src import simulation_v1  # import simulation # TODO XXX
 from src import rc_params
 
 rc_params.set_rc_params()
