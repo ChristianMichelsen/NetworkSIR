@@ -211,9 +211,7 @@ def get_cumulative_indices(nested_list, index_dtype=np.int64):
     return index
 
 
-def nested_list_to_awkward_array(
-    nested_list, return_lengths=False, sort_nested_list=False
-):
+def nested_list_to_awkward_array(nested_list, return_lengths=False, sort_nested_list=False):
     content = ak.layout.NumpyArray(flatten_nested_list(nested_list, sort_nested_list))
     index = ak.layout.Index64(get_cumulative_indices(nested_list))
     listoffsetarray = ak.layout.ListOffsetArray64(index, content)
@@ -444,9 +442,7 @@ def numba_cumsum_shape(x, axis):
 @njit
 def numba_cumsum(x, axis=None):
     if axis is None and x.ndim != 1:
-        print(
-            "numba_cumsum was used without any axis keyword set. Continuing using axis=0."
-        )
+        print("numba_cumsum was used without any axis keyword set. Continuing using axis=0.")
         axis = 0
     return numba_cumsum_shape(x, axis)
 
@@ -491,20 +487,14 @@ class MutableArray:
         # if numba List
         if isinstance(arraylike_object, List):
             dtype = get_numba_list_dtype(arraylike_object, as_string=True)
-            self._content = np.array(
-                flatten_nested_list(arraylike_object), dtype=getattr(np, dtype)
-            )  # float32
-            self._offsets = np.array(
-                get_cumulative_indices(arraylike_object), dtype=np.int64
-            )
+            self._content = np.array(flatten_nested_list(arraylike_object), dtype=getattr(np, dtype))  # float32
+            self._offsets = np.array(get_cumulative_indices(arraylike_object), dtype=np.int64)
             self._awkward_array = None
 
         # if awkward array
         elif isinstance(arraylike_object, ak.Array):
             dtype = str(ak.type(arraylike_object)).split("* ")[-1]
-            self._content = np.array(
-                arraylike_object.layout.content, dtype=getattr(np, dtype)
-            )
+            self._content = np.array(arraylike_object.layout.content, dtype=getattr(np, dtype))
             self._offsets = np.array(arraylike_object.layout.offsets, dtype=np.int64)
             self._awkward_array = arraylike_object
 
@@ -522,12 +512,7 @@ class MutableArray:
     def __getitem__(self, i):
         if isinstance(i, int):
             return self._content[self._offsets[i] : self._offsets[i + 1]]
-        elif (
-            isinstance(i, tuple)
-            and len(i) == 2
-            and isinstance(i[0], int)
-            and isinstance(i[1], int)
-        ):
+        elif isinstance(i, tuple) and len(i) == 2 and isinstance(i[0], int) and isinstance(i[1], int):
             x, y = i
             return self._content[self._offsets[x] : self._offsets[x + 1]][y]
 
@@ -539,9 +524,7 @@ class MutableArray:
         if return_original_awkward_array and self._awkward_array:
             return self._awkward_array
         elif return_original_awkward_array and not self._awkward_array:
-            raise AssertionError(
-                f"No original awkward array (possibly because it was loaded through pickle)"
-            )
+            raise AssertionError(f"No original awkward array (possibly because it was loaded through pickle)")
 
         offsets = ak.layout.Index64(self._offsets)
         content = ak.layout.NumpyArray(self._content)
@@ -589,9 +572,7 @@ class DotDict(dict):
         if key in self:
             self[key] = value
         elif not "__" in key:
-            raise KeyError(
-                "Not allowed to change keys with dot notation, use brackets instead."
-            )
+            raise KeyError("Not allowed to change keys with dot notation, use brackets instead.")
 
     # make class pickle-able
     def __getstate__(self):
@@ -644,6 +625,8 @@ def get_d_translate():
         # 'beta_scaling': r'\beta_\mathrm{scaling}',
         # 'age_mixing': r'\mathrm{age}_\mathrm{mixing}',
         "algo": r"\mathrm{algo}",
+        # "ID": r"\mathrm{ID}",
+        "ID": "ID",
     }
     return d_translate
 
@@ -654,9 +637,7 @@ def human_format(num, digits=3):
     while abs(num) >= 1000:
         magnitude += 1
         num /= 1000.0
-    return "{}{}".format(
-        "{:f}".format(num).rstrip("0").rstrip("."), ["", "K", "M", "G", "T"][magnitude]
-    )
+    return "{}{}".format("{:f}".format(num).rstrip("0").rstrip("."), ["", "K", "M", "G", "T"][magnitude])
 
 
 def human_format_scientific(num, digits=3):
@@ -702,6 +683,11 @@ def dict_to_title(d, N=None, exclude=None, in_two_line=True):
     title = title[:-4] + "$"
 
     return title
+
+
+def string_to_title(s, N=None, exclude=None, in_two_line=True):
+    d = string_to_dict(s)
+    return dict_to_title(d, N, exclude, in_two_line)
 
 
 # def format_uncertanties(median, errors, name='I'):
@@ -822,9 +808,7 @@ def get_column_dtypes(df, cols_to_str):
     if cols_to_str is not None:
         if isinstance(cols_to_str, str):
             cols_to_str = [cols_to_str]
-        kwargs["column_dtypes"] = {
-            col: f"<S{int(df[col].str.len().max())}" for col in cols_to_str
-        }
+        kwargs["column_dtypes"] = {col: f"<S{int(df[col].str.len().max())}" for col in cols_to_str}
     return kwargs
 
 

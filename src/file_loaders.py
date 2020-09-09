@@ -6,9 +6,7 @@ def pandas_load_file(file, return_only_df=False):
     df_raw = pd.read_csv(file)  # .convert_dtypes()
 
     for state in ["E", "I"]:
-        df_raw[state] = sum(
-            (df_raw[col] for col in df_raw.columns if state in col and len(col) == 2)
-        )
+        df_raw[state] = sum((df_raw[col] for col in df_raw.columns if state in col and len(col) == 2))
 
     # only keep relevant columns
     df = df_raw[["Time", "E", "I", "R"]].copy()
@@ -26,9 +24,9 @@ def file_is_empty(file):
     return path(file).stat().st_size == 0
 
 
-def get_all_ABM_files(base_dir="Data/ABM"):
-    "get all csv ABM result files"
-    files = path(base_dir).rglob(f"*.csv")
+def get_all_ABM_files(base_dir="Data/ABM", filetype="csv"):
+    "get all ABM result files with filetype {filetype}"
+    files = path(base_dir).rglob(f"*.{filetype}")
     return sorted([file for file in files if not file_is_empty(file)])
 
 
@@ -37,9 +35,9 @@ def get_ABM_parameters(files):
 
 
 class ABM_simulations:
-    def __init__(self, base_dir="Data/ABM"):
+    def __init__(self, base_dir="Data/ABM", filetype="csv"):
         self.base_dir = Path(base_dir)
-        self.all_files = get_all_ABM_files(base_dir)
+        self.all_files = get_all_ABM_files(base_dir, filetype)
         self.ABM_parameters = self.keys = get_ABM_parameters(self.all_files)
         self.d = self._convert_all_files_to_dict()
 

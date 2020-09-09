@@ -68,9 +68,7 @@ num_cores = utils.get_num_cores(num_cores_max)
 import warnings
 
 with warnings.catch_warnings():
-    warnings.filterwarnings(
-        "ignore", message="covariance is not positive-semidefinite."
-    )
+    warnings.filterwarnings("ignore", message="covariance is not positive-semidefinite.")
     all_fits = fits.get_fit_results(abm_files, force_rerun=False, num_cores=num_cores)
 
 #%%
@@ -79,9 +77,7 @@ with warnings.catch_warnings():
 
 
 with warnings.catch_warnings():
-    warnings.filterwarnings(
-        "ignore", message="This figure was using constrained_layout==True"
-    )
+    warnings.filterwarnings("ignore", message="This figure was using constrained_layout==True")
     plot.plot_fits(all_fits, force_rerun=force_rerun)
 
 
@@ -91,3 +87,15 @@ with warnings.catch_warnings():
 if do_make_1D_scan:
     for parameter_1D_scan in parameters_1D_scan:
         plot.plot_1D_scan_fit_results(all_fits, **parameter_1D_scan)
+
+
+#%%
+
+network_files = file_loaders.ABM_simulations(base_dir="Data/network", filetype="hdf5")
+plot.plot_number_of_contacts(network_files, force_rerun=force_rerun)
+
+
+#%%
+
+
+# %%π

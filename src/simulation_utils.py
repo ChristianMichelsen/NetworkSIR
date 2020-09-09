@@ -52,9 +52,7 @@ def dict_to_filename_with_dir(cfg, ID, data_dir="ABM"):
 def generate_filenames(d_sim_pars, N_loops=10, force_overwrite=False):
     filenames = []
 
-    nameval_to_str = [
-        [f"{name}__{x}" for x in lst] for (name, lst) in d_sim_pars.items()
-    ]
+    nameval_to_str = [[f"{name}__{x}" for x in lst] for (name, lst) in d_sim_pars.items()]
     all_combinations = list(product(*nameval_to_str))
 
     cfg = get_cfg_default()
@@ -80,22 +78,14 @@ def generate_filenames(d_sim_pars, N_loops=10, force_overwrite=False):
 
 
 d_num_cores_N_tot = RangeKeyDict(
-    {
-        (0, 1_000_001): 40,
-        (1_000_001, 2_000_001): 30,
-        (2_000_001, 5_000_001): 20,
-        (5_000_001, 10_000_001): 14,
-    }
+    {(0, 1_000_001): 40, (1_000_001, 2_000_001): 30, (2_000_001, 5_000_001): 20, (5_000_001, 10_000_001): 12,}
 )
 
 
 def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max=None):
     num_cores = utils.get_num_cores(num_cores_max)
 
-    if (
-        isinstance(d_simulation_parameters, dict)
-        and "N_tot" in d_simulation_parameters.keys()
-    ):
+    if isinstance(d_simulation_parameters, dict) and "N_tot" in d_simulation_parameters.keys():
         N_tot_max = max(d_simulation_parameters["N_tot"])
         num_cores = d_num_cores_N_tot[N_tot_max]
 
@@ -108,9 +98,7 @@ def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max=None):
 def load_coordinates(coordinates_filename, N_tot, ID):
     coordinates = np.load(coordinates_filename)
     if N_tot > len(coordinates):
-        raise AssertionError(
-            "N_tot cannot be larger than coordinates (number of generated houses in DK)"
-        )
+        raise AssertionError("N_tot cannot be larger than coordinates (number of generated houses in DK)")
 
     np.random.seed(ID)
     index = np.arange(len(coordinates))
@@ -216,8 +204,7 @@ class Filename:
     def household_data_filenames(self):
         return (
             self.filename_prefix + "Data/PeopleInHousehold_NorthJutland.txt",
-            self.filename_prefix
-            + "Data/AgeDistributionPerPeopleInHousehold_NorthJutland.txt",
+            self.filename_prefix + "Data/AgeDistributionPerPeopleInHousehold_NorthJutland.txt",
         )
 
 
@@ -258,19 +245,13 @@ def _initialize_my_rates_nested_list(my_infection_weight, my_number_of_contacts)
     N_tot = len(my_infection_weight)
     res = List()
     for i in range(N_tot):
-        x = np.full(
-            my_number_of_contacts[i],
-            fill_value=my_infection_weight[i],
-            dtype=np.float64,
-        )
+        x = np.full(my_number_of_contacts[i], fill_value=my_infection_weight[i], dtype=np.float64,)
         res.append(x)
     return res
 
 
 def initialize_my_rates(my_infection_weight, my_number_of_contacts):
-    return utils.MutableArray(
-        _initialize_my_rates_nested_list(my_infection_weight, my_number_of_contacts)
-    )
+    return utils.MutableArray(_initialize_my_rates_nested_list(my_infection_weight, my_number_of_contacts))
 
 
 # def initialize_my_rates(my_infection_weight, my_number_of_contacts):
@@ -419,17 +400,11 @@ def parse_memory_file(filename):
     df_change_points["Time"] = df_change_points.index
     df_change_points = df_change_points.set_index("ChangePoint")
     df_change_points["TimeDiff"] = -df_change_points["Time"].diff(-1)
-    df_change_points["TimeDiffRel"] = (
-        df_change_points["TimeDiff"] / df_change_points["Time"].iloc[-1]
-    )
+    df_change_points["TimeDiffRel"] = df_change_points["TimeDiff"] / df_change_points["Time"].iloc[-1]
 
-    df_change_points["Memory"] = df_time_memory.loc[df_change_points["Time"]][
-        "Memory"
-    ].values
+    df_change_points["Memory"] = df_time_memory.loc[df_change_points["Time"]]["Memory"].values
     df_change_points["MemoryDiff"] = -df_change_points["Memory"].diff(-1)
-    df_change_points["MemoryDiffRel"] = (
-        df_change_points["MemoryDiff"] / df_change_points["Memory"].iloc[-1]
-    )
+    df_change_points["MemoryDiffRel"] = df_change_points["MemoryDiff"] / df_change_points["Memory"].iloc[-1]
 
     df_change_points.index.name = None
 
@@ -437,11 +412,7 @@ def parse_memory_file(filename):
 
 
 def plot_memory_comsumption(
-    df_time_memory,
-    df_change_points,
-    min_TimeDiffRel=0.1,
-    min_MemoryDiffRel=0.1,
-    time_unit="min",
+    df_time_memory, df_change_points, min_TimeDiffRel=0.1, min_MemoryDiffRel=0.1, time_unit="min",
 ):
 
     colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
@@ -452,12 +423,8 @@ def plot_memory_comsumption(
     fig, ax = plt.subplots()
 
     #
-    df_change_points_non_compilation = df_change_points.query(
-        "index != 'Numba Compilation'"
-    )
-    df_change_points_compilation = df_change_points.query(
-        "index == 'Numba Compilation'"
-    )
+    df_change_points_non_compilation = df_change_points.query("index != 'Numba Compilation'")
+    df_change_points_compilation = df_change_points.query("index == 'Numba Compilation'")
     # marker='s'
 
     ax.plot(
@@ -487,9 +454,7 @@ def plot_memory_comsumption(
         label="Numba Compilations",
         marker="s",
     )
-    ax.set(
-        xlabel=f"Time [{time_unit}]", ylabel="Memory [GiB]", ylim=(0, None)
-    )  # xlim=(0, None)
+    ax.set(xlabel=f"Time [{time_unit}]", ylabel="Memory [GiB]", ylim=(0, None))  # xlim=(0, None)
 
     ymax = ax.get_ylim()[1]
     i = 1
@@ -561,15 +526,9 @@ def get_simulation_parameters_1D_scan(parameter, non_defaults):
     """ Get a list of simulation parameters (as strings) for a given parameter to be used in a 1D-scan. Can take non-default values ('non_defaults')."""
 
     base_dir = Path("Data") / "ABM"
-    simulation_parameters = sorted(
-        [x.name for x in base_dir.glob("*") if "N_tot" in x.name]
-    )
-    d_simulation_parameters = {
-        s: utils.string_to_dict(s) for s in simulation_parameters
-    }
-    df_simulation_parameters = pd.DataFrame.from_dict(
-        d_simulation_parameters, orient="index"
-    )
+    simulation_parameters = sorted([x.name for x in base_dir.glob("*") if "N_tot" in x.name])
+    d_simulation_parameters = {s: utils.string_to_dict(s) for s in simulation_parameters}
+    df_simulation_parameters = pd.DataFrame.from_dict(d_simulation_parameters, orient="index")
 
     parameters = get_cfg_default()
     for key, val in non_defaults.items():
@@ -584,9 +543,7 @@ def get_simulation_parameters_1D_scan(parameter, non_defaults):
             query += f"{key} == {val} & "
     query = query[:-3]
 
-    df_different_than_default = df_simulation_parameters.query(query).sort_values(
-        parameter
-    )
+    df_different_than_default = df_simulation_parameters.query(query).sort_values(parameter)
     return list(df_different_than_default.index)
 
 
@@ -777,9 +734,7 @@ def parse_household_data_list(filename, convert_to_numpy=False):
 
 
 def load_household_data(household_data_filenames):
-    people_in_household = parse_household_data_list(
-        household_data_filenames[0], convert_to_numpy=True
-    )
+    people_in_household = parse_household_data_list(household_data_filenames[0], convert_to_numpy=True)
     age_distribution_per_people_in_household = parse_household_data_list(
         household_data_filenames[1], convert_to_numpy=True
     )

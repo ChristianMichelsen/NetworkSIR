@@ -3,7 +3,7 @@ from tqdm import tqdm
 import multiprocessing as mp
 from pathlib import Path
 from importlib import reload
-from src import simulation_v1  # import simulation # TODO XXX
+from src import simulation  # import simulation # TODO XXX
 from src import rc_params
 
 rc_params.set_rc_params()
@@ -91,18 +91,14 @@ if __name__ == "__main__":
         print("\n\nRunning a dry run, nothing will actually be simulated.!!!\n\n")
 
     for d_sim_pars in all_sim_pars:
-        filenames = simulation_utils.generate_filenames(
-            d_sim_pars, N_loops, force_overwrite=force_overwrite
-        )
+        filenames = simulation_utils.generate_filenames(d_sim_pars, N_loops, force_overwrite=force_overwrite)
 
         N_files = len(filenames)
         N_files_total += N_files
 
         # make sure path exists
         if len(filenames) > 0:
-            num_cores = simulation_utils.get_num_cores_N_tot_specific(
-                d_sim_pars, num_cores_max
-            )
+            num_cores = simulation_utils.get_num_cores_N_tot_specific(d_sim_pars, num_cores_max)
             print(
                 f"\nGenerating {N_files:3d} network-based simulations with {num_cores} cores based on {d_sim_pars}, please wait.",
                 flush=True,
@@ -113,9 +109,7 @@ if __name__ == "__main__":
 
             if num_cores == 1:
                 for filename in tqdm(filenames):
-                    simulation_v1.run_full_simulation(
-                        filename, verbose=verbose, force_rerun=False
-                    )
+                    simulation_v1.run_full_simulation(filename, verbose=verbose, force_rerun=False)
 
             else:
                 with mp.Pool(num_cores) as p:
