@@ -502,9 +502,9 @@ def _plot_number_of_contacts(filename):
     mask_R = my_state[-1] == 8
     mask_EI = np.isin(my_state[-1], np.arange(8))
 
-    ax.hist(my_number_of_contacts[mask_S], 100, histtype="step", label="S")
-    ax.hist(my_number_of_contacts[mask_R], 100, histtype="step", label="R")
-    ax.hist(my_number_of_contacts[mask_EI], 100, histtype="step", label="EI")
+    ax.hist(my_number_of_contacts[mask_S], 100, range=(0, 200), histtype="step", label="S")
+    ax.hist(my_number_of_contacts[mask_R], 100, range=(0, 200), histtype="step", label="R")
+    ax.hist(my_number_of_contacts[mask_EI], 100, range=(0, 200), histtype="step", label="EI")
 
     ax.legend()
 
@@ -528,13 +528,10 @@ def plot_number_of_contacts(network_files, force_rerun=False):
     with PdfPages(pdf_name) as pdf, warnings.catch_warnings():
         warnings.filterwarnings("ignore", message="This figure was using constrained_layout==True")
         for network_filename in tqdm(network_files, desc="Number of contacts"):
-
-            if "ID__000" in str(network_filename):
-                pass
-            else:
+            cfg = utils.string_to_dict(str(network_filename))
+            if cfg.ID != 0:
                 continue
-
-            fig, ax = _plot_number_of_contacts(network_filename)
-
-            pdf.savefig(fig, dpi=100)
-            plt.close("all")
+            else:
+                fig, ax = _plot_number_of_contacts(network_filename)
+                pdf.savefig(fig, dpi=100)
+                plt.close("all")
