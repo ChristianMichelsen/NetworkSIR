@@ -13,7 +13,7 @@ from functools import partial
 
 num_cores_max = 30
 N_loops = 10
-dry_run = False
+dry_run = True
 force_overwrite = False
 verbose = True  # only for 1 core
 
@@ -57,7 +57,7 @@ else:
         {"beta": betas},
         {"epsilon_rho": epsilon_rhos, "rho": [0.1], "algo": [2, 1],},
         {"N_tot": [580_000], "rho": rhos},
-        {"N_tot": [580_000], "rho": rhos, "beta": 0.01 / 2},
+        {"N_tot": [580_000], "rho": rhos, "beta": [0.01 / 2]},
         {"sigma_beta": [0, 0.25, 0.5, 0.75, 1], "sigma_mu": [0, 1], "rho": [0, 0.1],},
         {"sigma_beta": [0, 1], "sigma_mu": [0, 0.25, 0.5, 0.75, 1], "rho": [0, 0.1],},
         {"N_init": [1, 5, 50, 500, 1_000, 5_000],},
@@ -72,7 +72,7 @@ else:
         {"N_tot": [5_000_000]},
         {"N_tot": [5_800_000]},
         {"N_tot": [5_800_000], "rho": rhos},
-        {"N_tot": [5_800_000], "rho": rhos, "beta": 0.01 / 2},
+        {"N_tot": [5_800_000], "rho": rhos, "beta": [0.01 / 2]},
     ]
 
 
@@ -117,3 +117,5 @@ if __name__ == "__main__":
 
     print(f"\nIn total: {N_files_total} files generated")
     print("Finished simulating!")
+
+# %%
