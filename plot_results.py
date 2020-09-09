@@ -91,4 +91,3 @@ with warnings.catch_warnings():
 if do_make_1D_scan:
     for parameter_1D_scan in parameters_1D_scan:
         plot.plot_1D_scan_fit_results(all_fits, **parameter_1D_scan)
-

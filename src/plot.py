@@ -564,4 +564,3 @@ def plot_1D_scan_fit_results(
     Path(figname_pdf).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(figname_pdf, dpi=100)  # bbox_inches='tight', pad_inches=0.3
     plt.close("all")
-

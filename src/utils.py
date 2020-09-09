@@ -3,10 +3,15 @@ import multiprocessing as mp
 from pathlib import Path
 
 import numba as nb
-from numba import njit, prange, objmode, typeof # conda install -c numba/label/dev numba
+from numba import (
+    njit,
+    prange,
+    objmode,
+    typeof,
+)  # conda install -c numba/label/dev numba
 from numba.typed import List, Dict
 
-import awkward1 as ak # pip install awkward1
+import awkward1 as ak  # pip install awkward1
 
 # try:
 #     import simulation_utils
@@ -20,6 +25,7 @@ except ImportError:
     import simulation_utils
     from simulation_utils import INTEGER_SIMULATION_PARAMETERS
 
+
 def _is_ipython():
     try:
         __IPYTHON__
@@ -27,12 +33,15 @@ def _is_ipython():
     except NameError:
         return False
 
+
 is_ipython = _is_ipython()
 
 
 import platform
+
+
 def is_local_computer(N_local_cores=12):
-    if mp.cpu_count() <= N_local_cores:# and platform.system() == 'Darwin':
+    if mp.cpu_count() <= N_local_cores:  # and platform.system() == 'Darwin':
         return True
     else:
         return False
@@ -51,10 +60,12 @@ def delete_file(filename):
     except FileNotFoundError:
         pass
 
+
 def file_exists(filename):
     if isinstance(filename, str):
         filename = Path(filename)
     return filename.exists()
+
 
 def make_sure_folder_exist(filename, delete_file_if_exists=False):
     if isinstance(filename, str):
@@ -66,17 +77,24 @@ def make_sure_folder_exist(filename, delete_file_if_exists=False):
 
 @njit
 def haversine(lon1, lat1, lon2, lat2):
-    lon1, lat1, lon2, lat2 = np.radians(lon1), np.radians(lat1), np.radians(lon2), np.radians(lat2)
+    lon1, lat1, lon2, lat2 = (
+        np.radians(lon1),
+        np.radians(lat1),
+        np.radians(lon2),
+        np.radians(lat2),
+    )
     dlon = lon2 - lon1
     dlat = lat2 - lat1
-    a = np.sin(dlat/2.0)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon/2.0)**2
-    return 6367 * 2 * np.arcsin(np.sqrt(a)) # [km]
+    a = np.sin(dlat / 2.0) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2.0) ** 2
+    return 6367 * 2 * np.arcsin(np.sqrt(a))  # [km]
+
 
 @njit
 def haversine_scipy(p1, p2):
     lon1, lat1 = p1
     lon2, lat2 = p2
     return haversine(lon1, lat1, lon2, lat2)
+
 
 @njit
 def set_numba_random_seed(seed):
@@ -106,20 +124,22 @@ def set_numba_random_seed(seed):
 @njit
 def initialize_nested_lists(N, dtype):
     nested_list = List()
-    for i in range(N): # prange
+    for i in range(N):  # prange
         tmp = List()
         tmp.append(dtype(-1))
         nested_list.append(tmp)
-        nested_list[-1].pop(0) # trick to tell compiler which dtype
+        nested_list[-1].pop(0)  # trick to tell compiler which dtype
     return nested_list
+
 
 @njit
 def initialize_empty_set(dtype):
     s = set()
     x = dtype(1)
-    s.add(x) # trick to tell compiler which dtype
+    s.add(x)  # trick to tell compiler which dtype
     s.discard(x)
     return s
+
 
 @njit
 def initialize_list_set(N, dtype):
@@ -127,28 +147,31 @@ def initialize_list_set(N, dtype):
 
 
 @njit
-def get_size(x, unit='gb'):
+def get_size(x, unit="gb"):
 
     d_prefix_conversion = {
-        'mb': 10**6,
-        'gb': 10**9,
+        "mb": 10 ** 6,
+        "gb": 10 ** 9,
     }
 
     return x.size * x.itemsize / d_prefix_conversion[unit.lower()]
 
+
 import re
 from numba import typeof
+
+
 def get_numba_list_dtype(x, as_string=False):
     s = str(typeof(x))
 
-    if 'int' in s:
-        pat = 'int'
-    elif 'float' in s:
-        pat = 'float'
+    if "int" in s:
+        pat = "int"
+    elif "float" in s:
+        pat = "float"
     else:
         raise AssertionError('Neither "int", nor "float" in x')
 
-    pat = r'(\w*%s\w*)' % pat       # Not thrilled about this line
+    pat = r"(\w*%s\w*)" % pat  # Not thrilled about this line
     dtype = re.findall(pat, s)[0]
 
     if as_string:
@@ -179,21 +202,28 @@ def flatten_nested_list(nested_list, sort_nested_list=False):
                 res.append(x)
     return np.asarray(res)
 
+
 @njit
 def get_cumulative_indices(nested_list, index_dtype=np.int64):
-    index = np.zeros(len(nested_list)+1, index_dtype)
+    index = np.zeros(len(nested_list) + 1, index_dtype)
     for i, lst in enumerate(nested_list):
-        index[i+1] = index[i] + len(lst)
+        index[i + 1] = index[i] + len(lst)
     return index
 
-def nested_list_to_awkward_array(nested_list, return_lengths=False, sort_nested_list=False):
+
+def nested_list_to_awkward_array(
+    nested_list, return_lengths=False, sort_nested_list=False
+):
     content = ak.layout.NumpyArray(flatten_nested_list(nested_list, sort_nested_list))
     index = ak.layout.Index64(get_cumulative_indices(nested_list))
     listoffsetarray = ak.layout.ListOffsetArray64(index, content)
     array = ak.Array(listoffsetarray)
 
     if return_lengths:
-        return array, np.diff(index).astype(np.uint16) #get_lengths_of_nested_list(nested_list)
+        return (
+            array,
+            np.diff(index).astype(np.uint16),
+        )  # get_lengths_of_nested_list(nested_list)
     else:
         return array
 
@@ -209,20 +239,21 @@ def get_lengths_of_nested_list(nested_list):
 
 @njit
 def binary_search(array, item):
-        first = 0
-        last = len(array) - 1
-        found = False
+    first = 0
+    last = len(array) - 1
+    found = False
 
-        while first<=last and not found:
-            index = (first + last)//2
-            if array[index] == item:
-                found = True
+    while first <= last and not found:
+        index = (first + last) // 2
+        if array[index] == item:
+            found = True
+        else:
+            if item < array[index]:
+                last = index - 1
             else:
-                if item < array[index]:
-                    last = index-1
-                else:
-                    first = index+1
-        return found, index
+                first = index + 1
+    return found, index
+
 
 @njit
 def nested_lists_to_list_of_array(nested_list):
@@ -230,6 +261,7 @@ def nested_lists_to_list_of_array(nested_list):
     for l in nested_list:
         out.append(np.asarray(l))
     return out
+
 
 @njit
 def list_of_arrays_to_list_of_lists(list_of_arrays):
@@ -257,8 +289,9 @@ def list_of_arrays_to_list_of_lists(list_of_arrays):
 from numba import types
 from numba.experimental import jitclass
 
-@jitclass({'_counter': types.DictType(types.int32, types.uint16)})
-class Counter_int32_uint16():
+
+@jitclass({"_counter": types.DictType(types.int32, types.uint16)})
+class Counter_int32_uint16:
     def __init__(self):
         self._counter = Dict.empty(key_type=types.int32, value_type=types.uint16)
 
@@ -279,8 +312,8 @@ class Counter_int32_uint16():
         return self._counter
 
 
-@jitclass({'_counter': types.DictType(types.uint16, types.uint32)})
-class Counter_uint16_uint32():
+@jitclass({"_counter": types.DictType(types.uint16, types.uint32)})
+class Counter_uint16_uint32:
     def __init__(self):
         self._counter = Dict.empty(key_type=types.uint16, value_type=types.uint32)
 
@@ -301,11 +334,9 @@ class Counter_uint16_uint32():
         return self._counter
 
 
-
 def MetaClassNumbaCounter(key_type, value_type):
-
-    @jitclass({'_counter': types.DictType(key_type, value_type)})
-    class Counter():
+    @jitclass({"_counter": types.DictType(key_type, value_type)})
+    class Counter:
         def __init__(self):
             self._counter = Dict.empty(key_type=key_type, value_type=value_type)
 
@@ -328,14 +359,13 @@ def MetaClassNumbaCounter(key_type, value_type):
     return Counter()
 
 
-
 @njit
 def list_of_counters_to_numpy_array(counter_list, dtype=np.uint32):
 
-    N = len(counter_list) # number of "days" in the list
-    M = max([max(c.keys()) for c in counter_list]) # maximum key in the list
+    N = len(counter_list)  # number of "days" in the list
+    M = max([max(c.keys()) for c in counter_list])  # maximum key in the list
 
-    res = np.zeros((N, M+1), dtype=dtype)
+    res = np.zeros((N, M + 1), dtype=dtype)
     for i_day in range(N):
         for key, val in counter_list[i_day].items():
             res[i_day, key] = val
@@ -358,47 +388,48 @@ def array_to_counter2(arr):
     return counter.d
 
 
-
-
-
 #%%
 # Cumulative Sums in numba
+
 
 @njit
 def numba_cumsum_2D(x, axis):
     y = np.zeros_like(x)
     n, m = np.shape(x)
-    if axis==1:
+    if axis == 1:
         for i in range(n):
             y[i, :] = np.cumsum(x[i, :])
-    elif axis==0:
+    elif axis == 0:
         for j in range(m):
             y[:, j] = np.cumsum(x[:, j])
     return y
+
 
 @njit
 def numba_cumsum_3D(x, axis):
     y = np.zeros_like(x)
     n, m, p = np.shape(x)
 
-    if axis==2:
+    if axis == 2:
         for i in range(n):
             for j in range(m):
                 y[i, j, :] = np.cumsum(x[i, j, :])
-    elif axis==1:
+    elif axis == 1:
         for i in range(n):
             for k in range(p):
                 y[i, :, k] = np.cumsum(x[i, :, k])
-    elif axis==0:
+    elif axis == 0:
         for j in range(m):
             for k in range(p):
                 y[:, j, k] = np.cumsum(x[:, j, k])
     return y
 
+
 from numba import generated_jit, types
 
 # overload
 # https://jcristharif.com/numba-overload.html
+
 
 @generated_jit(nopython=True)
 def numba_cumsum_shape(x, axis):
@@ -409,10 +440,13 @@ def numba_cumsum_shape(x, axis):
     elif x.ndim == 3:
         return lambda x, axis: numba_cumsum_3D(x, axis=axis)
 
+
 @njit
 def numba_cumsum(x, axis=None):
     if axis is None and x.ndim != 1:
-        print("numba_cumsum was used without any axis keyword set. Continuing using axis=0.")
+        print(
+            "numba_cumsum was used without any axis keyword set. Continuing using axis=0."
+        )
         axis = 0
     return numba_cumsum_shape(x, axis)
 
@@ -420,18 +454,16 @@ def numba_cumsum(x, axis=None):
 #%%
 
 
-
-
-
 # Counters in Numba
 from numba import types
 from numba.experimental import jitclass
 
+
 def NumbaMutableArray(offsets, content, dtype):
 
     spec = [
-        ('offsets', types.int64[:]),
-        ('content', getattr(types, dtype)[:]),
+        ("offsets", types.int64[:]),
+        ("content", getattr(types, dtype)[:]),
     ]
 
     @jitclass(spec)
@@ -441,7 +473,7 @@ def NumbaMutableArray(offsets, content, dtype):
             self.content = content
 
         def __getitem__(self, i):
-            return self.content[self.offsets[i]: self.offsets[i + 1]]
+            return self.content[self.offsets[i] : self.offsets[i + 1]]
 
         def copy(self):
             return MetaNumbaMutableArray(self.offsets, self.content)
@@ -459,19 +491,27 @@ class MutableArray:
         # if numba List
         if isinstance(arraylike_object, List):
             dtype = get_numba_list_dtype(arraylike_object, as_string=True)
-            self._content = np.array(flatten_nested_list(arraylike_object), dtype=getattr(np, dtype)) # float32
-            self._offsets = np.array(get_cumulative_indices(arraylike_object), dtype=np.int64)
+            self._content = np.array(
+                flatten_nested_list(arraylike_object), dtype=getattr(np, dtype)
+            )  # float32
+            self._offsets = np.array(
+                get_cumulative_indices(arraylike_object), dtype=np.int64
+            )
             self._awkward_array = None
 
         # if awkward array
         elif isinstance(arraylike_object, ak.Array):
             dtype = str(ak.type(arraylike_object)).split("* ")[-1]
-            self._content = np.array(arraylike_object.layout.content, dtype=getattr(np, dtype))
+            self._content = np.array(
+                arraylike_object.layout.content, dtype=getattr(np, dtype)
+            )
             self._offsets = np.array(arraylike_object.layout.offsets, dtype=np.int64)
             self._awkward_array = arraylike_object
 
         else:
-            raise AssertionError(f"arraylike_object is neither numba list or awkward arry, got {type(arraylike_object)}")
+            raise AssertionError(
+                f"arraylike_object is neither numba list or awkward arry, got {type(arraylike_object)}"
+            )
 
         self.dtype = dtype
         self._initialize_numba_array()
@@ -481,10 +521,15 @@ class MutableArray:
 
     def __getitem__(self, i):
         if isinstance(i, int):
-            return self._content[self._offsets[i]: self._offsets[i + 1]]
-        elif isinstance(i, tuple) and len(i) == 2 and isinstance(i[0], int) and isinstance(i[1], int):
+            return self._content[self._offsets[i] : self._offsets[i + 1]]
+        elif (
+            isinstance(i, tuple)
+            and len(i) == 2
+            and isinstance(i[0], int)
+            and isinstance(i[1], int)
+        ):
             x, y = i
-            return self._content[self._offsets[x]: self._offsets[x + 1]][y]
+            return self._content[self._offsets[x] : self._offsets[x + 1]][y]
 
     @property
     def array(self):
@@ -494,7 +539,9 @@ class MutableArray:
         if return_original_awkward_array and self._awkward_array:
             return self._awkward_array
         elif return_original_awkward_array and not self._awkward_array:
-            raise AssertionError(f"No original awkward array (possibly because it was loaded through pickle)")
+            raise AssertionError(
+                f"No original awkward array (possibly because it was loaded through pickle)"
+            )
 
         offsets = ak.layout.Index64(self._offsets)
         content = ak.layout.NumpyArray(self._content)
@@ -502,26 +549,27 @@ class MutableArray:
         return ak.Array(listarray)
 
     def __repr__(self):
-        return repr(self.to_awkward()).replace('Array', 'MutableArray')
+        return repr(self.to_awkward()).replace("Array", "MutableArray")
 
     def __len__(self):
         return len(self._offsets) - 1
 
     # make class pickle-able
     def __getstate__(self):
-        d = {'_content': self._content, '_offsets': self._offsets, 'dtype': self.dtype}
+        d = {"_content": self._content, "_offsets": self._offsets, "dtype": self.dtype}
         return d
 
     # make class pickle-able
     def __setstate__(self, d):
-        self._content = d['_content']
-        self._offsets = d['_offsets']
-        self.dtype = d['dtype']
+        self._content = d["_content"]
+        self._offsets = d["_offsets"]
+        self.dtype = d["dtype"]
         self._initialize_numba_array()
 
 
 #%%
 # DotDict
+
 
 class DotDict(dict):
     """
@@ -540,8 +588,10 @@ class DotDict(dict):
     def __setattr__(self, key, value):
         if key in self:
             self[key] = value
-        elif not '__' in key:
-            raise KeyError("Not allowed to change keys with dot notation, use brackets instead.")
+        elif not "__" in key:
+            raise KeyError(
+                "Not allowed to change keys with dot notation, use brackets instead."
+            )
 
     # make class pickle-able
     def __getstate__(self):
@@ -551,7 +601,9 @@ class DotDict(dict):
     def __setstate__(self, state):
         self.__dict__ = state
 
+
 #%%
+
 
 def string_to_dict(string):
     # if path-like string
@@ -562,38 +614,38 @@ def string_to_dict(string):
     if isinstance(string, str) and "/" in string:
         string = Path(string).stem
 
-
     d = {}
-    keyvals = string.split('__')
-    keyvals_chunks = [keyvals[i: i+2] for i in range(0, len(keyvals), 2)]
+    keyvals = string.split("__")
+    keyvals_chunks = [keyvals[i : i + 2] for i in range(0, len(keyvals), 2)]
     for key, val in keyvals_chunks:
-        if key in simulation_utils.INTEGER_SIMULATION_PARAMETERS + ['ID']:
+        if key in simulation_utils.INTEGER_SIMULATION_PARAMETERS + ["ID"]:
             d[key] = int(val)
         else:
             d[key] = float(val)
     return DotDict(d)
 
+
 #%%
 
 
 def get_d_translate():
-    d_translate = { 'N_tot': r'N_\mathrm{tot}',
-                    'N_init': r'N_\mathrm{init}',
-                    # 'N_ages': r'N_\mathrm{ages}',
-                    'rho': r'\rho',
-                    'epsilon_rho': r'\epsilon_\rho',
-                    'mu': r'\mu',
-                    'sigma_mu': r'\sigma_\mu',
-                    'beta': r'\beta',
-                    'sigma_beta': r'\sigma_\beta',
-                    'lambda_E': r'\lambda_E',
-                    'lambda_I': r'\lambda_I',
-                    # 'beta_scaling': r'\beta_\mathrm{scaling}',
-                    # 'age_mixing': r'\mathrm{age}_\mathrm{mixing}',
-                    'algo': r'\mathrm{algo}',
-                    }
+    d_translate = {
+        "N_tot": r"N_\mathrm{tot}",
+        "N_init": r"N_\mathrm{init}",
+        # 'N_ages': r'N_\mathrm{ages}',
+        "rho": r"\rho",
+        "epsilon_rho": r"\epsilon_\rho",
+        "mu": r"\mu",
+        "sigma_mu": r"\sigma_\mu",
+        "beta": r"\beta",
+        "sigma_beta": r"\sigma_\beta",
+        "lambda_E": r"\lambda_E",
+        "lambda_I": r"\lambda_I",
+        # 'beta_scaling': r'\beta_\mathrm{scaling}',
+        # 'age_mixing': r'\mathrm{age}_\mathrm{mixing}',
+        "algo": r"\mathrm{algo}",
+    }
     return d_translate
-
 
 
 def human_format(num, digits=3):
@@ -602,7 +654,9 @@ def human_format(num, digits=3):
     while abs(num) >= 1000:
         magnitude += 1
         num /= 1000.0
-    return '{}{}'.format('{:f}'.format(num).rstrip('0').rstrip('.'), ['', 'K', 'M', 'G', 'T'][magnitude])
+    return "{}{}".format(
+        "{:f}".format(num).rstrip("0").rstrip("."), ["", "K", "M", "G", "T"][magnitude]
+    )
 
 
 def human_format_scientific(num, digits=3):
@@ -611,8 +665,10 @@ def human_format_scientific(num, digits=3):
     while abs(num) >= 1000:
         magnitude += 1
         num /= 1000.0
-    return '{}'.format('{:f}'.format(num).rstrip('0').rstrip('.')), f"{['', '10^3', '10^6', '10^9', '10^12'][magnitude]}"
-
+    return (
+        "{}".format("{:f}".format(num).rstrip("0").rstrip(".")),
+        f"{['', '10^3', '10^6', '10^9', '10^12'][magnitude]}",
+    )
 
 
 def dict_to_title(d, N=None, exclude=None, in_two_line=True):
@@ -635,7 +691,7 @@ def dict_to_title(d, N=None, exclude=None, in_two_line=True):
             title += f"{d_translate[sim_par]} = {val}, \,"
 
     if in_two_line:
-        if 'lambda_E' in title:
+        if "lambda_E" in title:
             title = title.replace(", \\,\\lambda_E", "$\n$\\lambda_E")
         else:
             title = title.replace(", \\,\\lambda_I", "$\n$\\lambda_I")
@@ -643,10 +699,9 @@ def dict_to_title(d, N=None, exclude=None, in_two_line=True):
     if N:
         title += r"\#" + f"{N}, \,"
 
-    title = title[:-4] + '$'
+    title = title[:-4] + "$"
 
     return title
-
 
 
 # def format_uncertanties(median, errors, name='I'):
@@ -677,26 +732,28 @@ def dict_to_title(d, N=None, exclude=None, in_two_line=True):
 #     return s
 
 
-
 from decimal import Decimal
+
 
 def round_to_uncertainty(value, uncertainty):
     # round the uncertainty to 1-2 significant digits
     u = Decimal(uncertainty).normalize()
     exponent = u.adjusted()  # find position of the most significant digit
-    precision = (u.as_tuple().digits[0] == 1)  # is the first digit 1?
-    u = u.scaleb(-exponent).quantize(Decimal(10)**-precision)
+    precision = u.as_tuple().digits[0] == 1  # is the first digit 1?
+    u = u.scaleb(-exponent).quantize(Decimal(10) ** -precision)
     # round the value to remove excess digits
     return round(Decimal(value).scaleb(-exponent).quantize(u)), u, exponent
 
+
 # import sigfig
 
-def format_asymmetric_uncertanties(value, errors, name='I'):
 
-    if name == 'I':
-        name = r'I_\mathrm{max}^\mathrm{fit}'
-    elif name == 'R':
-        name = r'R_\infty^\mathrm{fit}'
+def format_asymmetric_uncertanties(value, errors, name="I"):
+
+    if name == "I":
+        name = r"I_\mathrm{max}^\mathrm{fit}"
+    elif name == "R":
+        name = r"R_\infty^\mathrm{fit}"
     else:
         raise AssertionError(f"name = {name} not defined")
 
@@ -705,31 +762,31 @@ def format_asymmetric_uncertanties(value, errors, name='I'):
 
     if mu != mu1 or exponent != exponent1:
 
-        if np.abs(10*mu-mu1) <= 9 and exponent-1 == exponent1:
+        if np.abs(10 * mu - mu1) <= 9 and exponent - 1 == exponent1:
             mu = mu1
             # std_lower = Decimal(std_lower*10).normalize()
-            std_lower = str(std_lower*10).replace('.0', '')
+            std_lower = str(std_lower * 10).replace(".0", "")
             exponent = exponent1
 
-        elif np.abs(mu - 10*mu1) <= 9 and exponent == exponent1-1:
+        elif np.abs(mu - 10 * mu1) <= 9 and exponent == exponent1 - 1:
             mu = mu / 10
             std_lower = std_lower / 10
             std_higher = std_higher
             exponent = exponent1
 
-        elif np.abs(100*mu-mu1) <= 99 and exponent-2 == exponent1:
+        elif np.abs(100 * mu - mu1) <= 99 and exponent - 2 == exponent1:
             mu = mu1
-            std_lower = str(std_lower*100).replace('.0', '')
+            std_lower = str(std_lower * 100).replace(".0", "")
             exponent = exponent1
 
-        elif np.abs(mu - 100*mu1) <= 99 and exponent == exponent1-2:
+        elif np.abs(mu - 100 * mu1) <= 99 and exponent == exponent1 - 2:
             mu = mu / 100
             std_lower = std_lower / 100
             std_higher = std_higher
             exponent = exponent1
 
-        elif np.abs(mu-mu1) == 1 and exponent == exponent1:
-            if np.abs(mu*10**exponent-value) < mu1*10**exponent1 - value:
+        elif np.abs(mu - mu1) == 1 and exponent == exponent1:
+            if np.abs(mu * 10 ** exponent - value) < mu1 * 10 ** exponent1 - value:
                 mu = mu
             else:
                 mu = mu1
@@ -737,10 +794,22 @@ def format_asymmetric_uncertanties(value, errors, name='I'):
         else:
             raise AssertionError("The errors do not fit (not yet implemented)")
 
-    if 'E' in str(std_lower):
+    if "E" in str(std_lower):
         assert False
 
-    s = r"$" + f"{name}" +  r" = " + f"{mu}" + r"_{" + f"-{std_lower}" + r"}^{+" + f"{std_higher}" + r"} \cdot 10^{" + f"{exponent}" + r"}$"
+    s = (
+        r"$"
+        + f"{name}"
+        + r" = "
+        + f"{mu}"
+        + r"_{"
+        + f"-{std_lower}"
+        + r"}^{+"
+        + f"{std_higher}"
+        + r"} \cdot 10^{"
+        + f"{exponent}"
+        + r"}$"
+    )
 
     return s
 
@@ -753,44 +822,44 @@ def get_column_dtypes(df, cols_to_str):
     if cols_to_str is not None:
         if isinstance(cols_to_str, str):
             cols_to_str = [cols_to_str]
-        kwargs['column_dtypes'] = {col: f"<S{int(df[col].str.len().max())}" for col in cols_to_str}
+        kwargs["column_dtypes"] = {
+            col: f"<S{int(df[col].str.len().max())}" for col in cols_to_str
+        }
     return kwargs
 
 
 def dataframe_to_hdf5_format(df, include_index=False, cols_to_str=None):
     kwargs = get_column_dtypes(df, cols_to_str)
     if include_index:
-        kwargs['index_dtypes'] = f"<S{df.index.str.len().max()}"
+        kwargs["index_dtypes"] = f"<S{df.index.str.len().max()}"
     return np.array(df.to_records(index=True, **kwargs))
 
 
 #%%
+
 
 @njit
 def numba_random_choice_list(l):
     return l[np.random.randint(len(l))]
 
 
-
-
 #%%
 
 
-
 from scipy.special import erf
+
+
 def get_central_confidence_intervals(x, agg_func=np.median, N_sigma=1):
     agg = agg_func(x)
-    sigma = 100*erf(N_sigma/np.sqrt(2))
-    p_lower = 50 - sigma/2
-    p_upper = 50 + sigma/2
+    sigma = 100 * erf(N_sigma / np.sqrt(2))
+    p_lower = 50 - sigma / 2
+    p_upper = 50 + sigma / 2
     lower_bound = np.percentile(x, p_lower)
     upper_bound = np.percentile(x, p_upper)
-    errors = agg-lower_bound, upper_bound-agg
+    errors = agg - lower_bound, upper_bound - agg
     return agg, errors
 
 
 def SDOM(x):
     "standard deviation of the mean"
     return np.std(x) / np.sqrt(len(x))
-
-

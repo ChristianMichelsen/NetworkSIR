@@ -2,8 +2,10 @@ from tqdm import tqdm
 
 from pathos.helpers import cpu_count
 from pathos.multiprocessing import ProcessPool as Pool
+
 # from pathos.threading import ThreadPool as Pool
 from collections.abc import Sized
+
 
 def _parallel(ordered, function, *iterables, **kwargs):
     """Returns a generator for a parallel map with a progress bar.
@@ -17,8 +19,8 @@ def _parallel(ordered, function, *iterables, **kwargs):
     """
 
     # Extract num_cpus
-    num_cpus = kwargs.pop('num_cpus', None)
-    do_tqdm = kwargs.pop('do_tqdm', True)
+    num_cpus = kwargs.pop("num_cpus", None)
+    do_tqdm = kwargs.pop("do_tqdm", True)
 
     # Determine num_cpus
     if num_cpus is None:
@@ -30,7 +32,7 @@ def _parallel(ordered, function, *iterables, **kwargs):
     length = min(len(iterable) for iterable in iterables if isinstance(iterable, Sized))
 
     # Create parallel generator
-    map_type = 'imap' if ordered else 'uimap'
+    map_type = "imap" if ordered else "uimap"
     pool = Pool(num_cpus)
     map_func = getattr(pool, map_type)
 

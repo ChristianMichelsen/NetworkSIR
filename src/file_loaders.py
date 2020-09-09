@@ -3,16 +3,17 @@ from pathlib import Path
 
 
 def pandas_load_file(file, return_only_df=False):
-    df_raw = pd.read_csv(file)#.convert_dtypes()
+    df_raw = pd.read_csv(file)  # .convert_dtypes()
 
-    for state in ['E', 'I']:
-        df_raw[state] = sum((df_raw[col] for col in df_raw.columns if state in col and len(col) == 2))
+    for state in ["E", "I"]:
+        df_raw[state] = sum(
+            (df_raw[col] for col in df_raw.columns if state in col and len(col) == 2)
+        )
 
     # only keep relevant columns
-    df = df_raw[['Time', 'E', 'I', 'R']].copy()
-    df.rename(columns={'Time': 'time'}, inplace=True)
+    df = df_raw[["Time", "E", "I", "R"]].copy()
+    df.rename(columns={"Time": "time"}, inplace=True)
     return df
-
 
 
 def path(file):
@@ -20,22 +21,23 @@ def path(file):
         file = Path(file)
     return file
 
+
 def file_is_empty(file):
-    return (path(file).stat().st_size == 0)
+    return path(file).stat().st_size == 0
 
 
-def get_all_ABM_files(base_dir='Data/ABM'):
+def get_all_ABM_files(base_dir="Data/ABM"):
     "get all csv ABM result files"
-    files = path(base_dir).rglob(f'*.csv')
+    files = path(base_dir).rglob(f"*.csv")
     return sorted([file for file in files if not file_is_empty(file)])
+
 
 def get_ABM_parameters(files):
     return list(dict.fromkeys((path(file).parent.name for file in files)))
 
 
 class ABM_simulations:
-
-    def __init__(self, base_dir='Data/ABM'):
+    def __init__(self, base_dir="Data/ABM"):
         self.base_dir = Path(base_dir)
         self.all_files = get_all_ABM_files(base_dir)
         self.ABM_parameters = self.keys = get_ABM_parameters(self.all_files)
@@ -46,7 +48,7 @@ class ABM_simulations:
         and the value is a set of all files in that folder"""
         d = {}
         for ABM_parameter in self.ABM_parameters:
-            d[ABM_parameter] = list((self.base_dir/ABM_parameter).rglob('*.csv'))
+            d[ABM_parameter] = list((self.base_dir / ABM_parameter).rglob("*.csv"))
         return d
 
     def __iter__(self):
@@ -70,6 +72,8 @@ class ABM_simulations:
         return len(self.all_files)
 
     def __repr__(self):
-        return (f"ABM_simulations(base_dir='{self.base_dir}'). " +
-                f"Contains {len(self.all_files)} files with " +
-                f"{len(self.ABM_parameters)} different simulation parameters.")
+        return (
+            f"ABM_simulations(base_dir='{self.base_dir}'). "
+            + f"Contains {len(self.all_files)} files with "
+            + f"{len(self.ABM_parameters)} different simulation parameters."
+        )
