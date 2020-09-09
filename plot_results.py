@@ -93,9 +93,3 @@ if do_make_1D_scan:
 
 network_files = file_loaders.ABM_simulations(base_dir="Data/network", filetype="hdf5")
 plot.plot_number_of_contacts(network_files, force_rerun=force_rerun)
-
-
-#%%
-
-
-# %%π
