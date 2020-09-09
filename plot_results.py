@@ -30,7 +30,6 @@ N_files = len(abm_files)
 
 
 #%%
-
 plot.plot_ABM_simulations(abm_files, force_rerun=force_rerun)
 
 #%%
@@ -67,20 +66,13 @@ if do_make_1D_scan:
 
 num_cores = utils.get_num_cores(num_cores_max)
 
-import warnings
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", message="covariance is not positive-semidefinite.")
-    all_fits = fits.get_fit_results(abm_files, force_rerun=False, num_cores=num_cores)
+all_fits = fits.get_fit_results(abm_files, force_rerun=False, num_cores=num_cores)
 
 #%%
 
 #%%
 
-
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", message="This figure was using constrained_layout==True")
-    plot.plot_fits(all_fits, force_rerun=force_rerun)
+plot.plot_fits(all_fits, force_rerun=force_rerun)
 
 
 #%%

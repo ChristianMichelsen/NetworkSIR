@@ -9,6 +9,7 @@ from tqdm import tqdm
 from scipy.stats import uniform as sp_uniform
 from copy import copy, deepcopy
 from importlib import reload
+import warnings
 
 try:
     from src import utils
@@ -46,9 +47,7 @@ def add_fit_results_to_fit_object(fit_object, filename, cfg, T_max, df):
 
     fit_object.filename = filename
 
-    I_max_SIR, R_inf_SIR = SIR.calc_deterministic_results(
-        cfg, T_max * 1.2, dt=0.01, ts=0.1
-    )
+    I_max_SIR, R_inf_SIR = SIR.calc_deterministic_results(cfg, T_max * 1.2, dt=0.01, ts=0.1)
     I_max_fit, R_inf_fit = fit_object.compute_I_max_R_inf(T_max=T_max * 1.5)
 
     fit_object.I_max_ABM = np.max(df["I"])
@@ -59,9 +58,7 @@ def add_fit_results_to_fit_object(fit_object, filename, cfg, T_max, df):
     fit_object.R_inf_fit = R_inf_fit
     fit_object.R_inf_SIR = R_inf_SIR
 
-    SIR_results, I_max_MC, R_inf_MC = fit_object.make_monte_carlo_fits(
-        N_samples=100, T_max=T_max * 1.5, ts=0.1
-    )
+    SIR_results, I_max_MC, R_inf_MC = fit_object.make_monte_carlo_fits(N_samples=100, T_max=T_max * 1.5, ts=0.1)
     # fit_object.SIR_results = SIR_results
     fit_object.I_max_MC = I_max_MC
     fit_object.R_inf_MC = R_inf_MC
@@ -91,13 +88,7 @@ def refit_if_needed(fit_object, cfg, bounds, fix, minuit, N_max_fits=10, debug=F
 
     else:
 
-        minuit_dict = dict(
-            pedantic=False,
-            print_level=0,
-            **bounds,
-            errordef=Minuit.LEAST_SQUARES,
-            **fix,
-        )
+        minuit_dict = dict(pedantic=False, print_level=0, **bounds, errordef=Minuit.LEAST_SQUARES, **fix,)
 
         # max_reduced_chi2 = np.linspace(3, 3, N_max_fits)
 
@@ -158,32 +149,18 @@ def run_actual_fit(t, y, sy, cfg, dt, ts):
 
     p0 = dict(lambda_E=cfg.lambda_E, lambda_I=cfg.lambda_I, beta=cfg.beta, tau=0,)
 
-    bounds = dict(
-        limit_lambda_E=(1e-6, None),
-        limit_lambda_I=(1e-6, None),
-        limit_beta=(1e-6, None),
-    )
+    bounds = dict(limit_lambda_E=(1e-6, None), limit_lambda_I=(1e-6, None), limit_beta=(1e-6, None),)
 
     fix = dict(fix_lambda_E=True, fix_lambda_I=True,)
 
     fit_object = SIR.FitSIR(t, y, sy, normal_priors, cfg, dt=dt, ts=ts)
-    minuit = Minuit(
-        fit_object,
-        pedantic=False,
-        print_level=0,
-        **p0,
-        **bounds,
-        **fix,
-        errordef=Minuit.LEAST_SQUARES,
-    )
+    minuit = Minuit(fit_object, pedantic=False, print_level=0, **p0, **bounds, **fix, errordef=Minuit.LEAST_SQUARES,)
 
     minuit.migrad()
 
     fit_object.set_minuit(minuit)
 
-    fit_object, fit_failed = refit_if_needed(
-        fit_object, cfg, bounds, fix, minuit, debug=debug
-    )
+    fit_object, fit_failed = refit_if_needed(fit_object, cfg, bounds, fix, minuit, debug=debug)
 
     if debug:
         print(f"chi2 = {fit_object.chi2:.3f}")
@@ -201,9 +178,7 @@ def run_actual_fit(t, y, sy, cfg, dt, ts):
         I_max_fit, R_inf_fit = fit_object.compute_I_max_R_inf(T_max=500)
         print(f"I_max_fit = {I_max_fit/1e6:.2f} * 10^6")
 
-        SIR_results, I_max_MC, R_inf_MC = fit_object.make_monte_carlo_fits(
-            N_samples=100, T_max=500, ts=0.1
-        )
+        SIR_results, I_max_MC, R_inf_MC = fit_object.make_monte_carlo_fits(N_samples=100, T_max=500, ts=0.1)
         fig, ax = plt.subplots()
         ax.hist(I_max_MC, 50)
         ax.xaxis.set_major_formatter(EngFormatter())
@@ -225,12 +200,7 @@ def fit_single_file(filename, ts=0.1, dt=0.01):
     T_peak = df["time"].iloc[df["I"].argmax()]
 
     # extract data between 1 permille and 1 percent I of N_tot and lower than T_max
-    t, y = extract_data(
-        t=df_interpolated["time"].values,
-        y=df_interpolated["I"].values,
-        T_max=T_peak,
-        N_tot=cfg.N_tot,
-    )
+    t, y = extract_data(t=df_interpolated["time"].values, y=df_interpolated["I"].values, T_max=T_peak, N_tot=cfg.N_tot,)
     sy = np.sqrt(y)
 
     if len(t) < 5:
@@ -252,9 +222,6 @@ def fit_single_file(filename, ts=0.1, dt=0.01):
 
 #%%
 
-import warnings
-
-
 def fit_multiple_files(filenames, num_cores=1, do_tqdm=True):
 
     if num_cores == 1:
@@ -263,9 +230,7 @@ def fit_multiple_files(filenames, num_cores=1, do_tqdm=True):
         results = [fit_single_file(filename) for filename in filenames]
 
     else:
-        results = parallel.p_umap(
-            fit_single_file, filenames, num_cpus=num_cores, do_tqdm=False
-        )
+        results = parallel.p_umap(fit_single_file, filenames, num_cpus=num_cores, do_tqdm=False)
         # with mp.Pool(num_cores) as p:
         # results = list(p.imap_unordered(fit_single_file, filenames))
 
@@ -309,7 +274,9 @@ def get_fit_results(abm_files, force_rerun=False, num_cores=1):
                 all_fits[ABM_parameter] = joblib.load(output_filename)
 
             else:
-                fit_results = fit_multiple_files(files, num_cores=num_cores)
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", message="covariance is not positive-semidefinite.")
+                    fit_results = fit_multiple_files(files, num_cores=num_cores)
                 joblib.dump(fit_results, output_filename)
                 all_fits[ABM_parameter] = fit_results
 
@@ -344,12 +311,7 @@ if False:
     T_peak = df["time"].iloc[df["I"].argmax()]
 
     # extract data between 1 permille and 1 percent I of N_tot and lower than T_max
-    t, y = extract_data(
-        t=df_interpolated["time"].values,
-        y=df_interpolated["I"].values,
-        T_max=T_peak,
-        N_tot=cfg.N_tot,
-    )
+    t, y = extract_data(t=df_interpolated["time"].values, y=df_interpolated["I"].values, T_max=T_peak, N_tot=cfg.N_tot,)
     sy = np.sqrt(y)
 
     plt.errorbar(t, y, yerr=sy, fmt=".")
@@ -370,8 +332,7 @@ if False:
     ax3.plot(df["time"], df["I"])
     ax3.errorbar(fit_object.t, fit_object.y, yerr=fit_object.sy, fmt=".")
     ax3.set(
-        xlim=(fit_object.t.min() * 0.9, fit_object.t.max() * 1.1),
-        ylim=(fit_object.y.min() * 0.9, fit_object.y.max() * 1.1),
+        xlim=(fit_object.t.min() * 0.9, fit_object.t.max() * 1.1), ylim=(fit_object.y.min() * 0.9, fit_object.y.max() * 1.1),
     )
 
     fit_object, fit_failed = run_actual_fit(t, y, sy, cfg, dt, ts, filename)

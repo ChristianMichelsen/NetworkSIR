@@ -3,13 +3,12 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from pandas.errors import EmptyDataError
 from src import rc_params
-
-rc_params.set_rc_params()
 from matplotlib.backends.backend_pdf import PdfPages
 from pathlib import Path
 import pandas as pd
 from matplotlib.ticker import EngFormatter
 from collections import defaultdict
+import warnings
 
 try:
     from src import utils
@@ -21,6 +20,8 @@ except ImportError:
     import simulation_utils
     import file_loaders
     import SIR
+
+rc_params.set_rc_params()
 
 
 def compute_df_deterministic(cfg, variable, T_max=100):
@@ -47,7 +48,8 @@ def plot_ABM_simulations(abm_files, force_rerun=False):
         print(f"{pdf_name} already exists")
         return None
 
-    with PdfPages(pdf_name) as pdf:
+    with PdfPages(pdf_name) as pdf, warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="This figure was using constrained_layout==True")
 
         d_ylabel = {"I": "Infected", "R": "Recovered"}
         d_label_loc = {"I": "upper right", "R": "lower right"}
@@ -280,7 +282,8 @@ def plot_fits(all_fits, force_rerun=False, verbose=False, do_log=False):
         print(f"{pdf_name} already exists")
         return None
 
-    with PdfPages(pdf_name) as pdf:
+    with PdfPages(pdf_name) as pdf, warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="This figure was using constrained_layout==True")
 
         leg_loc = {"I": "upper right", "R": "lower right"}
         d_ylabel = {"I": "Infected", "R": "Recovered"}
@@ -522,7 +525,8 @@ def plot_number_of_contacts(network_files, force_rerun=False):
         print(f"{pdf_name} already exists")
         return None
 
-    with PdfPages(pdf_name) as pdf:
+    with PdfPages(pdf_name) as pdf, warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="This figure was using constrained_layout==True")
         for network_filename in tqdm(network_files, desc="Number of contacts"):
 
             if "ID__000" in network_filename:
