@@ -108,16 +108,9 @@ def initialize_ages(N_tot, N_ages, my_connection_weight):
 
 
 @njit
-def update_node_connections(
-    my_connections, coordinates, rho_tmp, rho_scale, continue_run, agent1, agent2
-):
+def update_node_connections(my_connections, coordinates, rho_tmp, rho_scale, continue_run, agent1, agent2):
     if agent1 != agent2:
-        r = utils.haversine(
-            coordinates[agent1, 0],
-            coordinates[agent1, 1],
-            coordinates[agent2, 0],
-            coordinates[agent2, 1],
-        )
+        r = utils.haversine(coordinates[agent1, 0], coordinates[agent1, 1], coordinates[agent2, 0], coordinates[agent2, 1],)
         if np.exp(-r * rho_tmp / rho_scale) > np.random.rand():
 
             my_connections[agent1].append(agent2)
@@ -128,9 +121,7 @@ def update_node_connections(
 
 
 @njit
-def run_algo_2(
-    PP_ages, m_i, m_j, my_connections, coordinates, rho_tmp, rho_scale, ages_in_state
-):
+def run_algo_2(PP_ages, m_i, m_j, my_connections, coordinates, rho_tmp, rho_scale, ages_in_state):
 
     continue_run = True
     while continue_run:
@@ -141,21 +132,11 @@ def run_algo_2(
         agent1 = ages_in_state[m_i][agent1]
         agent2 = ages_in_state[m_j][agent2]
 
-        continue_run = update_node_connections(
-            my_connections,
-            coordinates,
-            rho_tmp,
-            rho_scale,
-            continue_run,
-            agent1,
-            agent2,
-        )
+        continue_run = update_node_connections(my_connections, coordinates, rho_tmp, rho_scale, continue_run, agent1, agent2,)
 
 
 @njit
-def run_algo_1(
-    PP_ages, m_i, m_j, my_connections, coordinates, rho_tmp, rho_scale, ages_in_state
-):
+def run_algo_1(PP_ages, m_i, m_j, my_connections, coordinates, rho_tmp, rho_scale, ages_in_state):
 
     ra1 = np.random.rand()
     agent1 = np.searchsorted(PP_ages[m_i], ra1)
@@ -169,29 +150,12 @@ def run_algo_1(
 
         rho_tmp *= 0.9995
 
-        continue_run = update_node_connections(
-            my_connections,
-            coordinates,
-            rho_tmp,
-            rho_scale,
-            continue_run,
-            agent1,
-            agent2,
-        )
+        continue_run = update_node_connections(my_connections, coordinates, rho_tmp, rho_scale, continue_run, agent1, agent2,)
 
 
 @njit
 def connect_nodes(
-    epsilon_rho,
-    rho,
-    algo,
-    PP_ages,
-    my_connections,
-    coordinates,
-    rho_scale,
-    N_ages,
-    age_matrix,
-    ages_in_state,
+    epsilon_rho, rho, algo, PP_ages, my_connections, coordinates, rho_scale, N_ages, age_matrix, ages_in_state,
 ):
 
     if do_memory_tracking:
@@ -218,14 +182,7 @@ def connect_nodes(
                     rho_tmp = 0.0
 
                 run_algo(
-                    PP_ages,
-                    m_i,
-                    m_j,
-                    my_connections,
-                    coordinates,
-                    rho_tmp,
-                    rho_scale,
-                    ages_in_state,
+                    PP_ages, m_i, m_j, my_connections, coordinates, rho_tmp, rho_scale, ages_in_state,
                 )
 
                 if do_memory_tracking and (counter % (N_max // 30)) == 0:
@@ -269,9 +226,7 @@ def make_initial_infections(
             possible_agents.append(agent)
 
     ##  Standard outbreak type, infecting randomly
-    initial_agents_to_infect = np.random.choice(
-        np.asarray(possible_agents), size=N_init, replace=False
-    )
+    initial_agents_to_infect = np.random.choice(np.asarray(possible_agents), size=N_init, replace=False)
 
     for i, agent in enumerate(initial_agents_to_infect):
         new_state = np.random.randint(0, N_infectious_states)
@@ -400,17 +355,13 @@ def run_simulation(
             TotMov -= SIR_transition_rates[state_now]
             TotMov += SIR_transition_rates[state_after]
             csMov[state_now] -= SIR_transition_rates[state_now]
-            csMov[state_after:N_states] += (
-                SIR_transition_rates[state_after] - SIR_transition_rates[state_now]
-            )
+            csMov[state_after:N_states] += SIR_transition_rates[state_after] - SIR_transition_rates[state_now]
             csInf[state_now] -= InfRat[agent]
             accept = True
 
             # Moves TO infectious State from non-infectious
             if my_state[agent] == N_infectious_states:
-                for contact, rate in zip(
-                    my_connections[agent], my_rates[agent]
-                ):  # Loop over row agent
+                for contact, rate in zip(my_connections[agent], my_rates[agent]):  # Loop over row agent
                     if not non_infectable_agents[contact]:
                         TotInf += rate
                         InfRat[agent] += rate
@@ -431,9 +382,7 @@ def run_simulation(
 
                 # XXX HOSPITAL
                 # Now in hospital track
-                H_state = np.searchsorted(
-                    H_probability_matrix_csum[my_age[agent]], np.random.rand()
-                )
+                H_state = np.searchsorted(H_probability_matrix_csum[my_age[agent]], np.random.rand())
 
                 H_my_state[agent] = H_state
                 H_agents_in_state[H_state].append(agent)
@@ -449,9 +398,7 @@ def run_simulation(
 
             x = TotMov / Tot + csInf / Tot
             state_now = np.searchsorted(x, ra1)
-            Csum = (
-                TotMov / Tot + csInf[state_now - 1] / Tot
-            )  # important change from [state_now] to [state_now-1]
+            Csum = TotMov / Tot + csInf[state_now - 1] / Tot  # important change from [state_now] to [state_now-1]
 
             for agent in agents_in_state[state_now]:
                 Csum2 = Csum + InfRat[agent] / Tot
@@ -479,9 +426,7 @@ def run_simulation(
             # Here we update infection lists
             for step_cousin in my_connections[contact]:
                 if active_agents[step_cousin]:
-                    for step_cousins_contacts, rate in zip(
-                        my_connections[step_cousin], my_rates[step_cousin]
-                    ):
+                    for step_cousins_contacts, rate in zip(my_connections[step_cousin], my_rates[step_cousin]):
                         if step_cousins_contacts == contact:
                             TotInf -= rate
                             InfRat[step_cousin] -= rate
@@ -496,9 +441,7 @@ def run_simulation(
 
             x = (TotMov + TotInf + H_cumsum_move) / Tot
             H_old_state = np.searchsorted(x, ra1)
-            Csum = (
-                TotMov + TotInf + H_cumsum_move[H_old_state - 1]
-            ) / Tot  # important change from [H_old_state] to [H_old_state-1]
+            Csum = (TotMov + TotInf + H_cumsum_move[H_old_state - 1]) / Tot  # important change from [H_old_state] to [H_old_state-1]
             for idx_H_state in range(len(H_agents_in_state[H_old_state])):
 
                 agent = H_agents_in_state[H_old_state][idx_H_state]
@@ -509,10 +452,7 @@ def run_simulation(
                     accept = True
                     H_ra = np.random.rand()
 
-                    H_tmp = (
-                        H_move_matrix_cumsum[H_my_state[agent], :, my_age[agent]]
-                        / H_move_matrix_sum[H_my_state[agent], my_age[agent]]
-                    )
+                    H_tmp = H_move_matrix_cumsum[H_my_state[agent], :, my_age[agent]] / H_move_matrix_sum[H_my_state[agent], my_age[agent]]
                     H_new_state = np.searchsorted(H_tmp, H_ra)
 
                     # We have chosen agent to move -> here we move it
@@ -523,29 +463,20 @@ def run_simulation(
                     H_state_total_counts[H_old_state] -= 1
                     H_state_total_counts[H_new_state] += 1
 
-                    H_tot_move += (
-                        H_move_matrix_sum[H_new_state, my_age[agent]]
-                        - H_move_matrix_sum[H_old_state, my_age[agent]]
-                    )
+                    H_tot_move += H_move_matrix_sum[H_new_state, my_age[agent]] - H_move_matrix_sum[H_old_state, my_age[agent]]
 
                     # moving forward
                     if H_old_state < H_new_state:
-                        H_cumsum_move[H_old_state:H_new_state] -= H_move_matrix_sum[
-                            H_old_state, my_age[agent]
-                        ]
+                        H_cumsum_move[H_old_state:H_new_state] -= H_move_matrix_sum[H_old_state, my_age[agent]]
                         H_cumsum_move[H_new_state:] += (
-                            H_move_matrix_sum[H_new_state, my_age[agent]]
-                            - H_move_matrix_sum[H_old_state, my_age[agent]]
+                            H_move_matrix_sum[H_new_state, my_age[agent]] - H_move_matrix_sum[H_old_state, my_age[agent]]
                         )
 
                     # moving backwards
                     else:
-                        H_cumsum_move[H_new_state:H_old_state] += H_move_matrix_sum[
-                            H_old_state, my_age[agent]
-                        ]
+                        H_cumsum_move[H_new_state:H_old_state] += H_move_matrix_sum[H_old_state, my_age[agent]]
                         H_cumsum_move[H_new_state:] += (
-                            H_move_matrix_sum[H_new_state, my_age[agent]]
-                            - H_move_matrix_sum[H_old_state, my_age[agent]]
+                            H_move_matrix_sum[H_new_state, my_age[agent]] - H_move_matrix_sum[H_old_state, my_age[agent]]
                         )
 
                     break
@@ -578,20 +509,7 @@ def run_simulation(
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
         continue_run, TotMov, TotInf = do_bug_check(
-            counter,
-            continue_run,
-            TotInf,
-            TotMov,
-            verbose,
-            state_total_counts,
-            N_states,
-            N_tot,
-            accept,
-            csMov,
-            ra1,
-            s,
-            x,
-            csInf,
+            counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, accept, csMov, ra1, s, x, csInf,
         )
 
         s_counter[s] += 1
@@ -608,20 +526,7 @@ def run_simulation(
 
 @njit
 def do_bug_check(
-    counter,
-    continue_run,
-    TotInf,
-    TotMov,
-    verbose,
-    state_total_counts,
-    N_states,
-    N_tot,
-    accept,
-    csMov,
-    ra1,
-    s,
-    x,
-    csInf,
+    counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, accept, csMov, ra1, s, x, csInf,
 ):
 
     if counter > 100_000_000:
@@ -683,9 +588,7 @@ class Simulation:
 
         self.filenames = {}
         self.filename = self.filenames["filename"] = Filename.filename
-        self.filenames[
-            "network_initialisation"
-        ] = Filename.filename_network_initialisation
+        self.filenames["network_initialisation"] = Filename.filename_network_initialisation
         self.filenames["network_network"] = Filename.filename_network
 
         utils.set_numba_random_seed(self.ID)
@@ -699,17 +602,11 @@ class Simulation:
 
         search_string = "Saving network initialization"
 
-        if utils.file_exists(
-            memory_file
-        ) and simulation_utils.does_file_contains_string(memory_file, search_string):
-            self.time_start -= simulation_utils.get_search_string_time(
-                memory_file, search_string
-            )
+        if utils.file_exists(memory_file) and simulation_utils.does_file_contains_string(memory_file, search_string):
+            self.time_start -= simulation_utils.get_search_string_time(memory_file, search_string)
             self.track_memory("Appending to previous network initialization")
         else:
-            utils.make_sure_folder_exist(
-                self.filenames["memory"], delete_file_if_exists=True
-            )  # make sure parent folder exists
+            utils.make_sure_folder_exist(self.filenames["memory"], delete_file_if_exists=True)  # make sure parent folder exists
 
         global track_memory
         track_memory = self.track_memory
@@ -732,17 +629,13 @@ class Simulation:
 
         cfg = self.cfg
         self.track_memory("Loading Coordinates")
-        self.coordinates = simulation_utils.load_coordinates(
-            self._Filename.coordinates_filename, cfg.N_tot, self.ID
-        )
+        self.coordinates = simulation_utils.load_coordinates(self._Filename.coordinates_filename, cfg.N_tot, self.ID)
 
         if self.verbose:
             print("INITIALIZE NETWORK")
         self.track_memory("Initialize Network")
 
-        my_connections = utils.initialize_nested_lists(
-            cfg.N_tot, dtype=np.uint32
-        )  # initialize_list_set
+        my_connections = utils.initialize_nested_lists(cfg.N_tot, dtype=np.uint32)  # initialize_list_set
 
         rho_scale = 1  # scale factor of rho
         # cfg.mu /= 2 # fix to factor in that both nodes have connections with each other
@@ -750,26 +643,15 @@ class Simulation:
         # age variables
         age_mixing = 1.0
         N_ages = 1
-        age_matrix_relative_interactions = simulation_utils.calculate_age_proportions_1D(
-            1.0, N_ages
-        )
-        age_relative_proportions = simulation_utils.calculate_age_proportions_2D(
-            age_mixing, N_ages
-        )
-        age_matrix = (
-            age_matrix_relative_interactions
-            * age_relative_proportions
-            * (cfg.mu / 2)
-            * cfg.N_tot
-        )
+        age_matrix_relative_interactions = simulation_utils.calculate_age_proportions_1D(1.0, N_ages)
+        age_relative_proportions = simulation_utils.calculate_age_proportions_2D(age_mixing, N_ages)
+        age_matrix = age_matrix_relative_interactions * age_relative_proportions * (cfg.mu / 2) * cfg.N_tot
 
         if self.verbose:
             print("MAKE RATES AND CONNECTIONS")
         self.track_memory("Numba Compilation")
 
-        my_connection_weight, my_infection_weight = initialize_connections_and_rates(
-            cfg.N_tot, cfg.sigma_mu, cfg.beta, cfg.sigma_beta
-        )
+        my_connection_weight, my_infection_weight = initialize_connections_and_rates(cfg.N_tot, cfg.sigma_mu, cfg.beta, cfg.sigma_beta)
 
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
         # # # # # # # # # # # # # # # # AGES  # # # # # # # # # # # # # # # # # # # # #
@@ -779,14 +661,7 @@ class Simulation:
             print("MAKE AGES")
         self.track_memory("Numba Compilation")
 
-        (
-            my_age,
-            ages_total_counts,
-            ages_in_state,
-            PT_ages,
-            PC_ages,
-            PP_ages,
-        ) = initialize_ages(cfg.N_tot, N_ages, my_connection_weight)
+        (my_age, ages_total_counts, ages_in_state, PT_ages, PC_ages, PP_ages,) = initialize_ages(cfg.N_tot, N_ages, my_connection_weight)
 
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
         # # # # # # # # # # # CONNECT NODES # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -797,34 +672,18 @@ class Simulation:
         self.track_memory("Numba Compilation")
 
         connect_nodes(
-            cfg.epsilon_rho,
-            cfg.rho,
-            cfg.algo,
-            PP_ages,
-            my_connections,
-            self.coordinates,
-            rho_scale,
-            N_ages,
-            age_matrix,
-            ages_in_state,
+            cfg.epsilon_rho, cfg.rho, cfg.algo, PP_ages, my_connections, self.coordinates, rho_scale, N_ages, age_matrix, ages_in_state,
         )
 
         return my_connections, my_age, my_infection_weight
 
     def _save_network_initalization(
-        self,
-        my_age,
-        my_infection_weight,
-        my_number_of_contacts,
-        my_connections,
-        time_elapsed,
+        self, my_age, my_infection_weight, my_number_of_contacts, my_connections, time_elapsed,
     ):
         self.track_memory("Saving network initialization")
         utils.make_sure_folder_exist(self.filenames["network_initialisation"])
         with h5py.File(self.filenames["network_initialisation"], "w") as f:  #
-            f.create_dataset(
-                "cfg_str", data=str(self.cfg)
-            )  # import ast; ast.literal_eval(str(cfg))
+            f.create_dataset("cfg_str", data=str(self.cfg))  # import ast; ast.literal_eval(str(cfg))
             f.create_dataset("my_age", data=my_age)
             f.create_dataset("my_infection_weight", data=my_infection_weight)
             f.create_dataset("my_number_of_contacts", data=my_number_of_contacts)
@@ -841,9 +700,7 @@ class Simulation:
             my_number_of_contacts = f["my_number_of_contacts"][()]
             my_connections = awkward0.hdf5(f)["my_connections"]
         self.track_memory("Loading Coordinates")
-        self.coordinates = simulation_utils.load_coordinates(
-            self._Filename.coordinates_filename, self.cfg.N_tot, self.ID
-        )
+        self.coordinates = simulation_utils.load_coordinates(self._Filename.coordinates_filename, self.cfg.N_tot, self.ID)
         return (
             my_age,
             my_infection_weight,
@@ -859,28 +716,19 @@ class Simulation:
         # try to load file (except if forced to rerun)
         if not force_rerun:
             try:
-                (
-                    my_age,
-                    my_infection_weight,
-                    my_number_of_contacts,
-                    my_connections,
-                ) = self._load_network_initalization()
+                (my_age, my_infection_weight, my_number_of_contacts, my_connections,) = self._load_network_initalization()
                 if self.verbose:
                     print(f"{self.filenames['network_initialisation']} exists")
             except OSError:
                 if self.verbose:
-                    print(
-                        f"{self.filenames['network_initialisation']} had OSError, creating it"
-                    )
+                    print(f"{self.filenames['network_initialisation']} had OSError, creating it")
                 OSError_flag = True
 
         # if ran into OSError above or forced to rerun:
         if OSError_flag or force_rerun:
 
             if self.verbose and not OSError_flag:
-                print(
-                    f"{self.filenames['network_initialisation']} does not exist, creating it"
-                )
+                print(f"{self.filenames['network_initialisation']} does not exist, creating it")
 
             with Timer() as t:
                 my_connections, my_age, my_infection_weight = self._initialize_network()
@@ -898,9 +746,7 @@ class Simulation:
                         time_elapsed=t.elapsed,
                     )
                 except OSError as e:
-                    print(
-                        f"\nSkipped saving network initialization for {self.filenames['network_initialisation']}"
-                    )
+                    print(f"\nSkipped saving network initialization for {self.filenames['network_initialisation']}")
                     # print(e)
 
         self.my_age = my_age
@@ -927,27 +773,19 @@ class Simulation:
         self.initial_ages_exposed = np.arange(N_ages)
 
         # self.my_rates = simulation_utils.initialize_my_rates(cfg.N_tot, cfg.beta, cfg.sigma_beta, self.my_number_of_contacts, self.ID)
-        self.my_rates = simulation_utils.initialize_my_rates(
-            self.my_infection_weight, self.my_number_of_contacts
-        )
+        self.my_rates = simulation_utils.initialize_my_rates(self.my_infection_weight, self.my_number_of_contacts)
 
         self.my_state = np.full(cfg.N_tot, -1, dtype=np.int8)
         self.state_total_counts = np.zeros(self.N_states, dtype=np.uint32)
-        self.agents_in_state = utils.initialize_nested_lists(
-            self.N_states, dtype=np.uint32
-        )
+        self.agents_in_state = utils.initialize_nested_lists(self.N_states, dtype=np.uint32)
 
         self.csMov = np.zeros(self.N_states, dtype=np.float64)
         self.csInf = np.zeros(self.N_states, dtype=np.float64)
         self.InfRat = np.zeros(cfg.N_tot, dtype=np.float64)
 
-        self.cs_move_individual = utils.initialize_nested_lists(
-            self.N_states, dtype=np.float64
-        )
+        self.cs_move_individual = utils.initialize_nested_lists(self.N_states, dtype=np.float64)
 
-        self.SIR_transition_rates = simulation_utils.initialize_SIR_transition_rates(
-            self.N_states, self.N_infectious_states, cfg
-        )
+        self.SIR_transition_rates = simulation_utils.initialize_SIR_transition_rates(self.N_states, self.N_infectious_states, cfg)
 
         self.ages_in_state = simulation_utils.compute_ages_in_state(self.my_age, N_ages)
 
@@ -1046,9 +884,7 @@ class Simulation:
         if save_only_ID_0 and self.ID != 0:
             return None
 
-        utils.make_sure_folder_exist(
-            self.filenames["network_network"], delete_file_if_exists=True
-        )
+        utils.make_sure_folder_exist(self.filenames["network_network"], delete_file_if_exists=True)
 
         self.track_memory("Saving HDF5 File")
         with h5py.File(self.filenames["network_network"], "w") as f:  #
@@ -1056,9 +892,7 @@ class Simulation:
             f.create_dataset("my_state", data=self.my_state)
             f.create_dataset("my_number_of_contacts", data=self.my_number_of_contacts)
             f.create_dataset("my_age", data=self.my_age)
-            f.create_dataset(
-                "cfg_str", data=str(self.cfg)
-            )  # import ast; ast.literal_eval(str(cfg))
+            f.create_dataset("cfg_str", data=str(self.cfg))  # import ast; ast.literal_eval(str(cfg))
             f.create_dataset("df", data=utils.dataframe_to_hdf5_format(self.df))
 
             if time_elapsed:
@@ -1066,16 +900,9 @@ class Simulation:
 
             if self.do_track_memory:
                 memory_file = self.filenames["memory"]
-                (
-                    self.df_time_memory,
-                    self.df_change_points,
-                ) = simulation_utils.parse_memory_file(memory_file)
-                df_time_memory_hdf5 = utils.dataframe_to_hdf5_format(
-                    self.df_time_memory, cols_to_str=["ChangePoint"]
-                )
-                df_change_points_hdf5 = utils.dataframe_to_hdf5_format(
-                    self.df_change_points, include_index=True
-                )
+                (self.df_time_memory, self.df_change_points,) = simulation_utils.parse_memory_file(memory_file)
+                df_time_memory_hdf5 = utils.dataframe_to_hdf5_format(self.df_time_memory, cols_to_str=["ChangePoint"])
+                df_change_points_hdf5 = utils.dataframe_to_hdf5_format(self.df_change_points, include_index=True)
 
                 f.create_dataset("memory_file", data=Path(memory_file).read_text())
                 f.create_dataset("df_time_memory", data=df_time_memory_hdf5)
@@ -1105,11 +932,7 @@ class Simulation:
     def save_memory_figure(self, savefig=True):
         if self.do_track_memory:
             fig, ax = simulation_utils.plot_memory_comsumption(
-                self.df_time_memory,
-                self.df_change_points,
-                min_TimeDiffRel=0.1,
-                min_MemoryDiffRel=0.1,
-                time_unit="s",
+                self.df_time_memory, self.df_change_points, min_TimeDiffRel=0.1, min_MemoryDiffRel=0.1, time_unit="s",
             )
             if savefig:
                 fig.savefig(self.filenames["memory"].replace(".txt", ".pdf"))
@@ -1118,9 +941,7 @@ class Simulation:
 #%%
 
 
-def run_full_simulation(
-    filename, verbose=False, force_rerun=False, only_initialize_network=False
-):
+def run_full_simulation(filename, verbose=False, force_rerun=False, only_initialize_network=False):
 
     with Timer() as t, warnings.catch_warnings():
         if not verbose:

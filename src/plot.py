@@ -529,7 +529,7 @@ def plot_number_of_contacts(network_files, force_rerun=False):
         warnings.filterwarnings("ignore", message="This figure was using constrained_layout==True")
         for network_filename in tqdm(network_files, desc="Number of contacts"):
 
-            if "ID__000" in network_filename:
+            if "ID__000" in str(network_filename):
                 pass
             else:
                 continue
