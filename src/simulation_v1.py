@@ -968,22 +968,30 @@ def run_full_simulation(filename, verbose=False, force_rerun=False, only_initial
         print("\n\nFinished!!!")
 
 
+#%%
+
 reload(utils)
 reload(simulation_utils)
 
 verbose = True
 force_rerun = True
-filename = "Data/ABM/N_tot__58000__N_init__100__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2/N_tot__58000__N_init__100__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2__ID__000.csv"
+filename = "Data/ABM/N_tot__58000__N_init__100__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.099__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2/N_tot__58000__N_init__100__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.099__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2__ID__000.csv"
 # filename = filename.replace('ID__000', 'ID__001')
 
 
 # if running just til file
 if Path("").cwd().stem == "src" and False:
+
     simulation = Simulation(filename, verbose)
     simulation.initialize_network(force_rerun=force_rerun)
+
+    simulation_utils.initialize_my_rates(simulation.my_infection_weight, simulation.my_number_of_contacts)
+
     simulation.make_initial_infections()
     simulation.run_simulation()
     df = simulation.make_dataframe()
     display(df)
 
 # run_full_simulation(filename, verbose=True)
+
+# %%

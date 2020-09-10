@@ -495,22 +495,18 @@ def _plot_number_of_contacts(filename):
 
     my_state, my_number_of_contacts = _load_my_state_and_my_number_of_contacts(filename)
 
-    fig, ax = plt.subplots()
-    ax.hist(my_number_of_contacts, 100, histtype="step", label="All")
-
     mask_S = my_state[-1] == -1
     mask_R = my_state[-1] == 8
-    mask_EI = np.isin(my_state[-1], np.arange(8))
+    # mask_EI = np.isin(my_state[-1], np.arange(8))
 
+    fig, ax = plt.subplots()
+    ax.hist(my_number_of_contacts, 100, range=(0, 200), histtype="step", label="All")
     ax.hist(my_number_of_contacts[mask_S], 100, range=(0, 200), histtype="step", label="S")
     ax.hist(my_number_of_contacts[mask_R], 100, range=(0, 200), histtype="step", label="R")
-    ax.hist(my_number_of_contacts[mask_EI], 100, range=(0, 200), histtype="step", label="EI")
+    # ax.hist(my_number_of_contacts[mask_EI], 100, range=(0, 200), histtype="step", label="EI")
 
     ax.legend()
-
-    # reload(utils)
     title = utils.string_to_title(filename)
-
     ax.yaxis.set_major_formatter(EngFormatter())
     ax.set(xlabel="# of contacts", ylabel="Counts", title=title)
     return fig, ax
