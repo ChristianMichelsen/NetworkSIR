@@ -12,8 +12,8 @@ from functools import partial
 num_cores_max = 30
 N_loops = 10
 dry_run = False
-force_overwrite = False
-verbose = True  # only for 1 core
+force_rerun = True
+verbose = False
 
 rc_params.set_rc_params()
 
@@ -87,7 +87,7 @@ if __name__ == "__main__":
         print("\n\nRunning a dry run, nothing will actually be simulated.!!!\n\n")
 
     for d_sim_pars in all_sim_pars:
-        filenames = simulation_utils.generate_filenames(d_sim_pars, N_loops, force_overwrite=force_overwrite)
+        filenames = simulation_utils.generate_filenames(d_sim_pars, N_loops, force_rerun=force_rerun)
 
         N_files = len(filenames)
         N_files_total += N_files
@@ -105,11 +105,11 @@ if __name__ == "__main__":
 
             if num_cores == 1:
                 for filename in tqdm(filenames):
-                    simulation.run_full_simulation(filename, verbose=verbose, force_rerun=False)
+                    simulation.run_full_simulation(filename, verbose=verbose, force_rerun=force_rerun)
 
             else:
                 with mp.Pool(num_cores) as p:
-                    kwargs = dict(verbose=False, force_rerun=False)
+                    kwargs = dict(verbose=verbose, force_rerun=force_rerun)
                     f = partial(simulation.run_full_simulation, **kwargs)
                     list(tqdm(p.imap_unordered(f, filenames), total=N_files))
         else:

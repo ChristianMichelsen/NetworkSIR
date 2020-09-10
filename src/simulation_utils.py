@@ -49,7 +49,7 @@ def dict_to_filename_with_dir(cfg, ID, data_dir="ABM"):
     return str(filename)
 
 
-def generate_filenames(d_sim_pars, N_loops=10, force_overwrite=False):
+def generate_filenames(d_sim_pars, N_loops=10, force_rerun=False):
     filenames = []
 
     nameval_to_str = [[f"{name}__{x}" for x in lst] for (name, lst) in d_sim_pars.items()]
@@ -72,14 +72,12 @@ def generate_filenames(d_sim_pars, N_loops=10, force_overwrite=False):
                 zero_size = Path(filename).stat().st_size == 0
             except FileNotFoundError:
                 zero_size = True
-            if not_existing or zero_size or force_overwrite:
+            if not_existing or zero_size or force_rerun:
                 filenames.append(filename)
     return filenames
 
 
-d_num_cores_N_tot = RangeKeyDict(
-    {(0, 1_000_001): 40, (1_000_001, 2_000_001): 30, (2_000_001, 5_000_001): 20, (5_000_001, 10_000_001): 12,}
-)
+d_num_cores_N_tot = RangeKeyDict({(0, 1_000_001): 40, (1_000_001, 2_000_001): 30, (2_000_001, 5_000_001): 20, (5_000_001, 10_000_001): 12,})
 
 
 def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max=None):
@@ -113,7 +111,7 @@ class Filename:
     def __init__(self, filename):
 
         if isinstance(filename, dict):
-            filename = generate_filenames(filename, N_loops=1, force_overwrite=True)[0]
+            filename = generate_filenames(filename, N_loops=1, force_rerun=True)[0]
 
         self._filename = filename
         self.filename = self.filename_prefix + filename
@@ -428,12 +426,7 @@ def plot_memory_comsumption(
     # marker='s'
 
     ax.plot(
-        df_time_memory.index / time_scale[time_unit],
-        df_time_memory["Memory"],
-        ".",
-        c=colors[0],
-        zorder=2,
-        label="Data Points",
+        df_time_memory.index / time_scale[time_unit], df_time_memory["Memory"], ".", c=colors[0], zorder=2, label="Data Points",
     )
     ax.scatter(
         df_change_points_non_compilation["Time"] / time_scale[time_unit],
@@ -473,12 +466,7 @@ def plot_memory_comsumption(
 
             if row["TimeDiffRel"] > 0.01 or last:
                 kwargs = dict(
-                    rotation=90,
-                    color=col,
-                    fontsize=22,
-                    ha="center",
-                    va="center",
-                    bbox=dict(boxstyle="square", ec=col, fc="white"),
+                    rotation=90, color=col, fontsize=22, ha="center", va="center", bbox=dict(boxstyle="square", ec=col, fc="white"),
                 )
                 if y / ymax > 0.45:
                     ax.text(t, y / 2, index, **kwargs)
@@ -735,9 +723,7 @@ def parse_household_data_list(filename, convert_to_numpy=False):
 
 def load_household_data(household_data_filenames):
     people_in_household = parse_household_data_list(household_data_filenames[0], convert_to_numpy=True)
-    age_distribution_per_people_in_household = parse_household_data_list(
-        household_data_filenames[1], convert_to_numpy=True
-    )
+    age_distribution_per_people_in_household = parse_household_data_list(household_data_filenames[1], convert_to_numpy=True)
     return people_in_household, age_distribution_per_people_in_household
 
 
