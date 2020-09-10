@@ -18,7 +18,7 @@ from src import fits
 rc_params.set_rc_params()
 num_cores_max = 30
 
-do_make_1D_scan = False
+do_make_1D_scan = True
 force_rerun = False
 
 #%%
@@ -36,6 +36,7 @@ plot.plot_ABM_simulations(abm_files, force_rerun=force_rerun)
 
 parameters_1D_scan = [
     dict(scan_parameter="mu"),
+    dict(scan_parameter="beta", non_default_parameters=dict(rho=0.1)),
     dict(scan_parameter="beta"),
     dict(scan_parameter="N_tot", do_log=True),
     dict(scan_parameter="N_init", do_log=True),
@@ -44,8 +45,8 @@ parameters_1D_scan = [
     dict(scan_parameter="rho", non_default_parameters=dict(algo=1)),
     dict(scan_parameter="rho", non_default_parameters=dict(N_tot=5_800_000)),
     dict(scan_parameter="rho", non_default_parameters=dict(N_tot=5_800_000, beta=0.01 / 2)),
-    dict(scan_parameter="epsilon_rho", non_default_parameters=dict(rho=100)),
-    dict(scan_parameter="epsilon_rho", non_default_parameters=dict(rho=100, algo=1)),
+    dict(scan_parameter="epsilon_rho", non_default_parameters=dict(rho=0.1)),
+    dict(scan_parameter="epsilon_rho", non_default_parameters=dict(rho=0.1, algo=1)),
     dict(scan_parameter="sigma_beta"),
     dict(scan_parameter="sigma_mu"),
     dict(scan_parameter="lambda_E"),

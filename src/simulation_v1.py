@@ -974,9 +974,11 @@ reload(utils)
 reload(simulation_utils)
 
 verbose = True
-force_rerun = True
-filename = "Data/ABM/N_tot__58000__N_init__100__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.099__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2/N_tot__58000__N_init__100__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.099__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2__ID__000.csv"
+force_rerun = False
+filename = "Data/ABM/N_tot__58000__N_init__100__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2/N_tot__58000__N_init__100__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2__ID__000.csv"
 # filename = filename.replace('ID__000', 'ID__001')
+filename = filename.replace("beta__0.01", "beta__0.005")
+filename = filename.replace("sigma_beta__0.0", "sigma_beta__1.0")
 
 
 # if running just til file
@@ -985,7 +987,9 @@ if Path("").cwd().stem == "src" and False:
     simulation = Simulation(filename, verbose)
     simulation.initialize_network(force_rerun=force_rerun)
 
-    simulation_utils.initialize_my_rates(simulation.my_infection_weight, simulation.my_number_of_contacts)
+    my_rates = simulation_utils.initialize_my_rates(simulation.my_infection_weight, simulation.my_number_of_contacts)
+
+    my_rates[0]
 
     simulation.make_initial_infections()
     simulation.run_simulation()

@@ -148,6 +148,11 @@ def compute_ABM_SEIR_proportions(filenames):
     cfg = utils.string_to_dict(filename)
     df_SIR = SIR.integrate(cfg, T_max, dt=0.01, ts=0.1)
 
+    # break out if the SIR model dies out
+    if df_SIR["I"].max() < cfg.N_init:
+        N = len(I_max_ABM)
+        return np.full(N, np.nan), np.full(N, np.nan), cfg
+
     z_rel_I = I_max_ABM / df_SIR["I"].max()
     z_rel_R = R_inf_ABM / df_SIR["R"].iloc[-1]
 
