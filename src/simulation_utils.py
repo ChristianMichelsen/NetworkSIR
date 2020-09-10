@@ -52,7 +52,7 @@ def dict_to_filename_with_dir(cfg, ID, data_dir="ABM"):
 def generate_filenames(d_sim_pars, N_loops=10, force_rerun=False):
     filenames = []
 
-    nameval_to_str = [[f"{name}__{x}" for x in lst] for (name, lst) in d_sim_pars.items()]
+    nameval_to_str = [[f"{name}__{x}" for x in lst] for (name, lst) in reversed(d_sim_pars.items())]
     all_combinations = list(product(*nameval_to_str))
 
     cfg = get_cfg_default()

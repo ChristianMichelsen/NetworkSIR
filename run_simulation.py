@@ -8,75 +8,52 @@ from src import rc_params
 from src import utils
 from src import simulation_utils
 from functools import partial
+import yaml
 
 num_cores_max = 30
 N_loops = 10
 dry_run = False
 force_rerun = True
-verbose = True
+verbose = False
 
 rc_params.set_rc_params()
 
-#%%
 
-mus = [10, 20, 25, 30, 40, 50, 60, 80, 100]
-betas = [0.005, 0.075, 0.01, 0.02, 0.05, 0.1]
-epsilon_rhos = [
-    0,
-    0.005,
-    0.01,
-    0.02,
-    0.05,
-    0.1,
-    0.2,
-    0.3,
-    0.4,
-    0.5,
-    0.6,
-    0.7,
-    0.9,
-    0.9,
-    0.95,
-    0.99,
-    1.0,
-]
-rhos = [0, 0.005, 0.010, 0.015, 0.025, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5]
+#%%
 
 
 if utils.is_local_computer():
 
     all_sim_pars = [
         # {"N_tot": [58_000], "beta": [0.01, 0.01 / 2, 0.01 * 2], 'rho'=[0.1]},
-        {"N_tot": [58_000], "rho": [0], "sigma_beta": [0, 0.5, 1], "beta": [0.01, 0.01 / 2, 0.01 * 2],},
+        {"beta": [0.01, 0.01 / 2, 0.01 * 2], "N_tot": [58_000], "rho": [0]},
     ]
 
 else:
 
-    all_sim_pars = [
-        {"rho": [0, 0.1], "sigma_beta": [0, 0.5, 1], "beta": betas,},
-    ]
+    filename = "cfg_runs.yaml"
+
+    import yaml
+
+    with open(filename) as file:
+        all_sim_pars = yaml.load(file)["all_sim_pars"]
 
     # all_sim_pars = [
-    #     {"mu": mus},
+    #     {"mu": mus, "rho": [0, 0.1]},
     #     {"beta": betas, "rho": [0, 0.1]},
-    #     {"epsilon_rho": epsilon_rhos, "rho": [0.1], "algo": [2, 1],},
-    #     {"N_tot": [580_000], "rho": rhos},
-    #     {"N_tot": [580_000], "rho": rhos, "beta": [0.01 / 2]},
+    #     {"epsilon_rho": epsilon_rhos, "rho": [0.1]},
+    #     {"rho": rhos},
+    #     {"rho": rhos, "beta": [0.01 / 2]},
     #     {"sigma_beta": [0, 0.25, 0.5, 0.75, 1], "sigma_mu": [0, 1], "rho": [0, 0.1],},
-    #     {"sigma_beta": [0, 1], "sigma_mu": [0, 0.25, 0.5, 0.75, 1], "rho": [0, 0.1],},
-    #     {"N_init": [1, 5, 50, 500, 1_000, 5_000],},
+    #     {"sigma_mu": [0, 0.25, 0.5, 0.75, 1], "sigma_beta": [0, 1], "rho": [0, 0.1],},
+    #     {"N_init": [1, 5, 50, 500, 1_000, 5_000]},
     #     {"beta": [0.01 * 2, 0.01 * 4], "mu": [40 / 2, 40 / 4], "sigma_mu": [0, 1], "sigma_beta": [0, 1], "rho": [0, 0.1],},
     #     {"lambda_E": [0.5, 1, 2, 4],},
     #     {"lambda_I": [0.5, 1, 2, 4],},
-    #     {"N_tot": [100_000, 200_000, 500_000, 580_000],},
-    #     {"N_tot": [1_000_000]},
-    #     {"N_tot": [2_000_000]},
-    #     {"N_tot": [3_000_000]},
-    #     {"N_tot": [4_000_000]},
-    #     {"N_tot": [5_000_000]},
-    #     {"N_tot": [5_800_000]},
+    #     {"N_tot": N_tots_small},
+    #     {"N_tot": N_tots_medium},
+    #     {"N_tot": N_tots_large},
     #     {"N_tot": [5_800_000], "rho": rhos},
-    #     {"N_tot": [5_800_000], "rho": rhos, "beta": [0.01 / 2]},
     # ]
 
 
