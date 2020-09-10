@@ -13,7 +13,7 @@ import yaml
 num_cores_max = 30
 N_loops = 10
 dry_run = False
-force_rerun = True
+force_rerun = False
 verbose = False
 
 rc_params.set_rc_params()
