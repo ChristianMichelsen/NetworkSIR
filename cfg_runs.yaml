@@ -23,7 +23,7 @@ all_sim_pars:
   - {"beta": [0.02, 0.04], "mu": [20, 10], "sigma_mu": [0, 1], "sigma_beta": [0, 1], "rho": [0, 0.1]}
   - {"lambda_E": [0.5, 1, 2, 4]}
   - {"lambda_I": [0.5, 1, 2, 4]}
-  - {"N_tot": N_tots_small}
-  - {"N_tot": N_tots_medium}
-  - {"N_tot": N_tots_large}
+  - {"N_tot": *N_tots_small}
+  - {"N_tot": *N_tots_medium}
+  - {"N_tot": *N_tots_large}
   - {"N_tot": [5_800_000], "rho": *rhos}

@@ -12,7 +12,7 @@ import yaml
 
 num_cores_max = 30
 N_loops = 10
-dry_run = False
+dry_run = True
 force_rerun = False
 verbose = False
 
@@ -32,29 +32,8 @@ if utils.is_local_computer():
 else:
 
     filename = "cfg_runs.yaml"
-
-    import yaml
-
     with open(filename) as file:
         all_sim_pars = yaml.load(file)["all_sim_pars"]
-
-    # all_sim_pars = [
-    #     {"mu": mus, "rho": [0, 0.1]},
-    #     {"beta": betas, "rho": [0, 0.1]},
-    #     {"epsilon_rho": epsilon_rhos, "rho": [0.1]},
-    #     {"rho": rhos},
-    #     {"rho": rhos, "beta": [0.01 / 2]},
-    #     {"sigma_beta": [0, 0.25, 0.5, 0.75, 1], "sigma_mu": [0, 1], "rho": [0, 0.1],},
-    #     {"sigma_mu": [0, 0.25, 0.5, 0.75, 1], "sigma_beta": [0, 1], "rho": [0, 0.1],},
-    #     {"N_init": [1, 5, 50, 500, 1_000, 5_000]},
-    #     {"beta": [0.01 * 2, 0.01 * 4], "mu": [40 / 2, 40 / 4], "sigma_mu": [0, 1], "sigma_beta": [0, 1], "rho": [0, 0.1],},
-    #     {"lambda_E": [0.5, 1, 2, 4],},
-    #     {"lambda_I": [0.5, 1, 2, 4],},
-    #     {"N_tot": N_tots_small},
-    #     {"N_tot": N_tots_medium},
-    #     {"N_tot": N_tots_large},
-    #     {"N_tot": [5_800_000], "rho": rhos},
-    # ]
 
 
 #%%
