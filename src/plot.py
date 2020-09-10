@@ -164,7 +164,7 @@ def get_1D_scan_results(scan_parameter, non_default_parameters):
 
     simulation_parameters_1D_scan = simulation_utils.get_simulation_parameters_1D_scan(scan_parameter, non_default_parameters)
     N_simulation_parameters = len(simulation_parameters_1D_scan)
-    if N_simulation_parameters == 0:
+    if N_simulation_parameters <= 1:
         return None
 
     base_dir = Path("Data") / "ABM"
@@ -188,6 +188,9 @@ def get_1D_scan_results(scan_parameter, non_default_parameters):
         sy_I[i] = utils.SDOM(z_rel_I)
         sy_R[i] = utils.SDOM(z_rel_R)
         n[i] = len(z_rel_I)
+
+    if np.isfinite(y_I).sum() <= 1 and np.isfinite(y_R).sum() <= 1:
+        return None
 
     return x, y_I, y_R, sy_I, sy_R, n, cfg
 
@@ -427,7 +430,7 @@ def get_1D_scan_fit_results(all_fits, scan_parameter, non_default_parameters):
     selected_fits = {key: val for key, val in all_fits.items() if key in simulation_parameters_1D_scan}
 
     N_simulation_parameters = len(selected_fits)
-    if N_simulation_parameters == 0:
+    if N_simulation_parameters <= 1:
         return None
 
     N = len(selected_fits)
