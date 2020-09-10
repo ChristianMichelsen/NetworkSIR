@@ -321,8 +321,8 @@ def plot_fits(all_fits, force_rerun=False, verbose=False, do_log=False):
                     ax.plot(t, df[I_or_R], "k-", lw=lw, label=label)
 
                     label_min = "Fit Range" if i == 0 else None
-                    ax.axvline(fit_object.t.min(), lw=lw, alpha=0.8, label=label_min)
-                    ax.axvline(fit_object.t.max(), lw=lw, alpha=0.8)
+                    ax.axvline(fit_object.t.min(), ymin=0, ymax=0.25, lw=lw, alpha=0.8, label=label_min)
+                    ax.axvline(fit_object.t.max(), ymin=0, ymax=0.25, lw=lw, alpha=0.8)
 
                     label = "Fits" if i == 0 else None
                     ax.plot(
