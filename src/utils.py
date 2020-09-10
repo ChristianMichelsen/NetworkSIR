@@ -179,14 +179,14 @@ def get_numba_list_dtype(x, as_string=False):
     return getattr(np, dtype)
 
 
-@njit
-def sort_and_flatten_nested_list(nested_list):
-    res = List()
-    for lst in nested_list:
-        # sorted_indices = np.argsort(np.asarray(lst))
-        for index in sorted_indices:
-            res.append(lst[index])
-    return np.asarray(res)
+# @njit
+# def sort_and_flatten_nested_list(nested_list):
+#     res = List()
+#     for lst in nested_list:
+#         # sorted_indices = np.argsort(np.asarray(lst))
+#         for index in sorted_indices:
+#             res.append(lst[index])
+#     return np.asarray(res)
 
 
 @njit
@@ -499,9 +499,7 @@ class MutableArray:
             self._awkward_array = arraylike_object
 
         else:
-            raise AssertionError(
-                f"arraylike_object is neither numba list or awkward arry, got {type(arraylike_object)}"
-            )
+            raise AssertionError(f"arraylike_object is neither numba list or awkward arry, got {type(arraylike_object)}")
 
         self.dtype = dtype
         self._initialize_numba_array()
@@ -783,19 +781,7 @@ def format_asymmetric_uncertanties(value, errors, name="I"):
     if "E" in str(std_lower):
         assert False
 
-    s = (
-        r"$"
-        + f"{name}"
-        + r" = "
-        + f"{mu}"
-        + r"_{"
-        + f"-{std_lower}"
-        + r"}^{+"
-        + f"{std_higher}"
-        + r"} \cdot 10^{"
-        + f"{exponent}"
-        + r"}$"
-    )
+    s = r"$" + f"{name}" + r" = " + f"{mu}" + r"_{" + f"-{std_lower}" + r"}^{+" + f"{std_higher}" + r"} \cdot 10^{" + f"{exponent}" + r"}$"
 
     return s
 

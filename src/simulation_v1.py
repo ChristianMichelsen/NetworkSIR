@@ -733,7 +733,7 @@ class Simulation:
             with Timer() as t:
                 my_connections, my_age, my_infection_weight = self._initialize_network()
             my_connections, my_number_of_contacts = utils.nested_list_to_awkward_array(
-                my_connections, return_lengths=True, sort_nested_list=True
+                my_connections, return_lengths=True, sort_nested_list=False
             )
 
             if save_initial_network:
@@ -745,7 +745,7 @@ class Simulation:
                         my_connections=ak.to_awkward0(my_connections),
                         time_elapsed=t.elapsed,
                     )
-                except OSError as e:
+                except OSError:
                     print(f"\nSkipped saving network initialization for {self.filenames['network_initialisation']}")
                     # print(e)
 
@@ -941,7 +941,7 @@ class Simulation:
 #%%
 
 
-def run_full_simulation(filename, verbose=False, force_rerun=False, only_initialize_network=False):
+def run_full_simulation(filename, verbose=False, force_rerun=False, only_initialize_network=False, save_initial_network=True):
 
     with Timer() as t, warnings.catch_warnings():
         if not verbose:
@@ -950,7 +950,7 @@ def run_full_simulation(filename, verbose=False, force_rerun=False, only_initial
             warnings.simplefilter("ignore", NumbaPendingDeprecationWarning)
 
         simulation = Simulation(filename, verbose)
-        simulation.initialize_network(force_rerun=force_rerun)
+        simulation.initialize_network(force_rerun=force_rerun, save_initial_network=save_initial_network)
         if only_initialize_network:
             return None
 

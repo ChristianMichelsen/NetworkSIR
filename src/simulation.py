@@ -1277,7 +1277,7 @@ class Simulation:
 #%%
 
 
-def run_full_simulation(filename, verbose=False, force_rerun=False, only_initialize_network=False):
+def run_full_simulation(filename, verbose=False, force_rerun=False, only_initialize_network=False, save_initial_network=True):
 
     with Timer() as t, warnings.catch_warnings():
         if not verbose:
@@ -1286,7 +1286,7 @@ def run_full_simulation(filename, verbose=False, force_rerun=False, only_initial
             warnings.simplefilter("ignore", NumbaPendingDeprecationWarning)
 
         simulation = Simulation(filename, verbose)
-        simulation.initialize_network(force_rerun=force_rerun)
+        simulation.initialize_network(force_rerun=force_rerun, save_initial_network=save_initial_network)
         if only_initialize_network:
             return None
 

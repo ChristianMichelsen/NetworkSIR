@@ -171,6 +171,8 @@ class Filename:
             "N_tot",
             "mu",
             "sigma_mu",
+            "beta",
+            "sigma_beta",
             "rho",
             "epsilon_rho",
             "algo",

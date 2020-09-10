@@ -519,6 +519,9 @@ def _plot_number_of_contacts(filename):
 
 def plot_number_of_contacts(network_files, force_rerun=False):
 
+    if len(network_files) == 0:
+        return None
+
     pdf_name = f"Figures/Number_of_contacts.pdf"
     Path(pdf_name).parent.mkdir(parents=True, exist_ok=True)
 

@@ -13,7 +13,7 @@ num_cores_max = 30
 N_loops = 10
 dry_run = False
 force_rerun = True
-verbose = False
+verbose = True
 
 rc_params.set_rc_params()
 
@@ -47,33 +47,37 @@ if utils.is_local_computer():
 
     all_sim_pars = [
         # {"N_tot": [58_000], "beta": [0.01, 0.01 / 2, 0.01 * 2], 'rho'=[0.1]},
-        {"beta": [0.01, 0.01 / 2, 0.01 * 2], "rho": [0.1], "sigma_beta": [0, 0.5, 1]},
+        {"N_tot": [58_000], "rho": [0], "sigma_beta": [0, 0.5, 1], "beta": [0.01, 0.01 / 2, 0.01 * 2],},
     ]
 
 else:
 
     all_sim_pars = [
-        {"mu": mus},
-        {"beta": betas},
-        {"epsilon_rho": epsilon_rhos, "rho": [0.1], "algo": [2, 1],},
-        {"N_tot": [580_000], "rho": rhos},
-        {"N_tot": [580_000], "rho": rhos, "beta": [0.01 / 2]},
-        {"sigma_beta": [0, 0.25, 0.5, 0.75, 1], "sigma_mu": [0, 1], "rho": [0, 0.1],},
-        {"sigma_beta": [0, 1], "sigma_mu": [0, 0.25, 0.5, 0.75, 1], "rho": [0, 0.1],},
-        {"N_init": [1, 5, 50, 500, 1_000, 5_000],},
-        {"beta": [0.01 * 2, 0.01 * 4], "mu": [40 / 2, 40 / 4], "sigma_mu": [0, 1], "sigma_beta": [0, 1], "rho": [0, 0.1],},
-        {"lambda_E": [0.5, 1, 2, 4],},
-        {"lambda_I": [0.5, 1, 2, 4],},
-        {"N_tot": [100_000, 200_000, 500_000, 580_000],},
-        {"N_tot": [1_000_000]},
-        {"N_tot": [2_000_000]},
-        {"N_tot": [3_000_000]},
-        {"N_tot": [4_000_000]},
-        {"N_tot": [5_000_000]},
-        {"N_tot": [5_800_000]},
-        {"N_tot": [5_800_000], "rho": rhos},
-        {"N_tot": [5_800_000], "rho": rhos, "beta": [0.01 / 2]},
+        {"rho": [0, 0.1], "sigma_beta": [0, 0.5, 1], "beta": betas,},
     ]
+
+    # all_sim_pars = [
+    #     {"mu": mus},
+    #     {"beta": betas, "rho": [0, 0.1]},
+    #     {"epsilon_rho": epsilon_rhos, "rho": [0.1], "algo": [2, 1],},
+    #     {"N_tot": [580_000], "rho": rhos},
+    #     {"N_tot": [580_000], "rho": rhos, "beta": [0.01 / 2]},
+    #     {"sigma_beta": [0, 0.25, 0.5, 0.75, 1], "sigma_mu": [0, 1], "rho": [0, 0.1],},
+    #     {"sigma_beta": [0, 1], "sigma_mu": [0, 0.25, 0.5, 0.75, 1], "rho": [0, 0.1],},
+    #     {"N_init": [1, 5, 50, 500, 1_000, 5_000],},
+    #     {"beta": [0.01 * 2, 0.01 * 4], "mu": [40 / 2, 40 / 4], "sigma_mu": [0, 1], "sigma_beta": [0, 1], "rho": [0, 0.1],},
+    #     {"lambda_E": [0.5, 1, 2, 4],},
+    #     {"lambda_I": [0.5, 1, 2, 4],},
+    #     {"N_tot": [100_000, 200_000, 500_000, 580_000],},
+    #     {"N_tot": [1_000_000]},
+    #     {"N_tot": [2_000_000]},
+    #     {"N_tot": [3_000_000]},
+    #     {"N_tot": [4_000_000]},
+    #     {"N_tot": [5_000_000]},
+    #     {"N_tot": [5_800_000]},
+    #     {"N_tot": [5_800_000], "rho": rhos},
+    #     {"N_tot": [5_800_000], "rho": rhos, "beta": [0.01 / 2]},
+    # ]
 
 
 #%%
