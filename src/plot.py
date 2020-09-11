@@ -507,7 +507,7 @@ def _plot_number_of_contacts(filename):
     mask_R = my_state[-1] == 8
 
     x_min = np.percentile(my_number_of_contacts, 0.01)
-    x_max = np.percentile(my_number_of_contacts, 99.99)
+    x_max = np.percentile(my_number_of_contacts, 99.9)
     x_range = (x_min, x_max)
     N_bins = int(x_max - x_min)
 
@@ -521,9 +521,12 @@ def _plot_number_of_contacts(filename):
 
     x = 0.5 * (H_all[1][:-1] + H_all[1][1:])
     frac_S = H_S[0] / H_all[0]
+    s_frac_S = np.sqrt(frac_S * (1 - frac_S) / H_all[0])
     frac_R = H_R[0] / H_all[0]
-    ax2.plot(x, frac_S, color=d_colors["Risk"])
-    ax2.plot(x, frac_R, color=d_colors["Immune"])
+    s_frac_R = np.sqrt(frac_R * (1 - frac_R) / H_all[0])
+
+    ax2.errorbar(x, frac_S, s_frac_S, fmt=".", color=d_colors["Risk"])
+    ax2.errorbar(x, frac_R, s_frac_R, fmt=".", color=d_colors["Immune"])
 
     ax1.legend()
     # ax1.legend()
