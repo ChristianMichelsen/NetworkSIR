@@ -505,19 +505,35 @@ def _plot_number_of_contacts(filename):
 
     mask_S = my_state[-1] == -1
     mask_R = my_state[-1] == 8
-    # mask_EI = np.isin(my_state[-1], np.arange(8))
 
-    fig, ax = plt.subplots()
-    ax.hist(my_number_of_contacts, 100, range=(0, 200), histtype="step", label="All")
-    ax.hist(my_number_of_contacts[mask_S], 100, range=(0, 200), histtype="step", label="S")
-    ax.hist(my_number_of_contacts[mask_R], 100, range=(0, 200), histtype="step", label="R")
-    # ax.hist(my_number_of_contacts[mask_EI], 100, range=(0, 200), histtype="step", label="EI")
+    x_min = np.percentile(my_number_of_contacts, 0.01)
+    x_max = np.percentile(my_number_of_contacts, 99.99)
+    x_range = (x_min, x_max)
+    N_bins = int(x_max - x_min)
 
-    ax.legend()
+    d_colors = {"Total": "C0", "Immune": "C2", "Risk": "C1"}
+    kwargs = {"bins": N_bins, "range": x_range, "histtype": "step"}
+
+    fig, (ax1, ax2) = plt.subplots(nrows=2, sharex=True, gridspec_kw={"height_ratios": [2.5, 1]})
+    H_all = ax1.hist(my_number_of_contacts, label="Total", color=d_colors["Total"], **kwargs)
+    H_S = ax1.hist(my_number_of_contacts[mask_S], label="At Risk", color=d_colors["Risk"], **kwargs)
+    H_R = ax1.hist(my_number_of_contacts[mask_R], label="Immune", color=d_colors["Immune"], **kwargs)
+
+    x = 0.5 * (H_all[1][:-1] + H_all[1][1:])
+    frac_S = H_S[0] / H_all[0]
+    frac_R = H_R[0] / H_all[0]
+    ax2.plot(x, frac_S, color=d_colors["Risk"])
+    ax2.plot(x, frac_R, color=d_colors["Immune"])
+
+    ax1.legend()
+    # ax1.legend()
     title = utils.string_to_title(filename)
-    ax.yaxis.set_major_formatter(EngFormatter())
-    ax.set(xlabel="# of contacts", ylabel="Counts", title=title)
-    return fig, ax
+    ax1.yaxis.set_major_formatter(EngFormatter())
+    ax1.set(ylabel="Counts", xlim=x_range)
+    ax1.set_title(title, pad=40, fontsize=30)
+    ax2.set(xlabel="Total number of contacts", ylim=(0, 1), ylabel=r"Fraction")
+
+    return fig, ax1
 
 
 def plot_number_of_contacts(network_files, force_rerun=False):
