@@ -162,27 +162,6 @@ def run_actual_fit(t, y, sy, cfg, dt, ts):
 
     fit_object, fit_failed = refit_if_needed(fit_object, cfg, bounds, fix, minuit, debug=debug)
 
-    if debug:
-        print(f"chi2 = {fit_object.chi2:.3f}")
-        print("")
-        print(fit_object.get_fit_parameters())
-        print("")
-        print(normal_priors)
-        print("")
-        print(fit_object.correlations)
-        print("")
-
-        I_max_SIR, R_inf_SIR = SIR.calc_deterministic_results(cfg, 500, dt=0.01, ts=0.1)
-        print(f"I_max_SIR = {I_max_SIR/1e6:.2f} * 10^6")
-
-        I_max_fit, R_inf_fit = fit_object.compute_I_max_R_inf(T_max=500)
-        print(f"I_max_fit = {I_max_fit/1e6:.2f} * 10^6")
-
-        SIR_results, I_max_MC, R_inf_MC = fit_object.make_monte_carlo_fits(N_samples=100, T_max=500, ts=0.1)
-        fig, ax = plt.subplots()
-        ax.hist(I_max_MC, 50)
-        ax.xaxis.set_major_formatter(EngFormatter())
-
     return fit_object, fit_failed
 
 
@@ -221,6 +200,7 @@ def fit_single_file(filename, ts=0.1, dt=0.01):
 
 
 #%%
+
 
 def fit_multiple_files(filenames, num_cores=1, do_tqdm=True):
 
@@ -283,64 +263,3 @@ def get_fit_results(abm_files, force_rerun=False, num_cores=1):
         joblib.dump(all_fits, all_fits_file)
         return all_fits
 
-
-filename = "../Data/ABM/N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__1.0__beta__0.04__sigma_beta__1.0__rho__0.0__lambda_E__1.0__lambda_I__2.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__580000__N_init__100__N_ages__1__mu__40.0__sigma_mu__1.0__beta__0.04__sigma_beta__1.0__rho__0.0__lambda_E__1.0__lambda_I__2.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__006.csv"
-ts = 0.1
-dt = 0.01
-# filename = filename.replace('N_tot__580000__', 'N_tot__5800000__')
-# filename = filename.replace('N_init__1000__', 'N_init__100__')
-# filename = filename.replace('rho__100.0__', 'rho__15.0__')
-
-import matplotlib.pyplot as plt
-from matplotlib.ticker import EngFormatter
-
-
-if False:
-
-    cfg = utils.string_to_dict(filename)
-    df = file_loaders.pandas_load_file(filename)
-
-    plt.plot(df["time"], df["I"])
-
-    df_interpolated = SIR.interpolate_df(df)
-
-    # Time at end of simulation
-    T_max = df["time"].max()
-
-    # time at peak I (peak infection)
-    T_peak = df["time"].iloc[df["I"].argmax()]
-
-    # extract data between 1 permille and 1 percent I of N_tot and lower than T_max
-    t, y = extract_data(t=df_interpolated["time"].values, y=df_interpolated["I"].values, T_max=T_peak, N_tot=cfg.N_tot,)
-    sy = np.sqrt(y)
-
-    plt.errorbar(t, y, yerr=sy, fmt=".")
-
-    fig, ax = plt.subplots()
-    for i, SIR_result in enumerate(SIR_results):
-        t = SIR_result[:, 0]
-        I = SIR_result[:, -2]
-        R = SIR_result[:, -1]
-        ax.plot(t, I)
-    # ax.legend()
-
-    fig2, ax2 = plt.subplots()
-    ax2.hist(fit_object.I_max_MC, 50)
-
-    df = fit_object.calc_df_fit(T_max=100)
-    fig3, ax3 = plt.subplots()
-    ax3.plot(df["time"], df["I"])
-    ax3.errorbar(fit_object.t, fit_object.y, yerr=fit_object.sy, fmt=".")
-    ax3.set(
-        xlim=(fit_object.t.min() * 0.9, fit_object.t.max() * 1.1), ylim=(fit_object.y.min() * 0.9, fit_object.y.max() * 1.1),
-    )
-
-    fit_object, fit_failed = run_actual_fit(t, y, sy, cfg, dt, ts, filename)
-    add_fit_results_to_fit_object(fit_object, filename, cfg, T_max, df)
-    print(f"{fit_object.I_max_SIR/1e6=}")
-    print(f"{fit_object.I_max_ABM/1e6=}")
-    print(f"{fit_object.I_max_fit/1e6=}")
-    fig4, ax4 = plt.subplots()
-    ax4.hist(fit_object.I_max_MC, 50)
-
-    SIR.calc_deterministic_results(cfg, T_max * 1.2, dt=0.01, ts=0.1)

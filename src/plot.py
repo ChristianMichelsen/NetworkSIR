@@ -112,7 +112,16 @@ def plot_ABM_simulations(abm_files, force_rerun=False):
                 rel_uncertainty = std / mu
                 s_mu = utils.human_format_scientific(mu, digits=n_digits)
 
-                s = r"$ " + f"{name} = ({s_mu[0]}" + r"\pm " + f"{rel_uncertainty*100:.2}" + r"\% )" + r"\cdot " + f"{s_mu[1]}" + r"$"
+                s = (
+                    r"$ "
+                    + f"{name} = ({s_mu[0]}"
+                    + r"\pm "
+                    + f"{rel_uncertainty*100:.2}"
+                    + r"\% )"
+                    + r"\cdot "
+                    + f"{s_mu[1]}"
+                    + r"$"
+                )
                 ax.text(
                     -0.1, -0.2, s, horizontalalignment="left", transform=ax.transAxes, fontsize=24,
                 )
@@ -162,7 +171,9 @@ def compute_ABM_SEIR_proportions(filenames):
 def get_1D_scan_results(scan_parameter, non_default_parameters):
     "Compute the fraction between ABM and SEIR for all simulations related to the scan_parameter"
 
-    simulation_parameters_1D_scan = simulation_utils.get_simulation_parameters_1D_scan(scan_parameter, non_default_parameters)
+    simulation_parameters_1D_scan = simulation_utils.get_simulation_parameters_1D_scan(
+        scan_parameter, non_default_parameters
+    )
     N_simulation_parameters = len(simulation_parameters_1D_scan)
     if N_simulation_parameters <= 1:
         return None
@@ -425,7 +436,9 @@ def compute_fit_ABM_proportions(fit_objects):
 def get_1D_scan_fit_results(all_fits, scan_parameter, non_default_parameters):
     "Compute the fraction between ABM and SEIR for all simulations related to the scan_parameter"
 
-    simulation_parameters_1D_scan = simulation_utils.get_simulation_parameters_1D_scan(scan_parameter, non_default_parameters)
+    simulation_parameters_1D_scan = simulation_utils.get_simulation_parameters_1D_scan(
+        scan_parameter, non_default_parameters
+    )
 
     selected_fits = {key: val for key, val in all_fits.items() if key in simulation_parameters_1D_scan}
 
