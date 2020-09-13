@@ -26,5 +26,5 @@ all_sim_pars:
   - {"N_tot": *N_tots_small}
   - {"N_tot": *N_tots_medium}
   - {"N_tot": *N_tots_large}
-  - {"N_tot": 10_000_000}
   - {"N_tot": [5_800_000], "rho": *rhos}
+  - {"N_tot": 10_000_000}
