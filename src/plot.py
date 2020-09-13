@@ -21,6 +21,9 @@ except ImportError:
     import file_loaders
     import SIR
 
+from numba import njit
+from functools import lru_cache
+
 rc_params.set_rc_params()
 
 
@@ -575,3 +578,169 @@ def plot_number_of_contacts(network_files, force_rerun=False):
                 fig, ax = _plot_number_of_contacts(network_filename)
                 pdf.savefig(fig, dpi=100)
                 plt.close("all")
+
+
+#%%
+
+
+def _load_my_state_and_coordinates(filename):
+    with h5py.File(filename, "r") as f:
+        my_state = f["my_state"][()]
+        coordinates = f["coordinates"][()]
+    return my_state, coordinates
+
+
+@njit
+def hist2d_numba(data_2D, bins, ranges):
+    H = np.zeros((bins[0], bins[1]), dtype=np.uint64)
+    delta = 1 / ((ranges[:, 1] - ranges[:, 0]) / bins)
+    for t in range(data_2D.shape[0]):
+        i = (data_2D[t, 0] - ranges[0, 0]) * delta[0]
+        j = (data_2D[t, 1] - ranges[1, 0]) * delta[1]
+        if 0 <= i < bins[0] and 0 <= j < bins[1]:
+            H[int(i), int(j)] += 1
+    return H
+
+
+@njit
+def get_ranges(x):
+    return np.array(([x[:, 0].min(), x[:, 0].max()], [x[:, 1].min(), x[:, 1].max()]))
+
+
+def histogram2d(data_2D, bins=None, ranges=None):
+    if bins is None:
+        print("No binning provided, using (100, 100) as default")
+        bins = np.array((100, 100))
+    if isinstance(bins, int):
+        bins = np.array([bins, bins])
+    elif isinstance(bins, list) or isinstance(bins, tuple):
+        bins = np.array(bins, dtype=int)
+    if ranges is None:
+        ranges = get_ranges(data_2D)
+        ranges[:, 0] *= 0.99
+        ranges[:, 1] *= 1.01
+    return hist2d_numba(data_2D, bins=bins, ranges=ranges)
+
+
+def _get_N_bins_xy(coordinates):
+
+    lon_min = coordinates[:, 0].min()
+    lon_max = coordinates[:, 0].max()
+    lon_mid = np.mean([lon_min, lon_max])
+
+    lat_min = coordinates[:, 1].min()
+    lat_max = coordinates[:, 1].max()
+    lat_mid = np.mean([lat_min, lat_max])
+
+    N_bins_x = int(utils.haversine(lon_min, lat_mid, lon_max, lat_mid)) + 1
+    N_bins_y = int(utils.haversine(lon_mid, lat_min, lon_mid, lat_max)) + 1
+
+    return N_bins_x, N_bins_y
+
+
+if False:
+
+    filename = "Data/network/N_tot__5800000__N_init__100__rho__0.01__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2__ID__0.hdf5"
+
+    day = -1
+    grid_km = 2
+
+    my_state, coordinates = _load_my_state_and_coordinates(filename)
+
+    N_bins_x, N_bins_y = _get_N_bins_xy(coordinates)
+    ranges = get_ranges(coordinates)
+
+    my_state_day = my_state[day]
+
+    kwargs = {"bins": (N_bins_x / grid_km, N_bins_y / grid_km), "ranges": ranges}
+    counts_1d_all = histogram2d(coordinates, **kwargs)
+    counts_1d_R = histogram2d(coordinates[my_state_day == 8], **kwargs)
+
+    H = counts_1d_R / counts_1d_all
+    H_1d = H[counts_1d_all > 0]
+
+    from matplotlib.colors import LogNorm
+
+    fig, ax = plt.subplots()
+    norm = LogNorm(vmin=0.01, vmax=1)
+    im = ax.imshow(H.T, interpolation="none", origin="lower", cmap="viridis")  # norm=norm
+    fig.colorbar(im, ax=ax, extend="max")
+
+    fig2, ax2 = plt.subplots()
+    ax2.hist(H[counts_1d_all > 0], 100)
+    # ax2.set_yscale("log")
+
+    fig3, ax3 = plt.subplots()
+    ax3.hist(counts_1d_all.flatten(), 100)
+    # ax3.set_yscale("log")
+
+    #%%
+
+    # conda install -c conda-forge geopandas
+
+    import geopandas as gpd
+    from shapely.geometry import Point, Polygon
+
+    shp_small = "Data/Kommuner/ADM_2M/KOMMUNE.shp"
+    shp_medium = "Data/Kommuner/ADM_500k/KOMMUNE.shp"
+    shp_large = "Data/Kommuner/ADM_10k/KOMMUNE.shp"
+    kommuner_small = gpd.read_file(shp_small)
+    kommuner_medium = gpd.read_file(shp_medium)
+    kommuner_large = gpd.read_file(shp_large)
+
+
+    geometries = kommuner["geometry"]
+
+    #%%
+    from IPython.display import display
+    from shapely.geometry import Polygon, mapping
+
+    # polygon = Polygon(((0, 0), (1, 0), (0.5, 1)))
+    # polygon = Polygon(((0, 0), (1, 0), (0.5, 1)))
+    polygon = geometries[0]
+    poly = np.array(mapping(polygon)["coordinates"][0])[:, :2] / 1e6
+    x, y = 0.485, 6.15
+    x2, y2 = 1.5, 0.5
+    point = Point(x, y)
+    point2 = Point(x2, y2)
+
+    # polygon.contains(point)
+    # polygon.contains(point2)
+
+    @njit
+    def ray_tracing(x, y, poly):
+        # https://stackoverflow.com/a/48760556
+        n = len(poly)
+        inside = False
+        p2x = 0.0
+        p2y = 0.0
+        xints = 0.0
+        p1x, p1y = poly[0]
+        for i in range(n + 1):
+            p2x, p2y = poly[i % n]
+            if y > min(p1y, p2y):
+                if y <= max(p1y, p2y):
+                    if x <= max(p1x, p2x):
+                        if p1y != p2y:
+                            xints = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                        if p1x == p2x or x <= xints:
+                            inside = not inside
+            p1x, p1y = p2x, p2y
+
+        return inside
+
+    ray_tracing(x, y, poly)
+    ray_tracing(x2, y2, poly)
+
+    for index, row in kommuner_small.iterrows():
+        print(row['KOMNAVN'])
+        display(row["geometry"])
+
+    # from src.nbspatial import ray_tracing as ray_tracing2
+
+    # ray_tracing2(x, y, poly)
+    # ray_tracing2(x2, y2, poly)
+
+    #%%
+
+    # %%

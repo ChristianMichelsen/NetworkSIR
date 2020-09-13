@@ -44,13 +44,17 @@ parameters_1D_scan = [
     dict(scan_parameter="rho", non_default_parameters=dict(beta=0.005)),
     dict(scan_parameter="rho", non_default_parameters=dict(algo=1)),
     dict(scan_parameter="rho", non_default_parameters=dict(N_tot=5_800_000)),
-    dict(scan_parameter="rho", non_default_parameters=dict(N_tot=5_800_000, beta=0.005)),
     dict(scan_parameter="epsilon_rho"),
     dict(scan_parameter="epsilon_rho", non_default_parameters=dict(rho=0.1)),
     dict(scan_parameter="epsilon_rho", non_default_parameters=dict(rho=0.1, algo=1)),
     dict(scan_parameter="sigma_beta"),
     dict(scan_parameter="sigma_beta", non_default_parameters=dict(rho=0.1)),
+    dict(scan_parameter="sigma_beta", non_default_parameters=dict(sigma_mu=1)),
+    dict(scan_parameter="sigma_beta", non_default_parameters=dict(rho=0.1, sigma_mu=1)),
     dict(scan_parameter="sigma_mu"),
+    dict(scan_parameter="sigma_mu", non_default_parameters=dict(rho=0.1)),
+    dict(scan_parameter="sigma_mu", non_default_parameters=dict(sigma_beta=1)),
+    dict(scan_parameter="sigma_mu", non_default_parameters=dict(rho=0.1, sigma_beta=1)),
     dict(scan_parameter="lambda_E"),
     dict(scan_parameter="lambda_I"),
 ]
@@ -94,4 +98,5 @@ if do_make_1D_scan:
 network_files = file_loaders.ABM_simulations(base_dir="Data/network", filetype="hdf5")
 plot.plot_number_of_contacts(network_files, force_rerun=force_rerun)
 
-# %%
+filename = network_files.all_files[0]
+

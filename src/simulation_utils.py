@@ -77,7 +77,15 @@ def generate_filenames(d_sim_pars, N_loops=10, force_rerun=False):
     return filenames
 
 
-d_num_cores_N_tot = RangeKeyDict({(0, 1_000_001): 40, (1_000_001, 2_000_001): 30, (2_000_001, 5_000_001): 20, (5_000_001, 10_000_001): 12,})
+d_num_cores_N_tot = RangeKeyDict(
+    {
+        (0, 1_000_001): 40,
+        (1_000_001, 2_000_001): 30,
+        (2_000_001, 5_000_001): 20,
+        (5_000_001, 6_000_001): 12,
+        (6_000_001, 10_000_001): 5,
+    }
+)
 
 
 def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max=None):
@@ -428,7 +436,12 @@ def plot_memory_comsumption(
     # marker='s'
 
     ax.plot(
-        df_time_memory.index / time_scale[time_unit], df_time_memory["Memory"], ".", c=colors[0], zorder=2, label="Data Points",
+        df_time_memory.index / time_scale[time_unit],
+        df_time_memory["Memory"],
+        ".",
+        c=colors[0],
+        zorder=2,
+        label="Data Points",
     )
     ax.scatter(
         df_change_points_non_compilation["Time"] / time_scale[time_unit],
@@ -468,7 +481,12 @@ def plot_memory_comsumption(
 
             if row["TimeDiffRel"] > 0.01 or last:
                 kwargs = dict(
-                    rotation=90, color=col, fontsize=22, ha="center", va="center", bbox=dict(boxstyle="square", ec=col, fc="white"),
+                    rotation=90,
+                    color=col,
+                    fontsize=22,
+                    ha="center",
+                    va="center",
+                    bbox=dict(boxstyle="square", ec=col, fc="white"),
                 )
                 if y / ymax > 0.45:
                     ax.text(t, y / 2, index, **kwargs)
@@ -725,7 +743,9 @@ def parse_household_data_list(filename, convert_to_numpy=False):
 
 def load_household_data(household_data_filenames):
     people_in_household = parse_household_data_list(household_data_filenames[0], convert_to_numpy=True)
-    age_distribution_per_people_in_household = parse_household_data_list(household_data_filenames[1], convert_to_numpy=True)
+    age_distribution_per_people_in_household = parse_household_data_list(
+        household_data_filenames[1], convert_to_numpy=True
+    )
     return people_in_household, age_distribution_per_people_in_household
 
 

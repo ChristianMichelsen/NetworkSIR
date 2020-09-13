@@ -33,7 +33,9 @@ else:
 
     filename = "cfg_runs.yaml"
     with open(filename) as file:
-        all_sim_pars = yaml.load(file)["all_sim_pars"]
+        all_sim_pars = yaml.load(file)[
+            "all_sim_pars"
+        ]  # TODO YAMLLoadWarning: calling yaml.load() without Loader=... is deprecated,
 
 
 #%%
