@@ -954,7 +954,7 @@ num_cores = utils.get_num_cores(num_cores_max)
 
 filenames = animation_utils.get_animation_filenames()
 # print("Only keeping animations with ID_0 for now")
-# filenames = [filename for filename in filenames if 'ID__0' in filename]
+filenames = [filename for filename in filenames if "ID__0" in filename]
 
 
 N_files = len(filenames)

@@ -30,6 +30,7 @@ dependencies:
   # - datashader
   - awkward
   - pyarrow
+  - pytables
   # - networkx
   # - fast-histogram
   - astropy
