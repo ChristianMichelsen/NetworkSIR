@@ -35,8 +35,6 @@ else:
     with open(filename) as file:
         all_sim_pars = yaml.safe_load(file)["all_sim_pars"]
 
-# # TODO: Add fix if argument is not list in simulation_utils.generate_filenames
-
 #%%
 
 N_loops = 2 if utils.is_local_computer() else N_loops

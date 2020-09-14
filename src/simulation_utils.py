@@ -49,11 +49,19 @@ def dict_to_filename_with_dir(cfg, ID, data_dir="ABM"):
     return str(filename)
 
 
+def get_all_combinations(d_sim_pars):
+    nameval_to_str = []
+    for name, lst in reversed(d_sim_pars.items()):
+        if isinstance(lst, int):
+            lst = [lst]
+        nameval_to_str.append([f"{name}__{x}" for x in lst])
+    all_combinations = list(product(*nameval_to_str))
+
+
 def generate_filenames(d_sim_pars, N_loops=10, force_rerun=False):
     filenames = []
 
-    nameval_to_str = [[f"{name}__{x}" for x in lst] for (name, lst) in reversed(d_sim_pars.items())]
-    all_combinations = list(product(*nameval_to_str))
+    all_combinations = get_all_combinations(d_sim_pars)
 
     cfg = get_cfg_default()
     # combination = all_combinations[0]
