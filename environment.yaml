@@ -18,32 +18,24 @@ dependencies:
   - pyyaml
   - black
   - pysftp
-  # - plotly
-  # - numba
   - numba/label/dev::numba
   - icc_rt
   - joblib
   - scikit-learn # uses ParameterSampler to fit multiple times
   - psutil
-  # - plotly-orca
-  #- natsort
   # - datashader
   - awkward
   - pyarrow
   - pytables
-  # - networkx
-  # - fast-histogram
   - astropy
   - imageio-ffmpeg
   - h5py
- # - netcdf4
   - pathos
+  - geopandas
   # - p_tqdm
-  # - awkward-numba
   - pip:
     - mpl-scatter-density
     - pygifsicle
     - contexttimer
     - awkward1>=0.2.32
     - range-key-dict
-    # - sigfig

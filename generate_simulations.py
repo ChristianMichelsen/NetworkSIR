@@ -12,7 +12,7 @@ import yaml
 
 num_cores_max = 30
 N_loops = 10
-dry_run = True
+dry_run = False
 force_rerun = False
 verbose = False
 

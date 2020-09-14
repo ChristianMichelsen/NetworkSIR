@@ -7,6 +7,7 @@ from sklearn.neighbors import KernelDensity
 
 from matplotlib.patches import Rectangle
 from matplotlib.backends.backend_pdf import PdfPages
+from src import utils
 
 #%%
 
@@ -14,6 +15,11 @@ from matplotlib.backends.backend_pdf import PdfPages
 save_coordinates = True
 N_out = 10_000_000
 shapefile_size = "large"
+
+num_cores = utils.get_num_cores(num_cores_max=30, subtract_cores=1)
+set_num_threads(num_cores)
+
+print(f"Generating {10_000_000} GPS coordinates, please wait.")
 
 
 #%%
@@ -45,7 +51,7 @@ coordinates_out = kde_out.sample(N_tmp, random_state=42)
 import geopandas as gpd
 from shapely.geometry import Point, Polygon
 from shapely.geometry import mapping as _polygon_to_array
-from numba import njit, prange
+from numba import njit, prange, set_num_threads
 
 
 def polygon_to_array(polygon):
@@ -92,7 +98,9 @@ shp_file["medium"] = "Data/Kommuner/ADM_500k/KOMMUNE.shp"
 shp_file["large"] = "Data/Kommuner/ADM_10k/KOMMUNE.shp"
 
 print(f"Loading {shapefile_size} kommune shape files")
-kommuner = gpd.read_file(shp_file[shapefile_size]).to_crs("WGS84")  # convert to lat lon, compared to UTM32_EUREF89
+kommuner = gpd.read_file(shp_file[shapefile_size]).to_crs(
+    {"proj": "latlong"}
+)  # convert to lat lon, compared to UTM32_EUREF89
 
 kommune_navn, kommune_idx = np.unique(kommuner["KOMNAVN"], return_inverse=True)
 name_to_idx = dict(zip(kommune_navn, range(len(kommune_navn))))
