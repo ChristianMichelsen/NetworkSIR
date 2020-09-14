@@ -244,14 +244,14 @@ class AnimationBase:
             self._make_png_files(force_rerun, **kwargs)
 
             if self.verbose:
+                print("\nMake video", flush=True)
+            self._make_video_file(video_name)
+
+            if self.verbose:
                 print("\nMake GIF", flush=True)
             self._make_gif_file(gif_name)
             if optimize_gif:
                 self._optimize_gif(gif_name)
-
-            if self.verbose:
-                print("\nMake video", flush=True)
-            self._make_video_file(video_name)
 
             if remove_frames:
                 if self.verbose:
@@ -958,22 +958,13 @@ filenames = animation_utils.get_animation_filenames()
 
 
 N_files = len(filenames)
-# filename = filenames[0]
+filename = filenames[0]
 
 if N_files <= 1:
     num_cores = 1
 
-kwargs = dict(
-    do_tqdm=True,
-    verbose=True,
-    force_rerun=False,
-    # make_geo_animation=True,
-    # make_my_number_of_contacts_animation=False,
-    # make_IHI_plot=False,
-)
+kwargs = dict(do_tqdm=True, verbose=True, force_rerun=False,)
 
-
-z=z
 
 if __name__ == "__main__" and True:
 
