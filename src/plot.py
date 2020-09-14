@@ -310,6 +310,11 @@ def plot_fits(all_fits, force_rerun=False, verbose=False, do_log=False):
         leg_loc = {"I": "upper right", "R": "lower right"}
         d_ylabel = {"I": "Infected", "R": "Recovered"}
 
+        relative_names = [
+            r"\frac{I_\mathrm{max}^\mathrm{fit}} {I_\mathrm{max}^\mathrm{ABM}}",
+            r"\frac{R_\inf^\mathrm{fit}}{R_\inf^\mathrm{fit}}",
+        ]
+
         for ABM_parameter, fit_objects in tqdm(all_fits.items()):
             # break
 
@@ -346,25 +351,32 @@ def plot_fits(all_fits, force_rerun=False, verbose=False, do_log=False):
                         df_fit["time"], df_fit[I_or_R], lw=lw, color="green", label=label,
                     )
 
+            # calculate monte carlo simulated fit results
             all_I_max_MC = []
             all_R_inf_MC = []
-
             for i, fit_object in enumerate(fit_objects.values()):
-
                 all_I_max_MC.extend(fit_object.I_max_MC)
                 all_R_inf_MC.extend(fit_object.R_inf_MC)
+            d_fits = {"I": all_I_max_MC, "R": all_R_inf_MC}
 
-            I_median, I_errors = utils.get_central_confidence_intervals(all_I_max_MC)
-            s = utils.format_asymmetric_uncertanties(I_median, I_errors, "I")
-            axes[0].text(
-                -0.15, -0.25, s, horizontalalignment="left", transform=axes[0].transAxes, fontsize=24,
-            )
+            # and plot them
+            for I_or_R, ax in zip(["I", "R"], axes):
+                median, errors = utils.get_central_confidence_intervals(d_fits[I_or_R])
+                s = utils.format_asymmetric_uncertanties(median, errors, I_or_R)
+                axes[0].text(-0.15, -0.25, s, transform=ax.transAxes, fontsize=22)
 
-            R_median, R_errors = utils.get_central_confidence_intervals(all_R_inf_MC)
-            s = utils.format_asymmetric_uncertanties(R_median, R_errors, "R")
-            axes[1].text(
-                -0.15, -0.25, s, horizontalalignment="left", transform=axes[1].transAxes, fontsize=24,
-            )
+            # calculate fraction between fit and ABM simulation
+            z = defaultdict(list)
+            for fit_object in fit_objects.values():
+                z["I"].append(fit_object.I_max_fit / fit_object.I_max_ABM)
+                z["R"].append(fit_object.R_inf_fit / fit_object.R_inf_ABM)
+
+            for I_or_R, name, ax in zip(["I", "R"], relative_names, axes):
+                mu, std = np.mean(z[I_or_R]), utils.SDOM(z[I_or_R])
+                n_digits = int(np.log10(utils.round_to_uncertainty(mu, std)[0])) + 1
+                s_mu = utils.human_format_scientific(mu, digits=n_digits)
+                s = r"$ " + f"{name} = {s_mu[0]}" + r"\pm " + f"{std:.{n_digits}f}" + r"$"
+                ax.text(0.3, -0.25, s, transform=ax.transAxes, fontsize=22)
 
             fit_values_deterministic = {
                 "lambda_E": cfg.lambda_E,
@@ -385,10 +397,8 @@ def plot_fits(all_fits, force_rerun=False, verbose=False, do_log=False):
                     ax.set_yscale("log", nonposy="clip")
 
                 ax.set(xlim=(0, None), ylim=(0, None))
-
                 ax.set(xlabel="Time", ylabel=d_ylabel[I_or_R])
-                ax.set_rasterized(True)
-                ax.set_rasterization_zorder(0)
+                ax.xaxis.set_label_coords(0.91, -0.14)
                 ax.yaxis.set_major_formatter(EngFormatter())
 
                 leg = ax.legend(loc=leg_loc[I_or_R])
@@ -688,7 +698,6 @@ if False:
     kommuner_medium = gpd.read_file(shp_medium)
     kommuner_large = gpd.read_file(shp_large)
 
-
     geometries = kommuner["geometry"]
 
     #%%
@@ -733,7 +742,7 @@ if False:
     ray_tracing(x2, y2, poly)
 
     for index, row in kommuner_small.iterrows():
-        print(row['KOMNAVN'])
+        print(row["KOMNAVN"])
         display(row["geometry"])
 
     # from src.nbspatial import ray_tracing as ray_tracing2

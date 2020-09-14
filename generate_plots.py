@@ -18,7 +18,7 @@ from src import fits
 rc_params.set_rc_params()
 num_cores_max = 30
 
-do_make_1D_scan = True
+do_make_1D_scan = False
 force_rerun = False
 
 #%%
