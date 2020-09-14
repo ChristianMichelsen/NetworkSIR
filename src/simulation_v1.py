@@ -111,7 +111,10 @@ def initialize_ages(N_tot, N_ages, my_connection_weight):
 def update_node_connections(my_connections, coordinates, rho_tmp, rho_scale, continue_run, agent1, agent2):
     if agent1 != agent2:
         r = utils.haversine(
-            coordinates[agent1, 0], coordinates[agent1, 1], coordinates[agent2, 0], coordinates[agent2, 1],
+            coordinates[agent1, 0],
+            coordinates[agent1, 1],
+            coordinates[agent2, 0],
+            coordinates[agent2, 1],
         )
         if np.exp(-r * rho_tmp / rho_scale) > np.random.rand():
 
@@ -135,7 +138,13 @@ def run_algo_2(PP_ages, m_i, m_j, my_connections, coordinates, rho_tmp, rho_scal
         agent2 = ages_in_state[m_j][agent2]
 
         continue_run = update_node_connections(
-            my_connections, coordinates, rho_tmp, rho_scale, continue_run, agent1, agent2,
+            my_connections,
+            coordinates,
+            rho_tmp,
+            rho_scale,
+            continue_run,
+            agent1,
+            agent2,
         )
 
 
@@ -155,13 +164,28 @@ def run_algo_1(PP_ages, m_i, m_j, my_connections, coordinates, rho_tmp, rho_scal
         rho_tmp *= 0.9995
 
         continue_run = update_node_connections(
-            my_connections, coordinates, rho_tmp, rho_scale, continue_run, agent1, agent2,
+            my_connections,
+            coordinates,
+            rho_tmp,
+            rho_scale,
+            continue_run,
+            agent1,
+            agent2,
         )
 
 
 @njit
 def connect_nodes(
-    epsilon_rho, rho, algo, PP_ages, my_connections, coordinates, rho_scale, N_ages, age_matrix, ages_in_state,
+    epsilon_rho,
+    rho,
+    algo,
+    PP_ages,
+    my_connections,
+    coordinates,
+    rho_scale,
+    N_ages,
+    age_matrix,
+    ages_in_state,
 ):
 
     if do_memory_tracking:
@@ -188,7 +212,14 @@ def connect_nodes(
                     rho_tmp = 0.0
 
                 run_algo(
-                    PP_ages, m_i, m_j, my_connections, coordinates, rho_tmp, rho_scale, ages_in_state,
+                    PP_ages,
+                    m_i,
+                    m_j,
+                    my_connections,
+                    coordinates,
+                    rho_tmp,
+                    rho_scale,
+                    ages_in_state,
                 )
 
                 if do_memory_tracking and (counter % (N_max // 30)) == 0:
@@ -708,9 +739,14 @@ class Simulation:
             print("MAKE AGES")
         self.track_memory("Numba Compilation")
 
-        (my_age, ages_total_counts, ages_in_state, PT_ages, PC_ages, PP_ages,) = initialize_ages(
-            cfg.N_tot, N_ages, my_connection_weight
-        )
+        (
+            my_age,
+            ages_total_counts,
+            ages_in_state,
+            PT_ages,
+            PC_ages,
+            PP_ages,
+        ) = initialize_ages(cfg.N_tot, N_ages, my_connection_weight)
 
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
         # # # # # # # # # # # CONNECT NODES # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -736,7 +772,12 @@ class Simulation:
         return my_connections, my_age, my_infection_weight
 
     def _save_network_initalization(
-        self, my_age, my_infection_weight, my_number_of_contacts, my_connections, time_elapsed,
+        self,
+        my_age,
+        my_infection_weight,
+        my_number_of_contacts,
+        my_connections,
+        time_elapsed,
     ):
         self.track_memory("Saving network initialization")
         utils.make_sure_folder_exist(self.filenames["network_initialisation"])
@@ -968,7 +1009,10 @@ class Simulation:
 
             if self.do_track_memory:
                 memory_file = self.filenames["memory"]
-                (self.df_time_memory, self.df_change_points,) = simulation_utils.parse_memory_file(memory_file)
+                (
+                    self.df_time_memory,
+                    self.df_change_points,
+                ) = simulation_utils.parse_memory_file(memory_file)
                 df_time_memory_hdf5 = utils.dataframe_to_hdf5_format(self.df_time_memory, cols_to_str=["ChangePoint"])
                 df_change_points_hdf5 = utils.dataframe_to_hdf5_format(self.df_change_points, include_index=True)
 
@@ -1000,7 +1044,11 @@ class Simulation:
     def save_memory_figure(self, savefig=True):
         if self.do_track_memory:
             fig, ax = simulation_utils.plot_memory_comsumption(
-                self.df_time_memory, self.df_change_points, min_TimeDiffRel=0.1, min_MemoryDiffRel=0.1, time_unit="s",
+                self.df_time_memory,
+                self.df_change_points,
+                min_TimeDiffRel=0.1,
+                min_MemoryDiffRel=0.1,
+                time_unit="s",
             )
             if savefig:
                 fig.savefig(self.filenames["memory"].replace(".txt", ".pdf"))

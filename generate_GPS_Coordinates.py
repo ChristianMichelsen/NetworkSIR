@@ -18,11 +18,12 @@ from src import utils
 save_coordinates = True
 N_out = 10_000_000
 shapefile_size = "large"
+# shapefile_size = "small"
 
 num_cores = utils.get_num_cores(num_cores_max=30, subtract_cores=1)
 set_num_threads(num_cores)
 
-print(f"Generating {10_000_000} GPS coordinates, please wait.")
+print(f"Generating {N_out} GPS coordinates, please wait.")
 
 
 #%%

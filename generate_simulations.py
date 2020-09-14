@@ -13,7 +13,7 @@ import yaml
 num_cores_max = 30
 N_loops = 10
 dry_run = False
-force_rerun = False
+force_rerun = True
 verbose = False
 
 rc_params.set_rc_params()
@@ -25,7 +25,6 @@ rc_params.set_rc_params()
 if utils.is_local_computer():
 
     all_simulation_parameters = [
-        # {"N_tot": [58_000], "beta": [0.01, 0.01 / 2, 0.01 * 2], 'rho'=[0.1]},
         {"beta": [0.01, 0.01 / 2, 0.01 * 2], "N_tot": 58_000, "rho": 0},
     ]
 
@@ -34,6 +33,7 @@ else:
     filename = "cfg_runs.yaml"
     with open(filename) as file:
         all_simulation_parameters = yaml.safe_load(file)["all_simulation_parameters"]
+
 
 #%%
 

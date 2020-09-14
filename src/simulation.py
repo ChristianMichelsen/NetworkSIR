@@ -72,7 +72,13 @@ def set_infection_weight(my_infection_weight, agent, sigma_beta, beta):
 
 @njit
 def place_and_connect_families(
-    N_tot, people_in_household, age_distribution_per_people_in_household, coordinates, sigma_mu, sigma_beta, beta,
+    N_tot,
+    people_in_household,
+    age_distribution_per_people_in_household,
+    coordinates,
+    sigma_mu,
+    sigma_beta,
+    beta,
 ):
 
     all_indices = np.arange(N_tot)
@@ -937,10 +943,14 @@ class Simulation:
 
         rho_scale = 1000  # scale factor of rho
 
-        (people_in_household, age_distribution_per_people_in_household,) = simulation_utils.load_household_data(
-            self._Filename.household_data_filenames
-        )
-        (N_dim_people_in_household, N_ages,) = age_distribution_per_people_in_household.shape
+        (
+            people_in_household,
+            age_distribution_per_people_in_household,
+        ) = simulation_utils.load_household_data(self._Filename.household_data_filenames)
+        (
+            N_dim_people_in_household,
+            N_ages,
+        ) = age_distribution_per_people_in_household.shape
 
         if self.verbose:
             print("Families")
@@ -1299,7 +1309,10 @@ class Simulation:
 
             if self.do_track_memory:
                 memory_file = self.filenames["memory"]
-                (self.df_time_memory, self.df_change_points,) = simulation_utils.parse_memory_file(memory_file)
+                (
+                    self.df_time_memory,
+                    self.df_change_points,
+                ) = simulation_utils.parse_memory_file(memory_file)
                 df_time_memory_hdf5 = utils.dataframe_to_hdf5_format(self.df_time_memory, cols_to_str=["ChangePoint"])
                 df_change_points_hdf5 = utils.dataframe_to_hdf5_format(self.df_change_points, include_index=True)
 
@@ -1331,7 +1344,11 @@ class Simulation:
     def save_memory_figure(self, savefig=True):
         if self.do_track_memory:
             fig, ax = simulation_utils.plot_memory_comsumption(
-                self.df_time_memory, self.df_change_points, min_TimeDiffRel=0.1, min_MemoryDiffRel=0.1, time_unit="s",
+                self.df_time_memory,
+                self.df_change_points,
+                min_TimeDiffRel=0.1,
+                min_MemoryDiffRel=0.1,
+                time_unit="s",
             )
             if savefig:
                 fig.savefig(self.filenames["memory"].replace(".txt", ".pdf"))

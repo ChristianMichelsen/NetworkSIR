@@ -178,6 +178,7 @@ class AnimationBase:
         with h5py.File(self.filename, "r") as f:
 
             self.coordinates = f["coordinates"][()]
+            self.coordinate_indices = f["coordinate_indices"][()]
             self.df_raw = pd.DataFrame(f["df"][()]).drop("index", axis=1)
             self.my_age = f["my_age"][()]
             self.my_state = f["my_state"][()]
