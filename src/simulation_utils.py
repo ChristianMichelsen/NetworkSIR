@@ -52,7 +52,7 @@ def dict_to_filename_with_dir(cfg, ID, data_dir="ABM"):
 def get_all_combinations(d_simulation_parameters):
     nameval_to_str = []
     for name, lst in reversed(d_simulation_parameters.items()):
-        if isinstance(lst, int):
+        if isinstance(lst, (int, float)):
             lst = [lst]
         nameval_to_str.append([f"{name}__{x}" for x in lst])
     all_combinations = list(product(*nameval_to_str))

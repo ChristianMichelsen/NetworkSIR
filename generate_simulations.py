@@ -26,7 +26,7 @@ if utils.is_local_computer():
 
     all_simulation_parameters = [
         # {"N_tot": [58_000], "beta": [0.01, 0.01 / 2, 0.01 * 2], 'rho'=[0.1]},
-        {"beta": [0.01, 0.01 / 2, 0.01 * 2], "N_tot": 58_000, "rho": 0},
+        {"beta": [0.01, 0.01 / 2, 0.01 * 2], "N_tot": 58_000, "rho": 0, "sigma_mu": 0.0},
     ]
 
 else:
