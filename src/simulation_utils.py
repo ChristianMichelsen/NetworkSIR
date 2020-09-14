@@ -49,9 +49,9 @@ def dict_to_filename_with_dir(cfg, ID, data_dir="ABM"):
     return str(filename)
 
 
-def get_all_combinations(d_sim_pars):
+def get_all_combinations(d_simulation_parameters):
     nameval_to_str = []
-    for name, lst in reversed(d_sim_pars.items()):
+    for name, lst in reversed(d_simulation_parameters.items()):
         if isinstance(lst, int):
             lst = [lst]
         nameval_to_str.append([f"{name}__{x}" for x in lst])
@@ -59,10 +59,10 @@ def get_all_combinations(d_sim_pars):
     return all_combinations
 
 
-def generate_filenames(d_sim_pars, N_loops=10, force_rerun=False):
+def generate_filenames(d_simulation_parameters, N_loops=10, force_rerun=False):
     filenames = []
 
-    all_combinations = get_all_combinations(d_sim_pars)
+    all_combinations = get_all_combinations(d_simulation_parameters)
 
     cfg = get_cfg_default()
     # combination = all_combinations[0]
@@ -101,7 +101,10 @@ def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max=None):
     num_cores = utils.get_num_cores(num_cores_max)
 
     if isinstance(d_simulation_parameters, dict) and "N_tot" in d_simulation_parameters.keys():
-        N_tot_max = max(d_simulation_parameters["N_tot"])
+        if isinstance(d_simulation_parameters["N_tot"], int):
+            N_tot_max = d_simulation_parameters["N_tot"]
+        else:
+            N_tot_max = max(d_simulation_parameters["N_tot"])
         num_cores = d_num_cores_N_tot[N_tot_max]
 
     if num_cores > utils.get_num_cores(num_cores_max):
