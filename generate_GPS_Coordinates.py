@@ -4,7 +4,10 @@ from tqdm import tqdm
 import mpl_scatter_density
 import matplotlib.pyplot as plt
 from sklearn.neighbors import KernelDensity
-
+import geopandas as gpd  # conda install -c conda-forge geopandas
+from shapely.geometry import Point, Polygon
+from shapely.geometry import mapping as _polygon_to_array
+from numba import njit, prange, set_num_threads
 from matplotlib.patches import Rectangle
 from matplotlib.backends.backend_pdf import PdfPages
 from src import utils
@@ -46,12 +49,6 @@ kde_out = KernelDensity(kernel="gaussian", bandwidth=bw, metric="haversine").fit
 coordinates_out = kde_out.sample(N_tmp, random_state=42)
 
 #%%
-
-# conda install -c conda-forge geopandas
-import geopandas as gpd
-from shapely.geometry import Point, Polygon
-from shapely.geometry import mapping as _polygon_to_array
-from numba import njit, prange, set_num_threads
 
 
 def polygon_to_array(polygon):
