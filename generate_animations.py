@@ -8,21 +8,16 @@ import joblib
 from tqdm import tqdm
 import multiprocessing as mp
 import os
-
-# from p_tqdm import p_map, p_umap
 from functools import partial
-
 import awkward
 from importlib import reload
 import h5py
 from src import rc_params
-
-rc_params.set_rc_params(fig_dpi=50)  #
-
 from src import utils
 from src import simulation_utils
 from src import animation_utils
 
+rc_params.set_rc_params(fig_dpi=50)  #
 num_cores_max = 20
 
 #%%
