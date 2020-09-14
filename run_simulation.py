@@ -37,6 +37,7 @@ else:
             "all_sim_pars"
         ]  # TODO YAMLLoadWarning: calling yaml.load() without Loader=... is deprecated,
 
+# # TODO: Add fix if argument is not list in simulation_utils.generate_filenames
 
 #%%
 
