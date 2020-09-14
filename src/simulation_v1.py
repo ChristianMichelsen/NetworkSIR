@@ -110,7 +110,9 @@ def initialize_ages(N_tot, N_ages, my_connection_weight):
 @njit
 def update_node_connections(my_connections, coordinates, rho_tmp, rho_scale, continue_run, agent1, agent2):
     if agent1 != agent2:
-        r = utils.haversine(coordinates[agent1, 0], coordinates[agent1, 1], coordinates[agent2, 0], coordinates[agent2, 1],)
+        r = utils.haversine(
+            coordinates[agent1, 0], coordinates[agent1, 1], coordinates[agent2, 0], coordinates[agent2, 1],
+        )
         if np.exp(-r * rho_tmp / rho_scale) > np.random.rand():
 
             my_connections[agent1].append(agent2)
@@ -132,7 +134,9 @@ def run_algo_2(PP_ages, m_i, m_j, my_connections, coordinates, rho_tmp, rho_scal
         agent1 = ages_in_state[m_i][agent1]
         agent2 = ages_in_state[m_j][agent2]
 
-        continue_run = update_node_connections(my_connections, coordinates, rho_tmp, rho_scale, continue_run, agent1, agent2,)
+        continue_run = update_node_connections(
+            my_connections, coordinates, rho_tmp, rho_scale, continue_run, agent1, agent2,
+        )
 
 
 @njit
@@ -150,7 +154,9 @@ def run_algo_1(PP_ages, m_i, m_j, my_connections, coordinates, rho_tmp, rho_scal
 
         rho_tmp *= 0.9995
 
-        continue_run = update_node_connections(my_connections, coordinates, rho_tmp, rho_scale, continue_run, agent1, agent2,)
+        continue_run = update_node_connections(
+            my_connections, coordinates, rho_tmp, rho_scale, continue_run, agent1, agent2,
+        )
 
 
 @njit
@@ -441,7 +447,9 @@ def run_simulation(
 
             x = (TotMov + TotInf + H_cumsum_move) / Tot
             H_old_state = np.searchsorted(x, ra1)
-            Csum = (TotMov + TotInf + H_cumsum_move[H_old_state - 1]) / Tot  # important change from [H_old_state] to [H_old_state-1]
+            Csum = (
+                TotMov + TotInf + H_cumsum_move[H_old_state - 1]
+            ) / Tot  # important change from [H_old_state] to [H_old_state-1]
             for idx_H_state in range(len(H_agents_in_state[H_old_state])):
 
                 agent = H_agents_in_state[H_old_state][idx_H_state]
@@ -452,7 +460,10 @@ def run_simulation(
                     accept = True
                     H_ra = np.random.rand()
 
-                    H_tmp = H_move_matrix_cumsum[H_my_state[agent], :, my_age[agent]] / H_move_matrix_sum[H_my_state[agent], my_age[agent]]
+                    H_tmp = (
+                        H_move_matrix_cumsum[H_my_state[agent], :, my_age[agent]]
+                        / H_move_matrix_sum[H_my_state[agent], my_age[agent]]
+                    )
                     H_new_state = np.searchsorted(H_tmp, H_ra)
 
                     # We have chosen agent to move -> here we move it
@@ -463,20 +474,24 @@ def run_simulation(
                     H_state_total_counts[H_old_state] -= 1
                     H_state_total_counts[H_new_state] += 1
 
-                    H_tot_move += H_move_matrix_sum[H_new_state, my_age[agent]] - H_move_matrix_sum[H_old_state, my_age[agent]]
+                    H_tot_move += (
+                        H_move_matrix_sum[H_new_state, my_age[agent]] - H_move_matrix_sum[H_old_state, my_age[agent]]
+                    )
 
                     # moving forward
                     if H_old_state < H_new_state:
                         H_cumsum_move[H_old_state:H_new_state] -= H_move_matrix_sum[H_old_state, my_age[agent]]
                         H_cumsum_move[H_new_state:] += (
-                            H_move_matrix_sum[H_new_state, my_age[agent]] - H_move_matrix_sum[H_old_state, my_age[agent]]
+                            H_move_matrix_sum[H_new_state, my_age[agent]]
+                            - H_move_matrix_sum[H_old_state, my_age[agent]]
                         )
 
                     # moving backwards
                     else:
                         H_cumsum_move[H_new_state:H_old_state] += H_move_matrix_sum[H_old_state, my_age[agent]]
                         H_cumsum_move[H_new_state:] += (
-                            H_move_matrix_sum[H_new_state, my_age[agent]] - H_move_matrix_sum[H_old_state, my_age[agent]]
+                            H_move_matrix_sum[H_new_state, my_age[agent]]
+                            - H_move_matrix_sum[H_old_state, my_age[agent]]
                         )
 
                     break
@@ -509,7 +524,20 @@ def run_simulation(
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
         continue_run, TotMov, TotInf = do_bug_check(
-            counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, accept, csMov, ra1, s, x, csInf,
+            counter,
+            continue_run,
+            TotInf,
+            TotMov,
+            verbose,
+            state_total_counts,
+            N_states,
+            N_tot,
+            accept,
+            csMov,
+            ra1,
+            s,
+            x,
+            csInf,
         )
 
         s_counter[s] += 1
@@ -526,7 +554,20 @@ def run_simulation(
 
 @njit
 def do_bug_check(
-    counter, continue_run, TotInf, TotMov, verbose, state_total_counts, N_states, N_tot, accept, csMov, ra1, s, x, csInf,
+    counter,
+    continue_run,
+    TotInf,
+    TotMov,
+    verbose,
+    state_total_counts,
+    N_states,
+    N_tot,
+    accept,
+    csMov,
+    ra1,
+    s,
+    x,
+    csInf,
 ):
 
     if counter > 100_000_000:
@@ -606,7 +647,9 @@ class Simulation:
             self.time_start -= simulation_utils.get_search_string_time(memory_file, search_string)
             self.track_memory("Appending to previous network initialization")
         else:
-            utils.make_sure_folder_exist(self.filenames["memory"], delete_file_if_exists=True)  # make sure parent folder exists
+            utils.make_sure_folder_exist(
+                self.filenames["memory"], delete_file_if_exists=True
+            )  # make sure parent folder exists
 
         global track_memory
         track_memory = self.track_memory
@@ -629,7 +672,9 @@ class Simulation:
 
         cfg = self.cfg
         self.track_memory("Loading Coordinates")
-        self.coordinates = simulation_utils.load_coordinates(self._Filename.coordinates_filename, cfg.N_tot, self.ID)
+        self.coordinates, self.coordinate_indices = simulation_utils.load_coordinates(
+            self._Filename.coordinates_filename, cfg.N_tot, self.ID
+        )
 
         if self.verbose:
             print("INITIALIZE NETWORK")
@@ -651,7 +696,9 @@ class Simulation:
             print("MAKE RATES AND CONNECTIONS")
         self.track_memory("Numba Compilation")
 
-        my_connection_weight, my_infection_weight = initialize_connections_and_rates(cfg.N_tot, cfg.sigma_mu, cfg.beta, cfg.sigma_beta)
+        my_connection_weight, my_infection_weight = initialize_connections_and_rates(
+            cfg.N_tot, cfg.sigma_mu, cfg.beta, cfg.sigma_beta
+        )
 
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
         # # # # # # # # # # # # # # # # AGES  # # # # # # # # # # # # # # # # # # # # #
@@ -661,7 +708,9 @@ class Simulation:
             print("MAKE AGES")
         self.track_memory("Numba Compilation")
 
-        (my_age, ages_total_counts, ages_in_state, PT_ages, PC_ages, PP_ages,) = initialize_ages(cfg.N_tot, N_ages, my_connection_weight)
+        (my_age, ages_total_counts, ages_in_state, PT_ages, PC_ages, PP_ages,) = initialize_ages(
+            cfg.N_tot, N_ages, my_connection_weight
+        )
 
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
         # # # # # # # # # # # CONNECT NODES # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -672,7 +721,16 @@ class Simulation:
         self.track_memory("Numba Compilation")
 
         connect_nodes(
-            cfg.epsilon_rho, cfg.rho, cfg.algo, PP_ages, my_connections, self.coordinates, rho_scale, N_ages, age_matrix, ages_in_state,
+            cfg.epsilon_rho,
+            cfg.rho,
+            cfg.algo,
+            PP_ages,
+            my_connections,
+            self.coordinates,
+            rho_scale,
+            N_ages,
+            age_matrix,
+            ages_in_state,
         )
 
         return my_connections, my_age, my_infection_weight
@@ -700,7 +758,9 @@ class Simulation:
             my_number_of_contacts = f["my_number_of_contacts"][()]
             my_connections = awkward0.hdf5(f)["my_connections"]
         self.track_memory("Loading Coordinates")
-        self.coordinates = simulation_utils.load_coordinates(self._Filename.coordinates_filename, self.cfg.N_tot, self.ID)
+        self.coordinates, self.coordinate_indices = simulation_utils.load_coordinates(
+            self._Filename.coordinates_filename, self.cfg.N_tot, self.ID
+        )
         return (
             my_age,
             my_infection_weight,
@@ -716,7 +776,12 @@ class Simulation:
         # try to load file (except if forced to rerun)
         if not force_rerun:
             try:
-                (my_age, my_infection_weight, my_number_of_contacts, my_connections,) = self._load_network_initalization()
+                (
+                    my_age,
+                    my_infection_weight,
+                    my_number_of_contacts,
+                    my_connections,
+                ) = self._load_network_initalization()
                 if self.verbose:
                     print(f"{self.filenames['network_initialisation']} exists")
             except OSError:
@@ -785,7 +850,9 @@ class Simulation:
 
         self.cs_move_individual = utils.initialize_nested_lists(self.N_states, dtype=np.float64)
 
-        self.SIR_transition_rates = simulation_utils.initialize_SIR_transition_rates(self.N_states, self.N_infectious_states, cfg)
+        self.SIR_transition_rates = simulation_utils.initialize_SIR_transition_rates(
+            self.N_states, self.N_infectious_states, cfg
+        )
 
         self.ages_in_state = simulation_utils.compute_ages_in_state(self.my_age, N_ages)
 
@@ -889,6 +956,7 @@ class Simulation:
         self.track_memory("Saving HDF5 File")
         with h5py.File(self.filenames["network_network"], "w") as f:  #
             f.create_dataset("coordinates", data=self.coordinates)
+            f.create_dataset("coordinate_indices", data=self.coordinate_indices)
             f.create_dataset("my_state", data=self.my_state)
             f.create_dataset("my_number_of_contacts", data=self.my_number_of_contacts)
             f.create_dataset("my_age", data=self.my_age)
@@ -941,7 +1009,9 @@ class Simulation:
 #%%
 
 
-def run_full_simulation(filename, verbose=False, force_rerun=False, only_initialize_network=False, save_initial_network=True):
+def run_full_simulation(
+    filename, verbose=False, force_rerun=False, only_initialize_network=False, save_initial_network=True
+):
 
     with Timer() as t, warnings.catch_warnings():
         if not verbose:

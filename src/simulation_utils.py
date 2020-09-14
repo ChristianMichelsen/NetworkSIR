@@ -114,14 +114,17 @@ def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max=None):
 
 
 def load_coordinates(coordinates_filename, N_tot, ID):
-    coordinates = np.load(coordinates_filename)
+    # coordinates = np.load(coordinates_filename)
+    df = pd.read_feather(coordinates_filename)
+    coordinates = df[["Longitude", "Lattitude"]].values
+
     if N_tot > len(coordinates):
         raise AssertionError("N_tot cannot be larger than coordinates (number of generated houses in DK)")
 
     np.random.seed(ID)
-    index = np.arange(len(coordinates))
+    index = np.arange(len(coordinates), dtype=np.uint32)
     index_subset = np.random.choice(index, N_tot, replace=False)
-    return coordinates[index_subset]
+    return coordinates[index_subset], index_subset
 
 
 #%%
@@ -218,7 +221,8 @@ class Filename:
 
     @property
     def coordinates_filename(self):
-        return self.filename_prefix + "Data/GPS_coordinates.npy"
+        # return self.filename_prefix + "Data/GPS_coordinates.npy"
+        return self.filename_prefix + "Data/GPS_coordinates.feather"
 
     @property
     def household_data_filenames(self):

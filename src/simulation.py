@@ -115,7 +115,9 @@ def place_and_connect_families(
 
         for _ in range(N_people_in_house):
 
-            age_index = simulation_utils.rand_choice_nb(age_distribution_per_people_in_household[N_people_in_house_index])
+            age_index = simulation_utils.rand_choice_nb(
+                age_distribution_per_people_in_household[N_people_in_house_index]
+            )
 
             age = age_index  # just use age index as substitute for age
             my_age[agent] = age
@@ -163,7 +165,15 @@ def place_and_connect_families(
 
 @njit
 def update_node_connections(
-    my_connections, coordinates, rho_tmp, rho_scale, agent1, agent2, my_connections_type, my_number_of_contacts, connection_type,
+    my_connections,
+    coordinates,
+    rho_tmp,
+    rho_scale,
+    agent1,
+    agent2,
+    my_connections_type,
+    my_number_of_contacts,
+    connection_type,
 ):
     connect_and_stop = False
     if agent1 != agent2:
@@ -200,7 +210,15 @@ def update_node_connections(
 
 @njit
 def run_algo_other(
-    agents_in_age_group, age1, age2, my_connections, my_connections_type, my_number_of_contacts, coordinates, rho_tmp, rho_scale,
+    agents_in_age_group,
+    age1,
+    age2,
+    my_connections,
+    my_connections_type,
+    my_number_of_contacts,
+    coordinates,
+    rho_tmp,
+    rho_scale,
 ):
     while True:
         # agent1 = np.searchsorted(PP_ages[m_i], np.random.rand())
@@ -209,7 +227,15 @@ def run_algo_other(
         agent1 = np.random.choice(agents_in_age_group[age1])
         agent2 = np.random.choice(agents_in_age_group[age2])
         do_stop = update_node_connections(
-            my_connections, coordinates, rho_tmp, rho_scale, agent1, agent2, my_connections_type, my_number_of_contacts, connection_type=2,
+            my_connections,
+            coordinates,
+            rho_tmp,
+            rho_scale,
+            agent1,
+            agent2,
+            my_connections_type,
+            my_number_of_contacts,
+            connection_type=2,
         )
         if do_stop:
             break
@@ -217,7 +243,15 @@ def run_algo_other(
 
 @njit
 def run_algo_work(
-    agents_in_age_group, age1, age2, my_connections, my_connections_type, my_number_of_contacts, coordinates, rho_tmp, rho_scale,
+    agents_in_age_group,
+    age1,
+    age2,
+    my_connections,
+    my_connections_type,
+    my_number_of_contacts,
+    coordinates,
+    rho_tmp,
+    rho_scale,
 ):
     # ra1 = np.random.rand()
     # agent1 = np.searchsorted(PP_ages[m_i], ra1)
@@ -229,7 +263,15 @@ def run_algo_work(
         agent2 = np.random.choice(agents_in_age_group[age2])
         rho_tmp *= 0.9995
         do_stop = update_node_connections(
-            my_connections, coordinates, rho_tmp, rho_scale, agent1, agent2, my_connections_type, my_number_of_contacts, connection_type=1,
+            my_connections,
+            coordinates,
+            rho_tmp,
+            rho_scale,
+            agent1,
+            agent2,
+            my_connections_type,
+            my_number_of_contacts,
+            connection_type=1,
         )
 
         if do_stop:
@@ -290,7 +332,15 @@ def nb_connect_work_and_others(
             rho_tmp = 0.0
 
         run_algo(
-            agents_in_age_group, age1, age2, my_connections, my_connections_type, my_number_of_contacts, coordinates, rho_tmp, rho_scale,
+            agents_in_age_group,
+            age1,
+            age2,
+            my_connections,
+            my_connections_type,
+            my_number_of_contacts,
+            coordinates,
+            rho_tmp,
+            rho_scale,
         )
         mu_counter += 1
 
@@ -507,7 +557,9 @@ def nb_run_simulation(
             g_total_sum_of_state_changes += SIR_transition_rates[state_after]
 
             g_cumulative_sum_of_state_changes[state_now] -= SIR_transition_rates[state_now]
-            g_cumulative_sum_of_state_changes[state_after:] += SIR_transition_rates[state_after] - SIR_transition_rates[state_now]
+            g_cumulative_sum_of_state_changes[state_after:] += (
+                SIR_transition_rates[state_after] - SIR_transition_rates[state_now]
+            )
 
             g_cumulative_sum_infection_rates[state_now] -= my_sum_of_rates[agent]
 
@@ -584,9 +636,13 @@ def nb_run_simulation(
             for contact_of_agent_getting_infected in my_connections[agent_getting_infected]:
 
                 # loop over indexes of the contact to find_myself and set rate to 0
-                for ith_contact_of_agent_getting_infected in range(my_number_of_contacts[contact_of_agent_getting_infected]):
+                for ith_contact_of_agent_getting_infected in range(
+                    my_number_of_contacts[contact_of_agent_getting_infected]
+                ):
 
-                    find_myself = my_connections[contact_of_agent_getting_infected][ith_contact_of_agent_getting_infected]
+                    find_myself = my_connections[contact_of_agent_getting_infected][
+                        ith_contact_of_agent_getting_infected
+                    ]
 
                     # check if the contact found is myself
                     if find_myself == agent_getting_infected:
@@ -871,7 +927,9 @@ class Simulation:
 
         cfg = self.cfg
         self.track_memory("Loading Coordinates")
-        self.coordinates = simulation_utils.load_coordinates(self._Filename.coordinates_filename, cfg.N_tot, self.ID)
+        self.coordinates, self.coordinate_indices = simulation_utils.load_coordinates(
+            self._Filename.coordinates_filename, cfg.N_tot, self.ID
+        )
 
         if self.verbose:
             print("INITIALIZE NETWORK")
@@ -1009,7 +1067,9 @@ class Simulation:
             my_connections_type = awkward0.hdf5(f)["my_connections_type"]
             agents_in_age_group = awkward0.hdf5(f)["agents_in_age_group"]
         self.track_memory("Loading Coordinates")
-        self.coordinates = simulation_utils.load_coordinates(self._Filename.coordinates_filename, self.cfg.N_tot, self.ID)
+        self.coordinates, self.coordinate_indices = simulation_utils.load_coordinates(
+            self._Filename.coordinates_filename, self.cfg.N_tot, self.ID
+        )
         return (
             my_age,
             ak.from_awkward0(agents_in_age_group),
@@ -1120,7 +1180,9 @@ class Simulation:
         self.g_cumulative_sum_infection_rates = np.zeros(self.N_states, dtype=np.float64)
         self.my_sum_of_rates = np.zeros(cfg.N_tot, dtype=np.float64)
 
-        self.SIR_transition_rates = simulation_utils.initialize_SIR_transition_rates(self.N_states, self.N_infectious_states, cfg)
+        self.SIR_transition_rates = simulation_utils.initialize_SIR_transition_rates(
+            self.N_states, self.N_infectious_states, cfg
+        )
 
         self.g_total_sum_of_state_changes = nb_make_initial_infections(
             cfg.N_init,
@@ -1225,6 +1287,7 @@ class Simulation:
         self.track_memory("Saving HDF5 File")
         with h5py.File(self.filenames["network_network"], "w") as f:  #
             f.create_dataset("coordinates", data=self.coordinates)
+            f.create_dataset("coordinate_indices", data=self.coordinate_indices)
             f.create_dataset("my_state", data=self.my_state)
             f.create_dataset("my_number_of_contacts", data=self.my_number_of_contacts)
             f.create_dataset("my_age", data=self.my_age)
@@ -1277,7 +1340,9 @@ class Simulation:
 #%%
 
 
-def run_full_simulation(filename, verbose=False, force_rerun=False, only_initialize_network=False, save_initial_network=True):
+def run_full_simulation(
+    filename, verbose=False, force_rerun=False, only_initialize_network=False, save_initial_network=True
+):
 
     with Timer() as t, warnings.catch_warnings():
         if not verbose:
