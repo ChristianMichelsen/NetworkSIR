@@ -20,6 +20,7 @@ num_cores_max = 30
 
 do_make_1D_scan = False
 force_rerun = False
+verbose = False
 
 #%%
 
@@ -39,7 +40,9 @@ parameters_1D_scan = [
     dict(scan_parameter="beta", non_default_parameters=dict(rho=0.1)),
     dict(scan_parameter="beta"),
     dict(scan_parameter="N_tot", do_log=True),
+    dict(scan_parameter="N_tot", do_log=True, non_default_parameters=dict(rho=0.1)),
     dict(scan_parameter="N_init", do_log=True),
+    dict(scan_parameter="N_init", do_log=True, non_default_parameters=dict(rho=0.1)),
     dict(scan_parameter="rho"),
     dict(scan_parameter="rho", non_default_parameters=dict(beta=0.005)),
     dict(scan_parameter="rho", non_default_parameters=dict(algo=1)),
@@ -61,7 +64,6 @@ parameters_1D_scan = [
 
 # reload(plot)
 if do_make_1D_scan:
-
     for parameter_1D_scan in parameters_1D_scan:
         plot.plot_1D_scan(**parameter_1D_scan)
 
@@ -79,7 +81,7 @@ all_fits = fits.get_fit_results(abm_files, force_rerun=False, num_cores=num_core
 
 #%%
 
-plot.plot_fits(all_fits, force_rerun=force_rerun)
+plot.plot_fits(all_fits, force_rerun=force_rerun, verbose=verbose)
 
 
 #%%

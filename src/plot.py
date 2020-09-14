@@ -100,11 +100,7 @@ def plot_ABM_simulations(abm_files, force_rerun=False):
                 ax.set(xlabel="Time", ylim=(0, None), ylabel=d_ylabel[variable])
                 # ax.set_xlabel('Time', ha='right')
                 ax.xaxis.set_label_coords(0.91, -0.14)
-
                 ax.yaxis.set_major_formatter(EngFormatter())
-
-                ax.set_rasterized(True)
-                ax.set_rasterization_zorder(0)
 
             names = [r"I_\mathrm{max}^\mathrm{ABM}", r"R_\infty^\mathrm{ABM}"]
             for name, x, ax in zip(names, [stochastic_noise_I, stochastic_noise_R], axes):
@@ -315,12 +311,13 @@ def plot_fits(all_fits, force_rerun=False, verbose=False, do_log=False):
             r"\frac{R_\inf^\mathrm{fit}}{R_\inf^\mathrm{fit}}",
         ]
 
-        for ABM_parameter, fit_objects in tqdm(all_fits.items()):
+        for ABM_parameter, fit_objects in tqdm(all_fits.items(), desc="Plotting all fits"):
             # break
 
             # skip if no fits
             if len(fit_objects) == 0:
-                print(f"Skipping {ABM_parameter}")
+                if verbose:
+                    print(f"Skipping {ABM_parameter}")
                 continue
 
             cfg = utils.string_to_dict(ABM_parameter)
