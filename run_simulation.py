@@ -33,9 +33,7 @@ else:
 
     filename = "cfg_runs.yaml"
     with open(filename) as file:
-        all_sim_pars = yaml.load(file)[
-            "all_sim_pars"
-        ]  # TODO YAMLLoadWarning: calling yaml.load() without Loader=... is deprecated,
+        all_sim_pars = yaml.safe_load(file)["all_sim_pars"]
 
 # # TODO: Add fix if argument is not list in simulation_utils.generate_filenames
 
