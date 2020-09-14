@@ -973,6 +973,8 @@ kwargs = dict(
 )
 
 
+z=z
+
 if __name__ == "__main__" and True:
 
     if num_cores == 1:

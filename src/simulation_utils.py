@@ -56,6 +56,7 @@ def get_all_combinations(d_sim_pars):
             lst = [lst]
         nameval_to_str.append([f"{name}__{x}" for x in lst])
     all_combinations = list(product(*nameval_to_str))
+    return all_combinations
 
 
 def generate_filenames(d_sim_pars, N_loops=10, force_rerun=False):
