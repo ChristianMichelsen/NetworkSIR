@@ -78,7 +78,7 @@ def make_sure_folder_exist(filename, delete_file_if_exists=False):
 
 def load_yaml(filename):
     with open(filename) as file:
-        return yaml.safe_load(file)
+        return DotDict(yaml.safe_load(file))
 
 
 #%%
@@ -621,7 +621,6 @@ def get_d_translate():
     d_translate = {
         "N_tot": r"N_\mathrm{tot}",
         "N_init": r"N_\mathrm{init}",
-        # 'N_ages': r'N_\mathrm{ages}',
         "rho": r"\rho",
         "epsilon_rho": r"\epsilon_\rho",
         "mu": r"\mu",
@@ -630,10 +629,7 @@ def get_d_translate():
         "sigma_beta": r"\sigma_\beta",
         "lambda_E": r"\lambda_E",
         "lambda_I": r"\lambda_I",
-        # 'beta_scaling': r'\beta_\mathrm{scaling}',
-        # 'age_mixing': r'\mathrm{age}_\mathrm{mixing}',
         "algo": r"\mathrm{algo}",
-        # "ID": r"\mathrm{ID}",
         "ID": "ID",
     }
     return d_translate

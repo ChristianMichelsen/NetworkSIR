@@ -1,3 +1,4 @@
+# Setup ranges of parameters useful later on
 
 mus: &mus [10, 20, 25, 30, 40, 50, 60, 80, 100]
 
@@ -12,9 +13,7 @@ N_tots_medium: &N_tots_medium [3_000_000, 4_000_000]
 N_tots_large: &N_tots_large [5_000_000, 5_800_000]
 
 
-
-
-
+# define list of simulation_parameters to be simulated
 all_simulation_parameters:
   - {mu: *mus, rho: [0, 0.1]}
   - {beta: *betas, rho: [0, 0.1]}

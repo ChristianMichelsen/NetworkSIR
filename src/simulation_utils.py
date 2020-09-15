@@ -19,23 +19,10 @@ INTEGER_SIMULATION_PARAMETERS = ["N_tot", "N_init", "N_ages", "algo"]
 
 def get_cfg_default():
     """ Default Simulation Parameters """
-    cfg_default = dict(
-        N_tot=580_000,  # Total number of nodes!
-        N_init=100,  # Initial Infected
-        rho=0.0,  # Spacial dependency. Average distance to connect with.
-        epsilon_rho=0.04,  # fraction of connections not depending on distance
-        mu=40.0,  # Average number of connections of a node (init: 20)
-        sigma_mu=0.0,  # Spread (skewness) in N connections
-        beta=0.01,  # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
-        sigma_beta=0.0,  # Spread in rates, beta
-        lambda_E=1.0,  # E->I, Lambda(from E states)
-        lambda_I=1.0,  # I->R, Lambda(from I states)
-        # beta_scaling = 1.0, # anmunt of beta scaling
-        # age_mixing = 1.0,
-        algo=2,  # node connection algorithm
-    )
-    return cfg_default
-
+    yaml_filename = 'cfg/simulation_parameters_default.yaml'
+    if Path("").cwd().stem == "src":
+        yaml_filename = '../' + yaml_filename
+    return utils.load_yaml(yaml_filename)
 
 def dict_to_filename_with_dir(cfg, ID, data_dir="ABM"):
     filename = Path("Data") / data_dir
