@@ -97,15 +97,19 @@ d_num_cores_N_tot = RangeKeyDict(
 )
 
 
-def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max=None):
-    num_cores = utils.get_num_cores(num_cores_max)
-
+def extract_N_tot_max(d_simulation_parameters):
     if isinstance(d_simulation_parameters, dict) and "N_tot" in d_simulation_parameters.keys():
         if isinstance(d_simulation_parameters["N_tot"], int):
-            N_tot_max = d_simulation_parameters["N_tot"]
+            return d_simulation_parameters["N_tot"]
         else:
-            N_tot_max = max(d_simulation_parameters["N_tot"])
-        num_cores = d_num_cores_N_tot[N_tot_max]
+            return max(d_simulation_parameters["N_tot"])
+    else:
+        return get_cfg_default()["N_tot"]
+
+
+def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max=None):
+    N_tot_max = extract_N_tot_max(d_simulation_parameters)
+    num_cores = d_num_cores_N_tot[N_tot_max]
 
     if num_cores > utils.get_num_cores(num_cores_max):
         num_cores = utils.get_num_cores(num_cores_max)
