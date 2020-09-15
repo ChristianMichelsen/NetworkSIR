@@ -43,7 +43,9 @@ parameters_1D_scan = [
     dict(scan_parameter="N_tot", do_log=True, non_default_parameters=dict(rho=0.1)),
     dict(scan_parameter="N_init", do_log=True),
     dict(scan_parameter="N_init", do_log=True, non_default_parameters=dict(rho=0.1)),
-    dict(scan_parameter="rho"),
+    dict(scan_parameter="rho", non_default_parameters=dict(epsilon_rho=0)),
+    dict(scan_parameter="rho", non_default_parameters=dict(epsilon_rho=0.02)),
+    dict(scan_parameter="rho", non_default_parameters=dict(epsilon_rho=0.04)),
     dict(scan_parameter="rho", non_default_parameters=dict(beta=0.005)),
     dict(scan_parameter="rho", non_default_parameters=dict(algo=1)),
     dict(scan_parameter="rho", non_default_parameters=dict(N_tot=5_800_000)),
@@ -101,3 +103,26 @@ network_files = file_loaders.ABM_simulations(base_dir="Data/network", filetype="
 plot.plot_number_of_contacts(network_files, force_rerun=force_rerun)
 
 filename = network_files.all_files[0]
+
+
+#%%
+
+reload(plot)
+
+# Custom Plots
+ABM_parameter = "N_tot__5800000__N_init__100__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2"
+fig, ax = plot.plot_single_fit(
+    ABM_parameter, all_fits, add_text=False, xlim=(0, 240), legend_loc={"I": "upper left", "R": "upper left"}
+)
+fig.savefig("Figures/paper/fits_vanilla.pdf")
+
+
+#%%
+
+ABM_parameter = "N_tot__5800000__N_init__100__rho__0.1__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2"
+fig, ax = plot.plot_single_fit(
+    ABM_parameter, all_fits, add_text=False, xlim=(0, 220), legend_loc={"I": "upper right", "R": "lower right"}
+)
+fig.savefig("Figures/paper/fits_rho.pdf")
+
+# %%

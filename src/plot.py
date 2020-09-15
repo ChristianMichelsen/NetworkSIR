@@ -91,7 +91,11 @@ def plot_ABM_simulations(abm_files, force_rerun=False):
                 df_deterministic = compute_df_deterministic(cfg, variable, T_max=T_max)
 
                 ax.plot(
-                    df_deterministic["time"], df_deterministic[variable], lw=2.5, color="red", label="SEIR",
+                    df_deterministic["time"],
+                    df_deterministic[variable],
+                    lw=2.5,
+                    color="red",
+                    label="SEIR",
                 )
                 leg = ax.legend(loc=d_label_loc[variable])
                 for legobj in leg.legendHandles:
@@ -122,7 +126,12 @@ def plot_ABM_simulations(abm_files, force_rerun=False):
                     + r"$"
                 )
                 ax.text(
-                    -0.1, -0.2, s, horizontalalignment="left", transform=ax.transAxes, fontsize=24,
+                    -0.1,
+                    -0.2,
+                    s,
+                    horizontalalignment="left",
+                    transform=ax.transAxes,
+                    fontsize=24,
                 )
 
             title = utils.dict_to_title(cfg, len(abm_files[ABM_parameter]))
@@ -205,17 +214,17 @@ def get_1D_scan_results(scan_parameter, non_default_parameters):
     return x, y_I, y_R, sy_I, sy_R, n, cfg
 
 
-def extract_limits(ylim):
+def extract_limits(lim):
     """ deals with both limits of the form (0, 1) and [(0, 1), (0.5, 1.5)] """
-    if isinstance(ylim, (tuple, list)):
-        if isinstance(ylim[0], (float, int)):
-            ylim0 = ylim1 = ylim
-        elif isinstance(ylim[0], (tuple, list)):
-            ylim0, ylim1 = ylim
+    if isinstance(lim, (tuple, list)):
+        if isinstance(lim[0], (float, int)):
+            lim0 = lim1 = lim
+        elif isinstance(lim[0], (tuple, list)):
+            lim0, lim1 = lim
     else:
-        ylim0 = ylim1 = (None, None)
+        lim0 = lim1 = (None, None)
 
-    return ylim0, ylim1
+    return lim0, lim1
 
 
 def _plot_1D_scan_res(res, scan_parameter, ylim, do_log):
@@ -236,18 +245,46 @@ def _plot_1D_scan_res(res, scan_parameter, ylim, do_log):
     fig.suptitle(title, fontsize=28 * factor)
 
     ax0.errorbar(
-        x[mask], y_I[mask], sy_I[mask], fmt=".", color="black", ecolor="black", elinewidth=1, capsize=10,
+        x[mask],
+        y_I[mask],
+        sy_I[mask],
+        fmt=".",
+        color="black",
+        ecolor="black",
+        elinewidth=1,
+        capsize=10,
     )
     ax0.errorbar(
-        x[~mask], y_I[~mask], sy_I[~mask], fmt=".", color="grey", ecolor="grey", elinewidth=1, capsize=10,
+        x[~mask],
+        y_I[~mask],
+        sy_I[~mask],
+        fmt=".",
+        color="grey",
+        ecolor="grey",
+        elinewidth=1,
+        capsize=10,
     )
     ax0.set(xlabel=xlabel, ylim=ylim0)
 
     ax1.errorbar(
-        x[mask], y_R[mask], sy_R[mask], fmt=".", color="black", ecolor="black", elinewidth=1, capsize=10,
+        x[mask],
+        y_R[mask],
+        sy_R[mask],
+        fmt=".",
+        color="black",
+        ecolor="black",
+        elinewidth=1,
+        capsize=10,
     )
     ax1.errorbar(
-        x[~mask], y_R[~mask], sy_R[~mask], fmt=".", color="grey", ecolor="grey", elinewidth=1, capsize=10,
+        x[~mask],
+        y_R[~mask],
+        sy_R[~mask],
+        fmt=".",
+        color="grey",
+        ecolor="grey",
+        elinewidth=1,
+        capsize=10,
     )
     ax1.set(xlabel=xlabel, ylim=ylim1)
 
@@ -291,7 +328,131 @@ def plot_1D_scan(scan_parameter, do_log=False, ylim=None, non_default_parameters
 #%%
 
 
-def plot_fits(all_fits, force_rerun=False, verbose=False, do_log=False):
+def rug_plot(xs, ax, ymax=0.1, **kwargs):
+    for x in xs:
+        ax.axvline(x, ymax=ymax, **kwargs)
+
+
+def plot_single_fit(ABM_parameter, all_fits, add_text=True, xlim=(0, None), ylim=(0, None), legend_loc=None):
+
+    fit_objects = all_fits[ABM_parameter]
+
+    d_ylabel = {"I": "Infected", "R": "Recovered"}
+
+    if legend_loc is None:
+        legend_loc = {"I": "upper right", "R": "lower right"}
+
+    relative_names = [
+        r"\frac{I_\mathrm{max}^\mathrm{fit}} {I_\mathrm{max}^\mathrm{ABM}}",
+        r"\frac{R_\inf^\mathrm{fit}}{R_\inf^\mathrm{fit}}",
+    ]
+
+    cfg = utils.string_to_dict(ABM_parameter)
+    axhline_ymin = 0.1 / 100 * cfg.N_tot
+    axhline_ymax = 1 / 100 * cfg.N_tot
+
+    fig, axes = plt.subplots(ncols=2, figsize=(18, 7), constrained_layout=True)
+    fig.subplots_adjust(top=0.8)
+
+    for i, fit_object in enumerate(fit_objects.values()):
+        # break
+
+        df = file_loaders.pandas_load_file(fit_object.filename)
+        t = df["time"].values
+        T_max = max(t) * 1.1
+        df_fit = fit_object.calc_df_fit(ts=0.1, T_max=T_max)
+
+        lw = 0.8
+        for I_or_R, ax in zip(["I", "R"], axes):
+
+            label_min = "Fit Range" if i == 0 else None
+            axvline_kwargs = dict(lw=lw, alpha=0.9, color="lightgrey")
+            tmp = df.query("@fit_object.t.min() <= time <= @fit_object.t.max()")
+            ax.fill_between(tmp["time"], tmp[I_or_R], label=label_min, **axvline_kwargs)
+
+            label = "ABM" if i == 0 else None
+            ax.plot(t, df[I_or_R], "k-", lw=lw, label=label)
+
+            label = "Fits" if i == 0 else None
+            ax.plot(
+                df_fit["time"],
+                df_fit[I_or_R],
+                lw=lw,
+                color="green",
+                label=label,
+            )
+
+            # x_rug = [fit_object.t.min(), fit_object.t.max()]
+            # rug_plot(x_rug, ax, ymin=-0.01, ymax=0.03, color="k", lw=lw)
+
+    if add_text:
+
+        # calculate monte carlo simulated fit results
+        all_I_max_MC = []
+        all_R_inf_MC = []
+        for i, fit_object in enumerate(fit_objects.values()):
+            all_I_max_MC.extend(fit_object.I_max_MC)
+            all_R_inf_MC.extend(fit_object.R_inf_MC)
+        d_fits = {"I": all_I_max_MC, "R": all_R_inf_MC}
+
+        # and plot them
+        for I_or_R, ax in zip(["I", "R"], axes):
+            median, errors = utils.get_central_confidence_intervals(d_fits[I_or_R])
+            s = utils.format_asymmetric_uncertanties(median, errors, I_or_R)
+            axes[0].text(-0.15, -0.25, s, transform=ax.transAxes, fontsize=22)
+
+        # calculate fraction between fit and ABM simulation
+        z = defaultdict(list)
+        for fit_object in fit_objects.values():
+            z["I"].append(fit_object.I_max_fit / fit_object.I_max_ABM)
+            z["R"].append(fit_object.R_inf_fit / fit_object.R_inf_ABM)
+
+        for I_or_R, name, ax in zip(["I", "R"], relative_names, axes):
+            mu, std = np.mean(z[I_or_R]), utils.SDOM(z[I_or_R])
+            n_digits = int(np.log10(utils.round_to_uncertainty(mu, std)[0])) + 1
+            s_mu = utils.human_format_scientific(mu, digits=n_digits)
+            s = r"$ " + f"{name} = {s_mu[0]}" + r"\pm " + f"{std:.{n_digits}f}" + r"$"
+            ax.text(0.3, -0.25, s, transform=ax.transAxes, fontsize=22)
+
+    fit_values_deterministic = {
+        "lambda_E": cfg.lambda_E,
+        "lambda_I": cfg.lambda_I,
+        "beta": cfg.beta,
+        "tau": 0,
+    }
+
+    df_SIR = fit_object.calc_df_fit(fit_values=fit_values_deterministic, ts=0.1, T_max=T_max)
+
+    for I_or_R, ax in zip(["I", "R"], axes):
+
+        ax.plot(
+            df_SIR["time"],
+            df_SIR[I_or_R],
+            lw=lw * 8,
+            color="red",
+            label="SEIR",
+            zorder=0,
+        )
+
+        ax.set(xlim=xlim, ylim=ylim)
+        ax.set(xlabel="Time", ylabel=d_ylabel[I_or_R])
+        if add_text:
+            ax.xaxis.set_label_coords(0.91, -0.14)
+        ax.yaxis.set_major_formatter(EngFormatter())
+
+        leg = ax.legend(loc=legend_loc[I_or_R])
+        for legobj in leg.legendHandles:
+            legobj.set_linewidth(2.0)
+            legobj.set_alpha(1.0)
+
+    title = utils.dict_to_title(cfg, len(fit_objects))
+    fig.suptitle(title, fontsize=24)
+    plt.subplots_adjust(wspace=0.3)
+
+    return fig, ax
+
+
+def plot_fits(all_fits, force_rerun=False, verbose=False):
 
     pdf_name = f"Figures/Fits.pdf"
     Path(pdf_name).parent.mkdir(parents=True, exist_ok=True)
@@ -303,15 +464,10 @@ def plot_fits(all_fits, force_rerun=False, verbose=False, do_log=False):
     with PdfPages(pdf_name) as pdf, warnings.catch_warnings():
         warnings.filterwarnings("ignore", message="This figure was using constrained_layout==True")
 
-        leg_loc = {"I": "upper right", "R": "lower right"}
-        d_ylabel = {"I": "Infected", "R": "Recovered"}
-
-        relative_names = [
-            r"\frac{I_\mathrm{max}^\mathrm{fit}} {I_\mathrm{max}^\mathrm{ABM}}",
-            r"\frac{R_\inf^\mathrm{fit}}{R_\inf^\mathrm{fit}}",
-        ]
-
         for ABM_parameter, fit_objects in tqdm(all_fits.items(), desc="Plotting all fits"):
+            # break
+            # cfg = utils.string_to_dict(ABM_parameter)
+            # if cfg.N_tot == 5_800_000 and cfg.rho == 0.1:
             # break
 
             # skip if no fits
@@ -320,92 +476,7 @@ def plot_fits(all_fits, force_rerun=False, verbose=False, do_log=False):
                     print(f"Skipping {ABM_parameter}")
                 continue
 
-            cfg = utils.string_to_dict(ABM_parameter)
-
-            fig, axes = plt.subplots(ncols=2, figsize=(18, 7), constrained_layout=True)
-            fig.subplots_adjust(top=0.8)
-
-            for i, fit_object in enumerate(fit_objects.values()):
-                # break
-
-                df = file_loaders.pandas_load_file(fit_object.filename)
-                t = df["time"].values
-                T_max = max(t) * 1.1
-                df_fit = fit_object.calc_df_fit(ts=0.1, T_max=T_max)
-
-                lw = 0.8
-                for I_or_R, ax in zip(["I", "R"], axes):
-
-                    label = "ABM" if i == 0 else None
-                    ax.plot(t, df[I_or_R], "k-", lw=lw, label=label)
-
-                    label_min = "Fit Range" if i == 0 else None
-                    ax.axvline(fit_object.t.min(), ymin=0, ymax=0.25, lw=lw, alpha=0.8, label=label_min)
-                    ax.axvline(fit_object.t.max(), ymin=0, ymax=0.25, lw=lw, alpha=0.8)
-
-                    label = "Fits" if i == 0 else None
-                    ax.plot(
-                        df_fit["time"], df_fit[I_or_R], lw=lw, color="green", label=label,
-                    )
-
-            # calculate monte carlo simulated fit results
-            all_I_max_MC = []
-            all_R_inf_MC = []
-            for i, fit_object in enumerate(fit_objects.values()):
-                all_I_max_MC.extend(fit_object.I_max_MC)
-                all_R_inf_MC.extend(fit_object.R_inf_MC)
-            d_fits = {"I": all_I_max_MC, "R": all_R_inf_MC}
-
-            # and plot them
-            for I_or_R, ax in zip(["I", "R"], axes):
-                median, errors = utils.get_central_confidence_intervals(d_fits[I_or_R])
-                s = utils.format_asymmetric_uncertanties(median, errors, I_or_R)
-                axes[0].text(-0.15, -0.25, s, transform=ax.transAxes, fontsize=22)
-
-            # calculate fraction between fit and ABM simulation
-            z = defaultdict(list)
-            for fit_object in fit_objects.values():
-                z["I"].append(fit_object.I_max_fit / fit_object.I_max_ABM)
-                z["R"].append(fit_object.R_inf_fit / fit_object.R_inf_ABM)
-
-            for I_or_R, name, ax in zip(["I", "R"], relative_names, axes):
-                mu, std = np.mean(z[I_or_R]), utils.SDOM(z[I_or_R])
-                n_digits = int(np.log10(utils.round_to_uncertainty(mu, std)[0])) + 1
-                s_mu = utils.human_format_scientific(mu, digits=n_digits)
-                s = r"$ " + f"{name} = {s_mu[0]}" + r"\pm " + f"{std:.{n_digits}f}" + r"$"
-                ax.text(0.3, -0.25, s, transform=ax.transAxes, fontsize=22)
-
-            fit_values_deterministic = {
-                "lambda_E": cfg.lambda_E,
-                "lambda_I": cfg.lambda_I,
-                "beta": cfg.beta,
-                "tau": 0,
-            }
-
-            df_SIR = fit_object.calc_df_fit(fit_values=fit_values_deterministic, ts=0.1, T_max=T_max)
-
-            for I_or_R, ax in zip(["I", "R"], axes):
-
-                ax.plot(
-                    df_SIR["time"], df_SIR[I_or_R], lw=lw * 5, color="red", label="SEIR", zorder=0,
-                )
-
-                if do_log:
-                    ax.set_yscale("log", nonposy="clip")
-
-                ax.set(xlim=(0, None), ylim=(0, None))
-                ax.set(xlabel="Time", ylabel=d_ylabel[I_or_R])
-                ax.xaxis.set_label_coords(0.91, -0.14)
-                ax.yaxis.set_major_formatter(EngFormatter())
-
-                leg = ax.legend(loc=leg_loc[I_or_R])
-                for legobj in leg.legendHandles:
-                    legobj.set_linewidth(2.0)
-                    legobj.set_alpha(1.0)
-
-            title = utils.dict_to_title(cfg, len(fit_objects))
-            fig.suptitle(title, fontsize=24)
-            plt.subplots_adjust(wspace=0.3)
+            fig, ax = plot_single_fit(ABM_parameter, all_fits)
 
             pdf.savefig(fig, dpi=100)
             plt.close("all")
