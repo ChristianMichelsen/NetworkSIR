@@ -18,7 +18,7 @@ from src import fits
 rc_params.set_rc_params()
 num_cores_max = 30
 
-do_make_1D_scan = False
+do_make_1D_scan = True
 force_rerun = False
 verbose = False
 
@@ -101,4 +101,3 @@ network_files = file_loaders.ABM_simulations(base_dir="Data/network", filetype="
 plot.plot_number_of_contacts(network_files, force_rerun=force_rerun)
 
 filename = network_files.all_files[0]
-

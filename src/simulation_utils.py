@@ -269,7 +269,11 @@ def _initialize_my_rates_nested_list(my_infection_weight, my_number_of_contacts)
     N_tot = len(my_infection_weight)
     res = List()
     for i in range(N_tot):
-        x = np.full(my_number_of_contacts[i], fill_value=my_infection_weight[i], dtype=np.float64,)
+        x = np.full(
+            my_number_of_contacts[i],
+            fill_value=my_infection_weight[i],
+            dtype=np.float64,
+        )
         res.append(x)
     return res
 
@@ -436,7 +440,11 @@ def parse_memory_file(filename):
 
 
 def plot_memory_comsumption(
-    df_time_memory, df_change_points, min_TimeDiffRel=0.1, min_MemoryDiffRel=0.1, time_unit="min",
+    df_time_memory,
+    df_change_points,
+    min_TimeDiffRel=0.1,
+    min_MemoryDiffRel=0.1,
+    time_unit="min",
 ):
 
     colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
@@ -782,3 +790,29 @@ def load_coordinates_Nordjylland(N_tot=150_000, verbose=False):
     all_coordinates = np.load("../Data/GPS_coordinates.npy")
     coordinates = nb_load_coordinates_Nordjylland(all_coordinates, N_tot, verbose)
     return np.array(coordinates)
+
+
+#%%
+
+import geopandas as gpd  # conda install -c conda-forge geopandas
+
+# Shapefiles
+def load_kommune_shapefiles(shapefile_size, verbose=False):
+
+    shp_file = {}
+    shp_file["small"] = "Data/Kommuner/ADM_2M/KOMMUNE.shp"
+    shp_file["medium"] = "Data/Kommuner/ADM_500k/KOMMUNE.shp"
+    shp_file["large"] = "Data/Kommuner/ADM_10k/KOMMUNE.shp"
+
+    if verbose:
+        print(f"Loading {shapefile_size} kommune shape files")
+    kommuner = gpd.read_file(shp_file[shapefile_size]).to_crs(
+        {"proj": "latlong"}
+    )  # convert to lat lon, compared to UTM32_EUREF89
+
+    kommune_navn, kommune_idx = np.unique(kommuner["KOMNAVN"], return_inverse=True)
+    name_to_idx = dict(zip(kommune_navn, range(len(kommune_navn))))
+    idx_to_name = {v: k for k, v in name_to_idx.items()}
+
+    kommuner["idx"] = kommune_idx
+    return kommuner, name_to_idx, idx_to_name

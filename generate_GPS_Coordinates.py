@@ -11,6 +11,7 @@ from numba import njit, prange, set_num_threads
 from matplotlib.patches import Rectangle
 from matplotlib.backends.backend_pdf import PdfPages
 from src import utils
+from src import simulation_utils
 
 #%%
 
@@ -90,21 +91,7 @@ def polygon_contains_points(points, polygon):
 
 #%%
 
-shp_file = {}
-shp_file["small"] = "Data/Kommuner/ADM_2M/KOMMUNE.shp"
-shp_file["medium"] = "Data/Kommuner/ADM_500k/KOMMUNE.shp"
-shp_file["large"] = "Data/Kommuner/ADM_10k/KOMMUNE.shp"
-
-print(f"Loading {shapefile_size} kommune shape files")
-kommuner = gpd.read_file(shp_file[shapefile_size]).to_crs(
-    {"proj": "latlong"}
-)  # convert to lat lon, compared to UTM32_EUREF89
-
-kommune_navn, kommune_idx = np.unique(kommuner["KOMNAVN"], return_inverse=True)
-name_to_idx = dict(zip(kommune_navn, range(len(kommune_navn))))
-idx_to_name = {v: k for k, v in name_to_idx.items()}
-
-kommuner["idx"] = kommune_idx
+kommuner, name_to_idx, idx_to_name = simulation_utils.load_kommune_shapefiles(shapefile_size, verbose=True)
 
 N = len(coordinates_out)
 np_points = coordinates_out[:N]

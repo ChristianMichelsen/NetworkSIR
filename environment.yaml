@@ -32,6 +32,7 @@ dependencies:
   - h5py
   - pathos
   - geopandas
+  - descartes
   # - p_tqdm
   - pip:
     - mpl-scatter-density
