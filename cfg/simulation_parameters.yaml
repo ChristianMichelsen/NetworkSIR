@@ -11,6 +11,10 @@ N_tots_small: &N_tots_small [100_000, 200_000, 500_000, 580_000, 1_000_000, 2_00
 N_tots_medium: &N_tots_medium [3_000_000, 4_000_000]
 N_tots_large: &N_tots_large [5_000_000, 5_800_000]
 
+
+
+
+
 all_simulation_parameters:
   - {mu: *mus, rho: [0, 0.1]}
   - {beta: *betas, rho: [0, 0.1]}
