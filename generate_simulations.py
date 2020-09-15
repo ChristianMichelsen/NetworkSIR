@@ -28,9 +28,9 @@ if utils.is_local_computer():
 
 else:
 
-    filename = "cfg/simulation_parameters.yaml"
-    with open(filename) as file:
-        all_simulation_parameters = yaml.safe_load(file)["all_simulation_parameters"]
+    yaml_filename = "cfg/simulation_parameters.yaml"
+
+    all_simulation_parameters = utils.load_yaml(yaml_filename)["all_simulation_parameters"]
 
 
 #%%

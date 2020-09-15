@@ -1,6 +1,7 @@
 import numpy as np
 import multiprocessing as mp
 from pathlib import Path
+import yaml
 
 import numba as nb
 from numba import (
@@ -73,6 +74,14 @@ def make_sure_folder_exist(filename, delete_file_if_exists=False):
     filename.parent.mkdir(parents=True, exist_ok=True)
     if delete_file_if_exists and filename.exists():
         filename.unlink()
+
+
+def load_yaml(filename):
+    with open(filename) as file:
+        return yaml.safe_load(file)
+
+
+#%%
 
 
 @njit
@@ -479,8 +488,7 @@ def NumbaMutableArray(offsets, content, dtype):
 
 class MutableArray:
 
-    """ The MutableArray is basically just a simple version of Awkward Array with _mutable_ data. Also allows the array to be used in zip/enumerate in numba code by using the .array property (not needed in awkward version >= 0.2.32).
-    """
+    """The MutableArray is basically just a simple version of Awkward Array with _mutable_ data. Also allows the array to be used in zip/enumerate in numba code by using the .array property (not needed in awkward version >= 0.2.32)."""
 
     def __init__(self, arraylike_object):
 
@@ -499,7 +507,9 @@ class MutableArray:
             self._awkward_array = arraylike_object
 
         else:
-            raise AssertionError(f"arraylike_object is neither numba list or awkward arry, got {type(arraylike_object)}")
+            raise AssertionError(
+                f"arraylike_object is neither numba list or awkward arry, got {type(arraylike_object)}"
+            )
 
         self.dtype = dtype
         self._initialize_numba_array()
@@ -781,7 +791,19 @@ def format_asymmetric_uncertanties(value, errors, name="I"):
     if "E" in str(std_lower):
         assert False
 
-    s = r"$" + f"{name}" + r" = " + f"{mu}" + r"_{" + f"-{std_lower}" + r"}^{+" + f"{std_higher}" + r"} \cdot 10^{" + f"{exponent}" + r"}$"
+    s = (
+        r"$"
+        + f"{name}"
+        + r" = "
+        + f"{mu}"
+        + r"_{"
+        + f"-{std_lower}"
+        + r"}^{+"
+        + f"{std_higher}"
+        + r"} \cdot 10^{"
+        + f"{exponent}"
+        + r"}$"
+    )
 
     return s
 
