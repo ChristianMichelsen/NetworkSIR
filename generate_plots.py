@@ -107,22 +107,22 @@ filename = network_files.all_files[0]
 
 #%%
 
-reload(plot)
+# reload(plot)
 
-# Custom Plots
-ABM_parameter = "N_tot__5800000__N_init__100__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2"
-fig, ax = plot.plot_single_fit(
-    ABM_parameter, all_fits, add_text=False, xlim=(0, 240), legend_loc={"I": "upper left", "R": "upper left"}
-)
-fig.savefig("Figures/paper/fits_vanilla.pdf")
+# # Custom Plots
+# ABM_parameter = "N_tot__5800000__N_init__100__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2"
+# fig, ax = plot.plot_single_fit(
+#     ABM_parameter, all_fits, add_text=False, xlim=(0, 240), legend_loc={"I": "upper left", "R": "upper left"}
+# )
+# fig.savefig("Figures/paper/fits_vanilla.pdf")
 
 
-#%%
+# #%%
 
-ABM_parameter = "N_tot__5800000__N_init__100__rho__0.1__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2"
-fig, ax = plot.plot_single_fit(
-    ABM_parameter, all_fits, add_text=False, xlim=(0, 220), legend_loc={"I": "upper right", "R": "lower right"}
-)
-fig.savefig("Figures/paper/fits_rho.pdf")
+# ABM_parameter = "N_tot__5800000__N_init__100__rho__0.1__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2"
+# fig, ax = plot.plot_single_fit(
+#     ABM_parameter, all_fits, add_text=False, xlim=(0, 220), legend_loc={"I": "upper right", "R": "lower right"}
+# )
+# fig.savefig("Figures/paper/fits_rho.pdf")
 
-# %%
+# # %%

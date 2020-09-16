@@ -9,25 +9,28 @@ import matplotlib.pyplot as plt
 import csv
 import numba as nb
 
-try:
-    from src import utils
-except ImportError:
-    import utils
+# try:
+# from src import utils
+# except ImportError:
+from src import utils
 
-INTEGER_SIMULATION_PARAMETERS = ["N_tot", "N_init", "N_ages", "algo"]
+INTEGER_SIMULATION_PARAMETERS = utils.load_yaml("cfg/settings.yaml")["INTEGER_SIMULATION_PARAMETERS"]
 
 
 def get_cfg_default():
     """ Default Simulation Parameters """
-    yaml_filename = 'cfg/simulation_parameters_default.yaml'
-    if Path("").cwd().stem == "src":
-        yaml_filename = '../' + yaml_filename
+    yaml_filename = "cfg/simulation_parameters_default.yaml"
+    # if Path("").cwd().stem == "src":
+    # yaml_filename = "../" + yaml_filename
     return utils.load_yaml(yaml_filename)
+
 
 def dict_to_filename_with_dir(cfg, ID, data_dir="ABM"):
     filename = Path("Data") / data_dir
     file_string = ""
     for key, val in cfg.items():
+        if key == "version":
+            key = "v"
         file_string += f"{key}__{val}__"
     file_string = file_string[:-2]  # remove trailing _
     filename = filename / file_string
@@ -120,6 +123,8 @@ def load_coordinates(coordinates_filename, N_tot, ID):
 
 #%%
 
+EXCLUDE_PARAMETER_IN_INIT = utils.load_yaml("cfg/settings.yaml")["EXCLUDE_PARAMETER_IN_INIT"]
+
 
 class Filename:
     def __init__(self, filename):
@@ -129,24 +134,11 @@ class Filename:
 
         self._filename = filename
         self.filename = self.filename_prefix + filename
-        self.d = self._string_to_dict
+        self.d = utils.string_to_dict(filename.replace(".animation", ""))
         self.cfg = self.simulation_parameters
 
     def __repr__(self):
         return str(self.d)
-
-    @property
-    def _string_to_dict(self):
-        d = {}
-        filename_stripped = self._filename.replace(".animation", "")
-        keyvals = str(Path(filename_stripped).stem).split("__")
-        keyvals_chunks = [keyvals[i : i + 2] for i in range(0, len(keyvals), 2)]
-        for key, val in keyvals_chunks:
-            if key in INTEGER_SIMULATION_PARAMETERS + ["ID"]:
-                d[key] = int(val)
-            else:
-                d[key] = float(val)
-        return utils.DotDict(d)
 
     @property
     def to_dict(self):  # ,
@@ -178,20 +170,14 @@ class Filename:
         file_string = file_string[:-2]  # remove trailing _
         file_string += extension
         filename = filename / file_string
-        return str(filename)
+        filename = str(filename).replace("version", "v")
+        return filename
 
     def get_filename_network_initialisation(self, extension=".hdf5"):
-        variables_to_save_in_filename = [
-            "N_tot",
-            "mu",
-            "sigma_mu",
-            "beta",
-            "sigma_beta",
-            "rho",
-            "epsilon_rho",
-            "algo",
-            "ID",
-        ]
+        variables_to_save_in_filename = []
+        for parameter in self.cfg.keys():
+            if not parameter in EXCLUDE_PARAMETER_IN_INIT:
+                variables_to_save_in_filename.append(parameter)
         d = {key: self.d[key] for key in variables_to_save_in_filename}
         filename = Path(f"{self.filename_prefix}Data") / "network_initialization"
         return self._filename_to_network(d, filename, extension)
@@ -293,17 +279,17 @@ def initialize_SIR_transition_rates(N_states, N_infectious_states, cfg):
 
 
 @njit
-def _compute_ages_in_state(ages, N_ages):
-    ages_in_state = utils.initialize_nested_lists(N_ages, dtype=np.uint32)
+def _compute_agents_in_age_group(ages, N_ages):
+    agents_in_age_group = utils.initialize_nested_lists(N_ages, dtype=np.uint32)
     for idx, age in enumerate(ages):  # prange
-        ages_in_state[age].append(np.uint32(idx))
-    return ages_in_state
+        agents_in_age_group[age].append(np.uint32(idx))
+    return agents_in_age_group
 
 
-def compute_ages_in_state(ages, N_ages):
-    ages_in_state = _compute_ages_in_state(ages, N_ages)
-    ages_in_state = utils.nested_list_to_awkward_array(ages_in_state)
-    return ages_in_state
+def compute_agents_in_age_group(ages, N_ages):
+    agents_in_age_group = _compute_agents_in_age_group(ages, N_ages)
+    agents_in_age_group = utils.nested_list_to_awkward_array(agents_in_age_group)
+    return agents_in_age_group
 
 
 def get_hospitalization_variables(N_tot, N_ages=1):
@@ -777,10 +763,10 @@ def nb_load_coordinates_Nordjylland(all_coordinates, N_tot=150_000, verbose=Fals
     return coordinates
 
 
-def load_coordinates_Nordjylland(N_tot=150_000, verbose=False):
-    all_coordinates = np.load("../Data/GPS_coordinates.npy")
-    coordinates = nb_load_coordinates_Nordjylland(all_coordinates, N_tot, verbose)
-    return np.array(coordinates)
+# def load_coordinates_Nordjylland(N_tot=150_000, verbose=False):
+#     all_coordinates = np.load("../Data/GPS_coordinates.npy")
+#     coordinates = nb_load_coordinates_Nordjylland(all_coordinates, N_tot, verbose)
+#     return np.array(coordinates)
 
 
 #%%

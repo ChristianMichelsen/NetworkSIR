@@ -3,28 +3,13 @@ import multiprocessing as mp
 from pathlib import Path
 import yaml
 
+# conda install -c numba/label/dev numba
 import numba as nb
-from numba import (
-    njit,
-    prange,
-    objmode,
-    typeof,
-)  # conda install -c numba/label/dev numba
+from numba import njit, prange, objmode, typeof
 from numba.typed import List, Dict
+import platform
 
 import awkward1 as ak  # pip install awkward1
-
-# try:
-#     import simulation_utils
-#     from simulation_utils import INTEGER_SIMULATION_PARAMETERS
-# except ModuleNotFoundError:
-#     try:
-try:
-    from src import simulation_utils
-    from src.simulation_utils import INTEGER_SIMULATION_PARAMETERS
-except ImportError:
-    import simulation_utils
-    from simulation_utils import INTEGER_SIMULATION_PARAMETERS
 
 
 def _is_ipython():
@@ -36,9 +21,6 @@ def _is_ipython():
 
 
 is_ipython = _is_ipython()
-
-
-import platform
 
 
 def is_local_computer(N_local_cores=12):
@@ -108,26 +90,6 @@ def haversine_scipy(p1, p2):
 @njit
 def set_numba_random_seed(seed):
     np.random.seed(seed)
-
-
-# def filename_to_dict(filename, normal_string=False, animation=False): # ,
-#     cfg = {}
-
-#     if normal_string:
-#         keyvals = filename.split('__')
-#     elif animation:
-#         keyvals = filename.split('/')[-1].split('.animation')[0].split('__')
-#     else:
-#         keyvals = str(Path(filename).stem).split('__')
-
-#     keyvals_chunks = [keyvals[i:i + 2] for i in range(0, len(keyvals), 2)]
-#     for key, val in keyvals_chunks:
-#         if not key == 'ID':
-#             if key in INTEGER_SIMULATION_PARAMETERS:
-#                 cfg[key] = int(val)
-#             else:
-#                 cfg[key] = float(val)
-#     return DotDict(cfg)
 
 
 @njit
@@ -594,6 +556,9 @@ class DotDict(dict):
 #%%
 
 
+INTEGER_SIMULATION_PARAMETERS = load_yaml("cfg/settings.yaml")["INTEGER_SIMULATION_PARAMETERS"]
+
+
 def string_to_dict(string):
     # if path-like string
 
@@ -607,8 +572,10 @@ def string_to_dict(string):
     keyvals = string.split("__")
     keyvals_chunks = [keyvals[i : i + 2] for i in range(0, len(keyvals), 2)]
     for key, val in keyvals_chunks:
-        if key in simulation_utils.INTEGER_SIMULATION_PARAMETERS + ["ID"]:
+        if key in INTEGER_SIMULATION_PARAMETERS + ["ID"]:
             d[key] = int(val)
+        elif key == "v":
+            d["version"] = float(val)
         else:
             d[key] = float(val)
     return DotDict(d)
@@ -617,22 +584,23 @@ def string_to_dict(string):
 #%%
 
 
-def get_d_translate():
-    d_translate = {
-        "N_tot": r"N_\mathrm{tot}",
-        "N_init": r"N_\mathrm{init}",
-        "rho": r"\rho",
-        "epsilon_rho": r"\epsilon_\rho",
-        "mu": r"\mu",
-        "sigma_mu": r"\sigma_\mu",
-        "beta": r"\beta",
-        "sigma_beta": r"\sigma_\beta",
-        "lambda_E": r"\lambda_E",
-        "lambda_I": r"\lambda_I",
-        "algo": r"\mathrm{algo}",
-        "ID": "ID",
-    }
-    return d_translate
+def get_parameter_to_latex():
+    return load_yaml("cfg/parameter_to_latex.yaml")
+    # parameter_to_latex = {
+    #     "N_tot": r"N_\mathrm{tot}",
+    #     "N_init": r"N_\mathrm{init}",
+    #     "rho": r"\rho",
+    #     "epsilon_rho": r"\epsilon_\rho",
+    #     "mu": r"\mu",
+    #     "sigma_mu": r"\sigma_\mu",
+    #     "beta": r"\beta",
+    #     "sigma_beta": r"\sigma_\beta",
+    #     "lambda_E": r"\lambda_E",
+    #     "lambda_I": r"\lambda_I",
+    #     "algo": r"\mathrm{algo}",
+    #     "ID": "ID",
+    # }
+    # return parameter_to_latex
 
 
 def human_format(num, digits=3):
@@ -664,16 +632,19 @@ def dict_to_title(d, N=None, exclude=None, in_two_line=True):
     cfg.N_tot = human_format(cfg.N_tot)
     cfg.N_init = human_format(cfg.N_init)
 
-    d_translate = get_d_translate()
+    # parameter_to_latex = get_parameter_to_latex()
+    parameter_to_latex = load_yaml("cfg/parameter_to_latex.yaml")
 
     # make "exclude" a list of keys to ignore
     if isinstance(exclude, str) or exclude is None:
         exclude = [exclude]
+    exclude.append("version")
 
     title = "$"
     for sim_par, val in cfg.items():
         if not sim_par in exclude:
-            title += f"{d_translate[sim_par]} = {val}, \,"
+            title += f"{parameter_to_latex[sim_par]} = {val}, \,"
+    title += f"{parameter_to_latex['version']} = {cfg.version}, \,"
 
     if in_two_line:
         if "lambda_E" in title:

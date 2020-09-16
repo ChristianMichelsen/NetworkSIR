@@ -14,14 +14,14 @@ import os
 from IPython.display import display
 from contexttimer import Timer
 
-
+# conda install -c numba/label/dev numba
 import numba as nb
 from numba import (
     njit,
     prange,
     objmode,
     typeof,
-)  # conda install -c numba/label/dev numba
+)
 from numba.typed import List, Dict
 
 # from numba.types import Set
@@ -35,16 +35,17 @@ from numba.core.errors import (
 import awkward as awkward0  # conda install awkward0, conda install -c conda-forge pyarrow
 import awkward1 as ak  # pip install awkward1
 
-try:
-    from src import utils
-    from src import simulation_utils
-except ImportError:
-    import utils
-    import simulation_utils
+
+path_was_changed = False
+path = Path("").cwd()
+if path.stem == "src":
+    os.chdir(path.parent)
+    path_was_changed = True
+
+from src import utils
+from src import simulation_utils
 
 np.set_printoptions(linewidth=200)
-
-
 do_memory_tracking = False
 
 
@@ -61,7 +62,7 @@ def initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta):
     for agent in range(N_tot):
 
         if np.random.rand() < sigma_mu:
-            my_connection_weight[agent] = 0.1 - np.log(np.random.rand())  # / 1.0
+            my_connection_weight[agent] = 0.1 - np.log(np.random.rand())
         else:
             my_connection_weight[agent] = 1.1
 
@@ -81,20 +82,20 @@ def initialize_ages(N_tot, N_ages, my_connection_weight):
             track_memory("Ages")
 
     my_age = np.full(N_tot, fill_value=-1, dtype=np.int8)
-    ages_total_counts = np.zeros(N_ages, dtype=np.uint32)
-    ages_in_state = utils.initialize_nested_lists(N_ages, dtype=np.int32)
+    counter_ages = np.zeros(N_ages, dtype=np.uint32)
+    agents_in_age_group = utils.initialize_nested_lists(N_ages, dtype=np.int32)
 
     for agent in range(N_tot):  # prange
         age = np.random.randint(N_ages)
         my_age[agent] = age
-        ages_total_counts[age] += 1
-        ages_in_state[age].append(np.int32(agent))
+        counter_ages[age] += 1
+        agents_in_age_group[age].append(np.int32(agent))
 
     PT_ages = np.zeros(N_ages, dtype=np.float32)
     PC_ages = List()
     PP_ages = List()
     for age_group in range(N_ages):  # prange
-        indices = np.asarray(ages_in_state[age_group])
+        indices = np.asarray(agents_in_age_group[age_group])
         my_connection_weight_ages = my_connection_weight[indices]
         PT_age = np.sum(my_connection_weight_ages)
         PC_age = np.cumsum(my_connection_weight_ages)
@@ -104,7 +105,7 @@ def initialize_ages(N_tot, N_ages, my_connection_weight):
         PC_ages.append(PC_age)
         PP_ages.append(PP_age)
 
-    return my_age, ages_total_counts, ages_in_state, PT_ages, PC_ages, PP_ages
+    return my_age, counter_ages, agents_in_age_group, PT_ages, PC_ages, PP_ages
 
 
 @njit
@@ -126,7 +127,7 @@ def update_node_connections(my_connections, coordinates, rho_tmp, rho_scale, con
 
 
 @njit
-def run_algo_2(PP_ages, m_i, m_j, my_connections, coordinates, rho_tmp, rho_scale, ages_in_state):
+def run_algo_2(PP_ages, m_i, m_j, my_connections, coordinates, rho_tmp, rho_scale, agents_in_age_group):
 
     continue_run = True
     while continue_run:
@@ -134,8 +135,8 @@ def run_algo_2(PP_ages, m_i, m_j, my_connections, coordinates, rho_tmp, rho_scal
         agent1 = np.searchsorted(PP_ages[m_i], np.random.rand())
         agent2 = np.searchsorted(PP_ages[m_j], np.random.rand())
 
-        agent1 = ages_in_state[m_i][agent1]
-        agent2 = ages_in_state[m_j][agent2]
+        agent1 = agents_in_age_group[m_i][agent1]
+        agent2 = agents_in_age_group[m_j][agent2]
 
         continue_run = update_node_connections(
             my_connections,
@@ -149,17 +150,17 @@ def run_algo_2(PP_ages, m_i, m_j, my_connections, coordinates, rho_tmp, rho_scal
 
 
 @njit
-def run_algo_1(PP_ages, m_i, m_j, my_connections, coordinates, rho_tmp, rho_scale, ages_in_state):
+def run_algo_1(PP_ages, m_i, m_j, my_connections, coordinates, rho_tmp, rho_scale, agents_in_age_group):
 
     ra1 = np.random.rand()
     agent1 = np.searchsorted(PP_ages[m_i], ra1)
-    agent1 = ages_in_state[m_i][agent1]
+    agent1 = agents_in_age_group[m_i][agent1]
 
     continue_run = True
     while continue_run:
         ra2 = np.random.rand()
         agent2 = np.searchsorted(PP_ages[m_j], ra2)
-        agent2 = ages_in_state[m_j][agent2]
+        agent2 = agents_in_age_group[m_j][agent2]
 
         rho_tmp *= 0.9995
 
@@ -185,7 +186,7 @@ def connect_nodes(
     rho_scale,
     N_ages,
     age_matrix,
-    ages_in_state,
+    agents_in_age_group,
 ):
 
     if do_memory_tracking:
@@ -219,7 +220,7 @@ def connect_nodes(
                     coordinates,
                     rho_tmp,
                     rho_scale,
-                    ages_in_state,
+                    agents_in_age_group,
                 )
 
                 if do_memory_tracking and (counter % (N_max // 30)) == 0:
@@ -237,14 +238,13 @@ def make_initial_infections(
     my_state,
     state_total_counts,
     agents_in_state,
-    csMov,
+    g_cumulative_sum_of_state_changes,
     my_connections,
     my_number_of_contacts,
     my_rates,
     SIR_transition_rates,
-    ages_in_state,
+    agents_in_age_group,
     initial_ages_exposed,
-    cs_move_individual,
     N_infectious_states,
     coordinates,
 ):
@@ -253,13 +253,13 @@ def make_initial_infections(
         with objmode():
             track_memory("Initial Infections")
 
-    TotMov = 0.0
+    g_total_sum_of_state_changes = 0.0
     N_tot = len(my_number_of_contacts)
     non_infectable_agents = np.zeros(N_tot, dtype=np.bool_)
 
     possible_agents = List()
     for age_exposed in initial_ages_exposed:
-        for agent in ages_in_state[age_exposed]:
+        for agent in agents_in_age_group[age_exposed]:
             possible_agents.append(agent)
 
     ##  Standard outbreak type, infecting randomly
@@ -271,15 +271,15 @@ def make_initial_infections(
 
         agents_in_state[new_state].append(np.uint32(agent))
         state_total_counts[new_state] += 1
-        TotMov += SIR_transition_rates[new_state]
-        csMov[new_state:] += SIR_transition_rates[new_state]
+        g_total_sum_of_state_changes += SIR_transition_rates[new_state]
+        g_cumulative_sum_of_state_changes[new_state:] += SIR_transition_rates[new_state]
         non_infectable_agents[agent] = True
 
     if do_memory_tracking:
         with objmode():
             track_memory()
 
-    return TotMov, non_infectable_agents
+    return g_total_sum_of_state_changes, non_infectable_agents
 
 
 #%%
@@ -288,14 +288,14 @@ def make_initial_infections(
 @njit
 def run_simulation(
     N_tot,
-    TotMov,
-    csMov,
+    g_total_sum_of_state_changes,
+    g_cumulative_sum_of_state_changes,
     state_total_counts,
     agents_in_state,
     my_state,
-    csInf,
+    g_cumulative_sum_infection_rates,
     N_states,
-    InfRat,
+    my_sum_of_rates,
     SIR_transition_rates,
     N_infectious_states,
     my_number_of_contacts,
@@ -303,7 +303,6 @@ def run_simulation(
     my_connections,
     my_age,
     individual_infection_counter,
-    cs_move_individual,
     H_probability_matrix_csum,
     H_my_state,
     H_agents_in_state,
@@ -361,21 +360,21 @@ def run_simulation(
         s = 0
 
         counter += 1
-        Tot = TotMov + TotInf  # + H_tot_move XXX Hospitals
+        Tot = g_total_sum_of_state_changes + TotInf  # + H_tot_move XXX Hospitals
         dt = -np.log(np.random.rand()) / Tot
         real_time += dt
         Csum = 0.0
         ra1 = np.random.rand()
 
-        csInf0 = csInf.copy()
+        g_cumulative_sum_infection_rates0 = g_cumulative_sum_infection_rates.copy()
 
         #######/ Here we move infected between states
         accept = False
-        if TotMov / Tot > ra1:
+        if g_total_sum_of_state_changes / Tot > ra1:
 
             s = 1
 
-            x = csMov / Tot
+            x = g_cumulative_sum_of_state_changes / Tot
             state_now = np.searchsorted(x, ra1)
             state_after = state_now + 1
             random_agent_id = np.random.randint(state_total_counts[state_now])
@@ -389,11 +388,13 @@ def run_simulation(
             my_state[agent] += 1
             state_total_counts[state_now] -= 1
             state_total_counts[state_after] += 1
-            TotMov -= SIR_transition_rates[state_now]
-            TotMov += SIR_transition_rates[state_after]
-            csMov[state_now] -= SIR_transition_rates[state_now]
-            csMov[state_after:N_states] += SIR_transition_rates[state_after] - SIR_transition_rates[state_now]
-            csInf[state_now] -= InfRat[agent]
+            g_total_sum_of_state_changes -= SIR_transition_rates[state_now]
+            g_total_sum_of_state_changes += SIR_transition_rates[state_after]
+            g_cumulative_sum_of_state_changes[state_now] -= SIR_transition_rates[state_now]
+            g_cumulative_sum_of_state_changes[state_after:N_states] += (
+                SIR_transition_rates[state_after] - SIR_transition_rates[state_now]
+            )
+            g_cumulative_sum_infection_rates[state_now] -= my_sum_of_rates[agent]
             accept = True
 
             # Moves TO infectious State from non-infectious
@@ -401,8 +402,8 @@ def run_simulation(
                 for contact, rate in zip(my_connections[agent], my_rates[agent]):  # Loop over row agent
                     if not non_infectable_agents[contact]:
                         TotInf += rate
-                        InfRat[agent] += rate
-                        csInf[my_state[agent] :] += rate
+                        my_sum_of_rates[agent] += rate
+                        g_cumulative_sum_infection_rates[my_state[agent] :] += rate
                         time_inf[agent] = real_time
                         bug_contacts[agent] = my_number_of_contacts[agent]
                 active_agents[agent] = True
@@ -412,8 +413,8 @@ def run_simulation(
                 for contact, rate in zip(my_connections[agent], my_rates[agent]):
                     if not non_infectable_agents[contact]:
                         TotInf -= rate
-                        InfRat[agent] -= rate
-                        csInf[my_state[agent] :] -= rate
+                        my_sum_of_rates[agent] -= rate
+                        g_cumulative_sum_infection_rates[my_state[agent] :] -= rate
                         time_inf[agent] = real_time - time_inf[agent]
                 active_agents[agent] = False
 
@@ -429,16 +430,18 @@ def run_simulation(
                 H_cumsum_move[H_state:] += H_move_matrix_sum[H_state, my_age[agent]]
 
         # Here we infect new states
-        elif (TotMov + TotInf) / Tot > ra1:  # XXX HOSPITAL
+        elif (g_total_sum_of_state_changes + TotInf) / Tot > ra1:  # XXX HOSPITAL
             # else: # XXX HOSPITAL
             s = 2
 
-            x = TotMov / Tot + csInf / Tot
+            x = g_total_sum_of_state_changes / Tot + g_cumulative_sum_infection_rates / Tot
             state_now = np.searchsorted(x, ra1)
-            Csum = TotMov / Tot + csInf[state_now - 1] / Tot  # important change from [state_now] to [state_now-1]
+            Csum = (
+                g_total_sum_of_state_changes / Tot + g_cumulative_sum_infection_rates[state_now - 1] / Tot
+            )  # important change from [state_now] to [state_now-1]
 
             for agent in agents_in_state[state_now]:
-                Csum2 = Csum + InfRat[agent] / Tot
+                Csum2 = Csum + my_sum_of_rates[agent] / Tot
 
                 if Csum2 > ra1:
                     for rate, contact in zip(my_rates[agent], my_connections[agent]):
@@ -448,8 +451,8 @@ def run_simulation(
                                 my_state[contact] = 0
                                 agents_in_state[0].append(contact)
                                 state_total_counts[0] += 1
-                                TotMov += SIR_transition_rates[0]
-                                csMov += SIR_transition_rates[0]
+                                g_total_sum_of_state_changes += SIR_transition_rates[0]
+                                g_cumulative_sum_of_state_changes += SIR_transition_rates[0]
                                 accept = True
                                 individual_infection_counter[agent] += 1
                                 non_infectable_agents[contact] = True
@@ -466,8 +469,8 @@ def run_simulation(
                     for step_cousins_contacts, rate in zip(my_connections[step_cousin], my_rates[step_cousin]):
                         if step_cousins_contacts == contact:
                             TotInf -= rate
-                            InfRat[step_cousin] -= rate
-                            csInf[my_state[step_cousin] :] -= rate
+                            my_sum_of_rates[step_cousin] -= rate
+                            g_cumulative_sum_infection_rates[my_state[step_cousin] :] -= rate
                             break
                 else:
                     continue
@@ -476,10 +479,10 @@ def run_simulation(
         else:
             s = 3
 
-            x = (TotMov + TotInf + H_cumsum_move) / Tot
+            x = (g_total_sum_of_state_changes + TotInf + H_cumsum_move) / Tot
             H_old_state = np.searchsorted(x, ra1)
             Csum = (
-                TotMov + TotInf + H_cumsum_move[H_old_state - 1]
+                g_total_sum_of_state_changes + TotInf + H_cumsum_move[H_old_state - 1]
             ) / Tot  # important change from [H_old_state] to [H_old_state-1]
             for idx_H_state in range(len(H_agents_in_state[H_old_state])):
 
@@ -554,21 +557,21 @@ def run_simulation(
         # # # # # # # # # # # BUG CHECK  # # # # # # # # # # # # # # # # # # # # # # # #
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-        continue_run, TotMov, TotInf = do_bug_check(
+        continue_run, g_total_sum_of_state_changes, TotInf = do_bug_check(
             counter,
             continue_run,
             TotInf,
-            TotMov,
+            g_total_sum_of_state_changes,
             verbose,
             state_total_counts,
             N_states,
             N_tot,
             accept,
-            csMov,
+            g_cumulative_sum_of_state_changes,
             ra1,
             s,
             x,
-            csInf,
+            g_cumulative_sum_infection_rates,
         )
 
         s_counter[s] += 1
@@ -588,24 +591,24 @@ def do_bug_check(
     counter,
     continue_run,
     TotInf,
-    TotMov,
+    g_total_sum_of_state_changes,
     verbose,
     state_total_counts,
     N_states,
     N_tot,
     accept,
-    csMov,
+    g_cumulative_sum_of_state_changes,
     ra1,
     s,
     x,
-    csInf,
+    g_cumulative_sum_infection_rates,
 ):
 
     if counter > 100_000_000:
         print("counter > 100_000_000")
         continue_run = False
 
-    if (TotInf + TotMov < 0.0001) and (TotMov + TotInf > -0.00001):
+    if (TotInf + g_total_sum_of_state_changes < 0.0001) and (g_total_sum_of_state_changes + TotInf > -0.00001):
         continue_run = False
         if verbose:
             print("Equilibrium")
@@ -620,29 +623,29 @@ def do_bug_check(
         print("\nNo Chosen rate")
         print("s: \t", s)
         print("TotInf: \t", TotInf)
-        print("csInf: \t", csInf)
-        print("csMov: \t", csMov)
+        print("g_cumulative_sum_infection_rates: \t", g_cumulative_sum_infection_rates)
+        print("g_cumulative_sum_of_state_changes: \t", g_cumulative_sum_of_state_changes)
         print("x: \t", x)
         print("ra1: \t", ra1)
         continue_run = False
 
-    if (TotMov < 0) and (TotMov > -0.001):
-        TotMov = 0
+    if (g_total_sum_of_state_changes < 0) and (g_total_sum_of_state_changes > -0.001):
+        g_total_sum_of_state_changes = 0
 
     if (TotInf < 0) and (TotInf > -0.001):
         TotInf = 0
 
-    if (TotMov < 0) or (TotInf < 0):
-        print("\nNegative Problem", TotMov, TotInf)
+    if (g_total_sum_of_state_changes < 0) or (TotInf < 0):
+        print("\nNegative Problem", g_total_sum_of_state_changes, TotInf)
         print("s: \t", s)
         print("TotInf: \t", TotInf)
-        print("csInf: \t", csInf)
-        print("csMov: \t", csMov)
+        print("g_cumulative_sum_infection_rates: \t", g_cumulative_sum_infection_rates)
+        print("g_cumulative_sum_of_state_changes: \t", g_cumulative_sum_of_state_changes)
         print("x: \t", x)
         print("ra1: \t", ra1)
         continue_run = False
 
-    return continue_run, TotMov, TotInf
+    return continue_run, g_total_sum_of_state_changes, TotInf
 
 
 #%%
@@ -741,8 +744,8 @@ class Simulation:
 
         (
             my_age,
-            ages_total_counts,
-            ages_in_state,
+            counter_ages,
+            agents_in_age_group,
             PT_ages,
             PC_ages,
             PP_ages,
@@ -766,7 +769,7 @@ class Simulation:
             rho_scale,
             N_ages,
             age_matrix,
-            ages_in_state,
+            agents_in_age_group,
         )
 
         return my_connections, my_age, my_infection_weight
@@ -885,31 +888,28 @@ class Simulation:
         self.state_total_counts = np.zeros(self.N_states, dtype=np.uint32)
         self.agents_in_state = utils.initialize_nested_lists(self.N_states, dtype=np.uint32)
 
-        self.csMov = np.zeros(self.N_states, dtype=np.float64)
-        self.csInf = np.zeros(self.N_states, dtype=np.float64)
-        self.InfRat = np.zeros(cfg.N_tot, dtype=np.float64)
-
-        self.cs_move_individual = utils.initialize_nested_lists(self.N_states, dtype=np.float64)
+        self.g_cumulative_sum_of_state_changes = np.zeros(self.N_states, dtype=np.float64)
+        self.g_cumulative_sum_infection_rates = np.zeros(self.N_states, dtype=np.float64)
+        self.my_sum_of_rates = np.zeros(cfg.N_tot, dtype=np.float64)
 
         self.SIR_transition_rates = simulation_utils.initialize_SIR_transition_rates(
             self.N_states, self.N_infectious_states, cfg
         )
 
-        self.ages_in_state = simulation_utils.compute_ages_in_state(self.my_age, N_ages)
+        self.agents_in_age_group = simulation_utils.compute_agents_in_age_group(self.my_age, N_ages)
 
-        self.TotMov, self.non_infectable_agents = make_initial_infections(
+        self.g_total_sum_of_state_changes, self.non_infectable_agents = make_initial_infections(
             cfg.N_init,
             self.my_state,
             self.state_total_counts,
             self.agents_in_state,
-            self.csMov,
+            self.g_cumulative_sum_of_state_changes,
             self.my_connections.array,
             self.my_number_of_contacts,
             self.my_rates.array,
             self.SIR_transition_rates,
-            self.ages_in_state,
+            self.agents_in_age_group,
             self.initial_ages_exposed,
-            self.cs_move_individual,
             self.N_infectious_states,
             self.coordinates,
         )
@@ -938,14 +938,14 @@ class Simulation:
 
         res = run_simulation(
             cfg.N_tot,
-            self.TotMov,
-            self.csMov,
+            self.g_total_sum_of_state_changes,
+            self.g_cumulative_sum_of_state_changes,
             self.state_total_counts,
             self.agents_in_state,
             self.my_state,
-            self.csInf,
+            self.g_cumulative_sum_infection_rates,
             self.N_states,
-            self.InfRat,
+            self.my_sum_of_rates,
             self.SIR_transition_rates,
             self.N_infectious_states,
             self.my_number_of_contacts,
@@ -953,7 +953,6 @@ class Simulation:
             self.my_connections.array,
             self.my_age,
             self.individual_infection_counter,
-            self.cs_move_individual,
             H_probability_matrix_csum,
             H_my_state,
             H_agents_in_state,
@@ -1086,34 +1085,58 @@ def run_full_simulation(
         print("\n\nFinished!!!")
 
 
-#%%
-
 reload(utils)
 reload(simulation_utils)
 
 verbose = True
-force_rerun = False
+force_rerun = True
 filename = "Data/ABM/N_tot__58000__N_init__100__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2/N_tot__58000__N_init__100__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2__ID__000.csv"
 # filename = filename.replace('ID__000', 'ID__001')
-filename = filename.replace("beta__0.01", "beta__0.005")
-filename = filename.replace("sigma_beta__0.0", "sigma_beta__1.0")
+# filename = filename.replace("beta__0.01", "beta__0.005")
+# filename = filename.replace("sigma_beta__0.0", "sigma_beta__1.0")
 
-
-# if running just til file
-if Path("").cwd().stem == "src" and False:
+if path_was_changed and False:
 
     simulation = Simulation(filename, verbose)
     simulation.initialize_network(force_rerun=force_rerun)
-
-    my_rates = simulation_utils.initialize_my_rates(simulation.my_infection_weight, simulation.my_number_of_contacts)
-
-    my_rates[0]
-
     simulation.make_initial_infections()
     simulation.run_simulation()
     df = simulation.make_dataframe()
     display(df)
 
-# run_full_simulation(filename, verbose=True)
 
-# %%
+
+    cfg = simulation.cfg
+    coordinates, coordinate_indices = simulation_utils.load_coordinates(
+        simulation._Filename.coordinates_filename, cfg.N_tot, simulation.ID
+    )
+
+    my_connections = utils.initialize_nested_lists(cfg.N_tot, dtype=np.uint32)  # initialize_list_set
+
+    rho_scale = 1  # scale factor of rho
+    # cfg.mu /= 2 # fix to factor in that both nodes have connections with each other
+
+    # age variables
+    age_mixing = 1.0
+    N_ages = 1
+    age_matrix_relative_interactions = simulation_utils.calculate_age_proportions_1D(1.0, N_ages)
+    age_relative_proportions = simulation_utils.calculate_age_proportions_2D(age_mixing, N_ages)
+    age_matrix = age_matrix_relative_interactions * age_relative_proportions * (cfg.mu / 2) * cfg.N_tot
+
+    my_connection_weight, my_infection_weight = initialize_connections_and_rates(
+        cfg.N_tot, cfg.sigma_mu, cfg.beta, cfg.sigma_beta
+    )
+
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+    # # # # # # # # # # # # # # # # AGES  # # # # # # # # # # # # # # # # # # # # #
+    # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+    (
+        my_age,
+        counter_ages,
+        agents_in_age_group,
+        PT_ages,
+        PC_ages,
+        PP_ages,
+    ) = initialize_ages(cfg.N_tot, N_ages, my_connection_weight)
+

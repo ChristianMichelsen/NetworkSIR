@@ -3,19 +3,19 @@ from tqdm import tqdm
 import multiprocessing as mp
 from pathlib import Path
 from importlib import reload
-from src import simulation_v1 as simulation  # from src import simulation_v1 as simulation
 from src import utils
 from src import simulation_utils
+from src import simulation  # from src import simulation_v1 as simulation
 from functools import partial
 import yaml
 
 
 N_tot_max = 1_000_000
-num_cores_max = 30
+num_cores_max = 1
 N_loops = 10
-dry_run = True
-force_rerun = False
-verbose = False
+dry_run = False
+force_rerun = True
+verbose = True
 
 #%%
 
@@ -23,11 +23,11 @@ verbose = False
 if utils.is_local_computer():
 
     all_simulation_parameters = [
-        {"beta": [0.01, 0.01 / 2, 0.01 * 2], "N_tot": 58_000, "rho": 0},
+        # {"beta": [0.01, 0.01 / 2, 0.01 * 2], "N_tot": 58_000, "rho": 0, "version": [1, 2]},
+        {"N_tot": 58_000, "rho": 0, "version": [1, 2]},
     ]
 
 else:
-
     yaml_filename = "cfg/simulation_parameters.yaml"
     all_simulation_parameters = utils.load_yaml(yaml_filename)["all_simulation_parameters"]
 
@@ -43,6 +43,10 @@ if __name__ == "__main__":
         print("\n\nRunning a dry run, nothing will actually be simulated.!!!\n\n")
 
     for d_simulation_parameters in all_simulation_parameters:
+
+        if dry_run:
+            continue
+
         filenames = simulation_utils.generate_filenames(d_simulation_parameters, N_loops, force_rerun=force_rerun)
 
         N_files = len(filenames)
@@ -65,9 +69,6 @@ if __name__ == "__main__":
             f"\nGenerating {N_files:3d} network-based simulations with {num_cores} cores based on {d_simulation_parameters}, please wait.",
             flush=True,
         )
-
-        if dry_run:
-            continue
 
         if num_cores == 1:
             for filename in tqdm(filenames):
