@@ -351,7 +351,7 @@ def nb_make_initial_infections(
     initial_ages_exposed,
     N_infectious_states,
     coordinates,
-    make_random_infections,
+    make_random_initial_infections,
     code_version=2,
 ):
 
@@ -368,7 +368,7 @@ def nb_make_initial_infections(
         possible_agents = np.arange(N_tot, dtype=np.uint32)
 
     ##  Standard outbreak type, infecting randomly
-    if make_random_infections:
+    if make_random_initial_infections:
         initial_agents_to_infect = np.random.choice(possible_agents, size=N_init, replace=False)
 
     # Local outbreak type, infecting around a point:
@@ -1082,7 +1082,7 @@ class Simulation:
             self.initial_ages_exposed,
             self.N_infectious_states,
             self.coordinates,
-            cfg.make_random_infections,
+            cfg.make_random_initial_infections,
             code_version=cfg.version,
         )
 
@@ -1165,7 +1165,6 @@ class Simulation:
 
         # Saving HDF5 File
         with h5py.File(self.filenames["network_network"], "w") as f:  #
-            f.create_dataset("coordinates", data=self.coordinates)
             f.create_dataset("coordinate_indices", data=self.coordinate_indices)
             f.create_dataset("my_state", data=self.my_state)
             f.create_dataset("my_number_of_contacts", data=self.my_number_of_contacts)

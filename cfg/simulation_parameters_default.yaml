@@ -12,4 +12,4 @@ sigma_beta: 0.0  # Spread in rates, beta
 lambda_E: 1.0  # E->I, Lambda(from E states)
 lambda_I: 1.0  # I->R, Lambda(from I states)
 algo: 2  # node connection algorithm
-make_random_infections: 1
+make_random_initial_infections: 1

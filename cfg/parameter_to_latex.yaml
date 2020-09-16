@@ -12,4 +12,4 @@
   algo: \mathrm{algo}
   ID: \mathrm{ID}
   version: \mathrm{v.}
-  make_random_infections: \mathrm{rand.inf.}
+  make_random_initial_infections: \mathrm{rand.inf.}

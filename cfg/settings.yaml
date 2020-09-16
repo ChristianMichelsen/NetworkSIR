@@ -3,11 +3,11 @@ INTEGER_SIMULATION_PARAMETERS:
     - N_tot
     - N_init
     - algo
-    - make_random_infections # 1 = True, 0 = False
+    - make_random_initial_infections # 1 = True, 0 = False
 
 # exclude these parameters in network initialization filename
 EXCLUDE_PARAMETER_IN_INIT:
     - N_init
     - lambda_E
     - lambda_I
-    - make_random_infections
+    - make_random_initial_infections
