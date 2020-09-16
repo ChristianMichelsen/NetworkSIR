@@ -134,23 +134,23 @@ class Filename:
 
         self._filename = filename
         self.filename = self.filename_prefix + filename
-        self.d = utils.string_to_dict(filename.replace(".animation", ""))
-        self.cfg = self.simulation_parameters
+        self.cfg = utils.string_to_dict(filename.replace(".animation", ""))
+        # self.cfg = self.simulation_parameters
 
     def __repr__(self):
-        return str(self.d)
+        return str(self.cfg)
 
-    @property
-    def to_dict(self):  # ,
-        return utils.DotDict({key: val for key, val in self.d.items() if key != "ID"})
+    # @property
+    # def to_dict(self):  # ,
+    # return utils.DotDict({key: val for key, val in self.d.items() if key != "ID"})
 
     @property
     def simulation_parameters(self):
-        return self.to_dict
+        return self.cfg
 
     @property
     def to_ID(self):
-        return self.d["ID"]
+        return self.cfg["ID"]
 
     @property
     def ID(self):
@@ -178,7 +178,7 @@ class Filename:
         for parameter in self.cfg.keys():
             if not parameter in EXCLUDE_PARAMETER_IN_INIT:
                 variables_to_save_in_filename.append(parameter)
-        d = {key: self.d[key] for key in variables_to_save_in_filename}
+        d = {key: self.cfg[key] for key in variables_to_save_in_filename}
         filename = Path(f"{self.filename_prefix}Data") / "network_initialization"
         return self._filename_to_network(d, filename, extension)
 
@@ -186,14 +186,14 @@ class Filename:
 
     def get_filename_network(self, extension=".hdf5"):
         filename = Path(f"{self.filename_prefix}Data") / "network"
-        return self._filename_to_network(self.d, filename, extension)
+        return self._filename_to_network(self.cfg, filename, extension)
 
     filename_network = property(get_filename_network)
 
     @property
     def memory_filename(self):
         filename = Path(f"{self.filename_prefix}Data") / "memory"
-        return self._filename_to_network(self.d, filename, ".memory_file.txt")
+        return self._filename_to_network(self.cfg, filename, ".memory_file.txt")
         # return self.filename_prefix + self.filename.replace('.csv', '.memory_file.txt')
 
     @property

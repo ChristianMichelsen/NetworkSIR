@@ -13,7 +13,7 @@ import yaml
 N_tot_max = 1_000_000
 num_cores_max = 30
 N_loops = 10
-dry_run = True
+dry_run = False
 force_rerun = False
 verbose = True
 
@@ -54,9 +54,6 @@ if __name__ == "__main__":
             print("No files to generate, everything already generated.")
             continue
 
-        if dry_run:
-            continue
-
         proposed_N_max = simulation_utils.extract_N_tot_max(d_simulation_parameters)
         if N_tot_max and proposed_N_max > N_tot_max:
             print(
@@ -69,6 +66,9 @@ if __name__ == "__main__":
             f"\nGenerating {N_files:3d} network-based simulations with {num_cores} cores based on {d_simulation_parameters}, please wait.",
             flush=True,
         )
+
+        if dry_run:
+            continue
 
         if num_cores == 1:
             for filename in tqdm(filenames):

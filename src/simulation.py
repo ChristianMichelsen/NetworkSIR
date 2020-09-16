@@ -28,11 +28,9 @@ from numba.core.errors import (
 import awkward as awkward0  # conda install awkward0, conda install -c conda-forge pyarrow
 import awkward1 as ak  # pip install awkward1
 
-# path_was_changed = False
-# path = Path("").cwd()
-# if path.stem == "src":
-#     os.chdir(path.parent)
-#     path_was_changed = True
+path = Path("").cwd()
+if path.stem == "src":
+    os.chdir(path.parent)
 
 from src import utils
 from src import simulation_utils
@@ -983,9 +981,12 @@ class Simulation:
                 ) = self._load_network_initalization()
                 if self.verbose:
                     print(f"{filename_network_init} exists, continue with loading it")
-            except OSError:
+            except OSError as e:
                 if self.verbose:
-                    print(f"{filename_network_init} had OSError, create a new one")
+                    if utils.file_exists(filename_network_init):
+                        print(f"{filename_network_init} does not exist, continue to create it")
+                    else:
+                        print(f"{filename_network_init} had OSError, create a new one")
                 OSError_flag = True
 
         # if ran into OSError above or forced to rerun:
@@ -1197,17 +1198,17 @@ def run_full_simulation(
         print("\n\nFinished!!!")
 
 
-if Path("").cwd().stem == "src" and False:
+if utils.is_ipython and False:
 
     reload(utils)
     reload(simulation_utils)
 
     verbose = True
     force_rerun = False
-    filename = "Data/ABM/N_tot__58000__N_init__100__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2/N_tot__58000__N_init__100__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2__ID__000.csv"
+    filename = "Data/ABM/v__1.0__N_tot__58000__N_init__100__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2__make_random_initial_infections__1/v__1.0__N_tot__58000__N_init__100__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__lambda_E__1.0__lambda_I__1.0__algo__2__make_random_initial_infections__1__ID__000.csv"
     # filename = filename.replace('ID__000', 'ID__001')
 
-    simulation = Simulation(filename, verbose, code_version=1)
+    simulation = Simulation(filename, verbose)
     simulation.initialize_network(force_rerun=force_rerun)
     simulation.make_initial_infections()
     simulation.run_simulation()
