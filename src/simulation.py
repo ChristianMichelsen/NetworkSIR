@@ -424,13 +424,6 @@ def nb_run_simulation(
     my_connections,
     my_age,
     individual_infection_counter,
-    # H_probability_matrix_csum,
-    # H_my_state,
-    # H_agents_in_state,
-    # H_state_total_counts,
-    # H_move_matrix_sum,
-    # H_cumsum_move,
-    # H_move_matrix_cumsum,
     nts,
     verbose,
     my_connections_type,
@@ -453,9 +446,6 @@ def nb_run_simulation(
     step_number = 0
 
     real_time = 0.0
-
-    # H_tot_move = 0
-
     time_inf = np.zeros(N_tot, np.float32)
     bug_contacts = np.zeros(N_tot, np.int32)
 
@@ -470,7 +460,7 @@ def nb_run_simulation(
         s = 0
 
         step_number += 1
-        g_total_sum = g_total_sum_of_state_changes + g_total_sum_infections  # + H_tot_move XXX Hospitals
+        g_total_sum = g_total_sum_of_state_changes + g_total_sum_infections
 
         dt = -np.log(np.random.rand()) / g_total_sum
         real_time += dt
@@ -675,7 +665,7 @@ def nb_run_simulation(
         print("N_daily_tests", N_daily_tests)
         print("N_positive_tested", N_positive_tested)
 
-    return out_time, out_state_counts, out_my_state  # , out_H_state_total_counts
+    return out_time, out_state_counts, out_my_state
 
 
 @njit
@@ -1029,7 +1019,7 @@ class Simulation:
                     )
                 except OSError as e:
                     print(f"\nSkipped saving network initialization for {self.filenames['network_initialisation']}")
-                    # print(e)
+                    print(e)
 
         self.my_age = my_age
         self.agents_in_age_group = agents_in_age_group
@@ -1096,17 +1086,6 @@ class Simulation:
 
         self.individual_infection_counter = np.zeros(cfg.N_tot, dtype=np.uint16)
 
-        # H = simulation_utils.get_hospitalization_variables(cfg)
-        # (
-        #     H_probability_matrix_csum,
-        #     H_my_state,
-        #     H_agents_in_state,
-        #     H_state_total_counts,
-        #     H_move_matrix_sum,
-        #     H_cumsum_move,
-        #     H_move_matrix_cumsum,
-        # ) = H
-
         res = nb_run_simulation(
             cfg.N_tot,
             self.g_total_sum_of_state_changes,
@@ -1119,32 +1098,21 @@ class Simulation:
             self.my_sum_of_rates,
             self.SIR_transition_rates,
             self.N_infectious_states,
-            # N_connections,
             self.my_number_of_contacts,
             self.my_rates.array,
             self.my_connections.array,
-            # ages,
             self.my_age,
             self.individual_infection_counter,
-            # H_probability_matrix_csum,
-            # H_my_state,
-            # H_agents_in_state,
-            # H_state_total_counts,
-            # H_move_matrix_sum,
-            # H_cumsum_move,
-            # H_move_matrix_cumsum,
             self.nts,
             self.verbose,
             self.my_connections_type.array,
         )
 
         out_time, out_state_counts, out_my_state = res
-        # out_time, out_state_counts, out_my_state = res # out_H_state_total_counts
 
         self.time = np.array(out_time)
         self.state_counts = np.array(out_state_counts)
         self.my_state = np.array(out_my_state)
-        # self.H_state_total_counts = np.array(out_H_state_total_counts)
 
     def make_dataframe(self):
         #  Make DataFrame

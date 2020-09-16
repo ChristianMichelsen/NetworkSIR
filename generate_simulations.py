@@ -11,7 +11,7 @@ import yaml
 
 
 N_tot_max = 1_000_000
-num_cores_max = 1
+num_cores_max = 30
 N_loops = 10
 dry_run = True
 force_rerun = False
@@ -44,9 +44,6 @@ if __name__ == "__main__":
 
     for d_simulation_parameters in all_simulation_parameters:
 
-        if dry_run:
-            continue
-
         filenames = simulation_utils.generate_filenames(d_simulation_parameters, N_loops, force_rerun=force_rerun)
 
         N_files = len(filenames)
@@ -55,6 +52,9 @@ if __name__ == "__main__":
         # make sure path exists
         if len(filenames) == 0:
             print("No files to generate, everything already generated.")
+            continue
+
+        if dry_run:
             continue
 
         proposed_N_max = simulation_utils.extract_N_tot_max(d_simulation_parameters)
