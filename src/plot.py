@@ -57,7 +57,7 @@ def plot_ABM_simulations(abm_files, force_rerun=False):
         d_ylabel = {"I": "Infected", "R": "Recovered"}
         d_label_loc = {"I": "upper right", "R": "lower right"}
 
-        for ABM_parameter in tqdm(abm_files.keys):
+        for ABM_parameter in tqdm(abm_files.keys, desc="Plotting individual ABM parameters"):
             # break
 
             cfg = utils.string_to_dict(ABM_parameter)
@@ -231,7 +231,7 @@ def _plot_1D_scan_res(res, scan_parameter, ylim, do_log):
 
     x, y_I, y_R, sy_I, sy_R, n, cfg = res
 
-    d_par_pretty = utils.get_d_translate()
+    d_par_pretty = utils.get_parameter_to_latex()
     title = utils.dict_to_title(cfg, exclude=[scan_parameter, "ID"])
     xlabel = r"$" + d_par_pretty[scan_parameter] + r"$"
 

@@ -122,7 +122,7 @@ GPS_filename_out = "Data/GPS_coordinates"
 if save_coordinates:
     print(f"Saving coordinates as {GPS_filename_out}")
     df_points.to_feather(GPS_filename_out + ".feather")
-    np.save(GPS_filename_out + ".npy", df_points[["Longitude", "Lattitude"]])
+    np.save(GPS_filename_out + ".npy", utils.df_coordinates_to_coordinates(df_points))
     df_points.to_hdf(GPS_filename_out + ".hdf5", key="coordinates")
 else:
     print("Note: is not saving any files")

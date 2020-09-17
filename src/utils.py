@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import multiprocessing as mp
 from pathlib import Path
 import yaml
@@ -67,7 +68,6 @@ def load_yaml(filename):
 
 def format_time(t):
     return str(datetime.timedelta(seconds=t))
-
 
 
 #%%
@@ -638,6 +638,7 @@ def dict_to_title(d, N=None, exclude=None, in_two_line=True):
 
     cfg.N_tot = human_format(cfg.N_tot)
     cfg.N_init = human_format(cfg.N_init)
+    cfg.make_random_initial_infections = r"\mathrm{" + str(bool(cfg.make_random_initial_infections)) + r"}"
 
     # parameter_to_latex = get_parameter_to_latex()
     parameter_to_latex = load_yaml("cfg/parameter_to_latex.yaml")
@@ -829,3 +830,16 @@ def get_central_confidence_intervals(x, agg_func=np.median, N_sigma=1):
 def SDOM(x):
     "standard deviation of the mean"
     return np.std(x) / np.sqrt(len(x))
+
+
+#%%
+
+
+def load_coordinates_from_indices(coordinate_indices):
+    GPS_filename = "Data/GPS_coordinates.feather"
+    df_coordinates = pd.read_feather(GPS_filename).iloc[coordinate_indices].reset_index(drop=True)
+    return df_coordinates
+
+
+def df_coordinates_to_coordinates(df_coordinates):
+    return df_coordinates[["Longitude", "Lattitude"]].values

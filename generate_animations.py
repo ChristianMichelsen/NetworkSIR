@@ -182,7 +182,6 @@ class AnimationBase:
 
         with h5py.File(self.filename, "r") as f:
 
-            self.coordinates = f["coordinates"][()]
             self.coordinate_indices = f["coordinate_indices"][()]
             self.df_raw = pd.DataFrame(f["df"][()]).drop("index", axis=1)
             self.my_age = f["my_age"][()]
@@ -199,9 +198,12 @@ class AnimationBase:
                     pd.DataFrame(f["df_change_points"][()]).rename(columns={"index": "ChangePoint"})
                 )
 
-        # g = awkward.hdf5(f)
-        # g["my_connections"]
-        # g["my_rates"]
+            # g = awkward.hdf5(f)
+            # g["my_connections"]
+            # g["my_rates"]
+
+        self.df_coordinates = utils.load_coordinates_from_indices(self.coordinate_indices)
+        self.coordinates = utils.df_coordinates_to_coordinates(self.df_coordinates)
 
     def _load_hdf5_file(self):
         try:
@@ -1088,9 +1090,6 @@ class KommuneMapAnimation(AnimationBase):
             self.shapefile_size, verbose=False
         )
         self.df_kommuner = df_kommuner[["KOMNAVN", "idx", "geometry"]]
-
-        GPS_filename = "Data/GPS_coordinates.feather"
-        self.df_coordinates = pd.read_feather(GPS_filename).iloc[self.coordinate_indices].reset_index(drop=True)
 
     def _plot_i_day(self, i_day, normalize_legend=True):
 

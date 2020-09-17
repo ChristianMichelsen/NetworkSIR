@@ -109,8 +109,8 @@ def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max=None):
 
 def load_coordinates(coordinates_filename, N_tot, ID):
     # coordinates = np.load(coordinates_filename)
-    df = pd.read_feather(coordinates_filename)
-    coordinates = df[["Longitude", "Lattitude"]].values
+    df_coordinates = pd.read_feather(coordinates_filename)
+    coordinates = utils.df_coordinates_to_coordinates(df_coordinates)
 
     if N_tot > len(coordinates):
         raise AssertionError("N_tot cannot be larger than coordinates (number of generated houses in DK)")
