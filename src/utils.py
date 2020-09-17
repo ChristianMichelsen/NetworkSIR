@@ -8,8 +8,10 @@ import numba as nb
 from numba import njit, prange, objmode, typeof
 from numba.typed import List, Dict
 import platform
+import datetime
 
-import awkward1 as ak  # pip install awkward1
+# pip install awkward1
+import awkward1 as ak
 
 
 def _is_ipython():
@@ -61,6 +63,11 @@ def make_sure_folder_exist(filename, delete_file_if_exists=False):
 def load_yaml(filename):
     with open(filename) as file:
         return DotDict(yaml.safe_load(file))
+
+
+def format_time(t):
+    return str(datetime.timedelta(seconds=t))
+
 
 
 #%%

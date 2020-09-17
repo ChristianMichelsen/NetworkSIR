@@ -1,15 +1,12 @@
-from matplotlib.pyplot import xticks
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from pathlib import Path
 import multiprocessing as mp
-import matplotlib.pyplot as plt
-import time as Time
 import h5py
 from resource import getrusage, RUSAGE_SELF
 import warnings
 from importlib import reload
-from contexttimer import Timer
 import os
 from IPython.display import display
 from contexttimer import Timer
@@ -544,7 +541,7 @@ def nb_run_simulation(
                             # here agent infect contact
                             if g_cumulative_sum > ra1:
                                 my_state[contact] = 0
-                                agents_in_state[0].append(contact)
+                                agents_in_state[0].append(np.uint32(contact))
                                 state_total_counts[0] += 1
                                 g_total_sum_of_state_changes += SIR_transition_rates[0]
                                 g_cumulative_sum_of_state_changes += SIR_transition_rates[0]

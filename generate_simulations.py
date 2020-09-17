@@ -8,12 +8,13 @@ from src import simulation_utils
 from src import simulation  # from src import simulation_v1 as simulation
 from functools import partial
 import yaml
+from contexttimer import Timer
 
 
 N_tot_max = 1_000_000
 num_cores_max = 30
 N_loops = 10
-dry_run = False
+dry_run = True
 force_rerun = False
 verbose = True
 
@@ -37,7 +38,8 @@ else:
 N_loops = 2 if utils.is_local_computer() else N_loops
 
 N_files_total = 0
-if __name__ == "__main__":
+
+with Timer() as t:
 
     if dry_run:
         print("\n\nRunning a dry run, nothing will actually be simulated.!!!\n\n")
@@ -80,7 +82,7 @@ if __name__ == "__main__":
                 f = partial(simulation.run_full_simulation, **kwargs)
                 list(tqdm(p.imap_unordered(f, filenames), total=N_files))
 
-    print(f"\nIn total: {N_files_total} files generated")
-    print("Finished simulating!")
+print(f"\n{N_files_total:,} files were generated, total duration {utils.format_time(t.elapsed)}")
+print("Finished simulating!")
 
 # %%
