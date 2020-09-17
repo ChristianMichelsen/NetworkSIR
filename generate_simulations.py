@@ -4,7 +4,7 @@ import multiprocessing as mp
 from pathlib import Path
 from importlib import reload
 from src import utils
-from src import simulation_utils
+# from src import simulation_utils
 from src import simulation  # from src import simulation_v1 as simulation
 from functools import partial
 import yaml
@@ -46,7 +46,7 @@ with Timer() as t:
 
     for d_simulation_parameters in all_simulation_parameters:
 
-        filenames = simulation_utils.generate_filenames(d_simulation_parameters, N_loops, force_rerun=force_rerun)
+        filenames = utils.generate_filenames(d_simulation_parameters, N_loops, force_rerun=force_rerun)
 
         N_files = len(filenames)
         N_files_total += N_files
@@ -56,14 +56,14 @@ with Timer() as t:
             print("No files to generate, everything already generated.")
             continue
 
-        proposed_N_max = simulation_utils.extract_N_tot_max(d_simulation_parameters)
+        proposed_N_max = utils.extract_N_tot_max(d_simulation_parameters)
         if N_tot_max and proposed_N_max > N_tot_max:
             print(
                 f"Skipping since N_tot={utils.human_format(proposed_N_max)} > N_tot_max={utils.human_format(N_tot_max)}"
             )
             continue
 
-        num_cores = simulation_utils.get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max)
+        num_cores = utils.get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max)
         print(
             f"\nGenerating {N_files:3d} network-based simulations with {num_cores} cores based on {d_simulation_parameters}, please wait.",
             flush=True,

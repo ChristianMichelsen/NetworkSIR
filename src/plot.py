@@ -12,12 +12,12 @@ import warnings
 
 try:
     from src import utils
-    from src import simulation_utils
+    # from src import simulation_utils
     from src import file_loaders
     from src import SIR
 except ImportError:
     import utils
-    import simulation_utils
+    # import simulation_utils
     import file_loaders
     import SIR
 
@@ -179,9 +179,7 @@ def compute_ABM_SEIR_proportions(filenames):
 def get_1D_scan_results(scan_parameter, non_default_parameters):
     "Compute the fraction between ABM and SEIR for all simulations related to the scan_parameter"
 
-    simulation_parameters_1D_scan = simulation_utils.get_simulation_parameters_1D_scan(
-        scan_parameter, non_default_parameters
-    )
+    simulation_parameters_1D_scan = utils.get_simulation_parameters_1D_scan(scan_parameter, non_default_parameters)
     N_simulation_parameters = len(simulation_parameters_1D_scan)
     if N_simulation_parameters <= 1:
         return None
@@ -517,9 +515,7 @@ def compute_fit_ABM_proportions(fit_objects):
 def get_1D_scan_fit_results(all_fits, scan_parameter, non_default_parameters):
     "Compute the fraction between ABM and SEIR for all simulations related to the scan_parameter"
 
-    simulation_parameters_1D_scan = simulation_utils.get_simulation_parameters_1D_scan(
-        scan_parameter, non_default_parameters
-    )
+    simulation_parameters_1D_scan = utils.get_simulation_parameters_1D_scan(scan_parameter, non_default_parameters)
 
     selected_fits = {key: val for key, val in all_fits.items() if key in simulation_parameters_1D_scan}
 

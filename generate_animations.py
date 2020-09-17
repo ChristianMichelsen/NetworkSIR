@@ -14,7 +14,7 @@ from importlib import reload
 import h5py
 from src import rc_params
 from src import utils
-from src import simulation_utils
+# from src import simulation_utils
 from src import animation_utils
 
 rc_params.set_rc_params(fig_dpi=50)  #
@@ -171,7 +171,7 @@ class AnimationBase:
                     print(f"N_max has to be 12 or larger (choosing 12 instead of {N_max} for now).")
                     N_max = 12
                 self.N_days = N_max
-        self._Filename = simulation_utils.Filename(filename)
+        self._Filename = utils.Filename(filename)
         self.cfg = self._Filename.simulation_parameters
         self.__name__ = "AnimationBase"
 
@@ -598,7 +598,7 @@ class AnimateSIR(AnimationBase):
             )
         )
 
-        # self.cfg = simulation_utils.Filename(self.filename)._Filename.simulation_parameters
+        # self.cfg = utils.Filename(self.filename)._Filename.simulation_parameters
         title = utils.dict_to_title(self.cfg)
         title += "\n\n" + "Simulation of COVID-19 epidemic with no intervention"
         ax.set_title(title, pad=40, fontsize=32)
@@ -1086,9 +1086,7 @@ class KommuneMapAnimation(AnimationBase):
 
     def _load_kommune_data(self):
 
-        df_kommuner, name_to_idx, idx_to_name = simulation_utils.load_kommune_shapefiles(
-            self.shapefile_size, verbose=False
-        )
+        df_kommuner, name_to_idx, idx_to_name = utils.load_kommune_shapefiles(self.shapefile_size, verbose=False)
         self.df_kommuner = df_kommuner[["KOMNAVN", "idx", "geometry"]]
 
     def _plot_i_day(self, i_day, normalize_legend=True):

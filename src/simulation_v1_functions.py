@@ -13,7 +13,7 @@ import os
 
 from src import simulation as sim_v2
 from src import utils
-from src import simulation_utils
+# from src import simulation_utils
 
 
 @njit

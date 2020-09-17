@@ -30,7 +30,7 @@ if path.stem == "src":
     os.chdir(path.parent)
 
 from src import utils
-from src import simulation_utils
+# from src import simulation_utils
 from src import simulation_v1_functions as v1
 
 
@@ -102,7 +102,7 @@ def place_and_connect_families(
 
         house_index = all_indices[agent]
 
-        N_people_in_house_index = simulation_utils.rand_choice_nb(people_in_household)
+        N_people_in_house_index = utils.rand_choice_nb(people_in_household)
         N_people_in_house = people_index_to_value[N_people_in_house_index]
 
         # if N_in_house would increase agent to over N_tot,
@@ -113,9 +113,7 @@ def place_and_connect_families(
 
         for _ in range(N_people_in_house):
 
-            age_index = simulation_utils.rand_choice_nb(
-                age_distribution_per_people_in_household[N_people_in_house_index]
-            )
+            age_index = utils.rand_choice_nb(age_distribution_per_people_in_household[N_people_in_house_index])
 
             age = age_index  # just use age index as substitute for age
             my_age[agent] = age
@@ -781,7 +779,7 @@ class Simulation:
     def __init__(self, filename, verbose=False):
 
         self.verbose = verbose
-        self._Filename = Filename = simulation_utils.Filename(filename)
+        self._Filename = Filename = utils.Filename(filename)
 
         self.cfg = Filename.simulation_parameters
         self.ID = Filename.ID
@@ -796,7 +794,7 @@ class Simulation:
     def _initialize_network(self):
 
         cfg = self.cfg
-        self.coordinates, self.coordinate_indices = simulation_utils.load_coordinates(
+        self.coordinates, self.coordinate_indices = utils.load_coordinates(
             self._Filename.coordinates_filename, cfg.N_tot, self.ID
         )
 
@@ -808,7 +806,7 @@ class Simulation:
             (
                 people_in_household,
                 age_distribution_per_people_in_household,
-            ) = simulation_utils.load_household_data(self._Filename.household_data_filenames)
+            ) = utils.load_household_data(self._Filename.household_data_filenames)
             (
                 N_dim_people_in_household,
                 N_ages,
@@ -946,7 +944,7 @@ class Simulation:
             my_connections = awkward0.hdf5(f)["my_connections"]
             my_connections_type = awkward0.hdf5(f)["my_connections_type"]
             agents_in_age_group = awkward0.hdf5(f)["agents_in_age_group"]
-        self.coordinates, self.coordinate_indices = simulation_utils.load_coordinates(
+        self.coordinates, self.coordinate_indices = utils.load_coordinates(
             self._Filename.coordinates_filename, self.cfg.N_tot, self.ID
         )
         return (
@@ -1042,7 +1040,7 @@ class Simulation:
         self.N_infectious_states = 4  # This means the 5'th state
         self.initial_ages_exposed = np.arange(self.N_ages)  # means that all ages are exposed
 
-        self.my_rates = simulation_utils.initialize_my_rates(self.my_infection_weight, self.my_number_of_contacts)
+        self.my_rates = utils.initialize_my_rates(self.my_infection_weight, self.my_number_of_contacts)
 
         self.my_state = np.full(cfg.N_tot, -1, dtype=np.int8)
         self.state_total_counts = np.zeros(self.N_states, dtype=np.uint32)
@@ -1052,9 +1050,7 @@ class Simulation:
         self.g_cumulative_sum_infection_rates = np.zeros(self.N_states, dtype=np.float64)
         self.my_sum_of_rates = np.zeros(cfg.N_tot, dtype=np.float64)
 
-        self.SIR_transition_rates = simulation_utils.initialize_SIR_transition_rates(
-            self.N_states, self.N_infectious_states, cfg
-        )
+        self.SIR_transition_rates = utils.initialize_SIR_transition_rates(self.N_states, self.N_infectious_states, cfg)
 
         self.g_total_sum_of_state_changes = nb_make_initial_infections(
             cfg.N_init,
@@ -1114,7 +1110,7 @@ class Simulation:
 
     def make_dataframe(self):
         #  Make DataFrame
-        self.df = df = simulation_utils.state_counts_to_df(self.time, self.state_counts)
+        self.df = df = utils.state_counts_to_df(self.time, self.state_counts)
 
         # Save CSV
         utils.make_sure_folder_exist(self.filename)
@@ -1198,7 +1194,7 @@ def run_full_simulation(
 if utils.is_ipython and False:
 
     reload(utils)
-    reload(simulation_utils)
+    # reload(simulation_utils)
 
     verbose = True
     force_rerun = False
