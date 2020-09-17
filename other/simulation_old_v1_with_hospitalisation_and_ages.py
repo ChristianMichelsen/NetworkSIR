@@ -42,7 +42,8 @@ if path.stem == "src":
     os.chdir(path.parent)
     path_was_changed = True
 
-from src import utils
+from src.utils import utils
+
 # from src import simulation_utils
 
 np.set_printoptions(linewidth=200)

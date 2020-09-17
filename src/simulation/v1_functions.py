@@ -8,11 +8,13 @@ import os
 # if path.stem == "src":
 #     os.chdir(path.parent)
 
-# from src import utils
+# from src.utils import utils
 # from src import simulation_utils
 
-from src import simulation as sim_v2
-from src import utils
+from src.simulation import simulation as sim_v2
+from src.simulation import extra_functions as extra
+from src.utils import utils
+
 # from src import simulation_utils
 
 
@@ -21,8 +23,8 @@ def v1_initialize_connections_and_rates(N_tot, sigma_mu, beta, sigma_beta):
     my_connection_weight = np.ones(N_tot, dtype=np.float32)
     my_infection_weight = np.ones(N_tot, dtype=np.float32)
     for agent in range(N_tot):
-        sim_v2.set_connections_weight(my_connection_weight, agent, sigma_mu)
-        sim_v2.set_infection_weight(my_infection_weight, agent, sigma_beta, beta)
+        extra.set_connections_weight(my_connection_weight, agent, sigma_mu)
+        extra.set_infection_weight(my_infection_weight, agent, sigma_beta, beta)
     my_number_of_contacts = np.zeros(N_tot, dtype=np.uint16)
     my_connections_type = utils.initialize_nested_lists(1, dtype=np.uint8)
 

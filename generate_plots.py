@@ -9,7 +9,7 @@ from collections import defaultdict
 import joblib
 from matplotlib.backends.backend_pdf import PdfPages
 from importlib import reload
-from src import utils
+from src.utils import utils
 from src import plot
 from src import file_loaders
 from src import rc_params

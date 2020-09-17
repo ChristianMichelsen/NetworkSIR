@@ -25,7 +25,6 @@ from numba import (
 )  # conda install -c numba/label/dev numba
 from numba.typed import List, Dict
 
-from numba.types import Set
 from numba.core.errors import (
     NumbaTypeSafetyWarning,
     NumbaExperimentalFeatureWarning,
@@ -37,10 +36,12 @@ import awkward as awkward0  # conda install awkward0, conda install -c conda-for
 import awkward1 as ak  # pip install awkward1
 
 try:
-    from src import utils
+    from src.utils import utils
+
     # from src import simulation_utils
 except ImportError:
     import utils
+
     # import simulation_utils
 
 np.set_printoptions(linewidth=200)
@@ -206,7 +207,6 @@ def connect_work_and_others_clusters_prop(
     matrix_work,
     matrix_other,
     rho,
-    rho_scale,
     epsilon_rho,
     coordinates,
     agents_in_age_group,
@@ -257,7 +257,6 @@ def connect_work_and_others_clusters_prop(
             my_number_of_contacts,
             coordinates,
             rho_tmp,
-            rho_scale,
             cluster,
         )
         mu_counter += 1
@@ -278,7 +277,6 @@ def run_algo_other_clusters_prop(
     my_number_of_contacts,
     coordinates,
     rho_tmp,
-    rho_scale,
     cluster,
 ):
 
@@ -300,7 +298,6 @@ def run_algo_other_clusters_prop(
             my_connections,
             coordinates,
             rho_tmp,
-            rho_scale,
             agent1,
             agent2,
             my_connections_type,
@@ -322,7 +319,6 @@ def run_algo_work_clusters_prop(
     my_number_of_contacts,
     coordinates,
     rho_tmp,
-    rho_scale,
     cluster,
 ):
 
@@ -348,7 +344,6 @@ def run_algo_work_clusters_prop(
             my_connections,
             coordinates,
             rho_tmp,
-            rho_scale,
             agent1,
             agent2,
             my_connections_type,
@@ -365,7 +360,6 @@ def update_node_connections(
     my_connections,
     coordinates,
     rho_tmp,
-    rho_scale,
     agent1,
     agent2,
     my_connections_type,
@@ -379,7 +373,7 @@ def update_node_connections(
             connect_and_stop = True
         else:
             r = utils.haversine_scipy(coordinates[agent1], coordinates[agent2])
-            if np.exp(-r * rho_tmp / rho_scale) > np.random.rand():
+            if np.exp(-r * rho_tmp) > np.random.rand():
                 connect_and_stop = True
 
         if connect_and_stop:
@@ -415,7 +409,6 @@ def run_algo_other(
     my_number_of_contacts,
     coordinates,
     rho_tmp,
-    rho_scale,
 ):
     while True:
         # agent1 = np.searchsorted(PP_ages[m_i], np.random.rand())
@@ -427,7 +420,6 @@ def run_algo_other(
             my_connections,
             coordinates,
             rho_tmp,
-            rho_scale,
             agent1,
             agent2,
             my_connections_type,
@@ -448,7 +440,6 @@ def run_algo_work(
     my_number_of_contacts,
     coordinates,
     rho_tmp,
-    rho_scale,
 ):
     # ra1 = np.random.rand()
     # agent1 = np.searchsorted(PP_ages[m_i], ra1)
@@ -463,7 +454,6 @@ def run_algo_work(
             my_connections,
             coordinates,
             rho_tmp,
-            rho_scale,
             agent1,
             agent2,
             my_connections_type,
@@ -485,7 +475,6 @@ def connect_work_and_others(
     matrix_work,
     matrix_other,
     rho,
-    rho_scale,
     epsilon_rho,
     coordinates,
     agents_in_age_group,
@@ -532,7 +521,6 @@ def connect_work_and_others(
             my_number_of_contacts,
             coordinates,
             rho_tmp,
-            rho_scale,
         )
         mu_counter += 1
 
@@ -542,7 +530,6 @@ def update_node_connections_clusters_reroll(
     my_connections,
     coordinates,
     rho_tmp,
-    rho_scale,
     agent1,
     agent2,
     my_connections_type,
@@ -562,7 +549,7 @@ def update_node_connections_clusters_reroll(
                     connectivity_factor += 1  # num of rerolls (must be int) per common contant. A higher number gives higher cluster coeff.
 
             for i in range(connectivity_factor):
-                if np.exp(-r * rho_tmp / rho_scale) > np.random.rand():
+                if np.exp(-r * rho_tmp) > np.random.rand():
                     connect_and_stop = True
                     break
 
@@ -599,7 +586,6 @@ def run_algo_other_clusters_reroll(
     my_number_of_contacts,
     coordinates,
     rho_tmp,
-    rho_scale,
 ):
     while True:
         # agent1 = np.searchsorted(PP_ages[m_i], np.random.rand())
@@ -611,7 +597,6 @@ def run_algo_other_clusters_reroll(
             my_connections,
             coordinates,
             rho_tmp,
-            rho_scale,
             agent1,
             agent2,
             my_connections_type,
@@ -632,7 +617,6 @@ def run_algo_work_clusters_reroll(
     my_number_of_contacts,
     coordinates,
     rho_tmp,
-    rho_scale,
 ):
     # ra1 = np.random.rand()
     # agent1 = np.searchsorted(PP_ages[m_i], ra1)
@@ -647,7 +631,6 @@ def run_algo_work_clusters_reroll(
             my_connections,
             coordinates,
             rho_tmp,
-            rho_scale,
             agent1,
             agent2,
             my_connections_type,
@@ -669,7 +652,6 @@ def connect_work_and_others_clusters_reroll(
     matrix_work,
     matrix_other,
     rho,
-    rho_scale,
     epsilon_rho,
     coordinates,
     agents_in_age_group,
@@ -716,7 +698,6 @@ def connect_work_and_others_clusters_reroll(
             my_number_of_contacts,
             coordinates,
             rho_tmp,
-            rho_scale,
         )
         mu_counter += 1
 
@@ -1991,8 +1972,6 @@ class Simulation:
             print("INITIALIZE NETWORK")
         self.track_memory("Initialize Network")
 
-        rho_scale = 1000  # scale factor of rho
-
         (
             people_in_household,
             age_distribution_per_people_in_household,
@@ -2052,7 +2031,6 @@ class Simulation:
             matrix_work,
             matrix_other,
             cfg.rho,
-            rho_scale,
             cfg.epsilon_rho,
             self.coordinates,
             agents_in_age_group,

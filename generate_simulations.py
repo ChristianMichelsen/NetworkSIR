@@ -3,7 +3,8 @@ from tqdm import tqdm
 import multiprocessing as mp
 from pathlib import Path
 from importlib import reload
-from src import utils
+from src.utils import utils
+
 # from src import simulation_utils
 from src import simulation  # from src import simulation_v1 as simulation
 from functools import partial

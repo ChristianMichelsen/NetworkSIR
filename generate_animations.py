@@ -13,7 +13,8 @@ import awkward
 from importlib import reload
 import h5py
 from src import rc_params
-from src import utils
+from src.utils import utils
+
 # from src import simulation_utils
 from src import animation_utils
 

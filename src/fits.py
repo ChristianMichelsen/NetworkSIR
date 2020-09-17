@@ -12,7 +12,7 @@ from importlib import reload
 import warnings
 
 try:
-    from src import utils
+    from src.utils import utils
     from src import file_loaders
     from src import SIR
     from src import parallel
@@ -32,10 +32,10 @@ def uniform(a, b):
 
 
 def extract_data(t, y, T_max, N_tot):
-    """ Extract data where:
-        1) y is larger than 1‰ (permille) of N_tot
-        1) y is smaller than 1% (percent) of N_tot
-        1) t is less than T_max"""
+    """Extract data where:
+    1) y is larger than 1‰ (permille) of N_tot
+    1) y is smaller than 1% (percent) of N_tot
+    1) t is less than T_max"""
     mask_min_1_permille = y > N_tot * 1 / 1000
     mask_max_1_percent = y < N_tot * 1 / 100
     mask_T_max = t < T_max
@@ -88,7 +88,13 @@ def refit_if_needed(fit_object, cfg, bounds, fix, minuit, N_max_fits=10, debug=F
 
     else:
 
-        minuit_dict = dict(pedantic=False, print_level=0, **bounds, errordef=Minuit.LEAST_SQUARES, **fix,)
+        minuit_dict = dict(
+            pedantic=False,
+            print_level=0,
+            **bounds,
+            errordef=Minuit.LEAST_SQUARES,
+            **fix,
+        )
 
         # max_reduced_chi2 = np.linspace(3, 3, N_max_fits)
 
@@ -147,14 +153,34 @@ def run_actual_fit(t, y, sy, cfg, dt, ts):
         # beta=    {'mean': 0.01, 'std': 0.05},
     )
 
-    p0 = dict(lambda_E=cfg.lambda_E, lambda_I=cfg.lambda_I, beta=cfg.beta, tau=0,)
+    p0 = dict(
+        lambda_E=cfg.lambda_E,
+        lambda_I=cfg.lambda_I,
+        beta=cfg.beta,
+        tau=0,
+    )
 
-    bounds = dict(limit_lambda_E=(1e-6, None), limit_lambda_I=(1e-6, None), limit_beta=(1e-6, None),)
+    bounds = dict(
+        limit_lambda_E=(1e-6, None),
+        limit_lambda_I=(1e-6, None),
+        limit_beta=(1e-6, None),
+    )
 
-    fix = dict(fix_lambda_E=True, fix_lambda_I=True,)
+    fix = dict(
+        fix_lambda_E=True,
+        fix_lambda_I=True,
+    )
 
     fit_object = SIR.FitSIR(t, y, sy, normal_priors, cfg, dt=dt, ts=ts)
-    minuit = Minuit(fit_object, pedantic=False, print_level=0, **p0, **bounds, **fix, errordef=Minuit.LEAST_SQUARES,)
+    minuit = Minuit(
+        fit_object,
+        pedantic=False,
+        print_level=0,
+        **p0,
+        **bounds,
+        **fix,
+        errordef=Minuit.LEAST_SQUARES,
+    )
 
     minuit.migrad()
 
@@ -179,7 +205,12 @@ def fit_single_file(filename, ts=0.1, dt=0.01):
     T_peak = df["time"].iloc[df["I"].argmax()]
 
     # extract data between 1 permille and 1 percent I of N_tot and lower than T_max
-    t, y = extract_data(t=df_interpolated["time"].values, y=df_interpolated["I"].values, T_max=T_peak, N_tot=cfg.N_tot,)
+    t, y = extract_data(
+        t=df_interpolated["time"].values,
+        y=df_interpolated["I"].values,
+        T_max=T_peak,
+        N_tot=cfg.N_tot,
+    )
     sy = np.sqrt(y)
 
     if len(t) < 5:
@@ -262,4 +293,3 @@ def get_fit_results(abm_files, force_rerun=False, num_cores=1):
 
         joblib.dump(all_fits, all_fits_file)
         return all_fits
-

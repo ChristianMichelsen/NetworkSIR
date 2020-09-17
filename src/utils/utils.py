@@ -845,7 +845,6 @@ def df_coordinates_to_coordinates(df_coordinates):
     return df_coordinates[["Longitude", "Lattitude"]].values
 
 
-
 #%%
 
 
@@ -861,9 +860,9 @@ import csv
 import numba as nb
 
 # # try:
-# # from src import utils
+# # from src.utils import utils
 # # except ImportError:
-# from src import utils
+# from src.utils import utils
 
 INTEGER_SIMULATION_PARAMETERS = load_yaml("cfg/settings.yaml")["INTEGER_SIMULATION_PARAMETERS"]
 

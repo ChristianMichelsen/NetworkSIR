@@ -11,12 +11,14 @@ from collections import defaultdict
 import warnings
 
 try:
-    from src import utils
+    from src.utils import utils
+
     # from src import simulation_utils
     from src import file_loaders
     from src import SIR
 except ImportError:
     import utils
+
     # import simulation_utils
     import file_loaders
     import SIR

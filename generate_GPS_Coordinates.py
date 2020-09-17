@@ -10,7 +10,8 @@ from shapely.geometry import mapping as _polygon_to_array
 from numba import njit, prange, set_num_threads
 from matplotlib.patches import Rectangle
 from matplotlib.backends.backend_pdf import PdfPages
-from src import utils
+from src.utils import utils
+
 # from src import simulation_utils
 
 #%%
