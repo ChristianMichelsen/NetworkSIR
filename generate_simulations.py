@@ -4,9 +4,7 @@ import multiprocessing as mp
 from pathlib import Path
 from importlib import reload
 from src.utils import utils
-
-# from src import simulation_utils
-from src.simulation import simulation  # from src import simulation_v1 as simulation
+from src.simulation import simulation
 from functools import partial
 import yaml
 from contexttimer import Timer
@@ -15,7 +13,7 @@ from contexttimer import Timer
 N_tot_max = 1_000_000
 num_cores_max = 30
 N_loops = 10
-dry_run = False
+dry_run = True
 force_rerun = False
 verbose = True
 
@@ -25,8 +23,13 @@ verbose = True
 if utils.is_local_computer():
 
     all_simulation_parameters = [
-        # {"beta": [0.01, 0.01 / 2, 0.01 * 2], "N_tot": 58_000, "rho": 0, "version": [1, 2]},
-        {"N_tot": 58_000, "rho": 0, "version": [1, 2], "make_random_initial_infections": [0, 1]},
+        {
+            "N_tot": 58_000,
+            "rho": 0,
+            "version": [1, 2],
+            "make_random_initial_infections": [0, 1],
+            "N_connect_retries": [0, 1],
+        },
     ]
 
 else:

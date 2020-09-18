@@ -70,7 +70,13 @@ def set_infection_weight(my_infection_weight, agent, sigma_beta, beta):
 
 @njit
 def place_and_connect_families(
-    N_tot, people_in_household, age_distribution_per_people_in_household, coordinates, sigma_mu, sigma_beta, beta,
+    N_tot,
+    people_in_household,
+    age_distribution_per_people_in_household,
+    coordinates,
+    sigma_mu,
+    sigma_beta,
+    beta,
 ):
 
     all_indices = np.arange(N_tot)
@@ -159,407 +165,7 @@ def place_and_connect_families(
 
 
 #%%
-#calculate cluster coeff. 
-@njit
-def cluster_coefficient_per_agent(N_tot, my_connections, my_day_found_infected):
-    # calculates cluster cooefficents per agent (np.mean of the first output gives cluster coeff for whole network )
-    # also cluster coeff per infected agent, and num of connections for all and only for infected.
-    # as such a 2d hist with fraction infected given a certain cluster coeff and certain num con can be calculated. 
-    my_cluster_coeff = np.zeros(N_tot, np.float32)
-    infected_cluster = []
-    my_num_con  = np.zeros(N_tot, np.int32)
-    infected_con = []
 
-    for i in range(N_tot):
-        yes_counter = 0
-        total = 0
-        for j in range(len(my_connections[i])):
-            for k in range(j + 1, len(my_connections[i])):
-                con = my_connections[i][j]
-                for contact in my_connections[my_connections[i][k]]:
-                    if con == contact:
-                        yes_counter += 1
-                        break
-                total += 1
-
-        my_cluster_coeff[i] = yes_counter / total  
-        num_con = len(my_connections[i])
-        my_num_con[i] = num_con
-        if my_day_found_infected[i] >= 0:
-            infected_cluster.append(yes_counter / total)
-            infected_con.append(num_con)  
-
-    return my_cluster_coeff, my_num_con, infected_cluster, infected_con
-
-@njit
-def connect_work_and_others_clusters_prop(N_tot, N_ages, mu_counter, mu, work_other_ratio, matrix_work, matrix_other, rho, rho_scale, epsilon_rho, coordinates, agents_in_age_group, my_connections, my_connections_type, my_number_of_contacts):
-    # variation on connect work and other that with some probability choses random people to try and connect that have a common contact
-    click = 0
-    while mu_counter < mu/2*N_tot:
-
-        ra_work_other = np.random.rand()
-        if ra_work_other < work_other_ratio:
-            matrix = matrix_work
-            run_algo = run_algo_work_clusters_prop
-            work = True
-        else:
-            matrix = matrix_other
-            run_algo = run_algo_other_clusters_prop
-            work = False
-
-        a = 0
-        accept = True
-        ra = np.random.rand()
-        for i in range(N_ages):
-            for j in range(N_ages):
-                a += matrix[i, j]
-                if a > ra:
-                    accept = False
-                    break
-            if not accept:
-                break
-
-        if np.random.rand() > epsilon_rho:
-            rho_tmp = rho
-        else:
-            rho_tmp = 0.0
-
-        cluster = mu_counter / (mu /2 * N_tot)
-        
-        run_algo(N_tot, agents_in_age_group, i, j, my_connections, my_connections_type, my_number_of_contacts, coordinates, rho_tmp, rho_scale, cluster)
-        mu_counter += 1   
-        verbose = False
-        if mu_counter > click * 100000 and verbose:
-            print(mu_counter/(mu/2*N_tot))
-            click += 1              
-
-@njit
-def run_algo_other_clusters_prop(N_tot, agents_in_age_group, age1, age2, my_connections, my_connections_type, my_number_of_contacts, coordinates, rho_tmp, rho_scale, cluster):
-
-
-    while True:
-        # choose between the two algorithms based on fraction of connections established
-        # if something but linear is wanted change in the next line, remember to also change in run_algo_work_clusters_prop
-        if np.random.rand() < cluster: 
-            agent0 =np.random.randint(N_tot)
-            if len(my_connections[agent0]) > 1:
-                agent1 = my_connections[agent0][np.random.randint(len(my_connections[agent0]))]
-                agent2 = my_connections[agent0][np.random.randint(len(my_connections[agent0]))]
-            else: 
-                agent1, agent2 = 0, 0 
-        else:
-            agent1 = np.random.choice(agents_in_age_group[age1])
-            agent2 = np.random.choice(agents_in_age_group[age2])
-    
-        do_stop = update_node_connections( my_connections, coordinates, rho_tmp, rho_scale, agent1, agent2, my_connections_type, my_number_of_contacts, connection_type = 2)
-        if do_stop:
-            break
-
-@njit
-def run_algo_work_clusters_prop(N_tot, agents_in_age_group, age1, age2, my_connections, my_connections_type, my_number_of_contacts, coordinates, rho_tmp, rho_scale, cluster):
-
-    agent1 = np.random.choice(agents_in_age_group[age1])
-
-    while True:
-        # choose between the two algorithms based on fraction of connections established
-        # if something but linear is wanted change in the next line, remember to also change in run_algo_work_clusters_prop
-        if np.random.rand() < cluster:    
-            if len(my_connections[agent1]) >= 1:
-                agent0 = my_connections[agent1][np.random.randint(len(my_connections[agent1]))]
-            else:
-                agent2 = agent1
-            if len(my_connections[agent0]) >= 1:
-                agent2 = my_connections[agent0][np.random.randint(len(my_connections[agent0]))]
-            else: 
-                agent2 = agent1
-        else:
-            agent2 = np.random.choice(agents_in_age_group[age2])
-        rho_tmp *= 0.9995
-
-        do_stop = update_node_connections(my_connections, coordinates, rho_tmp, rho_scale, agent1, agent2, my_connections_type, my_number_of_contacts, connection_type = 1)
-
-        if do_stop:
-            break     
-
-@njit
-def update_node_connections(
-    my_connections,
-    coordinates,
-    rho_tmp,
-    rho_scale,
-    agent1,
-    agent2,
-    my_connections_type,
-    my_number_of_contacts,
-    connection_type,
-):
-    connect_and_stop = False
-    if agent1 != agent2:
-
-        if rho_tmp == 0:
-            connect_and_stop = True
-        else:
-            r = utils.haversine_scipy(coordinates[agent1], coordinates[agent2])
-            if np.exp(-r * rho_tmp / rho_scale) > np.random.rand():
-                connect_and_stop = True
-
-        if connect_and_stop:
-
-            if agent1 not in my_connections[agent2] and agent2 not in my_connections[agent1]:
-
-                my_connections[agent1].append(np.uint32(agent2))
-                my_connections[agent2].append(np.uint32(agent1))
-
-                my_connections_type[agent1].append(np.uint8(connection_type))
-                my_connections_type[agent2].append(np.uint8(connection_type))
-
-                # my_index_in_contact[agent2].append(my_number_of_contacts[agent1])
-                # my_index_in_contact[agent1].append(my_number_of_contacts[agent2])
-
-                my_number_of_contacts[agent1] += 1
-                my_number_of_contacts[agent2] += 1
-
-            # else:
-            #     print(agent1, my_connections[agent2])
-            #     print(agent2, my_connections[agent1])
-
-    return connect_and_stop
-
-@njit
-def run_algo_other(
-    agents_in_age_group,
-    age1,
-    age2,
-    my_connections,
-    my_connections_type,
-    my_number_of_contacts,
-    coordinates,
-    rho_tmp,
-    rho_scale,
-):
-    while True:
-        # agent1 = np.searchsorted(PP_ages[m_i], np.random.rand())
-        # agent1 = agents_in_age_group[m_i][agent1]
-        # TODO: Add connection weights
-        agent1 = np.random.choice(agents_in_age_group[age1])
-        agent2 = np.random.choice(agents_in_age_group[age2])
-        do_stop = update_node_connections(
-            my_connections,
-            coordinates,
-            rho_tmp,
-            rho_scale,
-            agent1,
-            agent2,
-            my_connections_type,
-            my_number_of_contacts,
-            connection_type=2,
-        )
-        if do_stop:
-            break
-
-
-@njit
-def run_algo_work(
-    agents_in_age_group,
-    age1,
-    age2,
-    my_connections,
-    my_connections_type,
-    my_number_of_contacts,
-    coordinates,
-    rho_tmp,
-    rho_scale,
-):
-    # ra1 = np.random.rand()
-    # agent1 = np.searchsorted(PP_ages[m_i], ra1)
-    # agent1 = agents_in_age_group[m_i][agent1]
-    # TODO: Add connection weights
-    agent1 = np.random.choice(agents_in_age_group[age1])
-
-    while True:
-        agent2 = np.random.choice(agents_in_age_group[age2])
-        rho_tmp *= 0.9995
-        do_stop = update_node_connections(
-            my_connections,
-            coordinates,
-            rho_tmp,
-            rho_scale,
-            agent1,
-            agent2,
-            my_connections_type,
-            my_number_of_contacts,
-            connection_type=1,
-        )
-
-        if do_stop:
-            break
-
-
-@njit
-def connect_work_and_others(
-    N_tot,
-    N_ages,
-    mu_counter,
-    mu,
-    work_other_ratio,
-    matrix_work,
-    matrix_other,
-    rho,
-    rho_scale,
-    epsilon_rho,
-    coordinates,
-    agents_in_age_group,
-    my_connections,
-    my_connections_type,
-    my_number_of_contacts,
-):
-
-    while mu_counter < mu / 2 * N_tot:
-
-        ra_work_other = np.random.rand()
-        if ra_work_other < work_other_ratio:
-            matrix = matrix_work
-            run_algo = run_algo_work
-            work = True
-        else:
-            matrix = matrix_other
-            run_algo = run_algo_other
-            work = False
-
-        a = 0
-        accept = True
-        ra = np.random.rand()
-        for i in range(N_ages):
-            for j in range(N_ages):
-                a += matrix[i, j]
-                if a > ra:
-                    accept = False
-                    break
-            if not accept:
-                break
-
-        if np.random.rand() > epsilon_rho:
-            rho_tmp = rho
-        else:
-            rho_tmp = 0.0
-
-        run_algo(
-            agents_in_age_group,
-            i,
-            j,
-            my_connections,
-            my_connections_type,
-            my_number_of_contacts,
-            coordinates,
-            rho_tmp,
-            rho_scale,
-        )
-        mu_counter += 1
-
-@njit
-def update_node_connections_clusters_reroll(my_connections, coordinates, rho_tmp, rho_scale, agent1, agent2, my_connections_type, my_number_of_contacts, connection_type):
-    connect_and_stop = False
-    if agent1 != agent2:
-
-        if rho_tmp == 0:
-            connect_and_stop = True
-        else:
-            r = utils.haversine_scipy(coordinates[agent1], coordinates[agent2])
-            connectivity_factor = 1 
-            for contact in my_connections[agent1]:
-                if contact in my_connections[agent2]: 
-                    connectivity_factor += 1 # num of rerolls (must be int) per common contant. A higher number gives higher cluster coeff. 
-
-            for i in range(connectivity_factor):
-                if np.exp(-r*rho_tmp/rho_scale) > np.random.rand():
-                    connect_and_stop = True
-                    break
-                    
-
-        if connect_and_stop:
-
-            if agent1 not in my_connections[agent2] and agent2 not in my_connections[agent1]:
-
-                my_connections[agent1].append(np.uint32(agent2))
-                my_connections[agent2].append(np.uint32(agent1))
-
-                my_connections_type[agent1].append(np.uint8(connection_type))
-                my_connections_type[agent2].append(np.uint8(connection_type))
-
-                # my_index_in_contact[agent2].append(my_number_of_contacts[agent1])
-                # my_index_in_contact[agent1].append(my_number_of_contacts[agent2])
-
-                my_number_of_contacts[agent1] += 1
-                my_number_of_contacts[agent2] += 1
-
-            # else:
-            #     print(agent1, my_connections[agent2])
-            #     print(agent2, my_connections[agent1])
-
-    return connect_and_stop
-
-@njit
-def run_algo_other_clusters_reroll(agents_in_age_group, age1, age2, my_connections, my_connections_type, my_number_of_contacts, coordinates, rho_tmp, rho_scale):
-    while True:
-        # agent1 = np.searchsorted(PP_ages[m_i], np.random.rand())
-        # agent1 = agents_in_age_group[m_i][agent1]
-        # TODO: Add connection weights
-        agent1 = np.random.choice(agents_in_age_group[age1])
-        agent2 = np.random.choice(agents_in_age_group[age2])
-        do_stop = update_node_connections_clusters_reroll(my_connections, coordinates, rho_tmp, rho_scale, agent1, agent2, my_connections_type, my_number_of_contacts, connection_type=2)
-        if do_stop:
-            break
-
-@njit
-def run_algo_work_clusters_reroll(agents_in_age_group, age1, age2, my_connections, my_connections_type, my_number_of_contacts, coordinates, rho_tmp, rho_scale):
-    # ra1 = np.random.rand()
-    # agent1 = np.searchsorted(PP_ages[m_i], ra1)
-    # agent1 = agents_in_age_group[m_i][agent1]
-    # TODO: Add connection weights
-    agent1 = np.random.choice(agents_in_age_group[age1])
-
-    while True:
-        agent2 = np.random.choice(agents_in_age_group[age2])
-        rho_tmp *= 0.9995
-        do_stop = update_node_connections_clusters_reroll(my_connections, coordinates, rho_tmp, rho_scale, agent1, agent2, my_connections_type, my_number_of_contacts, connection_type=1)
-
-        if do_stop:
-            break
-
-@njit
-def connect_work_and_others_clusters_reroll(N_tot, N_ages, mu_counter, mu, work_other_ratio, matrix_work, matrix_other, rho, rho_scale, epsilon_rho, coordinates, agents_in_age_group, my_connections, my_connections_type, my_number_of_contacts):
-    # variation on connect work and other that with higher chance of getting connected if you have contacts in common.
-    while mu_counter < mu/2*N_tot:
-
-        ra_work_other = np.random.rand()
-        if ra_work_other < work_other_ratio:
-            matrix = matrix_work
-            run_algo = run_algo_work_clusters_reroll
-            work = True
-        else:
-            matrix = matrix_other
-            run_algo = run_algo_other_clusters_reroll
-            work = False
-
-        a = 0
-        accept = True
-        ra = np.random.rand()
-        for i in range(N_ages):
-            for j in range(N_ages):
-                a += matrix[i, j]
-                if a > ra:
-                    accept = False
-                    break
-            if not accept:
-                break
-
-        if np.random.rand() > epsilon_rho:
-            rho_tmp = rho
-        else:
-            rho_tmp = 0.0
-
-        run_algo(agents_in_age_group, i, j, my_connections, my_connections_type, my_number_of_contacts, coordinates, rho_tmp, rho_scale)
-        mu_counter += 1  
 
 @njit
 def initialize_tents(coordinates, N_tot, N_tents):
@@ -583,8 +189,9 @@ def initialize_tents(coordinates, N_tot, N_tents):
 
     return my_closest_tent, tent_position, people_per_tent
 
+
 @njit
-def initialize_kommuner(N_tot, my_kommune, kommune_names):    
+def initialize_kommuner(N_tot, my_kommune, kommune_names):
     my_label = np.zeros(N_tot, np.int32)
     people_per_kommune = np.zeros(len(kommune_names), np.int32)
     for agent, agent_kommune in enumerate(my_kommune):
@@ -595,79 +202,6 @@ def initialize_kommuner(N_tot, my_kommune, kommune_names):
                 break
     return my_label, np.arange(len(kommune_names)), people_per_kommune
 
-
-@njit
-def nb_make_initial_infections(
-    N_init,
-    my_state,
-    state_total_counts,
-    agents_in_state,
-    g_cumulative_sum_of_state_changes,
-    my_connections,
-    my_number_of_contacts,
-    my_rates,
-    SIR_transition_rates,
-    agents_in_age_group,
-    initial_ages_exposed,
-    N_infectious_states,
-    coordinates,
-    make_random_infections,
-):
-
-    if do_memory_tracking:
-        with objmode():
-            track_memory("Initial Infections")
-
-    g_total_sum_of_state_changes = 0.0
-    N_tot = len(my_number_of_contacts)
-    non_infectable_agents = np.zeros(N_tot, dtype=np.bool_)
-
-    possible_agents = List()
-    for age_exposed in initial_ages_exposed:
-        for agent in agents_in_age_group[age_exposed]:
-            possible_agents.append(np.uint32(agent))
-
-    ##  Standard outbreak type, infecting randomly
-    if make_random_infections:
-        initial_agents_to_infect = np.random.choice(np.asarray(possible_agents), size=N_init, replace=False)
-
-    # Local outbreak type, infecting around a point:
-    else:
-
-        rho_init = 100
-        rho_init_scale = 1000
-
-        outbreak_agent = np.random.randint(N_tot)  # this is where the outbreak starts
-
-        initial_agents_to_infect = List()
-        initial_agents_to_infect.append(np.uint32(outbreak_agent))
-
-        while len(initial_agents_to_infect) < N_init:
-            proposed_agent = np.random.randint(N_tot)
-
-            r = utils.haversine_scipy(coordinates[outbreak_agent], coordinates[proposed_agent])
-            if np.exp(-r * rho_init / rho_init_scale) > np.random.rand():
-                initial_agents_to_infect.append(np.uint32(proposed_agent))
-        initial_agents_to_infect = np.asarray(initial_agents_to_infect, dtype=np.uint32)
-
-    ##  Now make initial infections
-    for i, agent in enumerate(initial_agents_to_infect):
-        new_state = np.random.randint(N_infectious_states)  # E1, E2, E3 or E4
-        my_state[agent] = new_state
-
-        agents_in_state[new_state].append(np.uint32(agent))
-        state_total_counts[new_state] += 1
-
-        # g_total_sum_of_state_changes += SIR_transition_rates[new_state]
-        # g_cumulative_sum_of_state_changes[new_state:] += SIR_transition_rates[new_state]
-        g_total_sum_of_state_changes += SIR_transition_rates[new_state]  # 'g_' = gillespie variable
-        g_cumulative_sum_of_state_changes[new_state:] += SIR_transition_rates[new_state]
-
-    if do_memory_tracking:
-        with objmode():
-            track_memory()
-
-    return g_total_sum_of_state_changes  # , non_infectable_agents
 
 
 #%%
@@ -718,7 +252,9 @@ def nb_run_simulation(
     # If an entry is- = 1 the agent has not been found not being infected, else the Integer represent the day the agent was found infected
     # this is the only needed data to save about the infected, and #infected/Tent can be generated from that
     my_day_found_infected = np.ones(N_tot, dtype=np.int32) * -1
-    my_reason_for_test = np.ones(N_tot, dtype=np.int32) * -1  # reasons for test: 0: symptoms 1:random_test 2:tracing
+    my_reason_for_test = (
+        np.ones(N_tot, dtype=np.int32) * -1
+    )  # reasons for test: 0: symptoms 1:random_test 2:tracing
     positive_test_reasons = np.zeros(3, dtype=np.int32)  #
     my_clicks_when_test = np.ones(N_tot, dtype=np.int32) * -1
     my_clicks_when_test_result = np.ones(N_tot, dtype=np.int32) * -1
@@ -759,13 +295,16 @@ def nb_run_simulation(
     # some one group being able to work from home and another isn't
     masking_rate_reduction = [
         [0, 0, 0.0],
-        [0, 0, 0.8]]  # rate reduction for the groups [family, job, other]
+        [0, 0, 0.8],
+    ]  # rate reduction for the groups [family, job, other]
     lockdown_rate_reduction = [
         [0, 1, 0.6],
-        [0, 0.6, 0.6] ]  # rate reduction for the groups [family, job, other]
+        [0, 0.6, 0.6],
+    ]  # rate reduction for the groups [family, job, other]
     isolation_rate_reduction = [
         [0.2, 1.0, 1.0],
-        [0.0, 0.2, 0.2]]  # rate reduction for the groups [family, job, other]
+        [0.0, 0.2, 0.2],
+    ]  # rate reduction for the groups [family, job, other]
     tracking_rates = [
         1,
         0.8,
@@ -822,7 +361,9 @@ def nb_run_simulation(
         assert len(my_reason_for_test) == N_tot, "my_reason_for_test prob"
 
         step_number += 1
-        g_total_sum = g_total_sum_of_state_changes + g_total_sum_infections  # + H_tot_move XXX Hospitals
+        g_total_sum = (
+            g_total_sum_of_state_changes + g_total_sum_infections
+        )  # + H_tot_move XXX Hospitals
 
         dt = -np.log(np.random.rand()) / g_total_sum
         real_time += dt
@@ -879,7 +420,9 @@ def nb_run_simulation(
 
             # Moves TO infectious State from non-infectious
             if my_state[agent] == N_infectious_states:
-                for contact, rate in zip(my_connections[agent], my_rates[agent]):  # Loop over row agent
+                for contact, rate in zip(
+                    my_connections[agent], my_rates[agent]
+                ):  # Loop over row agent
                     # if contact is susceptible
                     if my_state[contact] == -1:
                         g_total_sum_infections += rate
@@ -956,15 +499,21 @@ def nb_run_simulation(
                     # check if the contact found is myself
                     if possible_agent == agent_getting_infected:
 
-                        rate = my_rates[contact_of_agent_getting_infected][ith_contact_of_agent_getting_infected]
+                        rate = my_rates[contact_of_agent_getting_infected][
+                            ith_contact_of_agent_getting_infected
+                        ]
                         # set rates to myself to 0 (I cannot get infected again)
-                        my_rates[contact_of_agent_getting_infected][ith_contact_of_agent_getting_infected] = 0
+                        my_rates[contact_of_agent_getting_infected][
+                            ith_contact_of_agent_getting_infected
+                        ] = 0
 
                         # if the contact can infect, then remove the rates from the overall gillespie accounting
                         if my_state[contact_of_agent_getting_infected] in infectious_states:
                             g_total_sum_infections -= rate
                             my_sum_of_rates[contact_of_agent_getting_infected] -= rate
-                            g_cumulative_sum_infection_rates[my_state[contact_of_agent_getting_infected] :] -= rate
+                            g_cumulative_sum_infection_rates[
+                                my_state[contact_of_agent_getting_infected] :
+                            ] -= rate
 
                         break
 
@@ -988,7 +537,9 @@ def nb_run_simulation(
                 my_clicks_when_test[random_people_for_test] = (
                     click + test_delay_in_clicks[1]
                 )  # choose N_daily_test people at random to test
-                my_reason_for_test[random_people_for_test] = 1  # count that random test is the reason for test
+                my_reason_for_test[
+                    random_people_for_test
+                ] = 1  # count that random test is the reason for test
                 intervention_type_at_tent = test_if_label_needs_intervention(
                     my_state,
                     my_day_found_infected,
@@ -1111,7 +662,6 @@ def nb_run_simulation(
                         )
             click += 1
 
-
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
         # # # # # # # # # # # BUG CHECK  # # # # # # # # # # # # # # # # # # # # # # # #
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -1134,7 +684,10 @@ def nb_run_simulation(
             day,
         )
         s_counter[s] += 1
-    print("cluster_coefficient", np.mean(cluster_coefficient_per_agent(N_tot, my_connections, my_day_found_infected)[0]))  
+    print(
+        "cluster_coefficient",
+        np.mean(compute_my_cluster_coefficient(N_tot, my_connections, my_day_found_infected)[0]),
+    )
     n_infected = np.sum(my_state > np.zeros(N_tot))
     if verbose:
         print("Simulation step_number, ", step_number)
@@ -1143,7 +696,8 @@ def nb_run_simulation(
     print("sim ended at day:", day)
     print("the fraction of the pop infected was:", n_infected / N_tot)
     print(
-        "the fraction of infected found was:", len(my_day_found_infected[my_day_found_infected >= 0]) / n_infected,
+        "the fraction of infected found was:",
+        len(my_day_found_infected[my_day_found_infected >= 0]) / n_infected,
     )
     print("Test reasons", positive_test_reasons)
     return out_time, out_state_counts, out_my_state  # , out_H_state_total_counts
@@ -1168,15 +722,26 @@ def test_if_label_needs_intervention(
         if day_found > max(0, day - days_looking_back):
             infected_per_tent[my_label[agent]] += 1
     for infected, inhabitants, intervention_type, ith_tent in zip(
-        infected_per_tent, people_per_label, intervention_type_at_tent, range(len(intervention_type_at_tent)),
+        infected_per_tent,
+        people_per_label,
+        intervention_type_at_tent,
+        range(len(intervention_type_at_tent)),
     ):
         if (1.0 * infected / inhabitants) > threshold and intervention_type == 0:
             print(
-                "lockdown at tent", ith_tent, "at day", day, "the num of infected is", infected, "/", inhabitants,
+                "lockdown at tent",
+                ith_tent,
+                "at day",
+                day,
+                "the num of infected is",
+                infected,
+                "/",
+                inhabitants,
             )
 
             intervention_type_at_tent[ith_tent] = intervention_type_to_init
     return intervention_type_at_tent
+
 
 @njit
 def test_if_intervention_on_labels_can_be_removed(
@@ -1206,7 +771,10 @@ def test_if_intervention_on_labels_can_be_removed(
             infected_per_tent[my_label[agent]] += 1
 
     for infected, inhabitants, intervention_type, ith_tent in zip(
-        infected_per_tent, people_per_label, intervention_type_at_tent, range(len(intervention_type_at_tent)),
+        infected_per_tent,
+        people_per_label,
+        intervention_type_at_tent,
+        range(len(intervention_type_at_tent)),
     ):
         if (1.0 * infected / inhabitants) < threshold and intervention_type != 0:
             (
@@ -1275,7 +843,9 @@ def test_a_person(
     day,
 ):
     if my_state[agent] in infectious_states and my_day_found_infected[agent] == -1:
-        my_clicks_when_test_result[agent] = click + results_delay_in_clicks[my_reason_for_test[agent]]
+        my_clicks_when_test_result[agent] = (
+            click + results_delay_in_clicks[my_reason_for_test[agent]]
+        )
         assert my_reason_for_test[agent] in (0, 1, 2)
         positive_test_reasons[my_reason_for_test[agent]] += 1  # count reason found infected
 
@@ -1320,7 +890,9 @@ def cut_rates_of_agent(
     # step 1 loop over all of an agents contact
     for ith_contact, contact in enumerate(my_connections[agent]):
         # update rates from agent to contact. Rate_reduction makes it depending on connection type
-        rate = my_rates[agent][ith_contact] * rate_reduction[my_connections_type[agent][ith_contact]]
+        rate = (
+            my_rates[agent][ith_contact] * rate_reduction[my_connections_type[agent][ith_contact]]
+        )
         my_rates[agent][ith_contact] -= rate
 
         # updates to gillespie sums, if agent is infected and contact is susceptible
@@ -1386,8 +958,11 @@ def remove_and_reduce_rates_of_agent(
         act_rate_reduction = reduce_rates
         if np.random.rand() < remove_rates[my_connections_type[agent][ith_contact]]:
             act_rate_reduction = [1.0, 1.0, 1.0]
-                    
-        rate = my_rates[agent][ith_contact] * act_rate_reduction[my_connections_type[agent][ith_contact]]
+
+        rate = (
+            my_rates[agent][ith_contact]
+            * act_rate_reduction[my_connections_type[agent][ith_contact]]
+        )
         my_rates[agent][ith_contact] -= rate
 
         # updates to gillespie sums, if agent is infected and contact is susceptible
@@ -1439,7 +1014,7 @@ def reduce_frac_rates_of_agent(
     g_total_sum_infections,
     my_sum_of_rates,
     g_cumulative_sum_infection_rates,
-):  
+):
     # rate reduction is 2 3-vectors. is used for masking interventions
     agent_infected = my_state[agent] in infectious_states
     agent_infectable = my_state[agent] == -1
@@ -1453,7 +1028,10 @@ def reduce_frac_rates_of_agent(
             act_rate_reduction = [0, 0, 0]
         else:
             act_rate_reduction = reduce_rates
-        rate = my_rates[agent][ith_contact] * act_rate_reduction[my_connections_type[agent][ith_contact]]
+        rate = (
+            my_rates[agent][ith_contact]
+            * act_rate_reduction[my_connections_type[agent][ith_contact]]
+        )
         my_rates[agent][ith_contact] -= rate
 
         # updates to gillespie sums, if agent is infected and contact is susceptible
@@ -1505,13 +1083,18 @@ def reset_rates_of_agent(
     g_total_sum_infections,
     my_sum_of_rates,
     g_cumulative_sum_infection_rates,
-    connection_type_weight = np.ones(3, dtype=np.float32) # [home, job, other] reset infection rate to ori times this number
+    connection_type_weight=np.ones(
+        3, dtype=np.float32
+    ),  # [home, job, other] reset infection rate to ori times this number
 ):
-    agent_infected = (my_state[agent] in infectious_states)
+    agent_infected = my_state[agent] in infectious_states
     agent_infectable = my_state[agent] == -1
     agent_update_rate = 0.0
     for ith_contact, contact in enumerate(my_connections[agent]):
-        infection_rate = my_infection_weight[agent] * connection_type_weight[my_connections_type[agent][ith_contact]]
+        infection_rate = (
+            my_infection_weight[agent]
+            * connection_type_weight[my_connections_type[agent][ith_contact]]
+        )
         rate = infection_rate - my_rates[agent][ith_contact]
         my_rates[agent][ith_contact] = infection_rate
 
@@ -1564,8 +1147,8 @@ def lockdown_on_label(
     g_cumulative_sum_infection_rates,
 ):
     # lockdown on all agent with a certain label (tent or municipality, or whatever else you define). Rate reduction is two vectors of length 3. First is the fraction of [home, job, others] rates to set to 0.
-    # second is the fraction of reduction of the remaining [home, job, others] rates. 
-    # ie: [[0,0.8,0.8],[0,0.8,0.8]] means that 80% of your contacts on job and other is set to 0, and the remaining 20% is reduced by 80%. 
+    # second is the fraction of reduction of the remaining [home, job, others] rates.
+    # ie: [[0,0.8,0.8],[0,0.8,0.8]] means that 80% of your contacts on job and other is set to 0, and the remaining 20% is reduced by 80%.
     # loop over all agents
     for agent in range(N_tot):
         # calculate
@@ -1610,9 +1193,9 @@ def masking_on_label(
     my_sum_of_rates,
     g_cumulative_sum_infection_rates,
 ):
-    
+
     # masking on all agent with a certain label (tent or municipality, or whatever else you define). Rate reduction is two vectors of length 3. First is the fraction of [home, job, others] rates to be effected by masks.
-    # second is the fraction of reduction of the those [home, job, others] rates. 
+    # second is the fraction of reduction of the those [home, job, others] rates.
     # ie: [[0,0.2,0.2],[0,0.8,0.8]] means that your wear mask when around 20% of job and other contacts, and your rates to those is reduced by 80%
     # loop over all agents
     for agent in range(N_tot):
@@ -1782,7 +1365,9 @@ class Simulation:
 
         search_string = "Saving network initialization"
 
-        if utils.file_exists(memory_file) and simulation_utils.does_file_contains_string(memory_file, search_string):
+        if utils.file_exists(memory_file) and simulation_utils.does_file_contains_string(
+            memory_file, search_string
+        ):
             self.time_start -= simulation_utils.get_search_string_time(memory_file, search_string)
             self.track_memory("Appending to previous network initialization")
         else:
@@ -1805,27 +1390,29 @@ class Simulation:
                 time = Time.time() - self.time_start
                 print(time, self.current_memory_usage, file=file, sep="\t")  # GiB
 
-
-
     def _initialize_network(self):
 
         cfg = self.cfg
         self.track_memory("Loading Coordinates")
-     
+
         self.coordinates, self.coordinate_indices = simulation_utils.load_coordinates(
             self._Filename.coordinates_filename, cfg.N_tot, self.ID
         )
-        
+
         if self.verbose:
             print("INITIALIZE NETWORK")
         self.track_memory("Initialize Network")
 
         rho_scale = 1000  # scale factor of rho
 
-        (people_in_household, age_distribution_per_people_in_household,) = simulation_utils.load_household_data(
-            self._Filename.household_data_filenames
-        )
-        (N_dim_people_in_household, N_ages,) = age_distribution_per_people_in_household.shape
+        (
+            people_in_household,
+            age_distribution_per_people_in_household,
+        ) = simulation_utils.load_household_data(self._Filename.household_data_filenames)
+        (
+            N_dim_people_in_household,
+            N_ages,
+        ) = age_distribution_per_people_in_household.shape
 
         if self.verbose:
             print("Families")
@@ -1866,8 +1453,8 @@ class Simulation:
 
         if self.verbose:
             print("Connecting work and others, currently slow, please wait")
-        # below one of three algorithms can be chosen by calling: connect_work_and_others, connect_work_and_others_clusters_reroll, or connect_work_and_others_cluster_prop   
-        # they take the same inputs.  
+        # below one of three algorithms can be chosen by calling: connect_work_and_others, connect_work_and_others_clusters_reroll, or connect_work_and_others_cluster_prop
+        # they take the same inputs.
         connect_work_and_others_clusters_reroll(
             cfg.N_tot,
             N_ages,
@@ -1899,19 +1486,22 @@ class Simulation:
             print("CONNECT TENTS")
         self.track_memory("Connect tents")
 
-        tents_as_labels = False # True makes N_labels random tents/positions to use as labels. If False kommuner is used as labels. label_lab
+        tents_as_labels = False  # True makes N_labels random tents/positions to use as labels. If False kommuner is used as labels. label_lab
         if tents_as_labels:
             my_label, label_index, people_per_label = initialize_tents(
                 self.coordinates, self.cfg.N_tot, N_labels=20
             )
         else:
             GPS_filename = "Data/GPS_coordinates.feather"
-            df_coordinates = pd.read_feather(GPS_filename).iloc[self.coordinate_indices].reset_index(drop=True)
-            my_kommune = df_coordinates['kommune'].tolist()
+            df_coordinates = (
+                pd.read_feather(GPS_filename).iloc[self.coordinate_indices].reset_index(drop=True)
+            )
+            my_kommune = df_coordinates["kommune"].tolist()
             kommune_names = list(set(my_kommune))
             print(kommune_names)
-            my_label, label_index, people_per_label =  initialize_kommuner(
-                cfg.N_tot, my_kommune, kommune_names)
+            my_label, label_index, people_per_label = initialize_kommuner(
+                cfg.N_tot, my_kommune, kommune_names
+            )
 
         return (
             my_connections,
@@ -1941,7 +1531,9 @@ class Simulation:
         self.track_memory("Saving network initialization")
         utils.make_sure_folder_exist(self.filenames["network_initialisation"])
         with h5py.File(self.filenames["network_initialisation"], "w") as f:  #
-            f.create_dataset("cfg_str", data=str(self.cfg))  # import ast; ast.literal_eval(str(cfg))
+            f.create_dataset(
+                "cfg_str", data=str(self.cfg)
+            )  # import ast; ast.literal_eval(str(cfg))
             f.create_dataset("my_age", data=my_age)
             f.create_dataset("my_number_of_contacts", data=my_number_of_contacts)
             f.create_dataset("my_infection_weight", data=my_infection_weight)
@@ -2045,7 +1637,9 @@ class Simulation:
                         time_elapsed=t.elapsed,
                     )
                 except OSError as e:
-                    print(f"\nSkipped saving network initialization for {self.filenames['network_initialisation']}")
+                    print(
+                        f"\nSkipped saving network initialization for {self.filenames['network_initialisation']}"
+                    )
                     # print(e)
 
         self.my_age = my_age
@@ -2076,7 +1670,9 @@ class Simulation:
         self.initial_ages_exposed = np.arange(self.N_ages)  # means that all ages are exposed
         make_random_infections = True
 
-        self.my_rates = simulation_utils.initialize_my_rates(self.my_infection_weight, self.my_number_of_contacts)
+        self.my_rates = simulation_utils.initialize_my_rates(
+            self.my_infection_weight, self.my_number_of_contacts
+        )
 
         self.my_state = np.full(cfg.N_tot, -1, dtype=np.int8)
         self.state_total_counts = np.zeros(self.N_states, dtype=np.uint32)
@@ -2163,7 +1759,6 @@ class Simulation:
             self.people_per_label,
         )
 
-
         out_time, out_state_counts, out_my_state = res
 
         track_memory("Arrays Conversion")
@@ -2198,7 +1793,9 @@ class Simulation:
             f.create_dataset("my_state", data=self.my_state)
             f.create_dataset("my_number_of_contacts", data=self.my_number_of_contacts)
             f.create_dataset("my_age", data=self.my_age)
-            f.create_dataset("cfg_str", data=str(self.cfg))  # import ast; ast.literal_eval(str(cfg))
+            f.create_dataset(
+                "cfg_str", data=str(self.cfg)
+            )  # import ast; ast.literal_eval(str(cfg))
             f.create_dataset("df", data=utils.dataframe_to_hdf5_format(self.df))
 
             if time_elapsed:
@@ -2206,9 +1803,16 @@ class Simulation:
 
             if self.do_track_memory:
                 memory_file = self.filenames["memory"]
-                (self.df_time_memory, self.df_change_points,) = simulation_utils.parse_memory_file(memory_file)
-                df_time_memory_hdf5 = utils.dataframe_to_hdf5_format(self.df_time_memory, cols_to_str=["ChangePoint"])
-                df_change_points_hdf5 = utils.dataframe_to_hdf5_format(self.df_change_points, include_index=True)
+                (
+                    self.df_time_memory,
+                    self.df_change_points,
+                ) = simulation_utils.parse_memory_file(memory_file)
+                df_time_memory_hdf5 = utils.dataframe_to_hdf5_format(
+                    self.df_time_memory, cols_to_str=["ChangePoint"]
+                )
+                df_change_points_hdf5 = utils.dataframe_to_hdf5_format(
+                    self.df_change_points, include_index=True
+                )
 
                 f.create_dataset("memory_file", data=Path(memory_file).read_text())
                 f.create_dataset("df_time_memory", data=df_time_memory_hdf5)
@@ -2238,7 +1842,11 @@ class Simulation:
     def save_memory_figure(self, savefig=True):
         if self.do_track_memory:
             fig, ax = simulation_utils.plot_memory_comsumption(
-                self.df_time_memory, self.df_change_points, min_TimeDiffRel=0.1, min_MemoryDiffRel=0.1, time_unit="s",
+                self.df_time_memory,
+                self.df_change_points,
+                min_TimeDiffRel=0.1,
+                min_MemoryDiffRel=0.1,
+                time_unit="s",
             )
             if savefig:
                 fig.savefig(self.filenames["memory"].replace(".txt", ".pdf"))

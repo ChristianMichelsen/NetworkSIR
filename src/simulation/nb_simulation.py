@@ -10,11 +10,11 @@ from numba.types import ListType, DictType, unicode_type
 from src.utils import utils
 
 
-#      ██ ██ ████████      ██████ ██       █████  ███████ ███████
-#      ██ ██    ██        ██      ██      ██   ██ ██      ██
-#      ██ ██    ██        ██      ██      ███████ ███████ ███████
-# ██   ██ ██    ██        ██      ██      ██   ██      ██      ██
-#  █████  ██    ██         ██████ ███████ ██   ██ ███████ ███████
+#      ██ ██ ████████      ██████ ██       █████  ███████ ███████ ███████ ███████
+#      ██ ██    ██        ██      ██      ██   ██ ██      ██      ██      ██
+#      ██ ██    ██        ██      ██      ███████ ███████ ███████ █████   ███████
+# ██   ██ ██    ██        ██      ██      ██   ██      ██      ██ ██           ██
+#  █████  ██    ██         ██████ ███████ ██   ██ ███████ ███████ ███████ ███████
 #
 # http://patorjk.com/software/taag/#p=display&f=ANSI%20Regular&t=Version%202%0A%20
 
@@ -33,6 +33,7 @@ spec_cfg = {
     "lambda_E": nb.float32,
     "lambda_I": nb.float32,
     "make_random_initial_infections": nb.boolean,
+    "N_connect_retries": nb.uint32,
     "ID": nb.uint16,
 }
 
@@ -53,6 +54,7 @@ class Config(object):
         self.lambda_E = 1.0
         self.lambda_I = 1.0
         self.make_random_initial_infections = 1
+        self.N_connect_retries = 0
         self.ID = 0
 
     def print(self):
@@ -97,8 +99,6 @@ spec = {
 
 
 # "Nested/Mutable" Arrays are faster than list of arrays which are faster than lists of lists
-
-
 @jitclass(spec)
 class My(object):
     def __init__(self, nb_cfg):
@@ -117,6 +117,12 @@ class My(object):
         point1 = self.coordinates[agent1]
         point2 = self.coordinates[agent2]
         return utils.haversine_scipy(point1, point2)
+
+    def dist_accepted(self, agent1, agent2, rho_tmp):
+        if np.exp(-self.dist(agent1, agent2) * rho_tmp) > np.random.rand():
+            return True
+        else:
+            return False
 
 
 def initialize_My(cfg):
@@ -185,24 +191,8 @@ def v1_initialize_my(my, coordinates_raw):
 
 
 @njit
-def v1_run_algo_2(my, PP, rho_tmp):
-    while True:
-        agent1 = np.uint32(np.searchsorted(PP, np.random.rand()))
-        agent2 = np.uint32(np.searchsorted(PP, np.random.rand()))
-        do_stop = update_node_connections(
-            my,
-            rho_tmp,
-            agent1,
-            agent2,
-            connection_type=-1,
-            code_version=1,
-        )
-        if do_stop:
-            break
-
-
-@njit
 def v1_run_algo_1(my, PP, rho_tmp):
+    """ Algo 1: density independent connection algorithm """
     agent1 = np.uint32(np.searchsorted(PP, np.random.rand()))
     while True:
         agent2 = np.uint32(np.searchsorted(PP, np.random.rand()))
@@ -220,7 +210,26 @@ def v1_run_algo_1(my, PP, rho_tmp):
 
 
 @njit
+def v1_run_algo_2(my, PP, rho_tmp):
+    """ Algo 2: increases number of connections in high-density ares """
+    while True:
+        agent1 = np.uint32(np.searchsorted(PP, np.random.rand()))
+        agent2 = np.uint32(np.searchsorted(PP, np.random.rand()))
+        do_stop = update_node_connections(
+            my,
+            rho_tmp,
+            agent1,
+            agent2,
+            connection_type=-1,
+            code_version=1,
+        )
+        if do_stop:
+            break
+
+
+@njit
 def v1_connect_nodes(my):
+    """ v1 of connecting nodes. No age dependence, and a specific choice of Algo """
     if my.cfg.algo == 2:
         run_algo = v1_run_algo_2
     else:
@@ -267,6 +276,29 @@ def set_infection_weight(my, agent):
 
 
 @njit
+def computer_number_of_cluster_retries(my, agent1, agent2):
+    """Number of times to (re)try to connect two agents.
+    A higher cluster_retries gives higher cluster coeff."""
+    connectivity_factor = 1
+    for contact in my.connections[agent1]:
+        if contact in my.connections[agent2]:
+            connectivity_factor += my.cfg.N_connect_retries
+    return connectivity_factor
+
+
+@njit
+def cluster_retry_succesful(my, agent1, agent2, rho_tmp):
+    """" (Re)Try to connect two agents. Returns True if succesful, else False"""
+    if my.cfg.N_connect_retries == 0:
+        return False
+    connectivity_factor = computer_number_of_cluster_retries(my, agent1, agent2)
+    for _ in range(connectivity_factor):
+        if my.dist_accepted(agent1, agent2, rho_tmp):
+            return True
+    return False
+
+
+@njit
 def update_node_connections(
     my,
     rho_tmp,
@@ -275,31 +307,33 @@ def update_node_connections(
     connection_type,
     code_version=2,
 ):
-    connect_and_stop = False
-    if agent1 != agent2:
+    """Returns True if two agents should be connected, else False"""
 
-        if rho_tmp == 0:
-            connect_and_stop = True
-        else:
-            if np.exp(-my.dist(agent1, agent2) * rho_tmp) > np.random.rand():
-                connect_and_stop = True
+    if agent1 == agent2:
+        return False
 
-        if connect_and_stop:
+    dist_accepted = rho_tmp == 0 or my.dist_accepted(agent1, agent2, rho_tmp)
+    if not dist_accepted:
+        # try and reconnect to increase clustering effect
+        if not cluster_retry_succesful(my, agent1, agent2, rho_tmp):
+            return False
 
-            if agent1 not in my.connections[agent2] and agent2 not in my.connections[agent1]:
+    alread_added = agent1 in my.connections[agent2] or agent2 in my.connections[agent1]
+    if alread_added:
+        return False
 
-                my.connections[agent1].append(np.uint32(agent2))
-                my.connections[agent2].append(np.uint32(agent1))
+    my.connections[agent1].append(np.uint32(agent2))
+    my.connections[agent2].append(np.uint32(agent1))
 
-                if code_version >= 2:
-                    connection_type = np.uint8(connection_type)
-                    my.connections_type[agent1].append(connection_type)
-                    my.connections_type[agent2].append(connection_type)
+    if code_version >= 2:
+        connection_type = np.uint8(connection_type)
+        my.connections_type[agent1].append(connection_type)
+        my.connections_type[agent2].append(connection_type)
 
-                my.number_of_contacts[agent1] += 1
-                my.number_of_contacts[agent2] += 1
+    my.number_of_contacts[agent1] += 1
+    my.number_of_contacts[agent2] += 1
 
-    return connect_and_stop
+    return True
 
 
 @njit
@@ -496,8 +530,7 @@ def compute_initial_agents_to_infect(my, possible_agents):
         while len(initial_agents_to_infect) < my.cfg.N_init:
             proposed_agent = single_random_choice(possible_agents)
 
-            r = my.dist(outbreak_agent, proposed_agent)
-            if np.exp(-r * rho_init_local_outbreak) > np.random.rand():
+            if my.dist_accepted(outbreak_agent, proposed_agent, rho_init_local_outbreak):
                 if proposed_agent not in initial_agents_to_infect:
                     initial_agents_to_infect.append(proposed_agent)
         return np.asarray(initial_agents_to_infect, dtype=np.uint32)
@@ -908,3 +941,33 @@ def run_simulation(
         print("N_positive_tested", N_positive_tested)
 
     return out_time, out_state_counts, out_my_state
+
+
+# ███    ███  █████  ██████  ████████ ██ ███    ██ ██    ██
+# ████  ████ ██   ██ ██   ██    ██    ██ ████   ██  ██  ██
+# ██ ████ ██ ███████ ██████     ██    ██ ██ ██  ██   ████
+# ██  ██  ██ ██   ██ ██   ██    ██    ██ ██  ██ ██    ██
+# ██      ██ ██   ██ ██   ██    ██    ██ ██   ████    ██
+#
+
+#%%
+
+
+@njit
+def compute_my_cluster_coefficient(my):
+    """calculates my cluster cooefficent
+    (np.mean of the first output gives cluster coeff for whole network )
+    """
+
+    cluster_coefficient = np.zeros(my.cfg.N_tot, dtype=np.float32)
+    for agent1 in range(my.cfg.N_tot):
+        counter = 0
+        total = 0
+        for j, contact in enumerate(my.connections[agent1]):
+            for k in range(j + 1, my.number_of_contacts[agent1]):
+                if contact in my.connections[my.connections[agent1][k]]:
+                    counter += 1
+                    break
+                total += 1
+        cluster_coefficient[agent1] = counter / total
+    return cluster_coefficient

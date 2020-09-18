@@ -12,4 +12,5 @@ algo: 2  # node connection algorithm, ignore if version >= 2
 N_init: 100  # Initial Infected
 lambda_E: 1.0  # E->I, Lambda(from E states)
 lambda_I: 1.0  # I->R, Lambda(from I states)
-make_random_initial_infections: 1
+make_random_initial_infections: 1 # 1 = True = Make random infections. Otherwise 0 = False = Infections around a single agent
+N_connect_retries: 0 # number of times to try and reconnect two agents
