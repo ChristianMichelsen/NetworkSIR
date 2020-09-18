@@ -9,6 +9,7 @@ from numba.types import ListType, DictType, unicode_type
 
 from src.utils import utils
 
+#%%
 
 #      ██ ██ ████████      ██████ ██       █████  ███████ ███████ ███████ ███████
 #      ██ ██    ██        ██      ██      ██   ██ ██      ██      ██      ██
@@ -18,6 +19,7 @@ from src.utils import utils
 #
 # http://patorjk.com/software/taag/#p=display&f=ANSI%20Regular&t=Version%202%0A%20
 
+#%%
 
 spec_cfg = {
     "version": nb.float32,
@@ -94,6 +96,7 @@ spec = {
     "infection_weight": nb.float64[:],
     "number_of_contacts": nb.uint16[:],
     "state": nb.int8[:],
+    "nearest_tent": nb.uint16[:],
     "cfg": nb_cfg_type,
 }
 
@@ -110,7 +113,8 @@ class My(object):
         self.connection_weight = np.ones(N_tot, dtype=np.float32)
         self.infection_weight = np.ones(N_tot, dtype=np.float64)
         self.number_of_contacts = np.zeros(N_tot, dtype=nb.uint16)
-        self.state = np.full(N_tot, -1, dtype=np.int8)
+        self.state = np.full(N_tot, fill_value=-1, dtype=np.int8)
+        self.nearest_tent = np.zeros(N_tot, dtype=np.uint16)
         self.cfg = nb_cfg
 
     def dist(self, agent1, agent2):
@@ -174,12 +178,14 @@ class Gillespie(object):
         self.cumulative_sum_infection_rates[my.state[agent] :] += rate
 
 
+#%%
 # ██    ██ ███████ ██████  ███████ ██  ██████  ███    ██      ██
 # ██    ██ ██      ██   ██ ██      ██ ██    ██ ████   ██     ███
 # ██    ██ █████   ██████  ███████ ██ ██    ██ ██ ██  ██      ██
 #  ██  ██  ██      ██   ██      ██ ██ ██    ██ ██  ██ ██      ██
 #   ████   ███████ ██   ██ ███████ ██  ██████  ██   ████      ██
 #
+#%%
 
 
 @njit
@@ -243,13 +249,13 @@ def v1_connect_nodes(my):
         run_algo(my, PP, rho_tmp)
 
 
+#%%
 # ██    ██ ███████ ██████  ███████ ██  ██████  ███    ██     ██████
 # ██    ██ ██      ██   ██ ██      ██ ██    ██ ████   ██          ██
 # ██    ██ █████   ██████  ███████ ██ ██    ██ ██ ██  ██      █████
 #  ██  ██  ██      ██   ██      ██ ██ ██    ██ ██  ██ ██     ██
 #   ████   ███████ ██   ██ ███████ ██  ██████  ██   ████     ███████
-
-
+#
 #%%
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -943,13 +949,13 @@ def run_simulation(
     return out_time, out_state_counts, out_my_state
 
 
+#%%
 # ███    ███  █████  ██████  ████████ ██ ███    ██ ██    ██
 # ████  ████ ██   ██ ██   ██    ██    ██ ████   ██  ██  ██
 # ██ ████ ██ ███████ ██████     ██    ██ ██ ██  ██   ████
 # ██  ██  ██ ██   ██ ██   ██    ██    ██ ██  ██ ██    ██
 # ██      ██ ██   ██ ██   ██    ██    ██ ██   ████    ██
 #
-
 #%%
 
 
@@ -971,3 +977,41 @@ def compute_my_cluster_coefficient(my):
                 total += 1
         cluster_coefficient[agent1] = counter / total
     return cluster_coefficient
+
+
+@njit
+def initialize_tents(my, N_tents):
+
+    """Pick N_tents tents in random positions and compute which tent each
+    person is nearest to and connect that person to that tent.
+    """
+
+    N_tot = my.cfg.N_tot
+
+    tent_positions = np.zeros((N_tents, 2), np.float32)
+    for i in range(N_tents):
+        tent_positions[i] = my.coordinates[np.random.randint(N_tot)]
+
+    tent_counter = np.zeros(N_tents, np.uint32)
+    for agent in range(N_tot):
+        distances = [
+            utils.haversine_scipy(my.coordinates[agent], p_tent) for p_tent in tent_positions
+        ]
+        closest_tent = np.argmin(distances)
+        my.nearest_tent[agent] = closest_tent
+        tent_counter[closest_tent] += 1
+
+    return tent_positions, tent_counter
+
+
+# @njit
+# def initialize_kommuner(N_tot, my_kommune, kommune_names):
+#     my_label = np.zeros(N_tot, np.int32)
+#     people_per_kommune = np.zeros(len(kommune_names), np.int32)
+#     for agent, agent_kommune in enumerate(my_kommune):
+#         for ith_kommune, kommune_name in enumerate(kommune_names):
+#             if agent_kommune == kommune_name:
+#                 people_per_kommune[ith_kommune] += 1
+#                 my_label[agent] = ith_kommune
+#                 break
+#     return my_label, np.arange(len(kommune_names)), people_per_kommune

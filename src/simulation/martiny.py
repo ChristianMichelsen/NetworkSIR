@@ -1,193 +1,27 @@
-from matplotlib.pyplot import xticks
 import numpy as np
-import pandas as pd
+from numba import njit
 
-from pathlib import Path
-import multiprocessing as mp
-import matplotlib.pyplot as plt
-import time as Time
-import h5py
-import psutil
-import warnings
-from importlib import reload
-from contexttimer import Timer
-import os
-from IPython.display import display
-from contexttimer import Timer
+# @njit
+# def initialize_tents(coordinates, N_tot, N_tents):
 
+#     tent_position = np.zeros((N_tents, 2), np.float32)
+#     for i in range(N_tents):
+#         tent_position[i] = coordinates[np.random.randint(N_tot)]
 
-import numba as nb
-from numba import (
-    njit,
-    prange,
-    objmode,
-    typeof,
-)  # conda install -c numba/label/dev numba
-from numba.typed import List, Dict
+#     my_closest_tent = np.zeros(N_tot, np.int16)
+#     people_per_tent = np.zeros(N_tents, np.int32)
+#     for agent in range(N_tot):
+#         closest_tent = -1
+#         r_min = 10e10
+#         for i_tent, tent_position in enumerate(tent_position):
+#             r = utils.haversine_scipy(coordinates[agent], tent_position)
+#             if r < r_min:
+#                 r_min = r
+#                 closest_tent = i_tent
+#         my_closest_tent[agent] = closest_tent
+#         people_per_tent[closest_tent] += 1
 
-from numba.types import Set
-from numba.core.errors import (
-    NumbaTypeSafetyWarning,
-    NumbaExperimentalFeatureWarning,
-    NumbaPendingDeprecationWarning,
-)
-
-
-import awkward as awkward0  # conda install awkward0, conda install -c conda-forge pyarrow
-import awkward1 as ak  # pip install awkward1
-
-try:
-    from src import utils
-    from src import simulation_utils
-except ImportError:
-    import utils
-    import simulation_utils
-
-np.set_printoptions(linewidth=200)
-do_memory_tracking = False
-
-
-@njit
-def set_connections_weight(my_connection_weight, agent, sigma_mu):
-    """ How introvert / extrovert you are. How likely you are at having many contacts in your network."""
-    if np.random.rand() < sigma_mu:
-        my_connection_weight[agent] = 0.1 - np.log(np.random.rand())
-    else:
-        my_connection_weight[agent] = 1.1
-
-
-@njit
-def set_infection_weight(my_infection_weight, agent, sigma_beta, beta):
-    " How much of a super sheader are you?"
-    if np.random.rand() < sigma_beta:
-        my_infection_weight[agent] = -np.log(np.random.rand()) * beta
-    else:
-        my_infection_weight[agent] = beta
-
-
-#%%
-
-
-@njit
-def place_and_connect_families(
-    N_tot,
-    people_in_household,
-    age_distribution_per_people_in_household,
-    coordinates,
-    sigma_mu,
-    sigma_beta,
-    beta,
-):
-
-    all_indices = np.arange(N_tot)
-    np.random.shuffle(all_indices)
-
-    my_age = np.zeros(N_tot, dtype=np.uint8)
-    my_connections = utils.initialize_nested_lists(N_tot, dtype=np.uint32)
-    my_connections_type = utils.initialize_nested_lists(N_tot, dtype=np.uint8)
-    my_coordinates = np.zeros((N_tot, 2), dtype=np.float32)
-
-    my_connection_weight = np.ones(N_tot, dtype=np.float32)
-    my_infection_weight = np.ones(N_tot, dtype=np.float64)
-
-    my_number_of_contacts = np.zeros(N_tot, dtype=np.uint16)
-
-    N_dim_people_in_household, N_ages = age_distribution_per_people_in_household.shape
-    assert N_dim_people_in_household == len(people_in_household)
-    people_index_to_value = np.arange(1, N_dim_people_in_household + 1)
-
-    counter_ages = np.zeros(N_ages, dtype=np.uint16)
-    agents_in_age_group = utils.initialize_nested_lists(N_ages, dtype=np.uint32)
-
-    mu_counter = 0
-    agent = 0
-    do_continue = True
-    while do_continue:
-
-        agent0 = agent
-
-        house_index = all_indices[agent]
-
-        N_people_in_house_index = simulation_utils.rand_choice_nb(people_in_household)
-        N_people_in_house = people_index_to_value[N_people_in_house_index]
-
-        # if N_in_house would increase agent to over N_tot,
-        # set N_people_in_house such that it fits and break loop
-        if agent + N_people_in_house >= N_tot:
-            N_people_in_house = N_tot - agent
-            do_continue = False
-
-        for _ in range(N_people_in_house):
-
-            age_index = simulation_utils.rand_choice_nb(
-                age_distribution_per_people_in_household[N_people_in_house_index]
-            )
-
-            age = age_index  # just use age index as substitute for age
-            my_age[agent] = age
-            counter_ages[age_index] += 1
-            agents_in_age_group[age_index].append(np.uint32(agent))
-
-            my_coordinates[agent] = coordinates[house_index]
-
-            set_connections_weight(my_connection_weight, agent, sigma_mu)
-            set_infection_weight(my_infection_weight, agent, sigma_beta, beta)
-
-            agent += 1
-
-        # add agents to each others networks (connections)
-        for agent1 in range(agent0, agent0 + N_people_in_house):
-            for agent2 in range(agent1, agent0 + N_people_in_house):
-                if agent1 != agent2:
-                    my_connections[agent1].append(np.uint32(agent2))
-                    my_connections[agent2].append(np.uint32(agent1))
-                    my_connections_type[agent1].append(np.uint8(0))
-                    my_connections_type[agent2].append(np.uint8(0))
-                    # my_index_in_contact[agent2].append(my_number_of_contacts[agent1])
-                    my_number_of_contacts[agent1] += 1
-                    my_number_of_contacts[agent2] += 1
-                    mu_counter += 1
-
-    agents_in_age_group = utils.nested_lists_to_list_of_array(agents_in_age_group)
-
-    return (
-        my_age,
-        my_connections,
-        my_coordinates,
-        my_connection_weight,
-        my_infection_weight,
-        mu_counter,
-        counter_ages,
-        agents_in_age_group,
-        my_connections_type,
-        my_number_of_contacts,
-    )
-
-
-#%%
-
-
-@njit
-def initialize_tents(coordinates, N_tot, N_tents):
-
-    tent_position = np.zeros((N_tents, 2), np.float32)
-    for i in range(N_tents):
-        tent_position[i] = coordinates[np.random.randint(N_tot)]
-
-    my_closest_tent = np.zeros(N_tot, np.int16)
-    people_per_tent = np.zeros(N_tents, np.int32)
-    for agent in range(N_tot):
-        closest_tent = -1
-        r_min = 10e10
-        for i_tent, tent_position in enumerate(tent_position):
-            r = utils.haversine_scipy(coordinates[agent], tent_position)
-            if r < r_min:
-                r_min = r
-                closest_tent = i_tent
-        my_closest_tent[agent] = closest_tent
-        people_per_tent[closest_tent] += 1
-
-    return my_closest_tent, tent_position, people_per_tent
+#     return my_closest_tent, tent_position, people_per_tent
 
 
 @njit
@@ -201,7 +35,6 @@ def initialize_kommuner(N_tot, my_kommune, kommune_names):
                 my_label[agent] = ith_kommune
                 break
     return my_label, np.arange(len(kommune_names)), people_per_kommune
-
 
 
 #%%
@@ -1268,74 +1101,6 @@ def remove_intervention_at_label(
     )
 
 
-@njit
-def nb_do_bug_check(
-    step_number,
-    continue_run,
-    g_total_sum_infections,
-    g_total_sum_of_state_changes,
-    verbose,
-    state_total_counts,
-    N_states,
-    N_tot,
-    accept,
-    g_cumulative_sum_of_state_changes,
-    ra1,
-    s,
-    x,
-    g_cumulative_sum_infection_rates,
-    day,
-):
-    if day > 1200:
-        continue_run = False
-
-    if step_number > 100_000_000:
-        print("step_number > 100_000_000")
-        continue_run = False
-
-    if (g_total_sum_infections + g_total_sum_of_state_changes < 0.0001) and (
-        g_total_sum_of_state_changes + g_total_sum_infections > -0.00001
-    ):
-        continue_run = False
-        print("Equilibrium")
-
-    if state_total_counts[N_states - 1] > N_tot - 10:
-        if True:
-            print("2/3 through")
-        continue_run = False
-
-    # Check for bugs
-    if not accept:
-        print("\nNo Chosen rate")
-        print("s: \t", s)
-        print("g_total_sum_infections: \t", g_total_sum_infections)
-        print("g_cumulative_sum_infection_rates: \t", g_cumulative_sum_infection_rates)
-        print("g_cumulative_sum_of_state_changes: \t", g_cumulative_sum_of_state_changes)
-        print("x: \t", x)
-        print("ra1: \t", ra1)
-        continue_run = False
-
-    if (g_total_sum_of_state_changes < 0) and (g_total_sum_of_state_changes > -0.001):
-        print("total g sum problem")
-        g_total_sum_of_state_changes = 0
-
-    if (g_total_sum_infections < 0) and (g_total_sum_infections > -0.001):
-        print("total total sum infection problem")
-        g_total_sum_infections = 0
-
-    if (g_total_sum_of_state_changes < 0) or (g_total_sum_infections < 0):
-        print("\nNegative Problem", g_total_sum_of_state_changes, g_total_sum_infections)
-        print("s: \t", s)
-        print("g_total_sum_infections: \t", g_total_sum_infections)
-        print("g_cumulative_sum_infection_rates: \t", g_cumulative_sum_infection_rates)
-        print("g_cumulative_sum_of_state_changes: \t", g_cumulative_sum_of_state_changes)
-        print("x: \t", x)
-        print("ra1: \t", ra1)
-        continue_run = False
-
-    return continue_run, g_total_sum_of_state_changes, g_total_sum_infections
-
-
 #%%
 
 
@@ -1850,92 +1615,3 @@ class Simulation:
             )
             if savefig:
                 fig.savefig(self.filenames["memory"].replace(".txt", ".pdf"))
-
-
-#%%
-
-
-def run_full_simulation(filename, verbose=False, force_rerun=False, only_initialize_network=False):
-
-    with Timer() as t, warnings.catch_warnings():
-        if not verbose:
-            warnings.simplefilter("ignore", NumbaTypeSafetyWarning)
-            warnings.simplefilter("ignore", NumbaExperimentalFeatureWarning)
-            warnings.simplefilter("ignore", NumbaPendingDeprecationWarning)
-
-        simulation = Simulation(filename, verbose)
-        simulation.initialize_network(force_rerun=force_rerun)
-        if only_initialize_network:
-            return None
-
-        simulation.make_initial_infections()
-        simulation.run_simulation()
-        simulation.make_dataframe()
-        simulation.save_simulation_results(time_elapsed=t.elapsed)
-        simulation.save_memory_figure()
-
-        if verbose and simulation.ID == 0:
-            print(f"\n\n{simulation.cfg}\n")
-            print(simulation.df_change_points)
-
-    if verbose:
-        print("\n\nFinished!!!")
-
-
-reload(utils)
-reload(simulation_utils)
-
-verbose = True
-force_rerun = False
-filename = "Data/ABN/N_tot__58000__N_init__100__N_ages__10__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2/N_tot__58000__N_init__100__N_ages__1__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__rho__0.0__lambda_E__1.0__lambda_I__1.0__epsilon_rho__0.01__beta_scaling__1.0__age_mixing__1.0__algo__2__ID__000.csv"
-# filename = filename.replace('ID__000', 'ID__001')
-# filename = filename.replace('N_tot__58000', 'N_tot__10000')
-filename = filename.replace("N_tot__58000", "N_tot__100000")
-
-
-# if running just til file
-if Path("").cwd().stem == "src":
-
-    with Timer() as t:
-        simulation = Simulation(filename, verbose)
-        simulation.initialize_network(force_rerun=force_rerun)
-        simulation.make_initial_infections()
-        simulation.run_simulation()
-        df = simulation.make_dataframe()
-        display(df)
-        # simulation.save_simulation_results(time_elapsed=t.elapsed)
-        # simulation.save_memory_figure()
-
-    # if False:
-    #     my_number_of_contacts = simulation.my_number_of_contacts
-    #     # counter_ages = simulation.counter_ages
-    #     agents_in_age_group = simulation.agents_in_age_group
-    #     fig, ax = plt.subplots(figsize=(10, 6))
-    #     for i, agents in enumerate(agents_in_age_group):
-    #         ax.hist(my_number_of_contacts[agents], 50, label=i, histtype='step', lw=2)
-    #     ax.legend()
-
-    # if False:
-
-    #     import pyarrow as pa
-    #     import pyarrow.parquet as pq
-
-    #     x = List()
-    #     x.append(np.arange(2))
-    #     x.append(np.arange(3))
-    #     y = ak.from_iter(x)
-    #     ak.to_parquet(x, "x.parquet")
-    #     ak.to_parquet(y, "y.parquet")
-
-    #     arrow_x = ak.to_arrow(x)
-    #     arrow_y = ak.to_arrow(y)
-
-    #     table_x = pq.read_table('x.parquet')
-    #     table_y = pq.read_table('y.parquet')
-
-    #     table_x.to_pandas()
-    #     table_y.to_pandas()
-
-    #     table_x.to_pydict()
-
-    # pa.Table.from_pydict({'x': arrow_x, 'y': })
