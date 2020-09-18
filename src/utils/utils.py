@@ -455,6 +455,8 @@ def NumbaMutableArray(offsets, content, dtype):
     return MetaNumbaMutableArray(offsets, content)
 
 
+# "Nested/Mutable" Arrays are faster than list of arrays which are faster than lists of lists
+
 class MutableArray:
 
     """The MutableArray is basically just a simple version of Awkward Array with _mutable_ data. Also allows the array to be used in zip/enumerate in numba code by using the .array property (not needed in awkward version >= 0.2.32)."""
@@ -969,6 +971,10 @@ def load_coordinates(coordinates_filename, N_tot, ID):
     index = np.arange(len(coordinates), dtype=np.uint32)
     index_subset = np.random.choice(index, N_tot, replace=False)
     return coordinates[index_subset], index_subset
+
+
+def load_coordinates_indices(coordinates_filename, N_tot, ID):
+    return load_coordinates(coordinates_filename, N_tot, ID)[1]
 
 
 #%%
