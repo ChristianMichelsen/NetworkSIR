@@ -66,10 +66,6 @@ class Simulation:
         self.df_coordinates = utils.load_df_coordinates(self.N_tot, self.ID)
         coordinates_raw = utils.df_coordinates_to_coordinates(self.df_coordinates)
 
-        # coordinates_raw, self.coordinate_indices = utils.load_coordinates(
-        #     self._Filename.coordinates_filename, cfg.N_tot, self.ID
-        # )
-
         if self.verbose:
             print(f"INITIALIZE VERSION {cfg.version} NETWORK")
 
@@ -139,37 +135,6 @@ class Simulation:
         self.N_ages = len(self.agents_in_age_group)
         return None
 
-    # def _save_network_initalization(self, agents_in_age_group, time_elapsed):
-    #     utils.make_sure_folder_exist(self.filenames["network_initialisation"])
-    #     with h5py.File(self.filenames["network_initialisation"], "w") as f:  #
-    #         f.create_dataset(
-    #             "cfg_str", data=str(self.cfg)
-    #         )  # import ast; ast.literal_eval(str(cfg))
-    #         f.create_dataset("my.age", data=self.my.age)
-    #         f.create_dataset("my.number_of_contacts", data=self.my.number_of_contacts)
-    #         f.create_dataset("my.infection_weight", data=self.my.infection_weight)
-    #         awkward0.hdf5(f)["my.connections"] = ak.to_awkward0(my.connections)
-    #         awkward0.hdf5(f)["my.connections_type"] = ak.to_awkward0(my.connections_type)
-    #         awkward0.hdf5(f)["agents_in_age_group"] = ak.to_awkward0(agents_in_age_group)
-    #         for key, val in self.cfg.items():
-    #             f.attrs[key] = val
-    #         f.create_dataset("time_elapsed", data=time_elapsed)
-
-    # def _load_network_initalization(self):
-    #     with h5py.File(self.filenames["network_initialisation"], "r") as f:
-    #         self.my.age = f["my_age"][()]
-    #         self.my.number_of_contacts = f["my_number_of_contacts"][()]
-    #         self.my.infection_weight = f["my_infection_weight"][()]
-    #         my_connections = awkward0.hdf5(f)["my_connections"]
-    #         my_connections_type = awkward0.hdf5(f)["my_connections_type"]
-    #         agents_in_age_group = awkward0.hdf5(f)["agents_in_age_group"]
-    #     self.coordinate_indices = utils.load_coordinates_indices(
-    #         self._Filename.coordinates_filename, self.cfg.N_tot, self.ID
-    #     )
-    #     return (
-    #         ak.from_awkward0(agents_in_age_group),
-    #         ak.from_awkward0(my_connections),
-    #         ak.from_awkward0(my_connections_type),
     #     )
 
     def initialize_network(self, force_rerun=False, save_initial_network=True):
@@ -177,56 +142,6 @@ class Simulation:
 
         with Timer() as t:
             self._initialize_network()
-
-        # OSError_flag = False
-
-        # filename_network_init = self.filenames["network_initialisation"]
-
-        # # try to load file (except if forced to rerun)
-        # if not force_rerun:
-        #     try:
-        #         (
-        #             agents_in_age_group,
-        #             my_connections,
-        #             my_connections_type,
-        #         ) = self._load_network_initalization()
-        #         if self.verbose:
-        #             print(f"{filename_network_init} exists, continue with loading it")
-        #     except OSError as e:
-        #         if self.verbose:
-        #             if utils.file_exists(filename_network_init):
-        #                 print(f"{filename_network_init} does not exist, continue to create it")
-        #             else:
-        #                 print(f"{filename_network_init} had OSError, create a new one")
-        #         OSError_flag = True
-
-        # # if ran into OSError above or forced to rerun:
-        # if OSError_flag or force_rerun:
-
-        #     if self.verbose and not OSError_flag:
-        #         print(f"{filename_network_init} does not exist, creating it")
-
-        #     with Timer() as t:
-        #         self._initialize_network()
-        #     my_connections = utils.nested_list_to_awkward_array(self.my.connections)
-        #     my_connections_type = utils.nested_list_to_awkward_array(self.my.connections_type)
-
-        #     if save_initial_network:
-        #         try:
-        #             self._save_network_initalization(
-        #                 agents_in_age_group=agents_in_age_group,
-        #                 time_elapsed=t.elapsed,
-        #             )
-        #         except OSError as e:
-        #             print(
-        #                 f"\nSkipped saving network initialization for {self.filenames['network_initialisation']}"
-        #             )
-        #             print(e)
-
-        # self.agents_in_age_group = agents_in_age_group
-        # self.N_ages = len(self.agents_in_age_group)
-        # self.my_connections = utils.MutableArray(my_connections)
-        # self.my_connections_type = utils.MutableArray(my_connections_type)
 
     def make_initial_infections(self):
         utils.set_numba_random_seed(self.ID)
@@ -243,19 +158,10 @@ class Simulation:
         self.N_infectious_states = 4  # This means the 5'th state
         self.initial_ages_exposed = np.arange(self.N_ages)  # means that all ages are exposed
 
-        # self.my_rates = utils.initialize_my_rates(
-        #     self.my_infection_weight, self.my_number_of_contacts
-        # )
-
-        # self.my_state = np.full(cfg.N_tot, -1, dtype=np.int8)
         self.state_total_counts = np.zeros(self.N_states, dtype=np.uint32)
         self.agents_in_state = utils.initialize_nested_lists(self.N_states, dtype=np.uint32)
 
         self.g = nb_simulation.Gillespie(self.my, self.N_states)
-
-        # self.g_cumulative_sum_of_state_changes = np.zeros(self.N_states, dtype=np.float64)
-        # self.g_cumulative_sum_infection_rates = np.zeros(self.N_states, dtype=np.float64)
-        # self.my_sum_of_rates = np.zeros(cfg.N_tot, dtype=np.float64)
 
         self.SIR_transition_rates = utils.initialize_SIR_transition_rates(
             self.N_states, self.N_infectious_states, cfg
@@ -278,9 +184,23 @@ class Simulation:
         if self.verbose:
             print("RUN SIMULATION")
 
+        N_daily_tests = 0  # 20000  # TODO make Par?
+        labels = self.df_coordinates["idx"].values
+        interventions_to_apply = [0]
+        isolate = False
+
+        self.intervention = nb_simulation.Intervention(
+            N_tot=self.cfg.N_tot,
+            N_daily_tests=N_daily_tests,
+            labels=labels,
+            interventions_to_apply=interventions_to_apply,
+            isolate=isolate,
+        )
+
         res = nb_simulation.run_simulation(
             self.my,
             self.g,
+            self.intervention,
             self.state_total_counts,
             self.agents_in_state,
             self.N_states,
@@ -305,37 +225,6 @@ class Simulation:
         # save csv file
         df.to_csv(self.filename, index=False)
         return df
-
-    def save_simulation_results(self, save_only_ID_0=False, time_elapsed=None):
-
-        if save_only_ID_0 and self.ID != 0:
-            return None
-
-        utils.make_sure_folder_exist(self.filenames["network_network"], delete_file_if_exists=True)
-
-        # Saving HDF5 File
-        with h5py.File(self.filenames["network_network"], "w") as f:  #
-            f.create_dataset("coordinate_indices", data=self.coordinate_indices)
-            f.create_dataset("my.state", data=self.my.state)
-            f.create_dataset("my.number_of_contacts", data=self.my_number_of_contacts)
-            f.create_dataset("my.age", data=self.my.age)
-            f.create_dataset(
-                "cfg_str", data=str(self.cfg)
-            )  # import ast; ast.literal_eval(str(cfg))
-            f.create_dataset("df", data=utils.dataframe_to_hdf5_format(self.df))
-
-            if time_elapsed:
-                f.create_dataset("time_elapsed", data=time_elapsed)
-
-            for key, val in self.cfg.items():
-                f.attrs[key] = val
-
-        if self.verbose:
-            print("\n\n")
-            print("coordinates", utils.get_size(self.coordinates))
-            print("my_state", utils.get_size(self.my_state))
-            print("my_number_of_contacts", utils.get_size(self.my_number_of_contacts))
-            print("my_age", utils.get_size(self.my_age))
 
 
 #%%
@@ -366,9 +255,9 @@ def run_full_simulation(
         simulation.make_initial_infections()
         simulation.run_simulation()
         simulation.make_dataframe()
-        print("NOT SAVING SIM RESULTS")
-        if False:
-            simulation.save_simulation_results(time_elapsed=t.elapsed)
+        # print("NOT SAVING SIM RESULTS")
+        # if False:
+        # simulation.save_simulation_results(time_elapsed=t.elapsed)
 
         if verbose and simulation.ID == 0:
             print(f"\n\n{simulation.cfg}\n")
@@ -383,7 +272,7 @@ if utils.is_ipython and debugging:
     force_rerun = True
 
     filename = "Data/ABM/v__1.0__N_tot__58000__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__0__N_connect_retries__0/v__1.0__N_tot__58000__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__0__N_connect_retries__0__ID__000.csv"
-    # filename = filename.replace("N_connect_retries__0", "N_connect_retries__1")
+    filename = filename.replace("v__1.0", "v__2.0")
     # filename = filename.replace("rho__0.0__", "rho__0.1__")
 
     # reload(nb_simulation)
@@ -398,14 +287,5 @@ if utils.is_ipython and debugging:
     my = simulation.my
     cfg = simulation.cfg
     df_coordinates = simulation.df_coordinates
-
-    if False:
-
-        N_tents = 10
-
-        # reload(utils)
-        # reload(nb_simulation)
-        tent_positions, tent_counter = nb_simulation.initialize_tents(my, N_tents)
-        kommune_counter = nb_simulation.initialize_kommuner(my, simulation.df_coordinates)
-
-# %%
+    intervention = simulation.intervention
+    g = simulation.g
