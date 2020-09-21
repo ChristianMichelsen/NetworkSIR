@@ -63,9 +63,12 @@ class Simulation:
 
         cfg = self.cfg
 
-        coordinates_raw, self.coordinate_indices = utils.load_coordinates(
-            self._Filename.coordinates_filename, cfg.N_tot, self.ID
-        )
+        self.df_coordinates = utils.load_df_coordinates(self.N_tot, self.ID)
+        coordinates_raw = utils.df_coordinates_to_coordinates(self.df_coordinates)
+
+        # coordinates_raw, self.coordinate_indices = utils.load_coordinates(
+        #     self._Filename.coordinates_filename, cfg.N_tot, self.ID
+        # )
 
         if self.verbose:
             print(f"INITIALIZE VERSION {cfg.version} NETWORK")
@@ -136,38 +139,38 @@ class Simulation:
         self.N_ages = len(self.agents_in_age_group)
         return None
 
-    def _save_network_initalization(self, agents_in_age_group, time_elapsed):
-        utils.make_sure_folder_exist(self.filenames["network_initialisation"])
-        with h5py.File(self.filenames["network_initialisation"], "w") as f:  #
-            f.create_dataset(
-                "cfg_str", data=str(self.cfg)
-            )  # import ast; ast.literal_eval(str(cfg))
-            f.create_dataset("my.age", data=self.my.age)
-            f.create_dataset("my.number_of_contacts", data=self.my.number_of_contacts)
-            f.create_dataset("my.infection_weight", data=self.my.infection_weight)
-            awkward0.hdf5(f)["my.connections"] = ak.to_awkward0(my.connections)
-            awkward0.hdf5(f)["my.connections_type"] = ak.to_awkward0(my.connections_type)
-            awkward0.hdf5(f)["agents_in_age_group"] = ak.to_awkward0(agents_in_age_group)
-            for key, val in self.cfg.items():
-                f.attrs[key] = val
-            f.create_dataset("time_elapsed", data=time_elapsed)
+    # def _save_network_initalization(self, agents_in_age_group, time_elapsed):
+    #     utils.make_sure_folder_exist(self.filenames["network_initialisation"])
+    #     with h5py.File(self.filenames["network_initialisation"], "w") as f:  #
+    #         f.create_dataset(
+    #             "cfg_str", data=str(self.cfg)
+    #         )  # import ast; ast.literal_eval(str(cfg))
+    #         f.create_dataset("my.age", data=self.my.age)
+    #         f.create_dataset("my.number_of_contacts", data=self.my.number_of_contacts)
+    #         f.create_dataset("my.infection_weight", data=self.my.infection_weight)
+    #         awkward0.hdf5(f)["my.connections"] = ak.to_awkward0(my.connections)
+    #         awkward0.hdf5(f)["my.connections_type"] = ak.to_awkward0(my.connections_type)
+    #         awkward0.hdf5(f)["agents_in_age_group"] = ak.to_awkward0(agents_in_age_group)
+    #         for key, val in self.cfg.items():
+    #             f.attrs[key] = val
+    #         f.create_dataset("time_elapsed", data=time_elapsed)
 
-    def _load_network_initalization(self):
-        with h5py.File(self.filenames["network_initialisation"], "r") as f:
-            self.my.age = f["my_age"][()]
-            self.my.number_of_contacts = f["my_number_of_contacts"][()]
-            self.my.infection_weight = f["my_infection_weight"][()]
-            my_connections = awkward0.hdf5(f)["my_connections"]
-            my_connections_type = awkward0.hdf5(f)["my_connections_type"]
-            agents_in_age_group = awkward0.hdf5(f)["agents_in_age_group"]
-        self.coordinate_indices = utils.load_coordinates_indices(
-            self._Filename.coordinates_filename, self.cfg.N_tot, self.ID
-        )
-        return (
-            ak.from_awkward0(agents_in_age_group),
-            ak.from_awkward0(my_connections),
-            ak.from_awkward0(my_connections_type),
-        )
+    # def _load_network_initalization(self):
+    #     with h5py.File(self.filenames["network_initialisation"], "r") as f:
+    #         self.my.age = f["my_age"][()]
+    #         self.my.number_of_contacts = f["my_number_of_contacts"][()]
+    #         self.my.infection_weight = f["my_infection_weight"][()]
+    #         my_connections = awkward0.hdf5(f)["my_connections"]
+    #         my_connections_type = awkward0.hdf5(f)["my_connections_type"]
+    #         agents_in_age_group = awkward0.hdf5(f)["agents_in_age_group"]
+    #     self.coordinate_indices = utils.load_coordinates_indices(
+    #         self._Filename.coordinates_filename, self.cfg.N_tot, self.ID
+    #     )
+    #     return (
+    #         ak.from_awkward0(agents_in_age_group),
+    #         ak.from_awkward0(my_connections),
+    #         ak.from_awkward0(my_connections_type),
+    #     )
 
     def initialize_network(self, force_rerun=False, save_initial_network=True):
         utils.set_numba_random_seed(self.ID)
@@ -394,5 +397,15 @@ if utils.is_ipython and debugging:
 
     my = simulation.my
     cfg = simulation.cfg
+    df_coordinates = simulation.df_coordinates
+
+    if False:
+
+        N_tents = 10
+
+        # reload(utils)
+        # reload(nb_simulation)
+        tent_positions, tent_counter = nb_simulation.initialize_tents(my, N_tents)
+        kommune_counter = nb_simulation.initialize_kommuner(my, simulation.df_coordinates)
 
 # %%

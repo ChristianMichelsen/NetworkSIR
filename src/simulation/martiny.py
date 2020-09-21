@@ -1,41 +1,6 @@
 import numpy as np
 from numba import njit
 
-# @njit
-# def initialize_tents(coordinates, N_tot, N_tents):
-
-#     tent_position = np.zeros((N_tents, 2), np.float32)
-#     for i in range(N_tents):
-#         tent_position[i] = coordinates[np.random.randint(N_tot)]
-
-#     my_closest_tent = np.zeros(N_tot, np.int16)
-#     people_per_tent = np.zeros(N_tents, np.int32)
-#     for agent in range(N_tot):
-#         closest_tent = -1
-#         r_min = 10e10
-#         for i_tent, tent_position in enumerate(tent_position):
-#             r = utils.haversine_scipy(coordinates[agent], tent_position)
-#             if r < r_min:
-#                 r_min = r
-#                 closest_tent = i_tent
-#         my_closest_tent[agent] = closest_tent
-#         people_per_tent[closest_tent] += 1
-
-#     return my_closest_tent, tent_position, people_per_tent
-
-
-@njit
-def initialize_kommuner(N_tot, my_kommune, kommune_names):
-    my_label = np.zeros(N_tot, np.int32)
-    people_per_kommune = np.zeros(len(kommune_names), np.int32)
-    for agent, agent_kommune in enumerate(my_kommune):
-        for ith_kommune, kommune_name in enumerate(kommune_names):
-            if agent_kommune == kommune_name:
-                people_per_kommune[ith_kommune] += 1
-                my_label[agent] = ith_kommune
-                break
-    return my_label, np.arange(len(kommune_names)), people_per_kommune
-
 
 #%%
 
@@ -79,83 +44,84 @@ def nb_run_simulation(
     #     with objmode():
     #         track_memory('Simulation')
 
-    N_daily_tests = 20000  # TODO make Par?
-    N_daily_tests = int(N_daily_tests * N_tot / 5_800_000)  # number of random people tested per day
-    # day_found_infected is a list of integers with length N_tot. It represent if each agent have been found infected.
-    # If an entry is- = 1 the agent has not been found not being infected, else the Integer represent the day the agent was found infected
-    # this is the only needed data to save about the infected, and #infected/Tent can be generated from that
-    my_day_found_infected = np.ones(N_tot, dtype=np.int32) * -1
-    my_reason_for_test = (
-        np.ones(N_tot, dtype=np.int32) * -1
-    )  # reasons for test: 0: symptoms 1:random_test 2:tracing
-    positive_test_reasons = np.zeros(3, dtype=np.int32)  #
-    my_clicks_when_test = np.ones(N_tot, dtype=np.int32) * -1
-    my_clicks_when_test_result = np.ones(N_tot, dtype=np.int32) * -1
-    test_delay_in_clicks = np.array(
-        [0, 0, 25], dtype=np.int32
-    )  # clicks until test for entry 0: symptoms 1:random_test 2: tracing  10 clicks = 1 day
-    results_delay_in_clicks = np.array(
-        [5, 10, 5], dtype=np.int32
-    )  # clicks from test until results, results works for isolation for entry 0: symptoms 1: random_test 2:tracing 10 clicks = 1 day
+    # N_daily_tests = 20000  # TODO make Par?
+    # N_daily_tests = int(N_daily_tests * N_tot / 5_800_000)  # number of random people tested per day
+    # # day_found_infected is a list of integers with length N_tot. It represent if each agent have been found infected.
+    # # If an entry is- = 1 the agent has not been found not being infected, else the Integer represent the day the agent was found infected
+    # # this is the only needed data to save about the infected, and #infected/Tent can be generated from that
+    # my_day_found_infected = np.ones(N_tot, dtype=np.int32) * -1
+    # my_reason_for_test = (
+    #     np.ones(N_tot, dtype=np.int32) * -1
+    # )  # reasons for test: 0: symptoms 1:random_test 2:tracing
+    # positive_test_counter = np.zeros(3, dtype=np.int32)  #
+    # my_clicks_when_tested = np.ones(N_tot, dtype=np.int32) * -1
+    # my_clicks_when_tested_result = np.ones(N_tot, dtype=np.int32) * -1
+    # test_delay_in_clicks = np.array(
+    #     [0, 0, 25], dtype=np.int32
+    # )  # clicks until test for entry 0: symptoms 1:random_test 2: tracing  10 clicks = 1 day
+    # results_delay_in_clicks = np.array(
+    #     [5, 10, 5], dtype=np.int32
+    # )  # clicks from test until results, results works for isolation for entry 0: symptoms 1: random_test 2:tracing 10 clicks = 1 day
 
-    # p_infected_list = List() # each entry is the fraction of people in local area newlyfound infected for each infected person
-    chance_of_finding_infected = [
-        0.0,
-        0.15,
-        0.15,
-        0.15,
-        0.0,
-    ]  # When people moves into the ith I state, what is the chance to test them
-    days_looking_back = 7  # When looking for local outbreaks, how many days are we looking back
-    distance_cut = 10  # defines distance for when another person is local
+    # # p_infected_list = List() # each entry is the fraction of people in local area newlyfound infected for each infected person
+    # chance_of_finding_infected = [
+    #     0.0,
+    #     0.15,
+    #     0.15,
+    #     0.15,
+    #     0.0,
+    # ]  # When people moves into the ith I state, what is the chance to test them
+    # days_looking_back = 7  # When looking for local outbreaks, how many days are we looking back
+    # # distance_cut = 10  # defines distance for when another person is local
 
-    # Time and type of intervention against outbreak:
-    intervention_type = [
-        0
-    ]  # 0: Do nothing, 1: lockdown (jobs and schools), 2: Track (infected and their connections), 3: Cover (with face masks)
-    intervention_day = 1000  # If -1, this is done by simulated testing (tents!)
-    intervention_testbased = False  # Boolean flag if something is going wrong
-    is_in_lockdown = False  # Boolean flag if we are in lockdown
-    is_wearing_masks = False  # Boolean flag if mask enforcing are in place
-    tracking_rate = 0.5  # Fraction of connection we track
-    center_of_intervention = (
-        coordinates[1, 0],
-        coordinates[1, 1],
-    )  # We intervene in a circle with this center
-    r_intervention = 10000  # and this radius
-    # the rate reductions are list of list, first and second entry are rate reductions for the groups [family, job, other]
-    # the third entry is the chance of choosing the first set. As such you can have some follow the lockdown and some not or
-    # some one group being able to work from home and another isn't
-    masking_rate_reduction = [
-        [0, 0, 0.0],
-        [0, 0, 0.8],
-    ]  # rate reduction for the groups [family, job, other]
-    lockdown_rate_reduction = [
-        [0, 1, 0.6],
-        [0, 0.6, 0.6],
-    ]  # rate reduction for the groups [family, job, other]
-    isolation_rate_reduction = [
-        [0.2, 1.0, 1.0],
-        [0.0, 0.2, 0.2],
-    ]  # rate reduction for the groups [family, job, other]
-    tracking_rates = [
-        1,
-        0.8,
-        0,
-    ]  # fraction of connections we track for the groups [family, job, other]
-    frac_following_mask_rules = 0.8  # fraction donning the masks
-    isolate = False  # Do people who test positive isolate from all but family
-    lockdown_into_masking = True
-    N_labels = len(people_per_label)
-    intervention_type_at_tent = np.zeros(
-        N_labels, dtype=np.int32
-    )  # array to keep count of which intervention is at place at which tent # 0: Do nothing, 1: lockdown (jobs and schools), 2: Track (infected and their connections), 3: Cover (with face masks)
-    intervention_started = np.zeros(
-        N_labels, dtype=np.int32
-    )  # array to keep count of which intervention is at place at which tent # 0: Do nothing, 1: lockdown (jobs and schools), 2: Track (infected and their connections), 3: Cover (with face masks)
+    # # Time and type of intervention against outbreak:
+    # intervention_types = [
+    #     0
+    # ]  # 0: Do nothing, 1: lockdown (jobs and schools), 2: Track (infected and their connections), 3: Cover (with face masks)
+    # # intervention_day = 1000  # If -1, this is done by simulated testing (tents!)
+    # # intervention_testbased = False  # Boolean flag if something is going wrong
+    # # is_in_lockdown = False  # Boolean flag if we are in lockdown
+    # # is_wearing_masks = False  # Boolean flag if mask enforcing are in place
+    # # tracking_rate = 0.5  # Fraction of connection we track
+    # # center_of_intervention = (
+    #     # coordinates[1, 0],
+    #     # coordinates[1, 1],
+    # # )  # We intervene in a circle with this center
+    # # r_intervention = 10000  # and this radius
 
-    #    5  10 15  20  25  30
-    # age_test_bias = [50,50,100,250,250,250,250,250,250,250,250,250,200,200,200,200,250,250]/10000 # number of test per 10000
+    # # the rate reductions are list of list, first and second entry are rate reductions for the groups [family, job, other]
+    # # the third entry is the chance of choosing the first set. As such you can have some follow the lockdown and some not or
+    # # some one group being able to work from home and another isn't
+    # masking_rate_reduction = [
+    #     [0, 0, 0.0],
+    #     [0, 0, 0.8],
+    # ]  # rate reduction for the groups [family, job, other]
+    # lockdown_rate_reduction = [
+    #     [0, 1, 0.6],
+    #     [0, 0.6, 0.6],
+    # ]  # rate reduction for the groups [family, job, other]
+    # isolation_rate_reduction = [
+    #     [0.2, 1.0, 1.0],
+    #     [0.0, 0.2, 0.2],
+    # ]  # rate reduction for the groups [family, job, other]
+    # tracking_rates = [
+    #     1,
+    #     0.8,
+    #     0,
+    # ]  # fraction of connections we track for the groups [family, job, other]
+    # # frac_following_mask_rules = 0.8  # fraction donning the masks
+    # isolate = False  # Do people who test positive isolate from all but family
+    # # lockdown_into_masking = True
+    # N_labels = len(people_per_label)
+    # intervention_type_at_label = np.zeros(
+    #     N_labels, dtype=np.int32
+    # )  # array to keep count of which intervention is at place at which tent # 0: Do nothing, 1: lockdown (jobs and schools), 2: Track (infected and their connections), 3: Cover (with face masks)
+    # intervention_started_at_label = np.zeros(
+    #     N_labels, dtype=np.int32
+    # )  # array to keep count of which intervention is at place at which tent # 0: Do nothing, 1: lockdown (jobs and schools), 2: Track (infected and their connections), 3: Cover (with face masks)
+
+    # #    5  10 15  20  25  30
+    # # age_test_bias = [50,50,100,250,250,250,250,250,250,250,250,250,200,200,200,200,250,250]/10000 # number of test per 10000
 
     out_time = List()
     out_state_counts = List()
@@ -189,9 +155,6 @@ def nb_run_simulation(
     # Run the simulation ################################
     continue_run = True
     while continue_run:
-        assert len(my_clicks_when_test_result) == N_tot, "my_clicks_when_test_result"
-        assert len(my_day_found_infected) == N_tot, "my_day problem"
-        assert len(my_reason_for_test) == N_tot, "my_reason_for_test prob"
 
         step_number += 1
         g_total_sum = (
@@ -240,13 +203,13 @@ def nb_run_simulation(
             # test people with symptoms
             if my_state[agent] >= N_infectious_states:
 
-                assert len(my_clicks_when_test) == N_tot
+                assert len(my_clicks_when_tested) == N_tot
                 assert (my_state[agent] - 4) < len(chance_of_finding_infected)
                 if (
                     np.random.rand() < chance_of_finding_infected[my_state[agent] - 4]
-                    and my_clicks_when_test[agent] == -1
+                    and my_clicks_when_tested[agent] == -1
                 ):
-                    my_clicks_when_test[agent] = (
+                    my_clicks_when_tested[agent] = (
                         click + test_delay_in_clicks[0]
                     )  # testing in n_clicks for symptom checking
                     my_reason_for_test[agent] = 0  # set the reason for testing to symptoms
@@ -367,13 +330,13 @@ def nb_run_simulation(
                 out_my_state.append(my_state.copy())
 
                 random_people_for_test = np.random.choice(N_tot, N_daily_tests)
-                my_clicks_when_test[random_people_for_test] = (
+                my_clicks_when_tested[random_people_for_test] = (
                     click + test_delay_in_clicks[1]
                 )  # choose N_daily_test people at random to test
                 my_reason_for_test[
                     random_people_for_test
                 ] = 1  # count that random test is the reason for test
-                intervention_type_at_tent = test_if_label_needs_intervention(
+                intervention_type_at_label = test_if_kommune_needs_intervention(
                     my_state,
                     my_day_found_infected,
                     my_label,
@@ -382,11 +345,11 @@ def nb_run_simulation(
                     N_tot,
                     day,
                     days_looking_back,
-                    intervention_type_at_tent,
+                    intervention_type_at_label,
                 )
                 (
-                    intervention_type_at_tent,
-                    intervention_started,
+                    intervention_type_at_label,
+                    intervention_started_at_label,
                     my_rates,
                     g_total_sum_infections,
                     my_sum_of_rates,
@@ -408,12 +371,12 @@ def nb_run_simulation(
                     g_total_sum_infections,
                     my_sum_of_rates,
                     g_cumulative_sum_infection_rates,
-                    intervention_type_at_tent,
-                    intervention_started,
+                    intervention_type_at_label,
+                    intervention_started_at_label,
                 )
-                for ith_tent, intervention in enumerate(intervention_type_at_tent):
-                    if intervention == 1 and intervention_started[ith_tent] == 0:
-                        intervention_started[ith_tent] = 1
+                for ith_tent, intervention in enumerate(intervention_type_at_label):
+                    if intervention == 1 and intervention_started_at_label[ith_tent] == 0:
+                        intervention_started_at_label[ith_tent] = 1
                         rate_reduction = lockdown_rate_reduction
                         (
                             my_rates,
@@ -440,11 +403,11 @@ def nb_run_simulation(
                 #         track_memory()
             for agent in range(N_tot):  # test everybody whose counter say we should test
                 # testing everybody who should be tested
-                if my_clicks_when_test[agent] == click:
+                if my_clicks_when_tested[agent] == click:
                     (
                         my_reason_for_test,
-                        my_clicks_when_test,
-                        my_clicks_when_test_result,
+                        my_clicks_when_tested,
+                        my_clicks_when_tested_result,
                         my_rates,
                         g_total_sum_infections,
                         my_sum_of_rates,
@@ -454,16 +417,16 @@ def nb_run_simulation(
                         my_day_found_infected,
                         test_delay_in_clicks,
                         results_delay_in_clicks,
-                        intervention_type,
+                        intervention_types,
                         tracking_rates,
-                        positive_test_reasons,
+                        positive_test_counter,
                         my_reason_for_test,
                         my_state,
                         my_rates,
                         my_connections,
                         my_connections_type,
-                        my_clicks_when_test,
-                        my_clicks_when_test_result,
+                        my_clicks_when_tested,
+                        my_clicks_when_tested_result,
                         infectious_states,
                         g_total_sum_infections,
                         my_sum_of_rates,
@@ -472,8 +435,8 @@ def nb_run_simulation(
                         day,
                     )
                 # getting results for people
-                if my_clicks_when_test_result[agent] == click:
-                    my_clicks_when_test_result[agent] = -1
+                if my_clicks_when_tested_result[agent] == click:
+                    my_clicks_when_tested_result[agent] = -1
                     my_day_found_infected[agent] = day
                     if isolate:
                         (
@@ -532,573 +495,573 @@ def nb_run_simulation(
         "the fraction of infected found was:",
         len(my_day_found_infected[my_day_found_infected >= 0]) / n_infected,
     )
-    print("Test reasons", positive_test_reasons)
+    print("Test reasons", positive_test_counter)
     return out_time, out_state_counts, out_my_state  # , out_H_state_total_counts
 
 
-@njit
-def test_if_label_needs_intervention(
-    my_state,
-    my_day_found_infected,
-    my_label,
-    label_index,
-    people_per_label,
-    N_tot,
-    day,
-    days_looking_back,
-    intervention_type_at_tent,
-    intervention_type_to_init=1,
-    threshold=0.004,
-):  # threshold is the fraction that need to be positive.
-    infected_per_tent = np.zeros(len(people_per_label), dtype=np.int32)
-    for agent, day_found in enumerate(my_day_found_infected):
-        if day_found > max(0, day - days_looking_back):
-            infected_per_tent[my_label[agent]] += 1
-    for infected, inhabitants, intervention_type, ith_tent in zip(
-        infected_per_tent,
-        people_per_label,
-        intervention_type_at_tent,
-        range(len(intervention_type_at_tent)),
-    ):
-        if (1.0 * infected / inhabitants) > threshold and intervention_type == 0:
-            print(
-                "lockdown at tent",
-                ith_tent,
-                "at day",
-                day,
-                "the num of infected is",
-                infected,
-                "/",
-                inhabitants,
-            )
+# @njit
+# def test_if_kommune_needs_intervention(
+#     my_state,
+#     my_day_found_infected,
+#     my_label,
+#     label_index,
+#     people_per_label,
+#     N_tot,
+#     day,
+#     days_looking_back,
+#     intervention_type_at_label,
+#     intervention_type_to_init=1,
+#     threshold=0.004,
+# ):  # threshold is the fraction that need to be positive.
+#     infected_per_tent = np.zeros(len(people_per_label), dtype=np.int32)
+#     for agent, day_found in enumerate(my_day_found_infected):
+#         if day_found > max(0, day - days_looking_back):
+#             infected_per_tent[my_label[agent]] += 1
+#     for infected, inhabitants, intervention_types, ith_tent in zip(
+#         infected_per_tent,
+#         people_per_label,
+#         intervention_type_at_label,
+#         range(len(intervention_type_at_label)),
+#     ):
+#         if (1.0 * infected / inhabitants) > threshold and intervention_types == 0:
+#             print(
+#                 "lockdown at tent",
+#                 ith_tent,
+#                 "at day",
+#                 day,
+#                 "the num of infected is",
+#                 infected,
+#                 "/",
+#                 inhabitants,
+#             )
 
-            intervention_type_at_tent[ith_tent] = intervention_type_to_init
-    return intervention_type_at_tent
+#             intervention_type_at_label[ith_tent] = intervention_type_to_init
+#     return intervention_type_at_label
 
 
-@njit
-def test_if_intervention_on_labels_can_be_removed(
-    my_state,
-    my_day_found_infected,
-    intervention_testbased,
-    day,
-    people_per_label,
-    days_looking_back,
-    my_label,
-    N_tot,
-    infectious_states,
-    my_connections,
-    my_connections_type,
-    my_rates,
-    my_infection_weight,
-    g_total_sum_infections,
-    my_sum_of_rates,
-    g_cumulative_sum_infection_rates,
-    intervention_type_at_tent,
-    intervention_started,
-    threshold=0.001,
-):
-    infected_per_tent = np.zeros(len(people_per_label), dtype=np.int32)
-    for agent, day_found in enumerate(my_day_found_infected):
-        if day_found > day - days_looking_back:
-            infected_per_tent[my_label[agent]] += 1
+# @njit
+# def test_if_intervention_on_labels_can_be_removed(
+#     my_state,
+#     my_day_found_infected,
+#     intervention_testbased,
+#     day,
+#     people_per_label,
+#     days_looking_back,
+#     my_label,
+#     N_tot,
+#     infectious_states,
+#     my_connections,
+#     my_connections_type,
+#     my_rates,
+#     my_infection_weight,
+#     g_total_sum_infections,
+#     my_sum_of_rates,
+#     g_cumulative_sum_infection_rates,
+#     intervention_type_at_label,
+#     intervention_started_at_label,
+#     threshold=0.001,
+# ):
+#     infected_per_tent = np.zeros(len(people_per_label), dtype=np.int32)
+#     for agent, day_found in enumerate(my_day_found_infected):
+#         if day_found > day - days_looking_back:
+#             infected_per_tent[my_label[agent]] += 1
 
-    for infected, inhabitants, intervention_type, ith_tent in zip(
-        infected_per_tent,
-        people_per_label,
-        intervention_type_at_tent,
-        range(len(intervention_type_at_tent)),
-    ):
-        if (1.0 * infected / inhabitants) < threshold and intervention_type != 0:
-            (
-                my_rates,
-                g_total_sum_infections,
-                my_sum_of_rates,
-                g_cumulative_sum_infection_rates,
-            ) = remove_intervention_at_label(
-                N_tot,
-                my_state,
-                my_label,
-                infectious_states,
-                my_connections,
-                my_connections_type,
-                my_rates,
-                my_infection_weight,
-                ith_tent,
-                g_total_sum_infections,
-                my_sum_of_rates,
-                g_cumulative_sum_infection_rates,
-            )
-            intervention_type_at_tent[ith_tent] = 0
-            intervention_started[ith_tent] = 0
-            print(
-                "remove lockdown at num of infected",
-                ith_tent,
-                "at day",
-                day,
-                "the num of infected is",
-                infected,
-                "/",
-                inhabitants,
-            )
+#     for infected, inhabitants, intervention_types, ith_tent in zip(
+#         infected_per_tent,
+#         people_per_label,
+#         intervention_type_at_label,
+#         range(len(intervention_type_at_label)),
+#     ):
+#         if (1.0 * infected / inhabitants) < threshold and intervention_types != 0:
+#             (
+#                 my_rates,
+#                 g_total_sum_infections,
+#                 my_sum_of_rates,
+#                 g_cumulative_sum_infection_rates,
+#             ) = remove_intervention_at_label(
+#                 N_tot,
+#                 my_state,
+#                 my_label,
+#                 infectious_states,
+#                 my_connections,
+#                 my_connections_type,
+#                 my_rates,
+#                 my_infection_weight,
+#                 ith_tent,
+#                 g_total_sum_infections,
+#                 my_sum_of_rates,
+#                 g_cumulative_sum_infection_rates,
+#             )
+#             intervention_type_at_label[ith_tent] = 0
+#             intervention_started_at_label[ith_tent] = 0
+#             print(
+#                 "remove lockdown at num of infected",
+#                 ith_tent,
+#                 "at day",
+#                 day,
+#                 "the num of infected is",
+#                 infected,
+#                 "/",
+#                 inhabitants,
+#             )
 
-    return (
-        intervention_type_at_tent,
-        intervention_started,
-        my_rates,
-        g_total_sum_infections,
-        my_sum_of_rates,
-        g_cumulative_sum_infection_rates,
+#     return (
+#         intervention_type_at_label,
+#         intervention_started_at_label,
+#         my_rates,
+#         g_total_sum_infections,
+#         my_sum_of_rates,
+#         g_cumulative_sum_infection_rates,
+#     )
+
+
+# @njit
+# def test_a_person(
+#     agent,
+#     my_day_found_infected,
+#     test_delay_in_clicks,
+#     results_delay_in_clicks,
+#     intervention_types,
+#     tracking_rates,
+#     positive_test_counter,
+#     my_reason_for_test,
+#     my_state,
+#     my_rates,
+#     my_connections,
+#     my_connections_type,
+#     my_clicks_when_tested,
+#     my_clicks_when_tested_result,
+#     infectious_states,
+#     g_total_sum_infections,
+#     my_sum_of_rates,
+#     g_cumulative_sum_infection_rates,
+#     click,
+#     day,
+# ):
+#     if my_state[agent] in infectious_states and my_day_found_infected[agent] == -1:
+#         my_clicks_when_tested_result[agent] = (
+#             click + results_delay_in_clicks[my_reason_for_test[agent]]
+#         )
+#         assert my_reason_for_test[agent] in (0, 1, 2)
+#         positive_test_counter[my_reason_for_test[agent]] += 1  # count reason found infected
+
+#         if 2 in intervention_types:  # check if tracking is on
+#             for ith_contact, contact in enumerate(my_connections[agent]):  # loop over contacts
+#                 if (
+#                     np.random.rand() < tracking_rates[my_connections_type[agent][ith_contact]]
+#                     and my_clicks_when_tested[contact] == -1
+#                 ):
+#                     my_reason_for_test[contact] = 2
+#                     my_clicks_when_tested[contact] = click + test_delay_in_clicks[2]
+#     my_clicks_when_tested[agent] = -1
+#     my_reason_for_test[agent] = -1
+#     return (
+#         my_reason_for_test,
+#         my_clicks_when_tested,
+#         my_clicks_when_tested_result,
+#         my_rates,
+#         g_total_sum_infections,
+#         my_sum_of_rates,
+#         g_cumulative_sum_infection_rates,
+#     )
+
+
+# @njit
+# def cut_rates_of_agent(
+#     agent,
+#     my_state,
+#     my_rates,
+#     my_connections,
+#     my_connections_type,
+#     rate_reduction,
+#     infectious_states,
+#     g_total_sum_infections,
+#     my_sum_of_rates,
+#     g_cumulative_sum_infection_rates,
+# ):
+#     # rate reduction is a 3 vector. All rates for agent is reduced by [home, job, other ]. Is used eq. for isolation
+#     agent_infected = my_state[agent] in infectious_states
+#     agent_infectable = my_state[agent] == -1
+#     agent_update_rate = 0.0
+#     # step 1 loop over all of an agents contact
+#     for ith_contact, contact in enumerate(my_connections[agent]):
+#         # update rates from agent to contact. Rate_reduction makes it depending on connection type
+#         rate = (
+#             my_rates[agent][ith_contact] * rate_reduction[my_connections_type[agent][ith_contact]]
+#         )
+#         my_rates[agent][ith_contact] -= rate
+
+#         # updates to gillespie sums, if agent is infected and contact is susceptible
+#         if agent_infected and my_state[contact] == -1:
+#             agent_update_rate += rate
+
+#         # loop over indexes of the contact to find_myself and set rate to 0
+#         for ith_contact_of_contact, possible_agent in enumerate(my_connections[contact]):
+
+#             # check if the contact found is myself
+#             if agent == possible_agent:
+
+#                 # update rates from contact to agent. Rate_reduction makes it depending on connection type
+#                 c_rate = (
+#                     my_rates[contact][ith_contact_of_contact]
+#                     * rate_reduction[my_connections_type[contact][ith_contact_of_contact]]
+#                 )
+#                 my_rates[contact][ith_contact_of_contact] -= c_rate
+
+#                 # updates to gillespie sums, if contact is infected and agent is susceptible
+#                 if my_state[contact] in infectious_states and agent_infectable:
+#                     g_total_sum_infections -= c_rate
+#                     my_sum_of_rates[contact] -= c_rate
+#                     g_cumulative_sum_infection_rates[my_state[contact] :] -= c_rate
+#                 break
+
+#     # actually updates to gillespie sums
+#     g_total_sum_infections -= agent_update_rate
+#     my_sum_of_rates[agent] -= agent_update_rate
+#     g_cumulative_sum_infection_rates[my_state[agent] :] -= agent_update_rate
+
+#     return (
+#         my_rates,
+#         g_total_sum_infections,
+#         my_sum_of_rates,
+#         g_cumulative_sum_infection_rates,
+#     )
+
+
+# @njit
+# def remove_and_reduce_rates_of_agent(
+#     agent,
+#     my_state,
+#     my_rates,
+#     my_connections,
+#     my_connections_type,
+#     rate_reduction,
+#     infectious_states,
+#     g_total_sum_infections,
+#     my_sum_of_rates,
+#     g_cumulative_sum_infection_rates,
+# ):
+#     # rate reduction is a 2 3-vectors. is used in lockdown intervention
+#     agent_infected = my_state[agent] in infectious_states
+#     agent_infectable = my_state[agent] == -1
+#     agent_update_rate = 0.0
+#     remove_rates = rate_reduction[0]
+#     reduce_rates = rate_reduction[1]
+
+#     # step 1 loop over all of an agents contact
+#     for ith_contact, contact in enumerate(my_connections[agent]):
+#         # update rates from agent to contact. Rate_reduction makes it depending on connection type
+#         act_rate_reduction = reduce_rates
+#         if np.random.rand() < remove_rates[my_connections_type[agent][ith_contact]]:
+#             act_rate_reduction = [1.0, 1.0, 1.0]
+
+#         rate = (
+#             my_rates[agent][ith_contact]
+#             * act_rate_reduction[my_connections_type[agent][ith_contact]]
+#         )
+#         my_rates[agent][ith_contact] -= rate
+
+#         # updates to gillespie sums, if agent is infected and contact is susceptible
+#         if agent_infected and my_state[contact] == -1:
+#             agent_update_rate += rate
+
+#         # loop over indexes of the contact to find_myself and set rate to 0
+#         for ith_contact_of_contact, possible_agent in enumerate(my_connections[contact]):
+
+#             # check if the contact found is myself
+#             if agent == possible_agent:
+
+#                 # update rates from contact to agent. Rate_reduction makes it depending on connection type
+#                 c_rate = (
+#                     my_rates[contact][ith_contact_of_contact]
+#                     * act_rate_reduction[my_connections_type[contact][ith_contact_of_contact]]
+#                 )
+#                 my_rates[contact][ith_contact_of_contact] -= c_rate
+
+#                 # updates to gillespie sums, if contact is infected and agent is susceptible
+#                 if my_state[contact] in infectious_states and agent_infectable:
+#                     g_total_sum_infections -= c_rate
+#                     my_sum_of_rates[contact] -= c_rate
+#                     g_cumulative_sum_infection_rates[my_state[contact] :] -= c_rate
+#                 break
+
+#     # actually updates to gillespie sums
+#     g_total_sum_infections -= agent_update_rate
+#     my_sum_of_rates[agent] -= agent_update_rate
+#     g_cumulative_sum_infection_rates[my_state[agent] :] -= agent_update_rate
+
+#     return (
+#         my_rates,
+#         g_total_sum_infections,
+#         my_sum_of_rates,
+#         g_cumulative_sum_infection_rates,
+#     )
+
+
+# @njit
+# def reduce_frac_rates_of_agent(
+#     agent,
+#     my_state,
+#     my_rates,
+#     my_connections,
+#     my_connections_type,
+#     rate_reduction,
+#     infectious_states,
+#     g_total_sum_infections,
+#     my_sum_of_rates,
+#     g_cumulative_sum_infection_rates,
+# ):
+#     # rate reduction is 2 3-vectors. is used for masking interventions
+#     agent_infected = my_state[agent] in infectious_states
+#     agent_infectable = my_state[agent] == -1
+#     agent_update_rate = 0.0
+#     remove_rates = rate_reduction[0]
+#     reduce_rates = rate_reduction[1]
+#     # step 1 loop over all of an agents contact
+#     for ith_contact, contact in enumerate(my_connections[agent]):
+#         # update rates from agent to contact. Rate_reduction makes it depending on connection type
+#         if np.random.rand() < remove_rates[my_connections_type[agent][ith_contact]]:
+#             act_rate_reduction = [0, 0, 0]
+#         else:
+#             act_rate_reduction = reduce_rates
+#         rate = (
+#             my_rates[agent][ith_contact]
+#             * act_rate_reduction[my_connections_type[agent][ith_contact]]
+#         )
+#         my_rates[agent][ith_contact] -= rate
+
+#         # updates to gillespie sums, if agent is infected and contact is susceptible
+#         if agent_infected and my_state[contact] == -1:
+#             agent_update_rate += rate
+
+#         # loop over indexes of the contact to find_myself and set rate to 0
+#         for ith_contact_of_contact, possible_agent in enumerate(my_connections[contact]):
+
+#             # check if the contact found is myself
+#             if agent == possible_agent:
+
+#                 # update rates from contact to agent. Rate_reduction makes it depending on connection type
+#                 c_rate = (
+#                     my_rates[contact][ith_contact_of_contact]
+#                     * rate_reduction[my_connections_type[contact][ith_contact_of_contact]]
+#                 )
+#                 my_rates[contact][ith_contact_of_contact] -= c_rate
+
+#                 # updates to gillespie sums, if contact is infected and agent is susceptible
+#                 if my_state[contact] in infectious_states and agent_infectable:
+#                     g_total_sum_infections -= c_rate
+#                     my_sum_of_rates[contact] -= c_rate
+#                     g_cumulative_sum_infection_rates[my_state[contact] :] -= c_rate
+#                 break
+
+#     # actually updates to gillespie sums
+#     g_total_sum_infections -= agent_update_rate
+#     my_sum_of_rates[agent] -= agent_update_rate
+#     g_cumulative_sum_infection_rates[my_state[agent] :] -= agent_update_rate
+
+#     return (
+#         my_rates,
+#         g_total_sum_infections,
+#         my_sum_of_rates,
+#         g_cumulative_sum_infection_rates,
+#     )
+
+
+# @njit
+# def reset_rates_of_agent(
+#     agent,
+#     my_state,
+#     infectious_states,
+#     my_connections,
+#     my_connections_type,
+#     my_rates,
+#     my_infection_weight,
+#     g_total_sum_infections,
+#     my_sum_of_rates,
+#     g_cumulative_sum_infection_rates,
+#     connection_type_weight=np.ones(
+#         3, dtype=np.float32
+#     ),  # [home, job, other] reset infection rate to ori times this number
+# ):
+#     agent_infected = my_state[agent] in infectious_states
+#     agent_infectable = my_state[agent] == -1
+#     agent_update_rate = 0.0
+#     for ith_contact, contact in enumerate(my_connections[agent]):
+#         infection_rate = (
+#             my_infection_weight[agent]
+#             * connection_type_weight[my_connections_type[agent][ith_contact]]
+#         )
+#         rate = infection_rate - my_rates[agent][ith_contact]
+#         my_rates[agent][ith_contact] = infection_rate
+
+#         if agent_infected and my_state[contact] == -1:
+#             agent_update_rate += rate
+
+#         # loop over indexes of the contact to find_myself and set rate to 0
+#         for ith_contact_of_contact, possible_agent in enumerate(my_connections[contact]):
+
+#             # check if the contact found is myself
+#             if agent == possible_agent:
+
+#                 # update rates from contact to agent.
+#                 c_rate = my_infection_weight[contact] - my_rates[contact][ith_contact_of_contact]
+#                 my_rates[contact][ith_contact_of_contact] = my_infection_weight[contact]
+
+#                 # updates to gillespie sums, if contact is infected and agent is susceptible
+#                 if my_state[contact] in infectious_states and agent_infectable:
+#                     g_total_sum_infections += c_rate
+#                     my_sum_of_rates[contact] += c_rate
+#                     g_cumulative_sum_infection_rates[my_state[contact] :] += c_rate
+#                 break
+
+#     # actually updates to gillespie sums
+#     g_total_sum_infections += agent_update_rate
+#     my_sum_of_rates[agent] += agent_update_rate
+#     g_cumulative_sum_infection_rates[my_state[agent] :] += agent_update_rate
+
+#     return (
+#         my_rates,
+#         g_total_sum_infections,
+#         my_sum_of_rates,
+#         g_cumulative_sum_infection_rates,
+#     )
+
+
+# @njit
+# def lockdown_on_label(
+#     N_tot,
+#     my_label,
+#     my_state,
+#     my_rates,
+#     my_connections,
+#     my_connections_type,
+#     rate_reduction,
+#     label,
+#     infectious_states,
+#     g_total_sum_infections,
+#     my_sum_of_rates,
+#     g_cumulative_sum_infection_rates,
+# ):
+#     # lockdown on all agent with a certain label (tent or municipality, or whatever else you define). Rate reduction is two vectors of length 3. First is the fraction of [home, job, others] rates to set to 0.
+#     # second is the fraction of reduction of the remaining [home, job, others] rates.
+#     # ie: [[0,0.8,0.8],[0,0.8,0.8]] means that 80% of your contacts on job and other is set to 0, and the remaining 20% is reduced by 80%.
+#     # loop over all agents
+#     for agent in range(N_tot):
+#         # calculate
+#         if my_label[agent] == label:
+#             (
+#                 my_rates,
+#                 g_total_sum_infections,
+#                 my_sum_of_rates,
+#                 g_cumulative_sum_infection_rates,
+#             ) = remove_and_reduce_rates_of_agent(
+#                 agent,
+#                 my_state,
+#                 my_rates,
+#                 my_connections,
+#                 my_connections_type,
+#                 rate_reduction,
+#                 infectious_states,
+#                 g_total_sum_infections,
+#                 my_sum_of_rates,
+#                 g_cumulative_sum_infection_rates,
+#             )
+#     return (
+#         my_rates,
+#         g_total_sum_infections,
+#         my_sum_of_rates,
+#         g_cumulative_sum_infection_rates,
     )
 
 
-@njit
-def test_a_person(
-    agent,
-    my_day_found_infected,
-    test_delay_in_clicks,
-    results_delay_in_clicks,
-    intervention_type,
-    tracking_rates,
-    positive_test_reasons,
-    my_reason_for_test,
-    my_state,
-    my_rates,
-    my_connections,
-    my_connections_type,
-    my_clicks_when_test,
-    my_clicks_when_test_result,
-    infectious_states,
-    g_total_sum_infections,
-    my_sum_of_rates,
-    g_cumulative_sum_infection_rates,
-    click,
-    day,
-):
-    if my_state[agent] in infectious_states and my_day_found_infected[agent] == -1:
-        my_clicks_when_test_result[agent] = (
-            click + results_delay_in_clicks[my_reason_for_test[agent]]
-        )
-        assert my_reason_for_test[agent] in (0, 1, 2)
-        positive_test_reasons[my_reason_for_test[agent]] += 1  # count reason found infected
+# @njit
+# def masking_on_label(
+#     N_tot,
+#     my_label,
+#     my_state,
+#     my_rates,
+#     my_connections,
+#     my_connections_type,
+#     rate_reduction,
+#     label,
+#     infectious_states,
+#     g_total_sum_infections,
+#     my_sum_of_rates,
+#     g_cumulative_sum_infection_rates,
+# ):
 
-        if 2 in intervention_type:  # check if tracking is on
-            for ith_contact, contact in enumerate(my_connections[agent]):  # loop over contacts
-                if (
-                    np.random.rand() < tracking_rates[my_connections_type[agent][ith_contact]]
-                    and my_clicks_when_test[contact] == -1
-                ):
-                    my_reason_for_test[contact] = 2
-                    my_clicks_when_test[contact] = click + test_delay_in_clicks[2]
-    my_clicks_when_test[agent] = -1
-    my_reason_for_test[agent] = -1
-    return (
-        my_reason_for_test,
-        my_clicks_when_test,
-        my_clicks_when_test_result,
-        my_rates,
-        g_total_sum_infections,
-        my_sum_of_rates,
-        g_cumulative_sum_infection_rates,
-    )
+#     # masking on all agent with a certain label (tent or municipality, or whatever else you define). Rate reduction is two vectors of length 3. First is the fraction of [home, job, others] rates to be effected by masks.
+#     # second is the fraction of reduction of the those [home, job, others] rates.
+#     # ie: [[0,0.2,0.2],[0,0.8,0.8]] means that your wear mask when around 20% of job and other contacts, and your rates to those is reduced by 80%
+#     # loop over all agents
+#     for agent in range(N_tot):
+#         # calculate
+#         if my_label[agent] == label:
+#             (
+#                 my_rates,
+#                 g_total_sum_infections,
+#                 my_sum_of_rates,
+#                 g_cumulative_sum_infection_rates,
+#             ) = reduce_frac_rates_of_agent(
+#                 agent,
+#                 my_state,
+#                 my_rates,
+#                 my_connections,
+#                 my_connections_type,
+#                 rate_reduction,
+#                 infectious_states,
+#                 g_total_sum_infections,
+#                 my_sum_of_rates,
+#                 g_cumulative_sum_infection_rates,
+#             )
+#     return (
+#         my_rates,
+#         g_total_sum_infections,
+#         my_sum_of_rates,
+#         g_cumulative_sum_infection_rates,
+#     )
 
 
-@njit
-def cut_rates_of_agent(
-    agent,
-    my_state,
-    my_rates,
-    my_connections,
-    my_connections_type,
-    rate_reduction,
-    infectious_states,
-    g_total_sum_infections,
-    my_sum_of_rates,
-    g_cumulative_sum_infection_rates,
-):
-    # rate reduction is a 3 vector. All rates for agent is reduced by [home, job, other ]. Is used eq. for isolation
-    agent_infected = my_state[agent] in infectious_states
-    agent_infectable = my_state[agent] == -1
-    agent_update_rate = 0.0
-    # step 1 loop over all of an agents contact
-    for ith_contact, contact in enumerate(my_connections[agent]):
-        # update rates from agent to contact. Rate_reduction makes it depending on connection type
-        rate = (
-            my_rates[agent][ith_contact] * rate_reduction[my_connections_type[agent][ith_contact]]
-        )
-        my_rates[agent][ith_contact] -= rate
-
-        # updates to gillespie sums, if agent is infected and contact is susceptible
-        if agent_infected and my_state[contact] == -1:
-            agent_update_rate += rate
-
-        # loop over indexes of the contact to find_myself and set rate to 0
-        for ith_contact_of_contact, possible_agent in enumerate(my_connections[contact]):
-
-            # check if the contact found is myself
-            if agent == possible_agent:
-
-                # update rates from contact to agent. Rate_reduction makes it depending on connection type
-                c_rate = (
-                    my_rates[contact][ith_contact_of_contact]
-                    * rate_reduction[my_connections_type[contact][ith_contact_of_contact]]
-                )
-                my_rates[contact][ith_contact_of_contact] -= c_rate
-
-                # updates to gillespie sums, if contact is infected and agent is susceptible
-                if my_state[contact] in infectious_states and agent_infectable:
-                    g_total_sum_infections -= c_rate
-                    my_sum_of_rates[contact] -= c_rate
-                    g_cumulative_sum_infection_rates[my_state[contact] :] -= c_rate
-                break
-
-    # actually updates to gillespie sums
-    g_total_sum_infections -= agent_update_rate
-    my_sum_of_rates[agent] -= agent_update_rate
-    g_cumulative_sum_infection_rates[my_state[agent] :] -= agent_update_rate
-
-    return (
-        my_rates,
-        g_total_sum_infections,
-        my_sum_of_rates,
-        g_cumulative_sum_infection_rates,
-    )
-
-
-@njit
-def remove_and_reduce_rates_of_agent(
-    agent,
-    my_state,
-    my_rates,
-    my_connections,
-    my_connections_type,
-    rate_reduction,
-    infectious_states,
-    g_total_sum_infections,
-    my_sum_of_rates,
-    g_cumulative_sum_infection_rates,
-):
-    # rate reduction is a 2 3-vectors. is used in lockdown intervention
-    agent_infected = my_state[agent] in infectious_states
-    agent_infectable = my_state[agent] == -1
-    agent_update_rate = 0.0
-    remove_rates = rate_reduction[0]
-    reduce_rates = rate_reduction[1]
-
-    # step 1 loop over all of an agents contact
-    for ith_contact, contact in enumerate(my_connections[agent]):
-        # update rates from agent to contact. Rate_reduction makes it depending on connection type
-        act_rate_reduction = reduce_rates
-        if np.random.rand() < remove_rates[my_connections_type[agent][ith_contact]]:
-            act_rate_reduction = [1.0, 1.0, 1.0]
-
-        rate = (
-            my_rates[agent][ith_contact]
-            * act_rate_reduction[my_connections_type[agent][ith_contact]]
-        )
-        my_rates[agent][ith_contact] -= rate
-
-        # updates to gillespie sums, if agent is infected and contact is susceptible
-        if agent_infected and my_state[contact] == -1:
-            agent_update_rate += rate
-
-        # loop over indexes of the contact to find_myself and set rate to 0
-        for ith_contact_of_contact, possible_agent in enumerate(my_connections[contact]):
-
-            # check if the contact found is myself
-            if agent == possible_agent:
-
-                # update rates from contact to agent. Rate_reduction makes it depending on connection type
-                c_rate = (
-                    my_rates[contact][ith_contact_of_contact]
-                    * act_rate_reduction[my_connections_type[contact][ith_contact_of_contact]]
-                )
-                my_rates[contact][ith_contact_of_contact] -= c_rate
-
-                # updates to gillespie sums, if contact is infected and agent is susceptible
-                if my_state[contact] in infectious_states and agent_infectable:
-                    g_total_sum_infections -= c_rate
-                    my_sum_of_rates[contact] -= c_rate
-                    g_cumulative_sum_infection_rates[my_state[contact] :] -= c_rate
-                break
-
-    # actually updates to gillespie sums
-    g_total_sum_infections -= agent_update_rate
-    my_sum_of_rates[agent] -= agent_update_rate
-    g_cumulative_sum_infection_rates[my_state[agent] :] -= agent_update_rate
-
-    return (
-        my_rates,
-        g_total_sum_infections,
-        my_sum_of_rates,
-        g_cumulative_sum_infection_rates,
-    )
-
-
-@njit
-def reduce_frac_rates_of_agent(
-    agent,
-    my_state,
-    my_rates,
-    my_connections,
-    my_connections_type,
-    rate_reduction,
-    infectious_states,
-    g_total_sum_infections,
-    my_sum_of_rates,
-    g_cumulative_sum_infection_rates,
-):
-    # rate reduction is 2 3-vectors. is used for masking interventions
-    agent_infected = my_state[agent] in infectious_states
-    agent_infectable = my_state[agent] == -1
-    agent_update_rate = 0.0
-    remove_rates = rate_reduction[0]
-    reduce_rates = rate_reduction[1]
-    # step 1 loop over all of an agents contact
-    for ith_contact, contact in enumerate(my_connections[agent]):
-        # update rates from agent to contact. Rate_reduction makes it depending on connection type
-        if np.random.rand() < remove_rates[my_connections_type[agent][ith_contact]]:
-            act_rate_reduction = [0, 0, 0]
-        else:
-            act_rate_reduction = reduce_rates
-        rate = (
-            my_rates[agent][ith_contact]
-            * act_rate_reduction[my_connections_type[agent][ith_contact]]
-        )
-        my_rates[agent][ith_contact] -= rate
-
-        # updates to gillespie sums, if agent is infected and contact is susceptible
-        if agent_infected and my_state[contact] == -1:
-            agent_update_rate += rate
-
-        # loop over indexes of the contact to find_myself and set rate to 0
-        for ith_contact_of_contact, possible_agent in enumerate(my_connections[contact]):
-
-            # check if the contact found is myself
-            if agent == possible_agent:
-
-                # update rates from contact to agent. Rate_reduction makes it depending on connection type
-                c_rate = (
-                    my_rates[contact][ith_contact_of_contact]
-                    * rate_reduction[my_connections_type[contact][ith_contact_of_contact]]
-                )
-                my_rates[contact][ith_contact_of_contact] -= c_rate
-
-                # updates to gillespie sums, if contact is infected and agent is susceptible
-                if my_state[contact] in infectious_states and agent_infectable:
-                    g_total_sum_infections -= c_rate
-                    my_sum_of_rates[contact] -= c_rate
-                    g_cumulative_sum_infection_rates[my_state[contact] :] -= c_rate
-                break
-
-    # actually updates to gillespie sums
-    g_total_sum_infections -= agent_update_rate
-    my_sum_of_rates[agent] -= agent_update_rate
-    g_cumulative_sum_infection_rates[my_state[agent] :] -= agent_update_rate
-
-    return (
-        my_rates,
-        g_total_sum_infections,
-        my_sum_of_rates,
-        g_cumulative_sum_infection_rates,
-    )
-
-
-@njit
-def reset_rates_of_agent(
-    agent,
-    my_state,
-    infectious_states,
-    my_connections,
-    my_connections_type,
-    my_rates,
-    my_infection_weight,
-    g_total_sum_infections,
-    my_sum_of_rates,
-    g_cumulative_sum_infection_rates,
-    connection_type_weight=np.ones(
-        3, dtype=np.float32
-    ),  # [home, job, other] reset infection rate to ori times this number
-):
-    agent_infected = my_state[agent] in infectious_states
-    agent_infectable = my_state[agent] == -1
-    agent_update_rate = 0.0
-    for ith_contact, contact in enumerate(my_connections[agent]):
-        infection_rate = (
-            my_infection_weight[agent]
-            * connection_type_weight[my_connections_type[agent][ith_contact]]
-        )
-        rate = infection_rate - my_rates[agent][ith_contact]
-        my_rates[agent][ith_contact] = infection_rate
-
-        if agent_infected and my_state[contact] == -1:
-            agent_update_rate += rate
-
-        # loop over indexes of the contact to find_myself and set rate to 0
-        for ith_contact_of_contact, possible_agent in enumerate(my_connections[contact]):
-
-            # check if the contact found is myself
-            if agent == possible_agent:
-
-                # update rates from contact to agent.
-                c_rate = my_infection_weight[contact] - my_rates[contact][ith_contact_of_contact]
-                my_rates[contact][ith_contact_of_contact] = my_infection_weight[contact]
-
-                # updates to gillespie sums, if contact is infected and agent is susceptible
-                if my_state[contact] in infectious_states and agent_infectable:
-                    g_total_sum_infections += c_rate
-                    my_sum_of_rates[contact] += c_rate
-                    g_cumulative_sum_infection_rates[my_state[contact] :] += c_rate
-                break
-
-    # actually updates to gillespie sums
-    g_total_sum_infections += agent_update_rate
-    my_sum_of_rates[agent] += agent_update_rate
-    g_cumulative_sum_infection_rates[my_state[agent] :] += agent_update_rate
-
-    return (
-        my_rates,
-        g_total_sum_infections,
-        my_sum_of_rates,
-        g_cumulative_sum_infection_rates,
-    )
-
-
-@njit
-def lockdown_on_label(
-    N_tot,
-    my_label,
-    my_state,
-    my_rates,
-    my_connections,
-    my_connections_type,
-    rate_reduction,
-    label,
-    infectious_states,
-    g_total_sum_infections,
-    my_sum_of_rates,
-    g_cumulative_sum_infection_rates,
-):
-    # lockdown on all agent with a certain label (tent or municipality, or whatever else you define). Rate reduction is two vectors of length 3. First is the fraction of [home, job, others] rates to set to 0.
-    # second is the fraction of reduction of the remaining [home, job, others] rates.
-    # ie: [[0,0.8,0.8],[0,0.8,0.8]] means that 80% of your contacts on job and other is set to 0, and the remaining 20% is reduced by 80%.
-    # loop over all agents
-    for agent in range(N_tot):
-        # calculate
-        if my_label[agent] == label:
-            (
-                my_rates,
-                g_total_sum_infections,
-                my_sum_of_rates,
-                g_cumulative_sum_infection_rates,
-            ) = remove_and_reduce_rates_of_agent(
-                agent,
-                my_state,
-                my_rates,
-                my_connections,
-                my_connections_type,
-                rate_reduction,
-                infectious_states,
-                g_total_sum_infections,
-                my_sum_of_rates,
-                g_cumulative_sum_infection_rates,
-            )
-    return (
-        my_rates,
-        g_total_sum_infections,
-        my_sum_of_rates,
-        g_cumulative_sum_infection_rates,
-    )
-
-
-@njit
-def masking_on_label(
-    N_tot,
-    my_label,
-    my_state,
-    my_rates,
-    my_connections,
-    my_connections_type,
-    rate_reduction,
-    label,
-    infectious_states,
-    g_total_sum_infections,
-    my_sum_of_rates,
-    g_cumulative_sum_infection_rates,
-):
-
-    # masking on all agent with a certain label (tent or municipality, or whatever else you define). Rate reduction is two vectors of length 3. First is the fraction of [home, job, others] rates to be effected by masks.
-    # second is the fraction of reduction of the those [home, job, others] rates.
-    # ie: [[0,0.2,0.2],[0,0.8,0.8]] means that your wear mask when around 20% of job and other contacts, and your rates to those is reduced by 80%
-    # loop over all agents
-    for agent in range(N_tot):
-        # calculate
-        if my_label[agent] == label:
-            (
-                my_rates,
-                g_total_sum_infections,
-                my_sum_of_rates,
-                g_cumulative_sum_infection_rates,
-            ) = reduce_frac_rates_of_agent(
-                agent,
-                my_state,
-                my_rates,
-                my_connections,
-                my_connections_type,
-                rate_reduction,
-                infectious_states,
-                g_total_sum_infections,
-                my_sum_of_rates,
-                g_cumulative_sum_infection_rates,
-            )
-    return (
-        my_rates,
-        g_total_sum_infections,
-        my_sum_of_rates,
-        g_cumulative_sum_infection_rates,
-    )
-
-
-@njit
-def remove_intervention_at_label(
-    N_tot,
-    my_state,
-    my_label,
-    infectious_states,
-    my_connections,
-    my_connections_type,
-    my_rates,
-    my_infection_weight,
-    ith_tent,
-    g_total_sum_infections,
-    my_sum_of_rates,
-    g_cumulative_sum_infection_rates,
-):
-    for agent in range(N_tot):
-        if my_label[agent] == ith_tent:
-            (
-                my_rates,
-                g_total_sum_infections,
-                my_sum_of_rates,
-                g_cumulative_sum_infection_rates,
-            ) = reset_rates_of_agent(
-                agent,
-                my_state,
-                infectious_states,
-                my_connections,
-                my_connections_type,
-                my_rates,
-                my_infection_weight,
-                g_total_sum_infections,
-                my_sum_of_rates,
-                g_cumulative_sum_infection_rates,
-            )
-    return (
-        my_rates,
-        g_total_sum_infections,
-        my_sum_of_rates,
-        g_cumulative_sum_infection_rates,
-    )
+# @njit
+# def remove_intervention_at_label(
+#     N_tot,
+#     my_state,
+#     my_label,
+#     infectious_states,
+#     my_connections,
+#     my_connections_type,
+#     my_rates,
+#     my_infection_weight,
+#     ith_tent,
+#     g_total_sum_infections,
+#     my_sum_of_rates,
+#     g_cumulative_sum_infection_rates,
+# ):
+#     for agent in range(N_tot):
+#         if my_label[agent] == ith_tent:
+#             (
+#                 my_rates,
+#                 g_total_sum_infections,
+#                 my_sum_of_rates,
+#                 g_cumulative_sum_infection_rates,
+#             ) = reset_rates_of_agent(
+#                 agent,
+#                 my_state,
+#                 infectious_states,
+#                 my_connections,
+#                 my_connections_type,
+#                 my_rates,
+#                 my_infection_weight,
+#                 g_total_sum_infections,
+#                 my_sum_of_rates,
+#                 g_cumulative_sum_infection_rates,
+#             )
+#     return (
+#         my_rates,
+#         g_total_sum_infections,
+#         my_sum_of_rates,
+#         g_cumulative_sum_infection_rates,
+#     )
 
 
 #%%

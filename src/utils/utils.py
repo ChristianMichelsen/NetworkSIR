@@ -457,6 +457,7 @@ def NumbaMutableArray(offsets, content, dtype):
 
 # "Nested/Mutable" Arrays are faster than list of arrays which are faster than lists of lists
 
+
 class MutableArray:
 
     """The MutableArray is basically just a simple version of Awkward Array with _mutable_ data. Also allows the array to be used in zip/enumerate in numba code by using the .array property (not needed in awkward version >= 0.2.32)."""
@@ -466,7 +467,9 @@ class MutableArray:
         # if numba List
         if isinstance(arraylike_object, List):
             dtype = get_numba_list_dtype(arraylike_object, as_string=True)
-            self._content = np.array(flatten_nested_list(arraylike_object), dtype=getattr(np, dtype))  # float32
+            self._content = np.array(
+                flatten_nested_list(arraylike_object), dtype=getattr(np, dtype)
+            )  # float32
             self._offsets = np.array(get_cumulative_indices(arraylike_object), dtype=np.int64)
             self._awkward_array = None
 
@@ -491,7 +494,9 @@ class MutableArray:
     def __getitem__(self, i):
         if isinstance(i, int):
             return self._content[self._offsets[i] : self._offsets[i + 1]]
-        elif isinstance(i, tuple) and len(i) == 2 and isinstance(i[0], int) and isinstance(i[1], int):
+        elif (
+            isinstance(i, tuple) and len(i) == 2 and isinstance(i[0], int) and isinstance(i[1], int)
+        ):
             x, y = i
             return self._content[self._offsets[x] : self._offsets[x + 1]][y]
 
@@ -503,7 +508,9 @@ class MutableArray:
         if return_original_awkward_array and self._awkward_array:
             return self._awkward_array
         elif return_original_awkward_array and not self._awkward_array:
-            raise AssertionError(f"No original awkward array (possibly because it was loaded through pickle)")
+            raise AssertionError(
+                f"No original awkward array (possibly because it was loaded through pickle)"
+            )
 
         offsets = ak.layout.Index64(self._offsets)
         content = ak.layout.NumpyArray(self._content)
@@ -618,7 +625,9 @@ def human_format(num, digits=3):
     while abs(num) >= 1000:
         magnitude += 1
         num /= 1000.0
-    return "{}{}".format("{:f}".format(num).rstrip("0").rstrip("."), ["", "K", "M", "G", "T"][magnitude])
+    return "{}{}".format(
+        "{:f}".format(num).rstrip("0").rstrip("."), ["", "K", "M", "G", "T"][magnitude]
+    )
 
 
 def human_format_scientific(num, digits=3):
@@ -640,7 +649,9 @@ def dict_to_title(d, N=None, exclude=None, in_two_line=True):
 
     cfg.N_tot = human_format(cfg.N_tot)
     cfg.N_init = human_format(cfg.N_init)
-    cfg.make_random_initial_infections = r"\mathrm{" + str(bool(cfg.make_random_initial_infections)) + r"}"
+    cfg.make_random_initial_infections = (
+        r"\mathrm{" + str(bool(cfg.make_random_initial_infections)) + r"}"
+    )
 
     # parameter_to_latex = get_parameter_to_latex()
     parameter_to_latex = load_yaml("cfg/parameter_to_latex.yaml")
@@ -837,14 +848,14 @@ def SDOM(x):
 #%%
 
 
-def load_coordinates_from_indices(coordinate_indices):
-    GPS_filename = "Data/GPS_coordinates.feather"
-    df_coordinates = pd.read_feather(GPS_filename).iloc[coordinate_indices].reset_index(drop=True)
-    return df_coordinates
+# def load_df_coordinates():
+#     GPS_filename = "Data/GPS_coordinates.feather"
+#     df_coordinates = pd.read_feather(GPS_filename)
+#     return df_coordinates
 
 
-def df_coordinates_to_coordinates(df_coordinates):
-    return df_coordinates[["Longitude", "Lattitude"]].values
+# def load_coordinates_from_indices(coordinate_indices):
+#     return load_df_coordinates().iloc[coordinate_indices].reset_index(drop=True)
 
 
 #%%
@@ -959,22 +970,35 @@ def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max=None):
     return num_cores
 
 
-def load_coordinates(coordinates_filename, N_tot, ID):
+def load_df_coordinates(N_tot, ID):
+    # np.random.seed(ID)
     # coordinates = np.load(coordinates_filename)
-    df_coordinates = pd.read_feather(coordinates_filename)
-    coordinates = df_coordinates_to_coordinates(df_coordinates)
+    coordinates_filename = "Data/GPS_coordinates.feather"
+    df_coordinates = (
+        pd.read_feather(coordinates_filename)
+        .sample(N_tot, replace=False, random_state=ID)
+        .reset_index(drop=True)
+    )
+    return df_coordinates
 
-    if N_tot > len(coordinates):
-        raise AssertionError("N_tot cannot be larger than coordinates (number of generated houses in DK)")
+    # coordinates = df_coordinates_to_coordinates(df_coordinates)
 
-    np.random.seed(ID)
-    index = np.arange(len(coordinates), dtype=np.uint32)
-    index_subset = np.random.choice(index, N_tot, replace=False)
-    return coordinates[index_subset], index_subset
+    # if N_tot > len(df_coordinates):
+    #     raise AssertionError(
+    #         "N_tot cannot be larger than coordinates (number of generated houses in DK)"
+    #     )
+
+    # index = np.arange(len(df_coordinates), dtype=np.uint32)
+    # index_subset = np.random.choice(index, N_tot, replace=False)
+    # return coordinates[index_subset], index_subset
 
 
-def load_coordinates_indices(coordinates_filename, N_tot, ID):
-    return load_coordinates(coordinates_filename, N_tot, ID)[1]
+# def load_coordinates_indices(coordinates_filename, N_tot, ID):
+#     return load_coordinates(coordinates_filename, N_tot, ID)[1]
+
+
+def df_coordinates_to_coordinates(df_coordinates):
+    return df_coordinates[["Longitude", "Lattitude"]].values
 
 
 #%%
@@ -1112,7 +1136,9 @@ def _initialize_my_rates_nested_list(my_infection_weight, my_number_of_contacts)
 
 
 def initialize_my_rates(my_infection_weight, my_number_of_contacts):
-    return MutableArray(_initialize_my_rates_nested_list(my_infection_weight, my_number_of_contacts))
+    return MutableArray(
+        _initialize_my_rates_nested_list(my_infection_weight, my_number_of_contacts)
+    )
 
 
 # def initialize_my_rates(my_infection_weight, my_number_of_contacts):
@@ -1261,11 +1287,15 @@ def parse_memory_file(filename):
     df_change_points["Time"] = df_change_points.index
     df_change_points = df_change_points.set_index("ChangePoint")
     df_change_points["TimeDiff"] = -df_change_points["Time"].diff(-1)
-    df_change_points["TimeDiffRel"] = df_change_points["TimeDiff"] / df_change_points["Time"].iloc[-1]
+    df_change_points["TimeDiffRel"] = (
+        df_change_points["TimeDiff"] / df_change_points["Time"].iloc[-1]
+    )
 
     df_change_points["Memory"] = df_time_memory.loc[df_change_points["Time"]]["Memory"].values
     df_change_points["MemoryDiff"] = -df_change_points["Memory"].diff(-1)
-    df_change_points["MemoryDiffRel"] = df_change_points["MemoryDiff"] / df_change_points["Memory"].iloc[-1]
+    df_change_points["MemoryDiffRel"] = (
+        df_change_points["MemoryDiff"] / df_change_points["Memory"].iloc[-1]
+    )
 
     df_change_points.index.name = None
 
@@ -1413,6 +1443,20 @@ def get_simulation_parameters_1D_scan(parameter, non_defaults):
 
 
 #%%
+
+
+@njit
+def numba_unique_with_counts(a):
+    b = np.sort(a.flatten())
+    unique = list(b[:1])
+    counts = [1 for _ in unique]
+    for x in b[1:]:
+        if x != unique[-1]:
+            unique.append(x)
+            counts.append(1)
+        else:
+            counts[-1] += 1
+    return np.array(unique), np.array(counts)
 
 
 def PyDict2NumbaDict(d_python):
@@ -1599,7 +1643,9 @@ def parse_household_data_list(filename, convert_to_numpy=False):
 
 
 def load_household_data(household_data_filenames):
-    people_in_household = parse_household_data_list(household_data_filenames[0], convert_to_numpy=True)
+    people_in_household = parse_household_data_list(
+        household_data_filenames[0], convert_to_numpy=True
+    )
     age_distribution_per_people_in_household = parse_household_data_list(
         household_data_filenames[1], convert_to_numpy=True
     )
