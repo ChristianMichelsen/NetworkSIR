@@ -17,6 +17,8 @@ dry_run = True
 force_rerun = False
 verbose = True
 
+print("Martiny her")
+
 #%%
 
 
