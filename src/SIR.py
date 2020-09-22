@@ -30,8 +30,8 @@ def interpolate_dataframe(df, time, t_interpolated, cols_to_interpolate):
 
 def interpolate_df(df, t_interpolated=None, cols_to_interpolate=None):
 
-    """ Interpolates a the columns of a dataframe (df) based on t_interpolated.
-    By default it downsamples the dataframe to one observation daily (unless t_interpolated is specifically set) for the columns E, I, and R (unless specifically set). """
+    """Interpolates a the columns of a dataframe (df) based on t_interpolated.
+    By default it downsamples the dataframe to one observation daily (unless t_interpolated is specifically set) for the columns E, I, and R (unless specifically set)."""
 
     # make first value at time 0
     t0 = df["time"].min()
@@ -44,9 +44,7 @@ def interpolate_df(df, t_interpolated=None, cols_to_interpolate=None):
     if not cols_to_interpolate:
         cols_to_interpolate = ["E", "I", "R"]
 
-    df_interpolated = interpolate_dataframe(
-        df, time, t_interpolated, cols_to_interpolate
-    )
+    df_interpolated = interpolate_dataframe(df, time, t_interpolated, cols_to_interpolate)
 
     return df_interpolated
 
@@ -113,7 +111,19 @@ def numba_SIR_integrate(y0, T_max, dt, ts, mu, lambda_E, lambda_I, beta):
 
 def cfg_to_y0(cfg):
     """ S, N_tot, E1, E2, E3, E4, I1, I2, I3, I4, R = y0 """
-    y0 = cfg.N_tot - cfg.N_init, cfg.N_tot, cfg.N_init, 0, 0, 0, 0, 0, 0, 0, 0
+    y0 = (
+        cfg.N_tot - cfg.N_init,
+        cfg.N_tot,
+        cfg.N_init / 4,
+        cfg.N_init / 4,
+        cfg.N_init / 4,
+        cfg.N_init / 4,
+        0,
+        0,
+        0,
+        0,
+        0,
+    )
     return y0
 
 
@@ -204,9 +214,7 @@ class FitSIR:  # override the class with a better one
         # compute the function value
         y_hat = self._compute_yhat(lambda_E, lambda_I, beta, tau)
         # compute the chi2-value
-        chi2 = np.sum(
-            (self.y[self.mask] - y_hat[self.mask]) ** 2 / self.sy[self.mask] ** 2
-        )
+        chi2 = np.sum((self.y[self.mask] - y_hat[self.mask]) ** 2 / self.sy[self.mask] ** 2)
 
         # prior = self._add_prior(self.priors, lambda_E, lambda_I, beta, tau)
         # alpha = self.priors['multiplier']
@@ -257,9 +265,7 @@ class FitSIR:  # override the class with a better one
             ts = self.ts
         if not T_max:
             T_max = self.T_max
-        return numba_SIR_integrate(
-            self.y0, T_max, self.dt, ts, self.mu, lambda_E, lambda_I, beta
-        )
+        return numba_SIR_integrate(self.y0, T_max, self.dt, ts, self.mu, lambda_E, lambda_I, beta)
 
     def _compute_yhat(self, lambda_E, lambda_I, beta, tau):
         SIR_result = self._compute_result_SIR(lambda_E, lambda_I, beta)
@@ -281,9 +287,7 @@ class FitSIR:  # override the class with a better one
 
         has_correlations = self.has_correlations
         valid_hesse = not minuit.get_fmin().hesse_failed
-        good_errors = np.all(
-            minuit.np_errors()[:-1] / np.abs(minuit.np_values()[:-1]) < 2
-        )
+        good_errors = np.all(minuit.np_errors()[:-1] / np.abs(minuit.np_values()[:-1]) < 2)
         valid_fit = good_chi2 and has_correlations and valid_hesse and good_errors
 
         if verbose:
@@ -337,9 +341,7 @@ class FitSIR:  # override the class with a better one
         return df_fit_parameters
 
     def get_correlations(self):
-        return pd.DataFrame(
-            self.correlations, index=self.parameters, columns=self.parameters
-        )
+        return pd.DataFrame(self.correlations, index=self.parameters, columns=self.parameters)
 
     def _fix_fixed_parameters(self, fit_values, parameter):
         if fit_values[parameter] == "Fixed":
@@ -379,9 +381,7 @@ class FitSIR:  # override the class with a better one
 
     def calc_df_fit(self, ts=0.1, fit_values=None, T_max=None):
         lambda_E, lambda_I, beta, tau = self._get_fit_values(fit_values)
-        SIR_result = self._compute_result_SIR(
-            lambda_E, lambda_I, beta, ts=ts, T_max=T_max
-        )
+        SIR_result = self._compute_result_SIR(lambda_E, lambda_I, beta, ts=ts, T_max=T_max)
         df_fit = SIR_result_to_dataframe(SIR_result)
         df_fit["time"] -= tau
         df_fit["N"] = df_fit[["S", "E", "I", "R"]].sum(axis=1)
@@ -389,9 +389,7 @@ class FitSIR:  # override the class with a better one
 
     def compute_I_max_R_inf(self, ts=0.1, fit_values=None, T_max=None):
         lambda_E, lambda_I, beta, tau = self._get_fit_values(fit_values)
-        SIR_result = self._compute_result_SIR(
-            lambda_E, lambda_I, beta, ts=ts, T_max=T_max
-        )
+        SIR_result = self._compute_result_SIR(lambda_E, lambda_I, beta, ts=ts, T_max=T_max)
         I_max = get_I_max(SIR_result_to_I(SIR_result))
         R_inf = get_R_inf(SIR_result_to_R(SIR_result))
         return I_max, R_inf
@@ -425,9 +423,7 @@ class FitSIR:  # override the class with a better one
             #     beta, tau = sample
             # else:
             lambda_E, lambda_I, beta, tau = self._get_fit_values(sample)
-            SIR_result = self._compute_result_SIR(
-                lambda_E, lambda_I, beta, ts=ts, T_max=T_max
-            )
+            SIR_result = self._compute_result_SIR(lambda_E, lambda_I, beta, ts=ts, T_max=T_max)
             SIR_results.append(SIR_result)
         SIR_results = np.array(SIR_results)
         return SIR_results
