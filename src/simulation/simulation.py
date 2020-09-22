@@ -186,7 +186,10 @@ class Simulation:
 
         N_daily_tests = 20_000  # 20000  # TODO make Par?
         labels = self.df_coordinates["idx"].values
-        interventions_to_apply = [1, 4, 6]
+        if self.my.cfg.version >= 2:
+            interventions_to_apply = [1, 4, 6]
+        else:
+            interventions_to_apply = [0]
 
         # 1: Lockdown (jobs and schools)
         # 2: Cover (with face masks)
