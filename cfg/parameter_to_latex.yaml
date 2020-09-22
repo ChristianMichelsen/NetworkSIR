@@ -1,15 +1,15 @@
-
+  version: \mathrm{v.}
   N_tot: N_\mathrm{tot}
-  N_init: N_\mathrm{init}
   rho: \rho
   epsilon_rho: \epsilon_\rho
   mu: \mu
   sigma_mu: \sigma_\mu
   beta: \beta
   sigma_beta: \sigma_\beta
+  algo: \mathrm{algo}
+  N_init: N_\mathrm{init}
   lambda_E: \lambda_E
   lambda_I: \lambda_I
-  algo: \mathrm{algo}
   ID: \mathrm{ID}
-  version: \mathrm{v.}
   make_random_initial_infections: \mathrm{rand.inf.}
+  N_connect_retries: N_\mathrm{retries}^\mathrm{connect}

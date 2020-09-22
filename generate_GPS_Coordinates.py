@@ -10,8 +10,9 @@ from shapely.geometry import mapping as _polygon_to_array
 from numba import njit, prange, set_num_threads
 from matplotlib.patches import Rectangle
 from matplotlib.backends.backend_pdf import PdfPages
-from src import utils
-from src import simulation_utils
+from src.utils import utils
+
+# from src import simulation_utils
 
 #%%
 
@@ -91,7 +92,7 @@ def polygon_contains_points(points, polygon):
 
 #%%
 
-kommuner, name_to_idx, idx_to_name = simulation_utils.load_kommune_shapefiles(shapefile_size, verbose=True)
+kommuner, name_to_idx, idx_to_name = utils.load_kommune_shapefiles(shapefile_size, verbose=True)
 
 N = len(coordinates_out)
 np_points = coordinates_out[:N]

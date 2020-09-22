@@ -42,8 +42,9 @@ if path.stem == "src":
     os.chdir(path.parent)
     path_was_changed = True
 
-from src import utils
-from src import simulation_utils
+from src.utils import utils
+
+# from src import simulation_utils
 
 np.set_printoptions(linewidth=200)
 do_memory_tracking = False
@@ -656,7 +657,7 @@ class Simulation:
 
         self.verbose = verbose
 
-        self._Filename = Filename = simulation_utils.Filename(filename)
+        self._Filename = Filename = utils.Filename(filename)
 
         self.cfg = Filename.simulation_parameters
         self.ID = Filename.ID
@@ -677,8 +678,8 @@ class Simulation:
 
         search_string = "Saving network initialization"
 
-        if utils.file_exists(memory_file) and simulation_utils.does_file_contains_string(memory_file, search_string):
-            self.time_start -= simulation_utils.get_search_string_time(memory_file, search_string)
+        if utils.file_exists(memory_file) and utils.does_file_contains_string(memory_file, search_string):
+            self.time_start -= utils.get_search_string_time(memory_file, search_string)
             self.track_memory("Appending to previous network initialization")
         else:
             utils.make_sure_folder_exist(
@@ -706,7 +707,7 @@ class Simulation:
 
         cfg = self.cfg
         self.track_memory("Loading Coordinates")
-        self.coordinates, self.coordinate_indices = simulation_utils.load_coordinates(
+        self.coordinates, self.coordinate_indices = utils.load_coordinates(
             self._Filename.coordinates_filename, cfg.N_tot, self.ID
         )
 
@@ -722,8 +723,8 @@ class Simulation:
         # age variables
         age_mixing = 1.0
         N_ages = 1
-        age_matrix_relative_interactions = simulation_utils.calculate_age_proportions_1D(1.0, N_ages)
-        age_relative_proportions = simulation_utils.calculate_age_proportions_2D(age_mixing, N_ages)
+        age_matrix_relative_interactions = utils.calculate_age_proportions_1D(1.0, N_ages)
+        age_relative_proportions = utils.calculate_age_proportions_2D(age_mixing, N_ages)
         age_matrix = age_matrix_relative_interactions * age_relative_proportions * (cfg.mu / 2) * cfg.N_tot
 
         if self.verbose:
@@ -802,7 +803,7 @@ class Simulation:
             my_number_of_contacts = f["my_number_of_contacts"][()]
             my_connections = awkward0.hdf5(f)["my_connections"]
         self.track_memory("Loading Coordinates")
-        self.coordinates, self.coordinate_indices = simulation_utils.load_coordinates(
+        self.coordinates, self.coordinate_indices = utils.load_coordinates(
             self._Filename.coordinates_filename, self.cfg.N_tot, self.ID
         )
         return (
@@ -881,8 +882,8 @@ class Simulation:
         N_ages = 1
         self.initial_ages_exposed = np.arange(N_ages)
 
-        # self.my_rates = simulation_utils.initialize_my_rates(cfg.N_tot, cfg.beta, cfg.sigma_beta, self.my_number_of_contacts, self.ID)
-        self.my_rates = simulation_utils.initialize_my_rates(self.my_infection_weight, self.my_number_of_contacts)
+        # self.my_rates = utils.initialize_my_rates(cfg.N_tot, cfg.beta, cfg.sigma_beta, self.my_number_of_contacts, self.ID)
+        self.my_rates = utils.initialize_my_rates(self.my_infection_weight, self.my_number_of_contacts)
 
         self.my_state = np.full(cfg.N_tot, -1, dtype=np.int8)
         self.state_total_counts = np.zeros(self.N_states, dtype=np.uint32)
@@ -892,11 +893,9 @@ class Simulation:
         self.g_cumulative_sum_infection_rates = np.zeros(self.N_states, dtype=np.float64)
         self.my_sum_of_rates = np.zeros(cfg.N_tot, dtype=np.float64)
 
-        self.SIR_transition_rates = simulation_utils.initialize_SIR_transition_rates(
-            self.N_states, self.N_infectious_states, cfg
-        )
+        self.SIR_transition_rates = utils.initialize_SIR_transition_rates(self.N_states, self.N_infectious_states, cfg)
 
-        self.agents_in_age_group = simulation_utils.compute_agents_in_age_group(self.my_age, N_ages)
+        self.agents_in_age_group = utils.compute_agents_in_age_group(self.my_age, N_ages)
 
         self.g_total_sum_of_state_changes, self.non_infectable_agents = make_initial_infections(
             cfg.N_init,
@@ -925,7 +924,7 @@ class Simulation:
 
         self.individual_infection_counter = np.zeros(cfg.N_tot, dtype=np.uint16)
 
-        H = simulation_utils.get_hospitalization_variables(cfg.N_tot, N_ages=1)
+        H = utils.get_hospitalization_variables(cfg.N_tot, N_ages=1)
         (
             H_probability_matrix_csum,
             H_my_state,
@@ -978,7 +977,7 @@ class Simulation:
     def make_dataframe(self):
 
         self.track_memory("Make DataFrame")
-        self.df = df = simulation_utils.state_counts_to_df(self.time, self.state_counts)
+        self.df = df = utils.state_counts_to_df(self.time, self.state_counts)
 
         self.track_memory("Save CSV")
         utils.make_sure_folder_exist(self.filename)
@@ -1011,7 +1010,7 @@ class Simulation:
                 (
                     self.df_time_memory,
                     self.df_change_points,
-                ) = simulation_utils.parse_memory_file(memory_file)
+                ) = utils.parse_memory_file(memory_file)
                 df_time_memory_hdf5 = utils.dataframe_to_hdf5_format(self.df_time_memory, cols_to_str=["ChangePoint"])
                 df_change_points_hdf5 = utils.dataframe_to_hdf5_format(self.df_change_points, include_index=True)
 
@@ -1042,7 +1041,7 @@ class Simulation:
 
     def save_memory_figure(self, savefig=True):
         if self.do_track_memory:
-            fig, ax = simulation_utils.plot_memory_comsumption(
+            fig, ax = utils.plot_memory_comsumption(
                 self.df_time_memory,
                 self.df_change_points,
                 min_TimeDiffRel=0.1,
@@ -1086,7 +1085,7 @@ def run_full_simulation(
 
 
 reload(utils)
-reload(simulation_utils)
+# reload(simulation_utils)
 
 verbose = True
 force_rerun = True
@@ -1104,10 +1103,8 @@ if path_was_changed and False:
     df = simulation.make_dataframe()
     display(df)
 
-
-
     cfg = simulation.cfg
-    coordinates, coordinate_indices = simulation_utils.load_coordinates(
+    coordinates, coordinate_indices = utils.load_coordinates(
         simulation._Filename.coordinates_filename, cfg.N_tot, simulation.ID
     )
 
@@ -1119,8 +1116,8 @@ if path_was_changed and False:
     # age variables
     age_mixing = 1.0
     N_ages = 1
-    age_matrix_relative_interactions = simulation_utils.calculate_age_proportions_1D(1.0, N_ages)
-    age_relative_proportions = simulation_utils.calculate_age_proportions_2D(age_mixing, N_ages)
+    age_matrix_relative_interactions = utils.calculate_age_proportions_1D(1.0, N_ages)
+    age_relative_proportions = utils.calculate_age_proportions_2D(age_mixing, N_ages)
     age_matrix = age_matrix_relative_interactions * age_relative_proportions * (cfg.mu / 2) * cfg.N_tot
 
     my_connection_weight, my_infection_weight = initialize_connections_and_rates(
@@ -1139,4 +1136,3 @@ if path_was_changed and False:
         PC_ages,
         PP_ages,
     ) = initialize_ages(cfg.N_tot, N_ages, my_connection_weight)
-
