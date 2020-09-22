@@ -666,205 +666,205 @@ def nb_run_simulation(
 #     )
 
 
-# @njit
-# def cut_rates_of_agent(
-#     agent,
-#     my_state,
-#     my_rates,
-#     my_connections,
-#     my_connections_type,
-#     rate_reduction,
-#     infectious_states,
-#     g_total_sum_infections,
-#     my_sum_of_rates,
-#     g_cumulative_sum_infection_rates,
-# ):
-#     # rate reduction is a 3 vector. All rates for agent is reduced by [home, job, other ]. Is used eq. for isolation
-#     agent_infected = my_state[agent] in infectious_states
-#     agent_infectable = my_state[agent] == -1
-#     agent_update_rate = 0.0
-#     # step 1 loop over all of an agents contact
-#     for ith_contact, contact in enumerate(my_connections[agent]):
-#         # update rates from agent to contact. Rate_reduction makes it depending on connection type
-#         rate = (
-#             my_rates[agent][ith_contact] * rate_reduction[my_connections_type[agent][ith_contact]]
-#         )
-#         my_rates[agent][ith_contact] -= rate
+@njit
+def cut_rates_of_agent(
+    agent,
+    my_state,
+    my_rates,
+    my_connections,
+    my_connections_type,
+    rate_reduction,
+    infectious_states,
+    g_total_sum_infections,
+    my_sum_of_rates,
+    g_cumulative_sum_infection_rates,
+):
+    # rate reduction is a 3 vector. All rates for agent is reduced by [home, job, other ]. Is used eq. for isolation
+    agent_infected = my_state[agent] in infectious_states
+    agent_infectable = my_state[agent] == -1
+    agent_update_rate = 0.0
+    # step 1 loop over all of an agents contact
+    for ith_contact, contact in enumerate(my_connections[agent]):
+        # update rates from agent to contact. Rate_reduction makes it depending on connection type
+        rate = (
+            my_rates[agent][ith_contact] * rate_reduction[my_connections_type[agent][ith_contact]]
+        )
+        my_rates[agent][ith_contact] -= rate
 
-#         # updates to gillespie sums, if agent is infected and contact is susceptible
-#         if agent_infected and my_state[contact] == -1:
-#             agent_update_rate += rate
+        # updates to gillespie sums, if agent is infected and contact is susceptible
+        if agent_infected and my_state[contact] == -1:
+            agent_update_rate += rate
 
-#         # loop over indexes of the contact to find_myself and set rate to 0
-#         for ith_contact_of_contact, possible_agent in enumerate(my_connections[contact]):
+        # loop over indexes of the contact to find_myself and set rate to 0
+        for ith_contact_of_contact, possible_agent in enumerate(my_connections[contact]):
 
-#             # check if the contact found is myself
-#             if agent == possible_agent:
+            # check if the contact found is myself
+            if agent == possible_agent:
 
-#                 # update rates from contact to agent. Rate_reduction makes it depending on connection type
-#                 c_rate = (
-#                     my_rates[contact][ith_contact_of_contact]
-#                     * rate_reduction[my_connections_type[contact][ith_contact_of_contact]]
-#                 )
-#                 my_rates[contact][ith_contact_of_contact] -= c_rate
+                # update rates from contact to agent. Rate_reduction makes it depending on connection type
+                c_rate = (
+                    my_rates[contact][ith_contact_of_contact]
+                    * rate_reduction[my_connections_type[contact][ith_contact_of_contact]]
+                )
+                my_rates[contact][ith_contact_of_contact] -= c_rate
 
-#                 # updates to gillespie sums, if contact is infected and agent is susceptible
-#                 if my_state[contact] in infectious_states and agent_infectable:
-#                     g_total_sum_infections -= c_rate
-#                     my_sum_of_rates[contact] -= c_rate
-#                     g_cumulative_sum_infection_rates[my_state[contact] :] -= c_rate
-#                 break
+                # updates to gillespie sums, if contact is infected and agent is susceptible
+                if my_state[contact] in infectious_states and agent_infectable:
+                    g_total_sum_infections -= c_rate
+                    my_sum_of_rates[contact] -= c_rate
+                    g_cumulative_sum_infection_rates[my_state[contact] :] -= c_rate
+                break
 
-#     # actually updates to gillespie sums
-#     g_total_sum_infections -= agent_update_rate
-#     my_sum_of_rates[agent] -= agent_update_rate
-#     g_cumulative_sum_infection_rates[my_state[agent] :] -= agent_update_rate
+    # actually updates to gillespie sums
+    g_total_sum_infections -= agent_update_rate
+    my_sum_of_rates[agent] -= agent_update_rate
+    g_cumulative_sum_infection_rates[my_state[agent] :] -= agent_update_rate
 
-#     return (
-#         my_rates,
-#         g_total_sum_infections,
-#         my_sum_of_rates,
-#         g_cumulative_sum_infection_rates,
-#     )
-
-
-# @njit
-# def remove_and_reduce_rates_of_agent(
-#     agent,
-#     my_state,
-#     my_rates,
-#     my_connections,
-#     my_connections_type,
-#     rate_reduction,
-#     infectious_states,
-#     g_total_sum_infections,
-#     my_sum_of_rates,
-#     g_cumulative_sum_infection_rates,
-# ):
-#     # rate reduction is a 2 3-vectors. is used in lockdown intervention
-#     agent_infected = my_state[agent] in infectious_states
-#     agent_infectable = my_state[agent] == -1
-#     agent_update_rate = 0.0
-#     remove_rates = rate_reduction[0]
-#     reduce_rates = rate_reduction[1]
-
-#     # step 1 loop over all of an agents contact
-#     for ith_contact, contact in enumerate(my_connections[agent]):
-#         # update rates from agent to contact. Rate_reduction makes it depending on connection type
-#         act_rate_reduction = reduce_rates
-#         if np.random.rand() < remove_rates[my_connections_type[agent][ith_contact]]:
-#             act_rate_reduction = [1.0, 1.0, 1.0]
-
-#         rate = (
-#             my_rates[agent][ith_contact]
-#             * act_rate_reduction[my_connections_type[agent][ith_contact]]
-#         )
-#         my_rates[agent][ith_contact] -= rate
-
-#         # updates to gillespie sums, if agent is infected and contact is susceptible
-#         if agent_infected and my_state[contact] == -1:
-#             agent_update_rate += rate
-
-#         # loop over indexes of the contact to find_myself and set rate to 0
-#         for ith_contact_of_contact, possible_agent in enumerate(my_connections[contact]):
-
-#             # check if the contact found is myself
-#             if agent == possible_agent:
-
-#                 # update rates from contact to agent. Rate_reduction makes it depending on connection type
-#                 c_rate = (
-#                     my_rates[contact][ith_contact_of_contact]
-#                     * act_rate_reduction[my_connections_type[contact][ith_contact_of_contact]]
-#                 )
-#                 my_rates[contact][ith_contact_of_contact] -= c_rate
-
-#                 # updates to gillespie sums, if contact is infected and agent is susceptible
-#                 if my_state[contact] in infectious_states and agent_infectable:
-#                     g_total_sum_infections -= c_rate
-#                     my_sum_of_rates[contact] -= c_rate
-#                     g_cumulative_sum_infection_rates[my_state[contact] :] -= c_rate
-#                 break
-
-#     # actually updates to gillespie sums
-#     g_total_sum_infections -= agent_update_rate
-#     my_sum_of_rates[agent] -= agent_update_rate
-#     g_cumulative_sum_infection_rates[my_state[agent] :] -= agent_update_rate
-
-#     return (
-#         my_rates,
-#         g_total_sum_infections,
-#         my_sum_of_rates,
-#         g_cumulative_sum_infection_rates,
-#     )
+    return (
+        my_rates,
+        g_total_sum_infections,
+        my_sum_of_rates,
+        g_cumulative_sum_infection_rates,
+    )
 
 
-# @njit
-# def reduce_frac_rates_of_agent(
-#     agent,
-#     my_state,
-#     my_rates,
-#     my_connections,
-#     my_connections_type,
-#     rate_reduction,
-#     infectious_states,
-#     g_total_sum_infections,
-#     my_sum_of_rates,
-#     g_cumulative_sum_infection_rates,
-# ):
-#     # rate reduction is 2 3-vectors. is used for masking interventions
-#     agent_infected = my_state[agent] in infectious_states
-#     agent_infectable = my_state[agent] == -1
-#     agent_update_rate = 0.0
-#     remove_rates = rate_reduction[0]
-#     reduce_rates = rate_reduction[1]
-#     # step 1 loop over all of an agents contact
-#     for ith_contact, contact in enumerate(my_connections[agent]):
-#         # update rates from agent to contact. Rate_reduction makes it depending on connection type
-#         if np.random.rand() < remove_rates[my_connections_type[agent][ith_contact]]:
-#             act_rate_reduction = [0, 0, 0]
-#         else:
-#             act_rate_reduction = reduce_rates
-#         rate = (
-#             my_rates[agent][ith_contact]
-#             * act_rate_reduction[my_connections_type[agent][ith_contact]]
-#         )
-#         my_rates[agent][ith_contact] -= rate
+@njit
+def remove_and_reduce_rates_of_agent(
+    agent,
+    my_state,
+    my_rates,
+    my_connections,
+    my_connections_type,
+    rate_reduction,
+    infectious_states,
+    g_total_sum_infections,
+    my_sum_of_rates,
+    g_cumulative_sum_infection_rates,
+):
+    # rate reduction is a 2 3-vectors. is used in lockdown intervention
+    agent_infected = my_state[agent] in infectious_states
+    agent_infectable = my_state[agent] == -1
+    agent_update_rate = 0.0
+    remove_rates = rate_reduction[0]
+    reduce_rates = rate_reduction[1]
 
-#         # updates to gillespie sums, if agent is infected and contact is susceptible
-#         if agent_infected and my_state[contact] == -1:
-#             agent_update_rate += rate
+    # step 1 loop over all of an agents contact
+    for ith_contact, contact in enumerate(my_connections[agent]):
+        # update rates from agent to contact. Rate_reduction makes it depending on connection type
+        act_rate_reduction = reduce_rates
+        if np.random.rand() < remove_rates[my_connections_type[agent][ith_contact]]:
+            act_rate_reduction = [1.0, 1.0, 1.0]
 
-#         # loop over indexes of the contact to find_myself and set rate to 0
-#         for ith_contact_of_contact, possible_agent in enumerate(my_connections[contact]):
+        rate = (
+            my_rates[agent][ith_contact]
+            * act_rate_reduction[my_connections_type[agent][ith_contact]]
+        )
+        my_rates[agent][ith_contact] -= rate
 
-#             # check if the contact found is myself
-#             if agent == possible_agent:
+        # updates to gillespie sums, if agent is infected and contact is susceptible
+        if agent_infected and my_state[contact] == -1:
+            agent_update_rate += rate
 
-#                 # update rates from contact to agent. Rate_reduction makes it depending on connection type
-#                 c_rate = (
-#                     my_rates[contact][ith_contact_of_contact]
-#                     * rate_reduction[my_connections_type[contact][ith_contact_of_contact]]
-#                 )
-#                 my_rates[contact][ith_contact_of_contact] -= c_rate
+        # loop over indexes of the contact to find_myself and set rate to 0
+        for ith_contact_of_contact, possible_agent in enumerate(my_connections[contact]):
 
-#                 # updates to gillespie sums, if contact is infected and agent is susceptible
-#                 if my_state[contact] in infectious_states and agent_infectable:
-#                     g_total_sum_infections -= c_rate
-#                     my_sum_of_rates[contact] -= c_rate
-#                     g_cumulative_sum_infection_rates[my_state[contact] :] -= c_rate
-#                 break
+            # check if the contact found is myself
+            if agent == possible_agent:
 
-#     # actually updates to gillespie sums
-#     g_total_sum_infections -= agent_update_rate
-#     my_sum_of_rates[agent] -= agent_update_rate
-#     g_cumulative_sum_infection_rates[my_state[agent] :] -= agent_update_rate
+                # update rates from contact to agent. Rate_reduction makes it depending on connection type
+                c_rate = (
+                    my_rates[contact][ith_contact_of_contact]
+                    * act_rate_reduction[my_connections_type[contact][ith_contact_of_contact]]
+                )
+                my_rates[contact][ith_contact_of_contact] -= c_rate
 
-#     return (
-#         my_rates,
-#         g_total_sum_infections,
-#         my_sum_of_rates,
-#         g_cumulative_sum_infection_rates,
-#     )
+                # updates to gillespie sums, if contact is infected and agent is susceptible
+                if my_state[contact] in infectious_states and agent_infectable:
+                    g_total_sum_infections -= c_rate
+                    my_sum_of_rates[contact] -= c_rate
+                    g_cumulative_sum_infection_rates[my_state[contact] :] -= c_rate
+                break
+
+    # actually updates to gillespie sums
+    g_total_sum_infections -= agent_update_rate
+    my_sum_of_rates[agent] -= agent_update_rate
+    g_cumulative_sum_infection_rates[my_state[agent] :] -= agent_update_rate
+
+    return (
+        my_rates,
+        g_total_sum_infections,
+        my_sum_of_rates,
+        g_cumulative_sum_infection_rates,
+    )
+
+
+@njit
+def reduce_frac_rates_of_agent(
+    agent,
+    my_state,
+    my_rates,
+    my_connections,
+    my_connections_type,
+    rate_reduction,
+    infectious_states,
+    g_total_sum_infections,
+    my_sum_of_rates,
+    g_cumulative_sum_infection_rates,
+):
+    # rate reduction is 2 3-vectors. is used for masking interventions
+    agent_infected = my_state[agent] in infectious_states
+    agent_infectable = my_state[agent] == -1
+    agent_update_rate = 0.0
+    remove_rates = rate_reduction[0]
+    reduce_rates = rate_reduction[1]
+    # step 1 loop over all of an agents contact
+    for ith_contact, contact in enumerate(my_connections[agent]):
+        # update rates from agent to contact. Rate_reduction makes it depending on connection type
+        if np.random.rand() < remove_rates[my_connections_type[agent][ith_contact]]:
+            act_rate_reduction = [0, 0, 0]
+        else:
+            act_rate_reduction = reduce_rates
+        rate = (
+            my_rates[agent][ith_contact]
+            * act_rate_reduction[my_connections_type[agent][ith_contact]]
+        )
+        my_rates[agent][ith_contact] -= rate
+
+        # updates to gillespie sums, if agent is infected and contact is susceptible
+        if agent_infected and my_state[contact] == -1:
+            agent_update_rate += rate
+
+        # loop over indexes of the contact to find_myself and set rate to 0
+        for ith_contact_of_contact, possible_agent in enumerate(my_connections[contact]):
+
+            # check if the contact found is myself
+            if agent == possible_agent:
+
+                # update rates from contact to agent. Rate_reduction makes it depending on connection type
+                c_rate = (
+                    my_rates[contact][ith_contact_of_contact]
+                    * rate_reduction[my_connections_type[contact][ith_contact_of_contact]]
+                )
+                my_rates[contact][ith_contact_of_contact] -= c_rate
+
+                # updates to gillespie sums, if contact is infected and agent is susceptible
+                if my_state[contact] in infectious_states and agent_infectable:
+                    g_total_sum_infections -= c_rate
+                    my_sum_of_rates[contact] -= c_rate
+                    g_cumulative_sum_infection_rates[my_state[contact] :] -= c_rate
+                break
+
+    # actually updates to gillespie sums
+    g_total_sum_infections -= agent_update_rate
+    my_sum_of_rates[agent] -= agent_update_rate
+    g_cumulative_sum_infection_rates[my_state[agent] :] -= agent_update_rate
+
+    return (
+        my_rates,
+        g_total_sum_infections,
+        my_sum_of_rates,
+        g_cumulative_sum_infection_rates,
+    )
 
 
 # @njit

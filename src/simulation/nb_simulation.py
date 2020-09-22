@@ -213,7 +213,7 @@ class Gillespie(object):
 spec_intervention = {
     "N_tot": nb.uint32,
     "N_daily_tests": nb.uint32,
-    "labels": nb.uint8[:],
+    "labels": nb.uint8[:],  # affilitation? XXX
     "label_counter": nb.uint32[:],
     "N_labels": nb.uint32,
     "interventions_to_apply": ListType(nb.int64),
@@ -228,11 +228,11 @@ spec_intervention = {
     "days_looking_back": nb.float32,
     "masking_rate_reduction": nb.float32[:, ::1],  # to make the type C instead if A
     "lockdown_rate_reduction": nb.float32[:, ::1],  # to make the type C instead if A
-    "isolation_rate_reduction": nb.float32[:, ::1],  # to make the type C instead if A
+    "isolation_rate_reduction": nb.float32[:],
     "tracking_rates": nb.float32[:],
-    "isolate": nb.boolean,
     "types": nb.uint8[:],
     "started_as": nb.uint8[:],
+    "verbose": nb.boolean,
 }
 
 
@@ -247,23 +247,35 @@ class Intervention(object):
     - label_counter: count how many agent belong to a particular label
 
     - interventions_to_apply:
+        1: Lockdown (jobs and schools)
+        2: Cover (with face masks)
+        3: Tracking (infected and their connections)
+        4: Test people with symptoms
+        5: Isolate (if you get a positive test, isolate yourself from your contacts (isolation_rate_reduction))
+        6: Random Testing
         0: Do nothing
-        1: lockdown (jobs and schools)
-        2: Track (infected and their connections)
-        3: Cover (with face masks)
+
     - day_found_infected: -1 if not infected, otherwise the day of infection
+
     - reason_for_test:
-        0: symptoms
-        1: random_test
-        2: tracing,
-        -1: No reason yet
+         0: symptoms
+         1: random_test
+         2: tracing,
+        -1: No reason yet (or no impending tests). You can still be tested again later on (if negative test)
+
     - positive_test_counter: counter of how many were found tested positive due to reasom 0, 1 or 2
-    - clicks_when_tested: XXX  10 clicks = 1 day
-    - clicks_when_tested_result: XXX
+
+    - clicks_when_tested: When you were tested measured in clicks (10 clicks = 1 day)
+
+    - clicks_when_tested_result: When you get your test results measured in clicks
+
     - test_delay_in_clicks: clicks until test. [symptoms, random_test, tracing]
+
     - results_delay_in_clicks: clicks from test until results. [symptoms, random_test, tracing]
+
     - chance_of_finding_infected: When people moves into the ith I state, what is the chance to detect them in a test
-    - days_looking_back: When looking for local outbreaks, how many days are we looking back
+
+    - days_looking_back: When looking for local outbreaks, how many days are we looking back, e.g. number of people infected within the last 7 days
 
     # Reductions.
         The rate reductions are list of list, first and second entry are rate reductions for the groups [family, job, other]. The third entry is the chance of choosing the first set. As such you can have some follow the lockdown and some not or some one group being able to work from home and another isn't.
@@ -277,10 +289,14 @@ class Intervention(object):
         1: lockdown (jobs and schools)
         2: Track (infected and their connections),
         3: Cover (with face masks)
-    - started_as: XXX
+
+    - started_as: describes whether or not an intervention has been applied. If 0, no intervention has been applied.
+
+    - verbose: Prints status of interventions and removal of them
+
     """
 
-    def __init__(self, N_tot, N_daily_tests, labels, interventions_to_apply, isolate):
+    def __init__(self, N_tot, N_daily_tests, labels, interventions_to_apply, verbose=False):
         self.N_tot = N_tot
         self.N_daily_tests = int(N_daily_tests * N_tot / 5_800_000)
 
@@ -300,12 +316,13 @@ class Intervention(object):
 
         self.masking_rate_reduction = np.array([[0, 0, 0.0], [0, 0, 0.8]], dtype=np.float32)
         self.lockdown_rate_reduction = np.array([[0, 1, 0.6], [0, 0.6, 0.6]], dtype=np.float32)
-        self.isolation_rate_reduction = np.array([[0.2, 1, 1], [0, 0.2, 0.2]], dtype=np.float32)
+        self.isolation_rate_reduction = np.array([0.2, 1, 1], dtype=np.float32)
         self.tracking_rates = np.array([1, 0.8, 0], dtype=np.float32)
-        self.isolate = isolate  # Do people who test positive isolate from all but family
 
         self.types = np.zeros(self.N_labels, dtype=np.uint8)
         self.started_as = np.zeros(self.N_labels, dtype=np.uint8)
+
+        self.verbose = verbose
 
     def initialize_labels(self, labels):
         self.labels = np.asarray(labels, dtype=np.uint8)
@@ -316,24 +333,23 @@ class Intervention(object):
     def agent_has_not_been_tested(self, agent):
         return self.day_found_infected[agent] == -1
 
+    def do_apply_intervention_on_label(self):
+        return 1 in self.interventions_to_apply or 2 in self.interventions_to_apply
+
     def do_tracking(self):
-        return 2 in self.interventions_to_apply
+        return 3 in self.interventions_to_apply
 
+    def do_test_people_with_symptoms(self):
+        return 4 in self.interventions_to_apply
 
-# N_tot = 10_000
-# N_daily_tests = 20000  # TODO make Par?
-# interventions_to_apply = [0]
-# isolate = False
-# # N_labels = 98
-# labels = np.random.randint(3, size=N_tot)
+    def do_isolate(self):
+        return 5 in self.interventions_to_apply
 
-# intervention = Intervention(
-#     N_tot=N_tot,
-#     N_daily_tests=N_daily_tests,
-#     labels=labels,
-#     interventions_to_apply=interventions_to_apply,
-#     isolate=isolate,
-# )
+    def do_random_test(self):
+        return 6 in self.interventions_to_apply
+
+    def any_testing(self):
+        return self.do_tracking() or self.do_test_people_with_symptoms() or self.do_random_test()
 
 
 #%%
@@ -571,26 +587,6 @@ def place_and_connect_families(
 
 
 @njit
-def run_algo_other(my, agents_in_age_group, age1, age2, rho_tmp):
-    while True:
-        # agent1 = np.searchsorted(PP_ages[m_i], np.random.rand())
-        # agent1 = agents_in_age_group[m_i][agent1]
-        # TODO: Add connection weights
-        agent1 = np.random.choice(agents_in_age_group[age1])
-        agent2 = np.random.choice(agents_in_age_group[age2])
-        do_stop = update_node_connections(
-            my,
-            rho_tmp,
-            agent1,
-            agent2,
-            connection_type=2,
-            code_version=2,
-        )
-        if do_stop:
-            break
-
-
-@njit
 def run_algo_work(my, agents_in_age_group, age1, age2, rho_tmp):
     # agent1 = np.searchsorted(PP_ages[m_i], np.random.rand())
     # agent1 = agents_in_age_group[m_i][agent1]
@@ -609,6 +605,26 @@ def run_algo_work(my, agents_in_age_group, age1, age2, rho_tmp):
             code_version=2,
         )
 
+        if do_stop:
+            break
+
+
+@njit
+def run_algo_other(my, agents_in_age_group, age1, age2, rho_tmp):
+    while True:
+        # agent1 = np.searchsorted(PP_ages[m_i], np.random.rand())
+        # agent1 = agents_in_age_group[m_i][agent1]
+        # TODO: Add connection weights
+        agent1 = np.random.choice(agents_in_age_group[age1])
+        agent2 = np.random.choice(agents_in_age_group[age2])
+        do_stop = update_node_connections(
+            my,
+            rho_tmp,
+            agent1,
+            agent2,
+            connection_type=2,
+            code_version=2,
+        )
         if do_stop:
             break
 
@@ -744,47 +760,12 @@ def make_initial_infections(
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 
-# @njit
-# def daily_tent_test(
-#     my,
-#     g,
-#     N_daily_tests,
-#     f_test_succes,
-#     N_states,
-# ):
-
-#     n_positive_tested = 0
-
-#     for _ in range(N_daily_tests):
-#         agent = np.random.randint(my.cfg.N_tot)
-
-#         # only if in I state and  un-noticed
-#         if my.agent_is_infectious(agent) and (np.random.rand() < f_test_succes):
-
-#             # agent_tested_positive.append(agent)
-#             n_positive_tested += 1
-
-#             for i in range(my.number_of_contacts[agent]):
-#                 contact = my.connections[agent][i]
-#                 rate = g.rates[agent][i]
-#                 connection_type = my.connections_type[agent][i]
-
-#                 # only close work/other contacts
-#                 if my.state[contact] == -1 and connection_type > -1:
-#                     g.update_rates(my, -rate, agent)
-#                     g.rates[agent][i] = 0
-#                     # g.total_sum_infections -= rate
-#                     # g.sum_of_rates[agent] -= rate
-#                     # g.cumulative_sum_infection_rates[my.state[agent] :] -= rate
-
-#     return n_positive_tested
-
-
 @njit
 def do_bug_check(
     my,
     g,
     step_number,
+    day,
     continue_run,
     verbose,
     state_total_counts,
@@ -794,6 +775,10 @@ def do_bug_check(
     s,
     x,
 ):
+
+    if day > 2_000:
+        print("day exceeded 2000")
+        continue_run = False
 
     if step_number > 100_000_000:
         print("step_number > 100_000_000")
@@ -925,24 +910,24 @@ def run_simulation(
 
             accept = True
 
-            # test infectious people
-            if my.state[agent] >= N_infectious_states:
+            if intervention.do_test_people_with_symptoms():
 
-                assert len(intervention.clicks_when_tested) == my.cfg.N_tot
-                assert (my.state[agent] - 4) < len(intervention.chance_of_finding_infected)
+                # test infectious people
+                if my.state[agent] >= N_infectious_states:
 
-                randomly_selected = (
-                    np.random.rand() < intervention.chance_of_finding_infected[my.state[agent] - 4]
-                )
-                not_tested_before = intervention.clicks_when_tested[agent] == -1
-
-                if randomly_selected and not_tested_before:
-                    # testing in n_clicks for symptom checking
-                    intervention.clicks_when_tested[agent] = (
-                        click + intervention.test_delay_in_clicks[0]
+                    randomly_selected = (
+                        np.random.rand()
+                        < intervention.chance_of_finding_infected[my.state[agent] - 4]
                     )
-                    # set the reason for testing to symptoms (0)
-                    intervention.reason_for_test[agent] = 0
+                    not_tested_before = intervention.clicks_when_tested[agent] == -1
+
+                    if randomly_selected and not_tested_before:
+                        # testing in n_clicks for symptom checking
+                        intervention.clicks_when_tested[agent] = (
+                            click + intervention.test_delay_in_clicks[0]
+                        )
+                        # set the reason for testing to symptoms (0)
+                        intervention.reason_for_test[agent] = 0
 
             # Moves TO infectious State from non-infectious
             if my.state[agent] == N_infectious_states:
@@ -1064,71 +1049,66 @@ def run_simulation(
                 day += 1
                 out_my_state.append(my.state.copy())
 
-                # # tent testing
-                # # N_daily_tests = 10_000
-                # N_daily_tests = 0
-                # f_test_succes = 0.8
+                if intervention.do_apply_intervention_on_label():
 
-                # n_positive_tested = daily_tent_test(
-                #     my,
-                #     g,
-                #     N_daily_tests,
-                #     f_test_succes,
-                #     N_states,
-                # )
-                # N_positive_tested.append(n_positive_tested)
+                    if intervention.do_random_test():
 
-                # choose N_daily_test people at random to test
-                random_people_for_test = np.random.choice(
-                    np.arange(my.cfg.N_tot, dtype=np.uint32), intervention.N_daily_tests
-                )
-                intervention.clicks_when_tested[random_people_for_test] = (
-                    click + intervention.test_delay_in_clicks[1]
-                )
-                # count that random test is the reason for test
-                intervention.reason_for_test[random_people_for_test] = 1
-
-                test_if_label_needs_intervention(
-                    intervention, day, intervention_type_to_init=1, threshold=0.004
-                )
-
-                test_if_intervention_on_labels_can_be_removed(
-                    my, g, intervention, day, threshold=0.001
-                )
-
-                for ith_label, intervention_type in enumerate(intervention.types):
-
-                    is_lockdown = intervention_type == 1
-                    no_intervention = intervention.started_as[ith_label] == 0
-
-                    if is_lockdown and no_intervention:
-                        intervention.started_as[ith_label] = 1
-                        lockdown_on_label(
-                            my,
-                            g,
-                            intervention,
-                            label=ith_label,
-                            rate_reduction=intervention.lockdown_rate_reduction,
+                        # choose N_daily_test people at random to test
+                        random_people_for_test = np.random.choice(
+                            np.arange(my.cfg.N_tot, dtype=np.uint32), intervention.N_daily_tests
                         )
-
-            # test everybody whose counter say we should test
-            for agent in range(my.cfg.N_tot):
-                # testing everybody who should be tested
-                if intervention.clicks_when_tested[agent] == click:
-                    test_a_person(my, g, intervention, agent, click, day)
-
-                # getting results for people
-                if intervention.clicks_when_tested_result[agent] == click:
-                    intervention.clicks_when_tested_result[agent] = -1
-                    intervention.day_found_infected[agent] = day
-                    if intervention.isolate:
-                        cut_rates_of_agent(
-                            my,
-                            g,
-                            intervention,
-                            agent,
-                            rate_reduction=intervention.isolation_rate_reduction[0],
+                        intervention.clicks_when_tested[random_people_for_test] = (
+                            click + intervention.test_delay_in_clicks[1]
                         )
+                        # count that random test is the reason for test
+                        intervention.reason_for_test[random_people_for_test] = 1
+
+                    test_if_label_needs_intervention(
+                        intervention, day, intervention_type_to_init=1, threshold=0.004
+                    )
+
+                    test_if_intervention_on_labels_can_be_removed(
+                        my, g, intervention, day, threshold=0.001
+                    )
+
+                    for ith_label, intervention_type in enumerate(intervention.types):
+
+                        if intervention_type in intervention.interventions_to_apply:
+                            intervention_has_not_been_applied = (
+                                intervention.started_as[ith_label] == 0
+                            )
+
+                            apply_lockdown = intervention_type == 1
+                            if apply_lockdown and intervention_has_not_been_applied:
+                                intervention.started_as[ith_label] = 1
+                                lockdown_on_label(
+                                    my,
+                                    g,
+                                    intervention,
+                                    label=ith_label,
+                                    rate_reduction=intervention.lockdown_rate_reduction,
+                                )
+
+            if intervention.any_testing():
+
+                # test everybody whose counter say we should test
+                for agent in range(my.cfg.N_tot):
+                    # testing everybody who should be tested
+                    if intervention.clicks_when_tested[agent] == click:
+                        test_a_person(my, g, intervention, agent, click, day)
+
+                    # getting results for people
+                    if intervention.clicks_when_tested_result[agent] == click:
+                        intervention.clicks_when_tested_result[agent] = -1
+                        intervention.day_found_infected[agent] = day
+                        if intervention.do_isolate():
+                            cut_rates_of_agent(
+                                my,
+                                g,
+                                intervention,
+                                agent,
+                                rate_reduction=intervention.isolation_rate_reduction,
+                            )
 
             click += 1
 
@@ -1136,6 +1116,7 @@ def run_simulation(
             my,
             g,
             step_number,
+            day,
             continue_run,
             verbose,
             state_total_counts,
@@ -1151,6 +1132,7 @@ def run_simulation(
     if verbose:
         print("Simulation step_number, ", step_number)
         print("s_counter", s_counter)
+        print("positive_test_counter", intervention.positive_test_counter)
         # print("N_daily_tests", intervention.N_daily_tests)
         # print("N_positive_tested", N_positive_tested)
 
@@ -1242,12 +1224,13 @@ def test_if_label_needs_intervention(
     )
     for i_label, (N_infected, N_inhabitants, my_intervention_type) in it:
         if N_infected / N_inhabitants > threshold and my_intervention_type == 0:
-            print(
-                *("lockdown at tent", i_label),
-                *("at day", day),
-                *("the num of infected is", N_infected),
-                *("/", N_inhabitants),
-            )
+            if intervention.verbose:
+                print(
+                    *("lockdown at label", i_label),
+                    *("at day", day),
+                    *("the num of infected is", N_infected),
+                    *("/", N_inhabitants),
+                )
 
             intervention.types[i_label] = intervention_type_to_init
 
@@ -1291,7 +1274,7 @@ def reset_rates_of_agent(my, g, agent, connection_type_weight=None):
                 break
 
     # actually updates to gillespie sums
-    g.update_rates(my, agent_update_rate, agent)
+    g.update_rates(my, +agent_update_rate, agent)
     return None
 
 
@@ -1325,18 +1308,19 @@ def test_if_intervention_on_labels_can_be_removed(my, g, intervention, day, thre
 
             intervention.types[i_label] = 0
             intervention.started_as[i_label] = 0
-            print(
-                *("remove lockdown at num of infected", i_label),
-                *("at day", day),
-                *("the num of infected is", N_infected),
-                *("/", N_inhabitants),
-            )
+            if intervention.verbose:
+                print(
+                    *("remove lockdown at num of infected", i_label),
+                    *("at day", day),
+                    *("the num of infected is", N_infected),
+                    *("/", N_inhabitants),
+                )
 
     return None
 
 
 @njit
-def _update_rates_of_agent(
+def loop_update_rates_of_contacts(
     my, g, intervention, agent, contact, rate, agent_update_rate, rate_reduction
 ):
 
@@ -1359,7 +1343,7 @@ def _update_rates_of_agent(
 
             # updates to gillespie sums, if contact is infectious and agent is susceptible
             if my.agent_is_infectious(contact) and my.agent_is_susceptable(agent):
-                g.update_rates(my, c_rate, contact)
+                g.update_rates(my, -c_rate, contact)
             break
 
     return agent_update_rate
@@ -1378,7 +1362,7 @@ def cut_rates_of_agent(my, g, intervention, agent, rate_reduction):
         rate = g.rates[agent][ith_contact] * rate_reduction[my.connections_type[agent][ith_contact]]
         g.rates[agent][ith_contact] -= rate
 
-        agent_update_rate = _update_rates_of_agent(
+        agent_update_rate = loop_update_rates_of_contacts(
             my,
             g,
             intervention,
@@ -1390,7 +1374,7 @@ def cut_rates_of_agent(my, g, intervention, agent, rate_reduction):
         )
 
     # actually updates to gillespie sums
-    g.update_rates(my, agent_update_rate, agent)
+    g.update_rates(my, -agent_update_rate, agent)
     return None
 
 
@@ -1417,7 +1401,7 @@ def reduce_frac_rates_of_agent(my, g, intervention, agent, rate_reduction):
 
         g.rates[agent][ith_contact] -= rate
 
-        agent_update_rate = _update_rates_of_agent(
+        agent_update_rate = loop_update_rates_of_contacts(
             my,
             g,
             intervention,
@@ -1429,7 +1413,7 @@ def reduce_frac_rates_of_agent(my, g, intervention, agent, rate_reduction):
         )
 
     # actually updates to gillespie sums
-    g.update_rates(my, agent_update_rate, agent)
+    g.update_rates(my, -agent_update_rate, agent)
     return None
 
 
@@ -1455,7 +1439,7 @@ def remove_and_reduce_rates_of_agent(my, g, intervention, agent, rate_reduction)
 
         g.rates[agent][ith_contact] -= rate
 
-        agent_update_rate = _update_rates_of_agent(
+        agent_update_rate = loop_update_rates_of_contacts(
             my,
             g,
             intervention,
@@ -1467,7 +1451,7 @@ def remove_and_reduce_rates_of_agent(my, g, intervention, agent, rate_reduction)
         )
 
     # actually updates to gillespie sums
-    g.update_rates(my, agent_update_rate, agent)
+    g.update_rates(my, -agent_update_rate, agent)
     return None
 
 

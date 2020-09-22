@@ -184,17 +184,24 @@ class Simulation:
         if self.verbose:
             print("RUN SIMULATION")
 
-        N_daily_tests = 0  # 20000  # TODO make Par?
+        N_daily_tests = 20_000  # 20000  # TODO make Par?
         labels = self.df_coordinates["idx"].values
-        interventions_to_apply = [0]
-        isolate = False
+        interventions_to_apply = [1, 4, 6]
+
+        # 1: Lockdown (jobs and schools)
+        # 2: Cover (with face masks)
+        # 3: Tracking (infected and their connections)
+        # 4: Test people with symptoms
+        # 5: Isolate
+        # 6: Random Testing
+        # 0: Do nothing
 
         self.intervention = nb_simulation.Intervention(
             N_tot=self.cfg.N_tot,
             N_daily_tests=N_daily_tests,
             labels=labels,
             interventions_to_apply=interventions_to_apply,
-            isolate=isolate,
+            verbose=self.verbose,
         )
 
         res = nb_simulation.run_simulation(
