@@ -253,7 +253,7 @@ class Intervention(object):
         4: Test people with symptoms
         5: Isolate (if you get a positive test, isolate yourself from your contacts (isolation_rate_reduction))
         6: Random Testing
-        0: Do nothing
+        0/None: Do nothing
 
     - day_found_infected: -1 if not infected, otherwise the day of infection
 
@@ -300,10 +300,10 @@ class Intervention(object):
         self.N_tot = N_tot
         self.N_daily_tests = int(N_daily_tests * N_tot / 5_800_000)
 
-        self.initialize_labels(labels)
+        self._initialize_labels(labels)
 
-        # self.interventions_to_apply = np.array(interventions_to_apply, dtype=np.int64)
-        self.interventions_to_apply = List(interventions_to_apply)
+        self._initialize_interventions_to_apply(interventions_to_apply)
+
         self.day_found_infected = np.full(N_tot, fill_value=-1, dtype=np.int32)
         self.reason_for_test = np.full(N_tot, fill_value=-1, dtype=np.int8)
         self.positive_test_counter = np.zeros(3, dtype=np.uint32)
@@ -324,7 +324,16 @@ class Intervention(object):
 
         self.verbose = verbose
 
-    def initialize_labels(self, labels):
+    def _initialize_interventions_to_apply(self, interventions_to_apply=None):
+        if interventions_to_apply is None:
+            self.interventions_to_apply = List([np.int64(0)])
+        else:
+            lst = List()
+            for intervention in interventions_to_apply:
+                lst.append(np.int64(intervention))
+            self.interventions_to_apply = lst
+
+    def _initialize_labels(self, labels):
         self.labels = np.asarray(labels, dtype=np.uint8)
         unique, counts = utils.numba_unique_with_counts(labels)
         self.label_counter = np.asarray(counts, dtype=np.uint32)
@@ -1006,13 +1015,15 @@ def run_simulation(
                     my.number_of_contacts[contact_of_agent_getting_infected]
                 ):
 
-                    ith_contact_of_agent_getting_infected = np.uint64(
-                        ith_contact_of_agent_getting_infected
-                    )
-
+                    # tmp = my.connections[contact_of_agent_getting_infected]
+                    # find_myself = np.int64(tmp[np.int64(ith_contact_of_agent_getting_infected)])
+                    # find_myself = np.uint64(tmp[ith_contact_of_agent_getting_infected])
+                    # find_myself = tmp[np.uint64(ith_contact_of_agent_getting_infected)]
+                    # agent_getting_infected = np.uint64(agent_getting_infected)
                     find_myself = my.connections[contact_of_agent_getting_infected][
                         ith_contact_of_agent_getting_infected
                     ]
+                    # agent_getting_infected = np.uint64(agent_getting_infected)
 
                     # check if the contact found is myself
                     if find_myself == agent_getting_infected:

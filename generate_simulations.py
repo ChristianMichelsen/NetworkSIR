@@ -13,7 +13,7 @@ from contexttimer import Timer
 N_tot_max = 1_000_000
 num_cores_max = 30
 N_loops = 10
-dry_run = True
+dry_run = False
 force_rerun = False
 verbose = True
 
@@ -26,9 +26,9 @@ if utils.is_local_computer():
         {
             "N_tot": 58_000,
             "rho": 0,
-            "version": [1, 2],
-            "make_random_initial_infections": [0, 1],
-            "N_connect_retries": [0, 1],
+            # "version": [1, 2],
+            # "make_random_initial_infections": [0, 1],
+            # "N_connect_retries": [0, 1],
         },
     ]
 

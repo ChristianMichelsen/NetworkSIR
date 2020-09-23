@@ -187,9 +187,9 @@ class Simulation:
         N_daily_tests = 20_000  # 20000  # TODO make Par?
         labels = self.df_coordinates["idx"].values
         if self.my.cfg.version >= 2:
-            interventions_to_apply = [1, 4, 6]
+            interventions_to_apply = List([1, 4, 6])
         else:
-            interventions_to_apply = [0]
+            interventions_to_apply = None
 
         # 1: Lockdown (jobs and schools)
         # 2: Cover (with face masks)
@@ -252,7 +252,7 @@ def run_full_simulation(
         if not verbose:
             # ignore warning about run_algo
             warnings.simplefilter("ignore", NumbaExperimentalFeatureWarning)
-            # warnings.simplefilter("ignore", NumbaTypeSafetyWarning)
+            warnings.simplefilter("ignore", NumbaTypeSafetyWarning)
             # warnings.simplefilter("ignore", NumbaPendingDeprecationWarning)
 
         simulation = Simulation(filename, verbose)
