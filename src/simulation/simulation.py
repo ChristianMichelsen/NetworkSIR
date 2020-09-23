@@ -265,8 +265,6 @@ def run_full_simulation(
         simulation.make_initial_infections()
         simulation.run_simulation()
         simulation.make_dataframe()
-        # print("NOT SAVING SIM RESULTS")
-        # if False:
         # simulation.save_simulation_results(time_elapsed=t.elapsed)
 
         if verbose and simulation.ID == 0:

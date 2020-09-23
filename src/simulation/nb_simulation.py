@@ -1015,15 +1015,9 @@ def run_simulation(
                     my.number_of_contacts[contact_of_agent_getting_infected]
                 ):
 
-                    # tmp = my.connections[contact_of_agent_getting_infected]
-                    # find_myself = np.int64(tmp[np.int64(ith_contact_of_agent_getting_infected)])
-                    # find_myself = np.uint64(tmp[ith_contact_of_agent_getting_infected])
-                    # find_myself = tmp[np.uint64(ith_contact_of_agent_getting_infected)]
-                    # agent_getting_infected = np.uint64(agent_getting_infected)
                     find_myself = my.connections[contact_of_agent_getting_infected][
                         ith_contact_of_agent_getting_infected
                     ]
-                    # agent_getting_infected = np.uint64(agent_getting_infected)
 
                     # check if the contact found is myself
                     if find_myself == agent_getting_infected:
