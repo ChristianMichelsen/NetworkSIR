@@ -81,8 +81,6 @@ all_fits = fits.get_fit_results(abm_files, force_rerun=False, num_cores=num_core
 
 #%%
 
-#%%
-
 plot.plot_fits(all_fits, force_rerun=force_rerun, verbose=verbose)
 
 
@@ -96,14 +94,29 @@ if do_make_1D_scan:
 
 #%%
 
+try:
+    ABM_parameter_vanilla = "v__1.0__N_tot__5800000__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__1__N_connect_retries__0"
+    fig_vanilla, ax_vanilla = plot.plot_single_fit(ABM_parameter_vanilla, all_fits)
+    fig_vanilla.savefig("Figures/Fits_vanilla", dpi=100)
+except KeyError:
+    print("Specific fits-plot for the vanilla model could not be made since the fit does not exist")
+
+try:
+    ABM_parameter_spatial = "v__1.0__N_tot__5800000__rho__0.1__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__1__N_connect_retries__0"
+    fig_spatial, ax_spatial = plot.plot_single_fit(ABM_parameter_spatial, all_fits)
+    fig_spatial.savefig("Figures/Fits_spatial", dpi=100)
+except KeyError:
+    print("Specific fits-plot for the spatial model could not be made since the fit does not exist")
+
+#%%
+
 # reload(plot)
 # force_rerun = True
 
 network_files = file_loaders.ABM_simulations(base_dir="Data/network", filetype="hdf5")
 plot.plot_number_of_contacts(network_files, force_rerun=force_rerun)
 
-filename = network_files.all_files[0]
-
+# filename = network_files.all_files[0]
 
 #%%
 
@@ -124,5 +137,3 @@ filename = network_files.all_files[0]
 #     ABM_parameter, all_fits, add_text=False, xlim=(0, 220), legend_loc={"I": "upper right", "R": "lower right"}
 # )
 # fig.savefig("Figures/paper/fits_rho.pdf")
-
-# # %%

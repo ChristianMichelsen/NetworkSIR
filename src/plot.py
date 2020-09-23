@@ -28,11 +28,24 @@ from functools import lru_cache
 
 rc_params.set_rc_params()
 
+# https://carto.com/carto-colors/
+d_colors = {
+    "blue": "#1D6996",
+    "red": "#E41A1C",
+    "green": "#0F8554",
+    "orange": "#E17C05",
+    "purple": "#94346E",
+    "light_blue": "#38A6A5",
+    "light_green": "#73AF48",
+    "yellow": "#EDAD08",
+    "grey": "#666666",
+}
+
 
 def compute_df_deterministic(cfg, variable, T_max=100):
     # checks that the curve has flattened out
     while True:
-        df_deterministic = SIR.integrate(cfg, T_max, dt=0.01, ts=1)
+        df_deterministic = SIR.integrate(cfg, T_max, dt=0.01, ts=0.1)
         delta_1_day = df_deterministic[variable].iloc[-2] - df_deterministic[variable].iloc[-1]
         if variable == "R":
             delta_1_day *= -1
@@ -64,11 +77,11 @@ def plot_ABM_simulations(abm_files, force_rerun=False):
 
             cfg = utils.string_to_dict(ABM_parameter)
 
-            fig, axes = plt.subplots(ncols=2, figsize=(18, 7), constrained_layout=True)
+            fig, axes = plt.subplots(ncols=2, figsize=(16, 7), constrained_layout=True)
             fig.subplots_adjust(top=0.8)
 
             T_max = 0
-            lw = 0.1 * 10 / np.sqrt(len(abm_files[ABM_parameter]))
+            lw = 0.3 * 10 / np.sqrt(len(abm_files[ABM_parameter]))
 
             stochastic_noise_I = []
             stochastic_noise_R = []
@@ -95,15 +108,15 @@ def plot_ABM_simulations(abm_files, force_rerun=False):
                 ax.plot(
                     df_deterministic["time"],
                     df_deterministic[variable],
-                    lw=2.5,
-                    color="red",
+                    lw=lw * 4,
+                    color=d_colors["red"],
                     label="SEIR",
                 )
                 leg = ax.legend(loc=d_label_loc[variable])
                 for legobj in leg.legendHandles:
-                    legobj.set_linewidth(2.0)
+                    legobj.set_linewidth(lw * 4)
 
-                ax.set(xlabel="Time", ylim=(0, None), ylabel=d_ylabel[variable])
+                ax.set(xlabel="Time", ylim=(0, None), ylabel=d_ylabel[variable], xlim=(0, None))
                 # ax.set_xlabel('Time', ha='right')
                 ax.xaxis.set_label_coords(0.91, -0.14)
                 ax.yaxis.set_major_formatter(EngFormatter())
@@ -138,7 +151,7 @@ def plot_ABM_simulations(abm_files, force_rerun=False):
 
             title = utils.dict_to_title(cfg, len(abm_files[ABM_parameter]))
             fig.suptitle(title, fontsize=24)
-            plt.subplots_adjust(wspace=0.3)
+            plt.subplots_adjust(wspace=0.4)
 
             pdf.savefig(fig, dpi=100)
             plt.close("all")
@@ -181,7 +194,9 @@ def compute_ABM_SEIR_proportions(filenames):
 def get_1D_scan_results(scan_parameter, non_default_parameters):
     "Compute the fraction between ABM and SEIR for all simulations related to the scan_parameter"
 
-    simulation_parameters_1D_scan = utils.get_simulation_parameters_1D_scan(scan_parameter, non_default_parameters)
+    simulation_parameters_1D_scan = utils.get_simulation_parameters_1D_scan(
+        scan_parameter, non_default_parameters
+    )
     N_simulation_parameters = len(simulation_parameters_1D_scan)
     if N_simulation_parameters <= 1:
         return None
@@ -197,7 +212,11 @@ def get_1D_scan_results(scan_parameter, non_default_parameters):
 
     # ABM_parameter = simulation_parameters_1D_scan[0]
     for i, ABM_parameter in enumerate(tqdm(simulation_parameters_1D_scan, desc=scan_parameter)):
-        filenames = [str(filename) for filename in base_dir.rglob("*.csv") if f"{ABM_parameter}/" in str(filename)]
+        filenames = [
+            str(filename)
+            for filename in base_dir.rglob("*.csv")
+            if f"{ABM_parameter}/" in str(filename)
+        ]
 
         z_rel_I, z_rel_R, cfg = compute_ABM_SEIR_proportions(filenames)
 
@@ -240,7 +259,7 @@ def _plot_1D_scan_res(res, scan_parameter, ylim, do_log):
     # n>1 datapoints
     mask = n > 1
 
-    factor = 0.8
+    factor = 0.7
     fig, (ax0, ax1) = plt.subplots(ncols=2, figsize=(16 * factor, 9 * factor))  #
     fig.suptitle(title, fontsize=28 * factor)
 
@@ -293,7 +312,7 @@ def _plot_1D_scan_res(res, scan_parameter, ylim, do_log):
         ax1.set_xscale("log")
 
     fig.tight_layout()
-    fig.subplots_adjust(top=0.8, wspace=0.45)
+    fig.subplots_adjust(top=0.8, wspace=0.5)
 
     return fig, (ax0, ax1)
 
@@ -333,7 +352,9 @@ def rug_plot(xs, ax, ymax=0.1, **kwargs):
         ax.axvline(x, ymax=ymax, **kwargs)
 
 
-def plot_single_fit(ABM_parameter, all_fits, add_text=True, xlim=(0, None), ylim=(0, None), legend_loc=None):
+def plot_single_fit(
+    ABM_parameter, all_fits, add_text=True, xlim=(0, None), ylim=(0, None), legend_loc=None
+):
 
     fit_objects = all_fits[ABM_parameter]
 
@@ -348,10 +369,8 @@ def plot_single_fit(ABM_parameter, all_fits, add_text=True, xlim=(0, None), ylim
     ]
 
     cfg = utils.string_to_dict(ABM_parameter)
-    axhline_ymin = 0.1 / 100 * cfg.N_tot
-    axhline_ymax = 1 / 100 * cfg.N_tot
 
-    fig, axes = plt.subplots(ncols=2, figsize=(18, 7), constrained_layout=True)
+    fig, axes = plt.subplots(ncols=2, figsize=(16, 7), constrained_layout=True)
     fig.subplots_adjust(top=0.8)
 
     for i, fit_object in enumerate(fit_objects.values()):
@@ -362,7 +381,7 @@ def plot_single_fit(ABM_parameter, all_fits, add_text=True, xlim=(0, None), ylim
         T_max = max(t) * 1.1
         df_fit = fit_object.calc_df_fit(ts=0.1, T_max=T_max)
 
-        lw = 0.8
+        lw = 0.9
         for I_or_R, ax in zip(["I", "R"], axes):
 
             label_min = "Fit Range" if i == 0 else None
@@ -378,7 +397,7 @@ def plot_single_fit(ABM_parameter, all_fits, add_text=True, xlim=(0, None), ylim
                 df_fit["time"],
                 df_fit[I_or_R],
                 lw=lw,
-                color="green",
+                color=d_colors["green"],
                 label=label,
             )
 
@@ -399,7 +418,7 @@ def plot_single_fit(ABM_parameter, all_fits, add_text=True, xlim=(0, None), ylim
         for I_or_R, ax in zip(["I", "R"], axes):
             median, errors = utils.get_central_confidence_intervals(d_fits[I_or_R])
             s = utils.format_asymmetric_uncertanties(median, errors, I_or_R)
-            axes[0].text(-0.15, -0.25, s, transform=ax.transAxes, fontsize=22)
+            axes[0].text(-0.25, -0.25, s, transform=ax.transAxes, fontsize=20)
 
         # calculate fraction between fit and ABM simulation
         z = defaultdict(list)
@@ -412,7 +431,7 @@ def plot_single_fit(ABM_parameter, all_fits, add_text=True, xlim=(0, None), ylim
             n_digits = int(np.log10(utils.round_to_uncertainty(mu, std)[0])) + 1
             s_mu = utils.human_format_scientific(mu, digits=n_digits)
             s = r"$ " + f"{name} = {s_mu[0]}" + r"\pm " + f"{std:.{n_digits}f}" + r"$"
-            ax.text(0.3, -0.25, s, transform=ax.transAxes, fontsize=22)
+            ax.text(0.25, -0.25, s, transform=ax.transAxes, fontsize=20)
 
     fit_values_deterministic = {
         "lambda_E": cfg.lambda_E,
@@ -429,7 +448,7 @@ def plot_single_fit(ABM_parameter, all_fits, add_text=True, xlim=(0, None), ylim
             df_SIR["time"],
             df_SIR[I_or_R],
             lw=lw * 8,
-            color="red",
+            color=d_colors["red"],
             label="SEIR",
             zorder=0,
         )
@@ -440,14 +459,14 @@ def plot_single_fit(ABM_parameter, all_fits, add_text=True, xlim=(0, None), ylim
             ax.xaxis.set_label_coords(0.91, -0.14)
         ax.yaxis.set_major_formatter(EngFormatter())
 
-        leg = ax.legend(loc=legend_loc[I_or_R])
-        for legobj in leg.legendHandles:
-            legobj.set_linewidth(2.0)
-            legobj.set_alpha(1.0)
+    leg = axes[0].legend(loc=legend_loc["I"])
+    for legobj in leg.legendHandles:
+        legobj.set_linewidth(3.0)
+        legobj.set_alpha(1.0)
 
     title = utils.dict_to_title(cfg, len(fit_objects))
     fig.suptitle(title, fontsize=24)
-    plt.subplots_adjust(wspace=0.3)
+    plt.subplots_adjust(wspace=0.4)
 
     return fig, ax
 
@@ -465,10 +484,6 @@ def plot_fits(all_fits, force_rerun=False, verbose=False):
         warnings.filterwarnings("ignore", message="This figure was using constrained_layout==True")
 
         for ABM_parameter, fit_objects in tqdm(all_fits.items(), desc="Plotting all fits"):
-            # break
-            # cfg = utils.string_to_dict(ABM_parameter)
-            # if cfg.N_tot == 5_800_000 and cfg.rho == 0.1:
-            # break
 
             # skip if no fits
             if len(fit_objects) == 0:
@@ -517,9 +532,13 @@ def compute_fit_ABM_proportions(fit_objects):
 def get_1D_scan_fit_results(all_fits, scan_parameter, non_default_parameters):
     "Compute the fraction between ABM and SEIR for all simulations related to the scan_parameter"
 
-    simulation_parameters_1D_scan = utils.get_simulation_parameters_1D_scan(scan_parameter, non_default_parameters)
+    simulation_parameters_1D_scan = utils.get_simulation_parameters_1D_scan(
+        scan_parameter, non_default_parameters
+    )
 
-    selected_fits = {key: val for key, val in all_fits.items() if key in simulation_parameters_1D_scan}
+    selected_fits = {
+        key: val for key, val in all_fits.items() if key in simulation_parameters_1D_scan
+    }
 
     N_simulation_parameters = len(selected_fits)
     if N_simulation_parameters <= 1:
@@ -554,7 +573,9 @@ def get_1D_scan_fit_results(all_fits, scan_parameter, non_default_parameters):
 from pandas.errors import EmptyDataError
 
 
-def plot_1D_scan_fit_results(all_fits, scan_parameter, do_log=False, ylim=None, non_default_parameters=None):
+def plot_1D_scan_fit_results(
+    all_fits, scan_parameter, do_log=False, ylim=None, non_default_parameters=None
+):
 
     if not non_default_parameters:
         non_default_parameters = {}
@@ -609,7 +630,9 @@ def _plot_number_of_contacts(filename):
     fig, (ax1, ax2) = plt.subplots(nrows=2, sharex=True, gridspec_kw={"height_ratios": [2.5, 1]})
     H_all = ax1.hist(my_number_of_contacts, label="Total", color=d_colors["Total"], **kwargs)
     H_S = ax1.hist(my_number_of_contacts[mask_S], label="At Risk", color=d_colors["Risk"], **kwargs)
-    H_R = ax1.hist(my_number_of_contacts[mask_R], label="Immune", color=d_colors["Immune"], **kwargs)
+    H_R = ax1.hist(
+        my_number_of_contacts[mask_R], label="Immune", color=d_colors["Immune"], **kwargs
+    )
 
     x = 0.5 * (H_all[1][:-1] + H_all[1][1:])
     frac_S = H_S[0] / H_all[0]
