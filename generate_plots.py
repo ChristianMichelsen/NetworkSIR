@@ -19,7 +19,7 @@ rc_params.set_rc_params()
 num_cores_max = 30
 
 do_make_1D_scan = True
-force_rerun = False
+force_rerun = True
 verbose = False
 
 #%%
@@ -34,6 +34,8 @@ N_files = len(abm_files)
 plot.plot_ABM_simulations(abm_files, force_rerun=force_rerun)
 
 #%%
+
+reload(plot)
 
 parameters_1D_scan = [
     dict(scan_parameter="mu"),
@@ -69,10 +71,6 @@ if do_make_1D_scan:
     for parameter_1D_scan in parameters_1D_scan:
         plot.plot_1D_scan(**parameter_1D_scan)
 
-
-#%%
-
-
 #%%
 
 num_cores = utils.get_num_cores(num_cores_max)
@@ -80,13 +78,13 @@ num_cores = utils.get_num_cores(num_cores_max)
 all_fits = fits.get_fit_results(abm_files, force_rerun=False, num_cores=num_cores)
 
 #%%
-
+reload(plot)
 plot.plot_fits(all_fits, force_rerun=force_rerun, verbose=verbose)
 
 
 #%%
 
-# reload(plot)
+reload(plot)
 if do_make_1D_scan:
     for parameter_1D_scan in parameters_1D_scan:
         plot.plot_1D_scan_fit_results(all_fits, **parameter_1D_scan)

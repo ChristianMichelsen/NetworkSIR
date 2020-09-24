@@ -1,12 +1,12 @@
 axes.axisbelow: true
 axes.grid: false
-axes.titlesize : 30
-axes.labelsize : 34
+axes.titlesize : 50
+axes.labelsize : 38
 axes.labelcolor: black
 axes.edgecolor: white #f0f0f0
 axes.facecolor: white
 axes.titlepad: 50.0     ## pad between axes and title in points
-axes.labelpad: 15.0     ## space between label and axis
+axes.labelpad: 5.0     ## space between label and axis
 
 axes.spines.left   : True  ## display axis spines
 axes.spines.bottom : True
@@ -48,27 +48,24 @@ lines.linewidth         :   1  # default 1.5
 
 # Increase the padding between the ticklabels and the axes, to prevent
 # overlap in the lower lefthand corner
-xtick.major.pad         :   4  # default 3.5
-ytick.major.pad         :   4  # default 3.5
-xtick.minor.pad         :   4  # default 3.5
-ytick.minor.pad         :   4  # default 3.5
+xtick.major.pad         :   8  # default 3.5
+ytick.major.pad         :   8  # default 3.5
+xtick.minor.pad         :   5  # default 3.5
+ytick.minor.pad         :   5  # default 3.5
 
 
-xtick.labelsize : 28
-ytick.labelsize : 28
+xtick.labelsize : 32
+ytick.labelsize : 32
 
 legend.fancybox: false
 legend.edgecolor: 0.8
 legend.facecolor: inherit
-legend.fontsize: 24
+legend.fontsize: 30
 legend.frameon          :   False
-legend.handletextpad    :   0.2
+legend.handletextpad    :   0.3
 
 #axes.prop_cycle    : cycler('color', ['1f78b4', 'e31a1c', '33a02c', 'ff7f00', '6a3d9a', 'a6cee3', 'b2df8a', 'cab2d6', 'fb9a99', 'fdbf6f'])
 axes.prop_cycle    : cycler('color', [  '1D6996', 'E41A1C', '0F8554', 'E17C05', '94346E', '38A6A5', '73AF48', 'EDAD08',  '666666'])
-
-
-
 
 
 
@@ -89,6 +86,10 @@ ytick.color: black
 
 # latex like font
 mathtext.fontset: cm
+text.usetex: true
+font.family: serif
+axes.formatter.use_mathtext: true
+#text.latex.preamble : \usepackage{siunitx}
 
 # ignore "More than 20 figures have been opened." warning
 figure.max_open_warning: 0

@@ -774,7 +774,10 @@ def format_asymmetric_uncertanties(value, errors, name="I"):
                 mu = mu1
 
         else:
-            raise AssertionError("The errors do not fit (not yet implemented)")
+            print("WARNING!!!")
+            print(mu, std_lower, exponent, mu1, std_higher, exponent1)
+            print("")
+            # raise AssertionError("The errors do not fit (not yet implemented)")
 
     if "E" in str(std_lower):
         assert False

@@ -58,7 +58,9 @@ def add_fit_results_to_fit_object(fit_object, filename, cfg, T_max, df):
     fit_object.R_inf_fit = R_inf_fit
     fit_object.R_inf_SIR = R_inf_SIR
 
-    SIR_results, I_max_MC, R_inf_MC = fit_object.make_monte_carlo_fits(N_samples=100, T_max=T_max * 1.5, ts=0.1)
+    SIR_results, I_max_MC, R_inf_MC = fit_object.make_monte_carlo_fits(
+        N_samples=100, T_max=T_max * 1.5, ts=0.1
+    )
     # fit_object.SIR_results = SIR_results
     fit_object.I_max_MC = I_max_MC
     fit_object.R_inf_MC = R_inf_MC
@@ -281,12 +283,14 @@ def get_fit_results(abm_files, force_rerun=False, num_cores=1):
             output_filename = Path("Data/fits") / f"fits_{ABM_parameter}.joblib"
             utils.make_sure_folder_exist(output_filename)
 
-            if output_filename.exists() and not force_rerun:
+            if output_filename.exists():
                 all_fits[ABM_parameter] = joblib.load(output_filename)
 
             else:
                 with warnings.catch_warnings():
-                    warnings.filterwarnings("ignore", message="covariance is not positive-semidefinite.")
+                    warnings.filterwarnings(
+                        "ignore", message="covariance is not positive-semidefinite."
+                    )
                     fit_results = fit_multiple_files(files, num_cores=num_cores)
                 joblib.dump(fit_results, output_filename)
                 all_fits[ABM_parameter] = fit_results

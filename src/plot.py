@@ -56,6 +56,110 @@ def compute_df_deterministic(cfg, variable, T_max=100):
     return df_deterministic
 
 
+# class LatexEngFormatter(EngFormatter):
+#     def __init__(self, unit="", places=None, sep=" "):
+#         self.has_printed = False
+#         super().__init__(unit=unit, places=places, sep=sep, usetex=False, useMathText=False)
+
+#     def __call__(self, x, pos=None):
+#         s = super().__call__(x, pos)
+#         s = s.split(self.sep)
+#         s[-1] = r"\, \mathrm{" + s[-1] + r"}"
+#         s = r"$" + self.sep.join(s) + r"$"
+#         return s
+
+
+def plot_single_ABM_simulation(ABM_parameter, abm_files):
+
+    d_ylabel = {"I": "Infected", "R": "Recovered"}
+    d_label_loc = {"I": "upper right", "R": "lower right"}
+
+    cfg = utils.string_to_dict(ABM_parameter)
+
+    fig, axes = plt.subplots(ncols=2, figsize=(16, 7), constrained_layout=True)
+    fig.subplots_adjust(top=0.8)
+
+    T_max = 0
+    lw = 0.3 * 10 / np.sqrt(len(abm_files[ABM_parameter]))
+
+    stochastic_noise_I = []
+    stochastic_noise_R = []
+
+    # file, i = abm_files[ABM_parameter][0], 0
+    for i, file in enumerate(abm_files[ABM_parameter]):
+        df = file_loaders.pandas_load_file(file)
+        t = df["time"].values
+        label = r"ABM" if i == 0 else None
+
+        axes[0].plot(t, df["I"], lw=lw, c="k", label=label)
+        axes[1].plot(t, df["R"], lw=lw, c="k", label=label)
+
+        if t.max() > T_max:
+            T_max = t.max()
+
+        stochastic_noise_I.append(df["I"].max())
+        stochastic_noise_R.append(df["R"].iloc[-1])
+
+    for variable, ax in zip(["I", "R"], axes):
+
+        df_deterministic = compute_df_deterministic(cfg, variable, T_max=T_max)
+
+        ax.plot(
+            df_deterministic["time"],
+            df_deterministic[variable],
+            lw=lw * 4,
+            color=d_colors["red"],
+            label="SEIR",
+        )
+        leg = ax.legend(loc=d_label_loc[variable])
+        for legobj in leg.legendHandles:
+            legobj.set_linewidth(lw * 4)
+
+        ax.set(
+            xlabel="Time [days]",
+            ylim=(0, None),
+            ylabel=d_ylabel[variable],
+            xlim=(0, None),
+        )
+        # ax.set_xlabel('Time', ha='right')
+        # ax.xaxis.set_label_coords(0.91, -0.14)
+        ax.yaxis.set_major_formatter(EngFormatter())
+
+    names = [r"I_\mathrm{max}^\mathrm{ABM}", r"R_\infty^\mathrm{ABM}"]
+    for name, x, ax in zip(names, [stochastic_noise_I, stochastic_noise_R], axes):
+
+        mu, std = np.mean(x), utils.SDOM(x)
+
+        n_digits = int(np.log10(utils.round_to_uncertainty(mu, std)[0])) + 1
+        rel_uncertainty = std / mu
+        s_mu = utils.human_format_scientific(mu, digits=n_digits)
+
+        s = (
+            r"$ "
+            + f"{name} = ({s_mu[0]}"
+            + r"\pm "
+            + f"{rel_uncertainty*100:.2}"
+            + r"\% )"
+            + r"\cdot "
+            + f"{s_mu[1]}"
+            + r"$"
+        )
+        ax.text(
+            0.5,
+            1.05,
+            s,
+            horizontalalignment="center",
+            transform=ax.transAxes,
+            fontsize=12,
+        )
+
+    title = utils.dict_to_title(cfg, len(abm_files[ABM_parameter]))
+    fig.suptitle(title, fontsize=24)
+    plt.subplots_adjust(wspace=0.4)
+
+    return fig, ax
+
+
 def plot_ABM_simulations(abm_files, force_rerun=False):
 
     # pdf_name = "test.pdf"
@@ -63,95 +167,16 @@ def plot_ABM_simulations(abm_files, force_rerun=False):
     utils.make_sure_folder_exist(pdf_name)
 
     if pdf_name.exists() and not force_rerun:
-        print(f"{pdf_name} already exists")
+        print(f"{pdf_name} already exists\n", flush=True)
         return None
 
     with PdfPages(pdf_name) as pdf, warnings.catch_warnings():
         warnings.filterwarnings("ignore", message="This figure was using constrained_layout==True")
 
-        d_ylabel = {"I": "Infected", "R": "Recovered"}
-        d_label_loc = {"I": "upper right", "R": "lower right"}
-
         for ABM_parameter in tqdm(abm_files.keys, desc="Plotting individual ABM parameters"):
             # break
 
-            cfg = utils.string_to_dict(ABM_parameter)
-
-            fig, axes = plt.subplots(ncols=2, figsize=(16, 7), constrained_layout=True)
-            fig.subplots_adjust(top=0.8)
-
-            T_max = 0
-            lw = 0.3 * 10 / np.sqrt(len(abm_files[ABM_parameter]))
-
-            stochastic_noise_I = []
-            stochastic_noise_R = []
-
-            # file, i = abm_files[ABM_parameter][0], 0
-            for i, file in enumerate(abm_files[ABM_parameter]):
-                df = file_loaders.pandas_load_file(file)
-                t = df["time"].values
-                label = "ABM" if i == 0 else None
-
-                axes[0].plot(t, df["I"], lw=lw, c="k", label=label)
-                axes[1].plot(t, df["R"], lw=lw, c="k", label=label)
-
-                if t.max() > T_max:
-                    T_max = t.max()
-
-                stochastic_noise_I.append(df["I"].max())
-                stochastic_noise_R.append(df["R"].iloc[-1])
-
-            for variable, ax in zip(["I", "R"], axes):
-
-                df_deterministic = compute_df_deterministic(cfg, variable, T_max=T_max)
-
-                ax.plot(
-                    df_deterministic["time"],
-                    df_deterministic[variable],
-                    lw=lw * 4,
-                    color=d_colors["red"],
-                    label="SEIR",
-                )
-                leg = ax.legend(loc=d_label_loc[variable])
-                for legobj in leg.legendHandles:
-                    legobj.set_linewidth(lw * 4)
-
-                ax.set(xlabel="Time", ylim=(0, None), ylabel=d_ylabel[variable], xlim=(0, None))
-                # ax.set_xlabel('Time', ha='right')
-                ax.xaxis.set_label_coords(0.91, -0.14)
-                ax.yaxis.set_major_formatter(EngFormatter())
-
-            names = [r"I_\mathrm{max}^\mathrm{ABM}", r"R_\infty^\mathrm{ABM}"]
-            for name, x, ax in zip(names, [stochastic_noise_I, stochastic_noise_R], axes):
-
-                mu, std = np.mean(x), utils.SDOM(x)
-
-                n_digits = int(np.log10(utils.round_to_uncertainty(mu, std)[0])) + 1
-                rel_uncertainty = std / mu
-                s_mu = utils.human_format_scientific(mu, digits=n_digits)
-
-                s = (
-                    r"$ "
-                    + f"{name} = ({s_mu[0]}"
-                    + r"\pm "
-                    + f"{rel_uncertainty*100:.2}"
-                    + r"\% )"
-                    + r"\cdot "
-                    + f"{s_mu[1]}"
-                    + r"$"
-                )
-                ax.text(
-                    -0.1,
-                    -0.2,
-                    s,
-                    horizontalalignment="left",
-                    transform=ax.transAxes,
-                    fontsize=24,
-                )
-
-            title = utils.dict_to_title(cfg, len(abm_files[ABM_parameter]))
-            fig.suptitle(title, fontsize=24)
-            plt.subplots_adjust(wspace=0.4)
+            fig, ax = plot_single_ABM_simulation(ABM_parameter, abm_files)
 
             pdf.savefig(fig, dpi=100)
             plt.close("all")
@@ -252,7 +277,11 @@ def _plot_1D_scan_res(res, scan_parameter, ylim, do_log):
 
     d_par_pretty = utils.get_parameter_to_latex()
     title = utils.dict_to_title(cfg, exclude=[scan_parameter, "ID"])
-    xlabel = r"$" + d_par_pretty[scan_parameter] + r"$"
+
+    label_pretty = d_par_pretty[scan_parameter]
+    xlabel = r"$" + label_pretty + r"$"
+    if scan_parameter == "rho":
+        xlabel += r"\, \Huge [km$^{-1}$]"
 
     ylim0, ylim1 = extract_limits(ylim)
 
@@ -307,6 +336,9 @@ def _plot_1D_scan_res(res, scan_parameter, ylim, do_log):
     )
     ax1.set(xlabel=xlabel, ylim=ylim1)
 
+    ax0.set_xlabel(xlabel, labelpad=-0.5)
+    ax1.set_xlabel(xlabel, labelpad=-0.5)
+
     if do_log:
         ax0.set_xscale("log")
         ax1.set_xscale("log")
@@ -358,14 +390,14 @@ def plot_single_fit(
 
     fit_objects = all_fits[ABM_parameter]
 
-    d_ylabel = {"I": "Infected", "R": "Recovered"}
+    d_ylabel = {"I": r"Infected", "R": r"Recovered"}
 
     if legend_loc is None:
         legend_loc = {"I": "upper right", "R": "lower right"}
 
     relative_names = [
         r"\frac{I_\mathrm{max}^\mathrm{fit}} {I_\mathrm{max}^\mathrm{ABM}}",
-        r"\frac{R_\inf^\mathrm{fit}}{R_\inf^\mathrm{fit}}",
+        r"\frac{R_\infty^\mathrm{fit}} {R_\infty^\mathrm{fit}}",
     ]
 
     cfg = utils.string_to_dict(ABM_parameter)
@@ -384,10 +416,14 @@ def plot_single_fit(
         lw = 0.9
         for I_or_R, ax in zip(["I", "R"], axes):
 
-            label_min = "Fit Range" if i == 0 else None
-            axvline_kwargs = dict(lw=lw, alpha=0.9, color="lightgrey")
+            axvline_kwargs = dict(lw=lw, color=d_colors["blue"])
             tmp = df.query("@fit_object.t.min() <= time <= @fit_object.t.max()")
-            ax.fill_between(tmp["time"], tmp[I_or_R], label=label_min, **axvline_kwargs)
+            ax.fill_between(tmp["time"], tmp[I_or_R], **axvline_kwargs)
+
+            if i == 0:
+                line_kwargs = dict(ymax=0.45, color=d_colors["blue"], lw=2 * lw)
+                ax.axvline(tmp["time"].iloc[0], label="Fit Range", **line_kwargs)
+                ax.axvline(tmp["time"].iloc[-1], **line_kwargs)
 
             label = "ABM" if i == 0 else None
             ax.plot(t, df[I_or_R], "k-", lw=lw, label=label)
@@ -418,7 +454,7 @@ def plot_single_fit(
         for I_or_R, ax in zip(["I", "R"], axes):
             median, errors = utils.get_central_confidence_intervals(d_fits[I_or_R])
             s = utils.format_asymmetric_uncertanties(median, errors, I_or_R)
-            axes[0].text(-0.25, -0.25, s, transform=ax.transAxes, fontsize=20)
+            axes[0].text(0.1, 1.05, s, transform=ax.transAxes, fontsize=12)
 
         # calculate fraction between fit and ABM simulation
         z = defaultdict(list)
@@ -431,7 +467,7 @@ def plot_single_fit(
             n_digits = int(np.log10(utils.round_to_uncertainty(mu, std)[0])) + 1
             s_mu = utils.human_format_scientific(mu, digits=n_digits)
             s = r"$ " + f"{name} = {s_mu[0]}" + r"\pm " + f"{std:.{n_digits}f}" + r"$"
-            ax.text(0.25, -0.25, s, transform=ax.transAxes, fontsize=20)
+            ax.text(0.55, 1.05, s, transform=ax.transAxes, fontsize=12)
 
     fit_values_deterministic = {
         "lambda_E": cfg.lambda_E,
@@ -447,16 +483,16 @@ def plot_single_fit(
         ax.plot(
             df_SIR["time"],
             df_SIR[I_or_R],
-            lw=lw * 8,
+            lw=lw * 4,
             color=d_colors["red"],
             label="SEIR",
             zorder=0,
         )
 
         ax.set(xlim=xlim, ylim=ylim)
-        ax.set(xlabel="Time", ylabel=d_ylabel[I_or_R])
-        if add_text:
-            ax.xaxis.set_label_coords(0.91, -0.14)
+        ax.set(xlabel="Time [days]", ylabel=d_ylabel[I_or_R])
+        # if add_text:
+        #     ax.xaxis.set_label_coords(0.91, -0.14)
         ax.yaxis.set_major_formatter(EngFormatter())
 
     leg = axes[0].legend(loc=legend_loc["I"])
@@ -484,6 +520,7 @@ def plot_fits(all_fits, force_rerun=False, verbose=False):
         warnings.filterwarnings("ignore", message="This figure was using constrained_layout==True")
 
         for ABM_parameter, fit_objects in tqdm(all_fits.items(), desc="Plotting all fits"):
+            # break
 
             # skip if no fits
             if len(fit_objects) == 0:
@@ -602,7 +639,6 @@ def plot_1D_scan_fit_results(
 #%%
 
 import h5py
-from matplotlib.ticker import EngFormatter
 
 
 def _load_my_state_and_my_number_of_contacts(filename):
