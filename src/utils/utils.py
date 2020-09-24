@@ -928,7 +928,7 @@ def generate_filenames(
             val = int(val) if name in INTEGER_SIMULATION_PARAMETERS else float(val)
             cfg[name] = val
 
-        if N_tot_max and cfg["N_tot"] < N_tot_max:
+        if not N_tot_max or cfg["N_tot"] < N_tot_max:
 
             # ID = 0
             for ID in range(N_loops):
