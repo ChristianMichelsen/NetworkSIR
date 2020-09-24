@@ -912,30 +912,43 @@ def get_all_combinations(d_simulation_parameters):
     return all_combinations
 
 
-def generate_filenames(d_simulation_parameters, N_loops=10, force_rerun=False):
+def generate_filenames(
+    d_simulation_parameters, N_loops=10, force_rerun=False, N_tot_max=False, verbose=True
+):
     filenames = []
 
     all_combinations = get_all_combinations(d_simulation_parameters)
-
     cfg = get_cfg_default()
-    # combination = all_combinations[0]
+
+    has_printed_once = False
+
     for combination in all_combinations:
         for s in combination:
             name, val = s.split("__")
             val = int(val) if name in INTEGER_SIMULATION_PARAMETERS else float(val)
             cfg[name] = val
 
-        # ID = 0
-        for ID in range(N_loops):
-            filename = dict_to_filename_with_dir(cfg, ID)
+        if N_tot_max and cfg["N_tot"] < N_tot_max:
 
-            not_existing = not Path(filename).exists()
-            try:
-                zero_size = Path(filename).stat().st_size == 0
-            except FileNotFoundError:
-                zero_size = True
-            if not_existing or zero_size or force_rerun:
-                filenames.append(filename)
+            # ID = 0
+            for ID in range(N_loops):
+                filename = dict_to_filename_with_dir(cfg, ID)
+
+                not_existing = not Path(filename).exists()
+                try:
+                    zero_size = Path(filename).stat().st_size == 0
+                except FileNotFoundError:
+                    zero_size = True
+                if not_existing or zero_size or force_rerun:
+                    filenames.append(filename)
+
+        else:
+            if verbose and not has_printed_once:
+                print(
+                    f"Skipping some files since N_tot={human_format(cfg['N_tot'])} > N_tot_max={human_format(N_tot_max)}"
+                )
+                has_printed_once = True
+
     return filenames
 
 

@@ -13,7 +13,7 @@ from contexttimer import Timer
 N_tot_max = 1_000_000
 num_cores_max = 30
 N_loops = 10
-dry_run = False
+dry_run = True
 force_rerun = False
 verbose = True
 
@@ -53,7 +53,11 @@ if __name__ == "__main__":
         for d_simulation_parameters in all_simulation_parameters:
 
             filenames = utils.generate_filenames(
-                d_simulation_parameters, N_loops, force_rerun=force_rerun
+                d_simulation_parameters,
+                N_loops,
+                force_rerun=force_rerun,
+                N_tot_max=N_tot_max,
+                verbose=verbose,
             )
 
             N_files = len(filenames)
@@ -61,19 +65,12 @@ if __name__ == "__main__":
 
             # make sure path exists
             if len(filenames) == 0:
-                print("No files to generate, everything already generated.")
-                continue
-
-            proposed_N_max = utils.extract_N_tot_max(d_simulation_parameters)
-            if N_tot_max and proposed_N_max > N_tot_max:
-                print(
-                    f"Skipping since N_tot={utils.human_format(proposed_N_max)} > N_tot_max={utils.human_format(N_tot_max)}"
-                )
+                print("No files to generate, everything already generated.\n")
                 continue
 
             num_cores = utils.get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max)
             print(
-                f"\nGenerating {N_files:3d} network-based simulations with {num_cores} cores based on {d_simulation_parameters}, please wait.",
+                f"Generating {N_files:3d} network-based simulations with {num_cores} cores based on {d_simulation_parameters}, please wait.\n",
                 flush=True,
             )
 
