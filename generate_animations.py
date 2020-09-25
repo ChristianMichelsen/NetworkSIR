@@ -14,8 +14,6 @@ from importlib import reload
 import h5py
 from src import rc_params
 from src.utils import utils
-
-# from src import simulation_utils
 from src import animation_utils
 
 rc_params.set_rc_params(fig_dpi=50)  #
@@ -68,6 +66,21 @@ def add_spines(ax, exclude=None):
             ax.spines[spine].set_color("k")
             ax.spines[spine].set_linewidth(2)
     ax.tick_params(axis="x", pad=10)
+
+
+def remove_spines(ax, spines=None):
+    if spines is None:
+        spines = ["top", "right"]
+    for spine in spines:
+        ax.spines[spine].set_visible(False)
+
+    for spine in ["left", "right"]:
+        if spine not in spines:
+            ax.yaxis.set_ticks_position(spine)
+
+    for spine in ["top", "bottom"]:
+        if spine not in spines:
+            ax.xaxis.set_ticks_position(spine)
 
 
 def convert_df_byte_cols(df):
@@ -183,27 +196,17 @@ class AnimationBase:
 
         with h5py.File(self.filename, "r") as f:
 
-            self.coordinate_indices = f["coordinate_indices"][()]
+            # self.coordinate_indices = f["coordinate_indices"][()]
             self.df_raw = pd.DataFrame(f["df"][()]).drop("index", axis=1)
-            self.my_age = f["my_age"][()]
+            self.df_coordinates = pd.DataFrame(f["df_coordinates"][()]).drop("index", axis=1)
             self.my_state = f["my_state"][()]
             self.my_number_of_contacts = f["my_number_of_contacts"][()]
-
-            if "df_time_memory" in f.keys():
-                self.df_time_memory = convert_df_byte_cols(
-                    pd.DataFrame(f["df_time_memory"][()]).rename(columns={"index": "Time"})
-                )
-
-            if "df_change_points" in f.keys():
-                self.df_change_points = convert_df_byte_cols(
-                    pd.DataFrame(f["df_change_points"][()]).rename(columns={"index": "ChangePoint"})
-                )
 
             # g = awkward.hdf5(f)
             # g["my_connections"]
             # g["my_rates"]
 
-        self.df_coordinates = utils.load_coordinates_from_indices(self.coordinate_indices)
+        # self.df_coordinates = utils.load_coordinates_from_indices(self.coordinate_indices)
         self.coordinates = utils.df_coordinates_to_coordinates(self.df_coordinates)
 
     def _load_hdf5_file(self):
@@ -232,7 +235,9 @@ class AnimationBase:
     # def _plot_i_day(self, i_day, **kwargs):
     #     pass
 
-    def _make_animation(self, remove_frames=True, force_rerun=False, make_gif=True, optimize_gif=True, **kwargs):
+    def _make_animation(
+        self, remove_frames=True, force_rerun=False, make_gif=True, optimize_gif=True, **kwargs
+    ):
 
         name = f"{self.animation_type}_" + self._get_sim_pars_str() + ".gif"
         gif_name = str(Path(f"Figures/{self.animation_type}") / name)
@@ -271,7 +276,9 @@ class AnimationBase:
             if self.verbose:
                 print(f"{self.animation_type} already exists.")
 
-    def make_animation(self, remove_frames=True, force_rerun=False, make_gif=True, optimize_gif=True, **kwargs):
+    def make_animation(
+        self, remove_frames=True, force_rerun=False, make_gif=True, optimize_gif=True, **kwargs
+    ):
 
         if not self.is_valid_file:
             return None
@@ -458,7 +465,6 @@ class AnimateSIR(AnimationBase):
 
         self.df_counts = df_counts
         self.__name__ = "AnimateSIR"
-        self.dfs_all = {}
         self._initialize_plot()
 
     def _initialize_plot(self):
@@ -480,7 +486,7 @@ class AnimateSIR(AnimationBase):
         self.states = ["S", "I", "R"]
         self.state_names = {
             "S": "Susceptable",
-            "I": "Infected & Exposed",
+            "I": r"Infected $\&$ Exposed",
             "R": "Recovered",
         }
 
@@ -504,7 +510,9 @@ class AnimateSIR(AnimationBase):
         if self.df_counts is None:
             self.df_counts = self._compute_df_counts()
         self.R_eff = self._compute_R_eff()
-        self.R_eff_smooth = self._smoothen(self.R_eff, method="savgol", window_length=11, polyorder=3)
+        self.R_eff_smooth = self._smoothen(
+            self.R_eff, method="savgol", window_length=11, polyorder=3
+        )
         assert self.cfg["N_tot"] == self.df_counts.iloc[0].sum()
 
     def _compute_df_counts(self):
@@ -526,7 +534,9 @@ class AnimateSIR(AnimationBase):
 
     def _smoothen(self, x, method="savgol", **kwargs):  # window_length=11, polyorder=3
         if "savgol" in method:
-            return signal.savgol_filter(x, **kwargs)  # window size used for filtering, # order of fitted polynomial
+            return signal.savgol_filter(
+                x, **kwargs
+            )  # window size used for filtering, # order of fitted polynomial
         elif any([s in method for s in ["moving", "rolling", "average"]]):
             return pd.Series(x).rolling(**kwargs).mean().values
         else:
@@ -545,11 +555,11 @@ class AnimateSIR(AnimationBase):
     def _get_mask(self, i_day, state):
         return np.isin(self.my_state[i_day], self.inverse_mapping[state])
 
-    def _plot_i_day(self, i_day, dpi=50):
+    def _plot_i_day(self, i_day, dpi=50, include_Bornholm=True):
 
         # Main plot
         k_scale = 1.7
-        fig = plt.figure(figsize=(13 * k_scale, 13 * k_scale))
+        fig = plt.figure(figsize=(10 * k_scale, 12 * k_scale))
         ax = fig.add_subplot(1, 1, 1, projection="scatter_density")
 
         for state in self.states:
@@ -561,8 +571,12 @@ class AnimateSIR(AnimationBase):
                     **self._geo_plot_kwargs[state],
                 )
 
-        ax.set(xlim=(7.9, 15.3), ylim=(54.5, 58.2), xlabel="Longitude")
+        if include_Bornholm:
+            ax.set(xlim=(7.9, 15.3), ylim=(54.5, 58.2))
+        else:
+            ax.set(xlim=(7.9, 13.3), ylim=(54.5, 58.2))
         # ax.set(xlim=(9.2, 11.3), ylim=(57.1, 58), xlabel='Longitude') # NORDJYLLAND
+        ax.set(xlabel="Longitude")
         ax.set_ylabel("Latitude", rotation=90)  # fontsize=20, labelpad=20
 
         kw_args_circle = dict(xdata=[0], ydata=[0], marker="o", color="w", markersize=18)
@@ -574,30 +588,32 @@ class AnimateSIR(AnimationBase):
             )
             for state in self.states
         ]
-        ax.legend(handles=circles, loc="upper left", fontsize=24, frameon=False)
+        ax.legend(handles=circles, loc="upper left", fontsize=34, frameon=False)
 
-        s_legend = [utils.human_format(self.df_counts.loc[i_day, state], digits=1) for state in self.states]
+        s_legend = [
+            utils.human_format(self.df_counts.loc[i_day, state], digits=1) for state in self.states
+        ]
         delta_s = 0.0261
         for i, s in enumerate(s_legend):
             ax.text(
                 0.41,
                 0.9698 - i * delta_s,
                 s,
-                fontsize=24,
+                fontsize=34,
                 transform=ax.transAxes,
                 ha="right",
             )
 
-        # left, bottom, width, height
-        legend_background_box = [(0.023, 0.91), 0.398, 0.085]
-        ax.add_patch(
-            mpatches.Rectangle(
-                *legend_background_box,
-                facecolor="white",
-                edgecolor="white",
-                transform=ax.transAxes,
-            )
-        )
+        # # left, bottom, width, height
+        # legend_background_box = [(0.023, 0.91), 0.398, 0.085]
+        # ax.add_patch(
+        #     mpatches.Rectangle(
+        #         *legend_background_box,
+        #         facecolor="white",
+        #         edgecolor="white",
+        #         transform=ax.transAxes,
+        #     )
+        # )
 
         # self.cfg = utils.Filename(self.filename)._Filename.simulation_parameters
         title = utils.dict_to_title(self.cfg)
@@ -606,7 +622,7 @@ class AnimateSIR(AnimationBase):
 
         # secondary plots:
 
-        # These are in unitless percentmy_age of the figure size. (0,0 is bottom left)
+        # These are in unitless percentage of the figure size. (0,0 is bottom left)
         left, bottom, width, height = [0.56, 0.75, 0.39 * 0.8, 0.08 * 0.8]
 
         background_box = [(0.49, 0.60), 0.49, 0.35]
@@ -683,7 +699,7 @@ class AnimateSIR(AnimationBase):
         ax3.text(
             0,
             1.18,
-            r"$\mathcal{R}_\mathregular{eff}$",
+            r"$\mathcal{R}_\mathrm{eff}$",
             fontsize=26,
             transform=ax3.transAxes,
             rotation=0,
@@ -874,8 +890,6 @@ class Animate_my_number_of_contacts(AnimationBase):
 
 #%%
 
-from src.utils import haversine
-
 
 @njit
 def hist2d_numba(data_2D, bins, ranges):
@@ -965,8 +979,8 @@ class InfectionHomogeneityIndex(AnimationBase):
         lat_max = coordinates[:, 1].max()
         lat_mid = np.mean([lat_min, lat_max])
 
-        N_bins_x = int(haversine(lon_min, lat_mid, lon_max, lat_mid)) + 1
-        N_bins_y = int(haversine(lon_mid, lat_min, lon_mid, lat_max)) + 1
+        N_bins_x = int(utils.haversine(lon_min, lat_mid, lon_max, lat_mid)) + 1
+        N_bins_y = int(utils.haversine(lon_mid, lat_min, lon_mid, lat_max)) + 1
 
         return N_bins_x, N_bins_y
 
@@ -977,7 +991,9 @@ class InfectionHomogeneityIndex(AnimationBase):
         N = len(self.my_state)
         x = np.arange(N - 1)
         IHI = np.zeros(len(x))
-        N_box_all, counts_1d_all = compute_N_box_index(self.coordinates, N_bins_x, N_bins_y, threshold=threshold)
+        N_box_all, counts_1d_all = compute_N_box_index(
+            self.coordinates, N_bins_x, N_bins_y, threshold=threshold
+        )
         for i_day in x:
             my_state_day = self.my_state[i_day]
             coordinates_infected = self.coordinates[(-1 < my_state_day) & (my_state_day < 8)]
@@ -1087,7 +1103,9 @@ class KommuneMapAnimation(AnimationBase):
 
     def _load_kommune_data(self):
 
-        df_kommuner, name_to_idx, idx_to_name = utils.load_kommune_shapefiles(self.shapefile_size, verbose=False)
+        df_kommuner, name_to_idx, idx_to_name = utils.load_kommune_shapefiles(
+            self.shapefile_size, verbose=False
+        )
         self.df_kommuner = df_kommuner[["KOMNAVN", "idx", "geometry"]]
 
     def _plot_i_day(self, i_day, normalize_legend=True):
@@ -1176,6 +1194,153 @@ class KommuneMapAnimation(AnimationBase):
 # animation = KommuneMapAnimation(filenames[0])
 # fig, ax = animation._plot_i_day(50)
 # fig
+
+
+#%%
+
+
+def make_paper_screenshot(
+    filename,
+    title="",
+    i_day=1,
+    dpi=50,
+):
+
+    animation = AnimateSIR(filename, do_tqdm=False, verbose=False)
+    if animation.df_counts is None:
+        animation._initialize_data()
+
+    geo_plot_kwargs = {}
+    geo_plot_kwargs["S"] = dict(alpha=0.2, norm=animation.norm_100)
+    geo_plot_kwargs["R"] = dict(alpha=0.5, norm=animation.norm_100)
+    geo_plot_kwargs["I"] = dict(norm=animation.norm_10)
+
+    fig = plt.figure(figsize=(10 * 1.3, 12 * 1.3))
+    ax = fig.add_subplot(1, 1, 1, projection="scatter_density")
+
+    for state in animation.states:
+        if animation.df_counts.loc[i_day, state] > 0:
+            ax.scatter_density(
+                *animation.coordinates[animation._get_mask(i_day, state)].T,
+                color=animation.d_colors[state],
+                dpi=dpi,
+                **geo_plot_kwargs[state],
+            )
+
+    ax.set(xlim=(7.9, 13.3), ylim=(54.5, 58.2), xlabel="Longitude")
+    ax.set_ylabel("Latitude", rotation=90)  # fontsize=20, labelpad=20
+    ax.set_title(title, pad=40, fontsize=32)
+
+    kw_args_circle = dict(xdata=[0], ydata=[0], marker="o", color="w", markersize=16)
+    circles = [
+        Line2D(
+            label=animation.state_names[state],
+            markerfacecolor=animation.d_colors[state],
+            **kw_args_circle,
+        )
+        for state in animation.states
+    ]
+    ax.legend(handles=circles, fontsize=30, frameon=False, loc=(0, 0.82))
+
+    # secondary plots:
+
+    # These are in unitless percentage of the figure size. (0,0 is bottom left)
+    left, bottom, width, height = [0.63, 0.75, 0.39 * 0.6, 0.08]
+
+    i_day_max = i_day + max(3, i_day * 0.1)
+
+    # delta_width = 0 * width / 100
+    ax2 = fig.add_axes([left, bottom, width, height])
+    I_up_to_today = animation.df_counts["I"].iloc[: i_day + 1] / animation.cfg["N_tot"]
+    ax2.plot(I_up_to_today.index, I_up_to_today, "-", color=animation.d_colors["I"])
+    ax2.plot(
+        I_up_to_today.index[-1],
+        I_up_to_today.iloc[-1],
+        "o",
+        color=animation.d_colors["I"],
+    )
+    I_max = np.max(I_up_to_today)
+    ax2.set(
+        ylim=(0, I_max * 1.3),
+        xlim=(0, i_day_max),
+    )
+    decimals = max(int(-np.log10(I_max)) - 1, 0)  # max important, otherwise decimals=-1
+    ax2.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=decimals))
+    ax2.text(
+        0,
+        1.18,
+        "Infected",
+        fontsize=30,
+        transform=ax2.transAxes,
+        rotation=0,
+        ha="center",
+    )
+    ax2.xaxis.set_major_locator(MaxNLocator(4, integer=True))
+    # add_spines(ax2, exclude=["upper", "right"])
+    remove_spines(ax2)
+
+    ax3 = fig.add_axes([left, bottom - height * 2, width, height])
+
+    if i_day > 0:
+        R_eff_up_to_today = animation._interpolate_R_eff(animation.R_eff_smooth[: i_day + 1])
+        z = (R_eff_up_to_today["R_eff"] > 1) / 1
+        ax3.scatter(
+            R_eff_up_to_today["t"],
+            R_eff_up_to_today["R_eff"],
+            s=10,
+            c=z,
+            **animation._scatter_kwargs,
+        )
+        R_eff_today = R_eff_up_to_today.iloc[-1]
+        z_today = R_eff_today["R_eff"] > 1
+        ax3.scatter(
+            R_eff_today["t"],
+            R_eff_today["R_eff"],
+            s=100,
+            c=z_today,
+            **animation._scatter_kwargs,
+        )
+
+    R_eff_max = 4
+    ax3.axhline(1, ls="--", color="k", lw=1)  # x = 0
+    ax3.set(
+        ylim=(0, R_eff_max * 1.1),
+        xlim=(0, i_day_max),
+    )
+    ax3.set_xlabel(r"Time [days]", fontsize=30)
+    ax3.text(
+        -0.27,
+        0.5,
+        r"$\mathcal{R}_\mathrm{eff}$",
+        fontsize=30,
+        transform=ax3.transAxes,
+        rotation=0,
+        ha="center",
+        va="center",
+    )
+    ax3.xaxis.set_major_locator(MaxNLocator(4, integer=True))
+    ax3.yaxis.set_major_locator(MaxNLocator(3, integer=True))
+    remove_spines(ax3)
+
+    scalebar = AnchoredSizeBar(
+        ax.transData,
+        longitudes_per_50km,
+        "50 km",
+        loc="lower left",
+        sep=10,
+        color="black",
+        frameon=False,
+        size_vertical=0.003,
+        fontproperties=fontprops,
+        bbox_to_anchor=Bbox.from_bounds(8, 54.52, 0, 0),
+        bbox_transform=ax.transData,
+    )
+
+    ax.add_artist(scalebar)
+
+    plt.close("all")
+    return fig, (ax, ax2, ax3)
+
 
 #%%
 

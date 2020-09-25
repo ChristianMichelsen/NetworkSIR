@@ -5,7 +5,7 @@ axes.labelsize : 38
 axes.labelcolor: black
 axes.edgecolor: white #f0f0f0
 axes.facecolor: white
-axes.titlepad: 50.0     ## pad between axes and title in points
+axes.titlepad: 60.0     ## pad between axes and title in points
 axes.labelpad: 5.0     ## space between label and axis
 
 axes.spines.left   : True  ## display axis spines
@@ -60,7 +60,7 @@ ytick.labelsize : 32
 legend.fancybox: false
 legend.edgecolor: 0.8
 legend.facecolor: inherit
-legend.fontsize: 30
+legend.fontsize: 24
 legend.frameon          :   False
 legend.handletextpad    :   0.3
 

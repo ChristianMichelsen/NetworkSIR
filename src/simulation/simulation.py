@@ -236,6 +236,31 @@ class Simulation:
         df.to_csv(self.filename, index=False)
         return df
 
+    def save_simulation_results(self, save_only_ID_0=False, time_elapsed=None):
+
+        if save_only_ID_0 and self.ID != 0:
+            return None
+
+        utils.make_sure_folder_exist(self.filenames["network_network"], delete_file_if_exists=True)
+
+        with h5py.File(self.filenames["network_network"], "w") as f:  #
+            f.create_dataset("my_state", data=self.my_state)
+            f.create_dataset("my_number_of_contacts", data=self.my.number_of_contacts)
+            f.create_dataset(
+                "cfg_str", data=str(self.cfg)
+            )  # import ast; ast.literal_eval(str(cfg))
+            f.create_dataset("df", data=utils.dataframe_to_hdf5_format(self.df))
+            f.create_dataset(
+                "df_coordinates",
+                data=utils.dataframe_to_hdf5_format(self.df_coordinates, cols_to_str="kommune"),
+            )
+
+            if time_elapsed:
+                f.create_dataset("time_elapsed", data=time_elapsed)
+
+            for key, val in self.cfg.items():
+                f.attrs[key] = val
+
 
 #%%
 
@@ -265,7 +290,7 @@ def run_full_simulation(
         simulation.make_initial_infections()
         simulation.run_simulation()
         simulation.make_dataframe()
-        # simulation.save_simulation_results(time_elapsed=t.elapsed)
+        simulation.save_simulation_results(time_elapsed=t.elapsed)
 
         if verbose and simulation.ID == 0:
             print(f"\n\n{simulation.cfg}\n")
@@ -279,21 +304,26 @@ if utils.is_ipython and debugging:
     verbose = True
     force_rerun = True
 
-    filename = "Data/ABM/v__1.0__N_tot__58000__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__0__N_connect_retries__0/v__1.0__N_tot__58000__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__0__N_connect_retries__0__ID__000.csv"
-    filename = filename.replace("v__1.0", "v__2.0")
+    filename = "Data/ABM/v__1.0__N_tot__58000__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__0__N_connect_retries__0/v__1.0__N_tot__58000__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__1__N_connect_retries__0__ID__000.csv"
+    # filename = filename.replace("v__1.0", "v__2.0")
     # filename = filename.replace("rho__0.0__", "rho__0.1__")
 
     # reload(nb_simulation)
 
-    simulation = Simulation(filename, verbose)
-    simulation.initialize_network(force_rerun=force_rerun)
-    simulation.make_initial_infections()
-    simulation.run_simulation()
-    df = simulation.make_dataframe()
-    display(df)
+    with Timer() as t:
+        simulation = Simulation(filename, verbose)
+        simulation.initialize_network(force_rerun=force_rerun)
+        simulation.make_initial_infections()
+        simulation.run_simulation()
+        df = simulation.make_dataframe()
+        display(df)
+
+    simulation.save_simulation_results(time_elapsed=t.elapsed)
 
     my = simulation.my
     cfg = simulation.cfg
     df_coordinates = simulation.df_coordinates
     intervention = simulation.intervention
     g = simulation.g
+
+    # x = utils.dataframe_to_hdf5_format(simulation.df_coordinates)

@@ -69,14 +69,14 @@ def compute_df_deterministic(cfg, variable, T_max=100):
 #         return s
 
 
-def plot_single_ABM_simulation(ABM_parameter, abm_files):
+def plot_single_ABM_simulation(ABM_parameter, abm_files, add_top_text=True, xlim=(0, None)):
 
     d_ylabel = {"I": "Infected", "R": "Recovered"}
     d_label_loc = {"I": "upper right", "R": "lower right"}
 
     cfg = utils.string_to_dict(ABM_parameter)
 
-    fig, axes = plt.subplots(ncols=2, figsize=(16, 7), constrained_layout=True)
+    fig, axes = plt.subplots(ncols=2, figsize=(16, 7))
     fig.subplots_adjust(top=0.8)
 
     T_max = 0
@@ -119,39 +119,24 @@ def plot_single_ABM_simulation(ABM_parameter, abm_files):
             xlabel="Time [days]",
             ylim=(0, None),
             ylabel=d_ylabel[variable],
-            xlim=(0, None),
+            xlim=xlim,
         )
         # ax.set_xlabel('Time', ha='right')
         # ax.xaxis.set_label_coords(0.91, -0.14)
         ax.yaxis.set_major_formatter(EngFormatter())
 
-    names = [r"I_\mathrm{max}^\mathrm{ABM}", r"R_\infty^\mathrm{ABM}"]
-    for name, x, ax in zip(names, [stochastic_noise_I, stochastic_noise_R], axes):
-
-        mu, std = np.mean(x), utils.SDOM(x)
-
-        n_digits = int(np.log10(utils.round_to_uncertainty(mu, std)[0])) + 1
-        rel_uncertainty = std / mu
-        s_mu = utils.human_format_scientific(mu, digits=n_digits)
-
-        s = (
-            r"$ "
-            + f"{name} = ({s_mu[0]}"
-            + r"\pm "
-            + f"{rel_uncertainty*100:.2}"
-            + r"\% )"
-            + r"\cdot "
-            + f"{s_mu[1]}"
-            + r"$"
-        )
-        ax.text(
-            0.5,
-            1.05,
-            s,
-            horizontalalignment="center",
-            transform=ax.transAxes,
-            fontsize=12,
-        )
+    if add_top_text:
+        names = [r"I_\mathrm{max}^\mathrm{ABM}", r"R_\infty^\mathrm{ABM}"]
+        for name, x, ax in zip(names, [stochastic_noise_I, stochastic_noise_R], axes):
+            s = utils.format_relative_uncertainties(x, name)
+            ax.text(
+                0.5,
+                1.05,
+                s,
+                horizontalalignment="center",
+                transform=ax.transAxes,
+                fontsize=12,
+            )
 
     title = utils.dict_to_title(cfg, len(abm_files[ABM_parameter]))
     fig.suptitle(title, fontsize=24)
@@ -170,8 +155,7 @@ def plot_ABM_simulations(abm_files, force_rerun=False):
         print(f"{pdf_name} already exists\n", flush=True)
         return None
 
-    with PdfPages(pdf_name) as pdf, warnings.catch_warnings():
-        warnings.filterwarnings("ignore", message="This figure was using constrained_layout==True")
+    with PdfPages(pdf_name) as pdf:
 
         for ABM_parameter in tqdm(abm_files.keys, desc="Plotting individual ABM parameters"):
             # break
@@ -247,9 +231,10 @@ def get_1D_scan_results(scan_parameter, non_default_parameters):
 
         x[i] = cfg[scan_parameter]
         y_I[i] = np.mean(z_rel_I)
-        y_R[i] = np.mean(z_rel_R)
         sy_I[i] = utils.SDOM(z_rel_I)
+        y_R[i] = np.mean(z_rel_R)
         sy_R[i] = utils.SDOM(z_rel_R)
+
         n[i] = len(z_rel_I)
 
     if np.isfinite(y_I).sum() <= 1 and np.isfinite(y_R).sum() <= 1:
@@ -289,6 +274,7 @@ def _plot_1D_scan_res(res, scan_parameter, ylim, do_log):
     mask = n > 1
 
     factor = 0.7
+
     fig, (ax0, ax1) = plt.subplots(ncols=2, figsize=(16 * factor, 9 * factor))  #
     fig.suptitle(title, fontsize=28 * factor)
 
@@ -352,7 +338,9 @@ def _plot_1D_scan_res(res, scan_parameter, ylim, do_log):
 from pandas.errors import EmptyDataError
 
 
-def plot_1D_scan(scan_parameter, do_log=False, ylim=None, non_default_parameters=None):
+def plot_1D_scan(
+    scan_parameter, do_log=False, ylim=None, non_default_parameters=None, figname_pdf=None
+):
 
     if not non_default_parameters:
         non_default_parameters = {}
@@ -366,10 +354,11 @@ def plot_1D_scan(scan_parameter, do_log=False, ylim=None, non_default_parameters
     ax0.set(ylabel=r"$I_\mathrm{max}^\mathrm{ABM} \, / \,\, I_\mathrm{max}^\mathrm{SEIR}$")
     ax1.set(ylabel=r"$R_\infty^\mathrm{ABM} \, / \,\, R_\infty^\mathrm{SEIR}$")
 
-    figname_pdf = f"Figures/1D_scan/1D_scan_{scan_parameter}"
-    for key, val in non_default_parameters.items():
-        figname_pdf += f"_{key}_{val}"
-    figname_pdf += f".pdf"
+    if figname_pdf is None:
+        figname_pdf = f"Figures/1D_scan/1D_scan_{scan_parameter}"
+        for key, val in non_default_parameters.items():
+            figname_pdf += f"_{key}_{val}"
+        figname_pdf += f".pdf"
 
     Path(figname_pdf).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(figname_pdf, dpi=100)  # bbox_inches='tight', pad_inches=0.3
@@ -385,8 +374,13 @@ def rug_plot(xs, ax, ymax=0.1, **kwargs):
 
 
 def plot_single_fit(
-    ABM_parameter, all_fits, add_text=True, xlim=(0, None), ylim=(0, None), legend_loc=None
+    ABM_parameter, all_fits, add_top_text=True, xlim=(0, None), ylim=(0, None), legend_loc=None
 ):
+
+    relative_names = [
+        r"\frac{I_\mathrm{max}^\mathrm{fit}} {I_\mathrm{max}^\mathrm{ABM}}",
+        r"\frac{R_\infty^\mathrm{fit}} {R_\infty^\mathrm{fit}}",
+    ]
 
     fit_objects = all_fits[ABM_parameter]
 
@@ -395,14 +389,9 @@ def plot_single_fit(
     if legend_loc is None:
         legend_loc = {"I": "upper right", "R": "lower right"}
 
-    relative_names = [
-        r"\frac{I_\mathrm{max}^\mathrm{fit}} {I_\mathrm{max}^\mathrm{ABM}}",
-        r"\frac{R_\infty^\mathrm{fit}} {R_\infty^\mathrm{fit}}",
-    ]
-
     cfg = utils.string_to_dict(ABM_parameter)
 
-    fig, axes = plt.subplots(ncols=2, figsize=(16, 7), constrained_layout=True)
+    fig, axes = plt.subplots(ncols=2, figsize=(16, 7))
     fig.subplots_adjust(top=0.8)
 
     for i, fit_object in enumerate(fit_objects.values()):
@@ -416,15 +405,6 @@ def plot_single_fit(
         lw = 0.9
         for I_or_R, ax in zip(["I", "R"], axes):
 
-            axvline_kwargs = dict(lw=lw, color=d_colors["blue"])
-            tmp = df.query("@fit_object.t.min() <= time <= @fit_object.t.max()")
-            ax.fill_between(tmp["time"], tmp[I_or_R], **axvline_kwargs)
-
-            if i == 0:
-                line_kwargs = dict(ymax=0.45, color=d_colors["blue"], lw=2 * lw)
-                ax.axvline(tmp["time"].iloc[0], label="Fit Range", **line_kwargs)
-                ax.axvline(tmp["time"].iloc[-1], **line_kwargs)
-
             label = "ABM" if i == 0 else None
             ax.plot(t, df[I_or_R], "k-", lw=lw, label=label)
 
@@ -437,24 +417,60 @@ def plot_single_fit(
                 label=label,
             )
 
+            if i == 0:
+                axvline_kwargs = dict(lw=lw, color=d_colors["blue"], alpha=0.4)
+                tmp = df.query("@fit_object.t.min() <= time <= @fit_object.t.max()")
+                ax.fill_between(tmp["time"], tmp[I_or_R], **axvline_kwargs)
+
+                vertical_lines = tmp["time"].iloc[0], tmp["time"].iloc[-1]
+                line_kwargs = dict(ymax=0.45, color=d_colors["blue"], lw=2 * lw)
+                ax.axvline(vertical_lines[0], label="Fit Range", **line_kwargs)
+                ax.axvline(vertical_lines[1], **line_kwargs)
+
+                ax.text(
+                    vertical_lines[0] * 0.65,
+                    0.23 * ax.get_ylim()[1],
+                    "Fit Range",
+                    horizontalalignment="center",
+                    verticalalignment="center",
+                    fontsize=26,
+                    rotation=90,
+                    color=d_colors["blue"],
+                )
+
             # x_rug = [fit_object.t.min(), fit_object.t.max()]
             # rug_plot(x_rug, ax, ymin=-0.01, ymax=0.03, color="k", lw=lw)
 
-    if add_text:
+    if add_top_text:
 
         # calculate monte carlo simulated fit results
-        all_I_max_MC = []
-        all_R_inf_MC = []
+        # all_I_max_MC = []
+        # all_R_inf_MC = []
+        all_I_max_fit = []
+        all_R_inf_fit = []
         for i, fit_object in enumerate(fit_objects.values()):
-            all_I_max_MC.extend(fit_object.I_max_MC)
-            all_R_inf_MC.extend(fit_object.R_inf_MC)
-        d_fits = {"I": all_I_max_MC, "R": all_R_inf_MC}
+            # all_I_max_MC.extend(fit_object.I_max_MC)
+            # all_R_inf_MC.extend(fit_object.R_inf_MC)
+            all_I_max_fit.append(fit_object.I_max_fit)
+            all_R_inf_fit.append(fit_object.R_inf_MC)
+        d_fits = {"I": all_I_max_fit, "R": all_R_inf_fit}
 
-        # and plot them
+        names_fit = {}
+        names_fit["I"] = r"I_\mathrm{max}^\mathrm{fit}"
+        names_fit["R"] = r"R_\infty^\mathrm{fit}"
+
         for I_or_R, ax in zip(["I", "R"], axes):
-            median, errors = utils.get_central_confidence_intervals(d_fits[I_or_R])
-            s = utils.format_asymmetric_uncertanties(median, errors, I_or_R)
-            axes[0].text(0.1, 1.05, s, transform=ax.transAxes, fontsize=12)
+
+            s = utils.format_relative_uncertainties(d_fits[I_or_R], names_fit[I_or_R])
+
+            ax.text(
+                0.1,
+                1.05,
+                s,
+                horizontalalignment="center",
+                transform=ax.transAxes,
+                fontsize=12,
+            )
 
         # calculate fraction between fit and ABM simulation
         z = defaultdict(list)
@@ -491,7 +507,7 @@ def plot_single_fit(
 
         ax.set(xlim=xlim, ylim=ylim)
         ax.set(xlabel="Time [days]", ylabel=d_ylabel[I_or_R])
-        # if add_text:
+        # if add_top_text:
         #     ax.xaxis.set_label_coords(0.91, -0.14)
         ax.yaxis.set_major_formatter(EngFormatter())
 
@@ -516,8 +532,7 @@ def plot_fits(all_fits, force_rerun=False, verbose=False):
         print(f"{pdf_name} already exists")
         return None
 
-    with PdfPages(pdf_name) as pdf, warnings.catch_warnings():
-        warnings.filterwarnings("ignore", message="This figure was using constrained_layout==True")
+    with PdfPages(pdf_name) as pdf:
 
         for ABM_parameter, fit_objects in tqdm(all_fits.items(), desc="Plotting all fits"):
             # break
@@ -598,20 +613,34 @@ def get_1D_scan_fit_results(all_fits, scan_parameter, non_default_parameters):
         z_rel_I, z_rel_R = compute_fit_ABM_proportions(fit_objects)
 
         x[i] = cfg[scan_parameter]
-        y_I[i] = np.mean(z_rel_I)
-        y_R[i] = np.mean(z_rel_R)
-        sy_I[i] = utils.SDOM(z_rel_I)
-        sy_R[i] = utils.SDOM(z_rel_R)
+
+        if len(z_rel_I) > 0:
+            y_I[i] = np.mean(z_rel_I)
+            sy_I[i] = utils.SDOM(z_rel_I)
+        else:
+            y_I[i] = sy_I[i] = np.nan
+
+        if len(z_rel_R) > 0:
+            y_R[i] = np.mean(z_rel_R)
+            sy_R[i] = utils.SDOM(z_rel_R)
+        else:
+            y_R[i] = sy_R[i] = np.nan
+
         n[i] = len(z_rel_I)
 
-    return x, y_I, y_R, sy_I, sy_R, n, cfg
+    return x[n > 0], y_I[n > 0], y_R[n > 0], sy_I[n > 0], sy_R[n > 0], n[n > 0], cfg
 
 
 from pandas.errors import EmptyDataError
 
 
 def plot_1D_scan_fit_results(
-    all_fits, scan_parameter, do_log=False, ylim=None, non_default_parameters=None
+    all_fits,
+    scan_parameter,
+    do_log=False,
+    ylim=None,
+    non_default_parameters=None,
+    figname_pdf=None,
 ):
 
     if not non_default_parameters:
@@ -626,10 +655,11 @@ def plot_1D_scan_fit_results(
     ax0.set(ylabel=r"$I_\mathrm{max}^\mathrm{fit} \, / \,\, I_\mathrm{max}^\mathrm{ABM}$")
     ax1.set(ylabel=r"$R_\infty^\mathrm{fit} \, / \,\, R_\infty^\mathrm{ABM}$")
 
-    figname_pdf = f"Figures/1D_scan_fits/1D_scan_fit_{scan_parameter}"
-    for key, val in non_default_parameters.items():
-        figname_pdf += f"_{key}_{val}"
-    figname_pdf += f".pdf"
+    if figname_pdf is None:
+        figname_pdf = f"Figures/1D_scan_fits/1D_scan_fit_{scan_parameter}"
+        for key, val in non_default_parameters.items():
+            figname_pdf += f"_{key}_{val}"
+        figname_pdf += f".pdf"
 
     Path(figname_pdf).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(figname_pdf, dpi=100)  # bbox_inches='tight', pad_inches=0.3
@@ -648,26 +678,47 @@ def _load_my_state_and_my_number_of_contacts(filename):
     return my_state, my_number_of_contacts
 
 
-def _plot_number_of_contacts(filename):
+def _plot_single_number_of_contacts(
+    filename,
+    make_fraction_subplot=True,
+    figsize=None,
+    xlim=None,
+    title=None,
+    add_legend=True,
+    loc="best",
+):
+
+    if title is None:
+        title = utils.string_to_title(filename)
 
     my_state, my_number_of_contacts = _load_my_state_and_my_number_of_contacts(filename)
 
     mask_S = my_state[-1] == -1
     mask_R = my_state[-1] == 8
 
-    x_min = np.percentile(my_number_of_contacts, 0.01)
-    x_max = np.percentile(my_number_of_contacts, 99)
+    if xlim is None:
+        x_min = np.percentile(my_number_of_contacts, 0.01)
+        x_max = np.percentile(my_number_of_contacts, 99)
+    else:
+        x_min, x_max = xlim
     x_range = (x_min, x_max)
     N_bins = int(x_max - x_min)
 
-    d_colors = {"Total": "C0", "Immune": "C2", "Risk": "C1"}
     kwargs = {"bins": N_bins, "range": x_range, "histtype": "step"}
 
-    fig, (ax1, ax2) = plt.subplots(nrows=2, sharex=True, gridspec_kw={"height_ratios": [2.5, 1]})
-    H_all = ax1.hist(my_number_of_contacts, label="Total", color=d_colors["Total"], **kwargs)
-    H_S = ax1.hist(my_number_of_contacts[mask_S], label="At Risk", color=d_colors["Risk"], **kwargs)
+    if make_fraction_subplot:
+        fig, (ax1, ax2) = plt.subplots(
+            figsize=figsize, nrows=2, sharex=True, gridspec_kw={"height_ratios": [2.5, 1]}
+        )
+    else:
+        fig, ax1 = plt.subplots(figsize=figsize)
+
+    H_all = ax1.hist(my_number_of_contacts, label="All", color=d_colors["blue"], **kwargs)
+    H_S = ax1.hist(
+        my_number_of_contacts[mask_S], label="Susceptable", color=d_colors["red"], **kwargs
+    )
     H_R = ax1.hist(
-        my_number_of_contacts[mask_R], label="Immune", color=d_colors["Immune"], **kwargs
+        my_number_of_contacts[mask_R], label="Recovered", color=d_colors["green"], **kwargs
     )
 
     x = 0.5 * (H_all[1][:-1] + H_all[1][1:])
@@ -676,17 +727,22 @@ def _plot_number_of_contacts(filename):
     frac_R = H_R[0] / H_all[0]
     s_frac_R = np.sqrt(frac_R * (1 - frac_R) / H_all[0])
 
-    kwargs_errorbar = dict(fmt=".", elinewidth=1.5, capsize=4, capthick=1.5)
-    ax2.errorbar(x, frac_S, s_frac_S, color=d_colors["Risk"], **kwargs_errorbar)
-    ax2.errorbar(x, frac_R, s_frac_R, color=d_colors["Immune"], **kwargs_errorbar)
+    if make_fraction_subplot:
+        kwargs_errorbar = dict(fmt=".", elinewidth=1.5, capsize=4, capthick=1.5)
+        ax2.errorbar(x, frac_S, s_frac_S, color=d_colors["red"], **kwargs_errorbar)
+        ax2.errorbar(x, frac_R, s_frac_R, color=d_colors["green"], **kwargs_errorbar)
 
-    ax1.legend()
-    # ax1.legend()
-    title = utils.string_to_title(filename)
+    if add_legend:
+        ax1.legend(loc=loc)
     ax1.yaxis.set_major_formatter(EngFormatter())
     ax1.set(ylabel="Counts", xlim=x_range)
     ax1.set_title(title, pad=40, fontsize=30)
-    ax2.set(xlabel="Total number of contacts", ylim=(0, 1), ylabel=r"Fraction")
+
+    if make_fraction_subplot:
+        ax2.set(ylim=(0, 1), ylabel=r"Fraction")
+        ax2.set(xlabel="Number of contacts")
+    else:
+        ax1.set(xlabel="Number of contacts")
 
     return fig, ax1
 
@@ -703,14 +759,13 @@ def plot_number_of_contacts(network_files, force_rerun=False):
         print(f"{pdf_name} already exists")
         return None
 
-    with PdfPages(pdf_name) as pdf, warnings.catch_warnings():
-        warnings.filterwarnings("ignore", message="This figure was using constrained_layout==True")
+    with PdfPages(pdf_name) as pdf:
         for network_filename in tqdm(network_files, desc="Number of contacts"):
             cfg = utils.string_to_dict(str(network_filename))
             if cfg.ID != 0:
                 continue
             else:
-                fig, ax = _plot_number_of_contacts(network_filename)
+                fig, ax = _plot_single_number_of_contacts(network_filename)
                 pdf.savefig(fig, dpi=100)
                 plt.close("all")
 

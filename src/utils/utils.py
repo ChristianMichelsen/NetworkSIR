@@ -686,34 +686,6 @@ def string_to_title(s, N=None, exclude=None, in_two_line=True):
     return dict_to_title(d, N, exclude, in_two_line)
 
 
-# def format_uncertanties(median, errors, name='I'):
-
-#     s_main = human_format(median, digits=3)
-#     prefix = s_main[-1]
-
-#     if name == 'I':
-#         name = r'I_\mathrm{max}^\mathrm{fit}'
-#     elif name == 'R':
-#         name = r'R_\mathrm{inf}^\mathrm{fit}'
-#     else:
-#         raise AssertionError(f"name = {name} not defined")
-
-
-#     d = {'K': 1000, 'M': 1000**2, 'G': 1000**3, 'T': 1000**4}
-#     d2 = {'K': '10^3', 'M': '10^6', 'G': '10^9', 'T': '10^12'}
-
-#     out = []
-#     for error in errors:
-#         try:
-#             out.append(error / d[prefix])
-#         except KeyError as e:
-#             print(prefix, s_main)
-#             raise e
-
-#     s = r"$" + f"{name}" +  r" = " + f"{s_main[:-1]}" + r"_{" + f"-{out[0]:.1f}" + r"}^{+" + f"{out[1]:.1f}" + r"} \cdot " + f"{d2[prefix]}" + r"$"
-#     return s
-
-
 from decimal import Decimal
 
 
@@ -774,10 +746,10 @@ def format_asymmetric_uncertanties(value, errors, name="I"):
                 mu = mu1
 
         else:
-            print("WARNING!!!")
-            print(mu, std_lower, exponent, mu1, std_higher, exponent1)
-            print("")
-            # raise AssertionError("The errors do not fit (not yet implemented)")
+            # print("WARNING!!!")
+            # print(mu, std_lower, exponent, mu1, std_higher, exponent1)
+            # print("")
+            raise AssertionError("The errors do not fit (not yet implemented)")
 
     if "E" in str(std_lower):
         assert False
@@ -799,19 +771,48 @@ def format_asymmetric_uncertanties(value, errors, name="I"):
     return s
 
 
+def format_relative_uncertainties(x, name):
+
+    mu, std = np.mean(x), SDOM(x)
+
+    n_digits = int(np.log10(round_to_uncertainty(mu, std)[0])) + 1
+    rel_uncertainty = std / mu
+    s_mu = human_format_scientific(mu, digits=n_digits)
+
+    s = (
+        r"$ "
+        + f"{name} = ({s_mu[0]}"
+        + r"\pm "
+        + f"{rel_uncertainty*100:.2}"
+        + r"\% )"
+        + r"\cdot "
+        + f"{s_mu[1]}"
+        + r"$"
+    )
+
+    return s
+
+
 #%%
+
+
+def df_encode_asci_to_utf8(series):
+    return series.apply(lambda x: x.encode("utf8", "ignore"))
 
 
 def get_column_dtypes(df, cols_to_str):
     kwargs = {}
-    if cols_to_str is not None:
+    if cols_to_str:
         if isinstance(cols_to_str, str):
             cols_to_str = [cols_to_str]
+            for col in cols_to_str:
+                df[col] = df_encode_asci_to_utf8(df[col])
         kwargs["column_dtypes"] = {col: f"<S{int(df[col].str.len().max())}" for col in cols_to_str}
     return kwargs
 
 
-def dataframe_to_hdf5_format(df, include_index=False, cols_to_str=None):
+def dataframe_to_hdf5_format(df_in, include_index=False, cols_to_str=None):
+    df = df_in.copy()
     kwargs = get_column_dtypes(df, cols_to_str)
     if include_index:
         kwargs["index_dtypes"] = f"<S{df.index.str.len().max()}"
