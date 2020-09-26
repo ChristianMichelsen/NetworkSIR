@@ -1252,7 +1252,7 @@ def make_paper_screenshot(
     # delta_width = 0 * width / 100
     ax2 = fig.add_axes([left, bottom, width, height])
     I_up_to_today = animation.df_counts["I"].iloc[: i_day + 1] / animation.cfg["N_tot"]
-    ax2.plot(I_up_to_today.index, I_up_to_today, "-", color=animation.d_colors["I"])
+    ax2.plot(I_up_to_today.index, I_up_to_today, "-", color=animation.d_colors["I"], lw=2)
     ax2.plot(
         I_up_to_today.index[-1],
         I_up_to_today.iloc[-1],
