@@ -450,9 +450,9 @@ def v1_connect_nodes(my):
 def set_connection_weight(my, agent):
     """ How introvert / extrovert you are. How likely you are at having many contacts in your network."""
     if np.random.rand() < my.cfg.sigma_mu:
-        my.connection_weight[agent] = 0.1 - np.log(np.random.rand())
+        my.connection_weight[agent] = - np.log(np.random.rand())
     else:
-        my.connection_weight[agent] = 1.1
+        my.connection_weight[agent] = 1.0
 
 
 @njit

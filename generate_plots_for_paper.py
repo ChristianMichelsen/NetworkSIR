@@ -151,7 +151,7 @@ plot._plot_1D_scan_res(
     axes=(ax0, ax1),
     color=plot.d_colors["red"],
     label=r"$\sigma_\beta = 1$",
-    # labelpad=-10,
+    labelpad=-20,
 )
 ax0.axhline(1, color="grey", ls="--")
 # ax1.axhline(1, color="grey", ls="--")
@@ -201,7 +201,7 @@ labels = labels2 + labels
 ax1.legend(lines, labels)
 
 scale_I = 10
-scale_R = 3
+scale_R = 4
 ax0b.set(ylim=ylim[0] * scale_I)
 ax1b.set(ylim=ylim[1] * scale_R)
 ax1b.set_yticks(ax1.get_yticks()[1:-1] * scale_R)
