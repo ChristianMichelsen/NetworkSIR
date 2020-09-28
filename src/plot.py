@@ -337,7 +337,7 @@ def _plot_1D_scan_res(res, scan_parameter, ylim=None, do_log=False, **kwargs):
 
     if "axes" not in kwargs:
         fig.tight_layout()
-        fig.subplots_adjust(top=0.8, wspace=0.5)
+        fig.subplots_adjust(top=0.8, wspace=0.55)
         return fig, (ax0, ax1)
 
 
