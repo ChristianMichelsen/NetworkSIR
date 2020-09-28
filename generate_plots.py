@@ -17,7 +17,7 @@ from src import fits
 rc_params.set_rc_params()
 num_cores_max = 30
 
-do_make_1D_scan = False
+do_make_1D_scan = True
 force_rerun = False
 verbose = False
 
@@ -43,10 +43,13 @@ parameters_1D_scan = [
     dict(scan_parameter="N_tot", do_log=True, non_default_parameters=dict(rho=0.1)),
     dict(scan_parameter="N_init", do_log=True),
     dict(scan_parameter="N_init", do_log=True, non_default_parameters=dict(rho=0.1)),
+    dict(scan_parameter="rho"),
     dict(scan_parameter="rho", non_default_parameters=dict(epsilon_rho=0)),
     dict(scan_parameter="rho", non_default_parameters=dict(epsilon_rho=0.02)),
     dict(scan_parameter="rho", non_default_parameters=dict(epsilon_rho=0.04)),
-    dict(scan_parameter="rho", non_default_parameters=dict(beta=0.005)),
+    dict(scan_parameter="rho", non_default_parameters=dict(beta=0.007)),
+    dict(scan_parameter="rho", non_default_parameters=dict(beta=0.015)),
+    dict(scan_parameter="rho", non_default_parameters=dict(sigma_beta=1)),
     dict(scan_parameter="rho", non_default_parameters=dict(algo=1)),
     dict(scan_parameter="rho", non_default_parameters=dict(N_tot=5_800_000)),
     dict(scan_parameter="epsilon_rho"),

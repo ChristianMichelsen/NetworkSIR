@@ -245,10 +245,10 @@ def get_1D_scan_results(scan_parameter, non_default_parameters):
 
 def extract_limits(lim):
     """ deals with both limits of the form (0, 1) and [(0, 1), (0.5, 1.5)] """
-    if isinstance(lim, (tuple, list)):
+    if isinstance(lim, (tuple, list, np.ndarray)):
         if isinstance(lim[0], (float, int)):
             lim0 = lim1 = lim
-        elif isinstance(lim[0], (tuple, list)):
+        elif isinstance(lim[0], (tuple, list, np.ndarray)):
             lim0, lim1 = lim
     else:
         lim0 = lim1 = (None, None)
@@ -256,7 +256,7 @@ def extract_limits(lim):
     return lim0, lim1
 
 
-def _plot_1D_scan_res(res, scan_parameter, ylim, do_log):
+def _plot_1D_scan_res(res, scan_parameter, ylim=None, do_log=False, **kwargs):
 
     x, y_I, y_R, sy_I, sy_R, n, cfg = res
 
@@ -275,64 +275,70 @@ def _plot_1D_scan_res(res, scan_parameter, ylim, do_log):
 
     factor = 0.7
 
-    fig, (ax0, ax1) = plt.subplots(ncols=2, figsize=(16 * factor, 9 * factor))  #
-    fig.suptitle(title, fontsize=28 * factor)
+    if "axes" not in kwargs:
+        fig, (ax0, ax1) = plt.subplots(ncols=2, figsize=(16 * factor, 9 * factor))  #
+        fig.suptitle(title, fontsize=28 * factor)
+    else:
+        ax0, ax1 = kwargs["axes"]
+
+    errorbar_kwargs = dict(
+        fmt=".",
+        elinewidth=1,
+        capsize=10,
+    )
 
     ax0.errorbar(
         x[mask],
         y_I[mask],
         sy_I[mask],
-        fmt=".",
-        color="black",
-        ecolor="black",
-        elinewidth=1,
-        capsize=10,
+        **errorbar_kwargs,
+        color=kwargs.get("color", "black"),
+        ecolor=kwargs.get("color", "black"),
+        # label=kwargs.get("label", None),
     )
     ax0.errorbar(
         x[~mask],
         y_I[~mask],
         sy_I[~mask],
-        fmt=".",
+        **errorbar_kwargs,
         color="grey",
         ecolor="grey",
-        elinewidth=1,
-        capsize=10,
     )
-    ax0.set(xlabel=xlabel, ylim=ylim0)
+    ax0.set(ylim=ylim0)
 
     ax1.errorbar(
         x[mask],
         y_R[mask],
         sy_R[mask],
-        fmt=".",
-        color="black",
-        ecolor="black",
-        elinewidth=1,
-        capsize=10,
+        **errorbar_kwargs,
+        color=kwargs.get("color", "black"),
+        ecolor=kwargs.get("color", "black"),
+        label=kwargs.get("label", None),
     )
     ax1.errorbar(
         x[~mask],
         y_R[~mask],
         sy_R[~mask],
-        fmt=".",
+        **errorbar_kwargs,
         color="grey",
         ecolor="grey",
-        elinewidth=1,
-        capsize=10,
     )
-    ax1.set(xlabel=xlabel, ylim=ylim1)
+    ax1.set(ylim=ylim1)
 
-    ax0.set_xlabel(xlabel, labelpad=-0.5)
-    ax1.set_xlabel(xlabel, labelpad=-0.5)
+    ax0.set_xlabel(xlabel, labelpad=kwargs.get("labelpad", -5))
+    ax1.set_xlabel(xlabel, labelpad=kwargs.get("labelpad", -5))
+
+    if "label" in kwargs:
+        ax1.legend()
 
     if do_log:
         ax0.set_xscale("log")
         ax1.set_xscale("log")
 
-    fig.tight_layout()
-    fig.subplots_adjust(top=0.8, wspace=0.5)
-
-    return fig, (ax0, ax1)
+    if "axes" not in kwargs:
+        fig.tight_layout()
+        fig.subplots_adjust(top=0.8, wspace=0.5)
+        return fig, (ax0, ax1)
 
 
 from pandas.errors import EmptyDataError
@@ -342,11 +348,11 @@ def plot_1D_scan(
     scan_parameter, do_log=False, ylim=None, non_default_parameters=None, figname_pdf=None
 ):
 
-    if not non_default_parameters:
+    if non_default_parameters is None:
         non_default_parameters = {}
 
     res = get_1D_scan_results(scan_parameter, non_default_parameters)
-    if not res:
+    if res is None:
         return None
 
     fig, (ax0, ax1) = _plot_1D_scan_res(res, scan_parameter, ylim, do_log)
@@ -686,10 +692,21 @@ def _plot_single_number_of_contacts(
     title=None,
     add_legend=True,
     loc="best",
+    xlabel=None,
+    ylabel=None,
+    fontsize=30,
+    labelsize=None,
+    add_average_arrows=False,
 ):
 
     if title is None:
         title = utils.string_to_title(filename)
+
+    if xlabel is None:
+        xlabel = "Number of contacts"
+
+    if ylabel is None:
+        ylabel = "Counts"
 
     my_state, my_number_of_contacts = _load_my_state_and_my_number_of_contacts(filename)
 
@@ -735,14 +752,44 @@ def _plot_single_number_of_contacts(
     if add_legend:
         ax1.legend(loc=loc)
     ax1.yaxis.set_major_formatter(EngFormatter())
-    ax1.set(ylabel="Counts", xlim=x_range)
-    ax1.set_title(title, pad=40, fontsize=30)
+    ax1.set(xlim=x_range)
+    ax1.set_ylabel(ylabel, fontsize=fontsize)
+    ax1.set_title(title, pad=40, fontsize=fontsize)
 
     if make_fraction_subplot:
         ax2.set(ylim=(0, 1), ylabel=r"Fraction")
-        ax2.set(xlabel="Number of contacts")
+        ax2.set(xlabel=xlabel)
     else:
-        ax1.set(xlabel="Number of contacts")
+        ax1.set_xlabel(xlabel, fontsize=fontsize)
+
+    if labelsize:
+        ax1.tick_params(axis="both", labelsize=labelsize)
+
+    if add_average_arrows:
+        ymax = ax1.get_ylim()[1]
+        mean_all = np.mean(my_number_of_contacts)
+        mean_S = np.mean(my_number_of_contacts[mask_S])
+        mean_R = np.mean(my_number_of_contacts[mask_R])
+
+        arrowprops = dict(ec="white", width=6, headwidth=20, headlength=15)
+        ax1.annotate(
+            "",
+            xy=(mean_all, ymax * 0.01),
+            xytext=(mean_all, ymax * 0.2),
+            arrowprops=dict(**arrowprops, fc=d_colors["blue"]),
+        )
+        ax1.annotate(
+            "",
+            xy=(mean_S, ymax * 0.01),
+            xytext=(mean_S, ymax * 0.2),
+            arrowprops=dict(**arrowprops, fc=d_colors["red"]),
+        )
+        ax1.annotate(
+            "",
+            xy=(mean_R, ymax * 0.01),
+            xytext=(mean_R, ymax * 0.2),
+            arrowprops=dict(**arrowprops, fc=d_colors["green"]),
+        )
 
     return fig, ax1
 

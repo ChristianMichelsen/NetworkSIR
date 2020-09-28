@@ -1204,6 +1204,7 @@ def make_paper_screenshot(
     title="",
     i_day=1,
     dpi=50,
+    R_eff_max=4,
 ):
 
     animation = AnimateSIR(filename, do_tqdm=False, verbose=False)
@@ -1211,7 +1212,7 @@ def make_paper_screenshot(
         animation._initialize_data()
 
     geo_plot_kwargs = {}
-    geo_plot_kwargs["S"] = dict(alpha=0.2, norm=animation.norm_100)
+    geo_plot_kwargs["S"] = dict(alpha=0.5, norm=animation.norm_100)
     geo_plot_kwargs["R"] = dict(alpha=0.5, norm=animation.norm_100)
     geo_plot_kwargs["I"] = dict(norm=animation.norm_10)
 
@@ -1301,7 +1302,6 @@ def make_paper_screenshot(
             **animation._scatter_kwargs,
         )
 
-    R_eff_max = 4
     ax3.axhline(1, ls="--", color="k", lw=1)  # x = 0
     ax3.set(
         ylim=(0, R_eff_max * 1.1),
