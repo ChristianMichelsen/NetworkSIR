@@ -15,9 +15,10 @@ N_tots_large: &N_tots_large [5_000_000, 5_800_000]
 
 # define list of simulation_parameters to be simulated
 all_simulation_parameters:
-  - {rho: *rhos, beta: [0.007, 0.001, 0.015]}
+  - {rho: *rhos, beta: 0.007} #, 0.01, 0.015]}
   - {rho: *rhos, sigma_beta: 1}
   - {rho: *rhos, sigma_mu: 1}
+  - {rho: *rhos, sigma_mu: 1, sigma_beta: 1}
   - {N_tot: [580_000, 5_800_000], rho: [0, 0.1]}
   - {mu: *mus, rho: [0, 0.1]}
   - {beta: *betas, rho: [0, 0.1]}
