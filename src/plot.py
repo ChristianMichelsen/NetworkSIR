@@ -277,12 +277,12 @@ def _plot_1D_scan_res(res, scan_parameter, ylim=None, do_log=False, **kwargs):
 
     if "axes" not in kwargs:
         fig, (ax0, ax1) = plt.subplots(ncols=2, figsize=(16 * factor, 9 * factor))  #
-        fig.suptitle(title, fontsize=28 * factor)
+        fig.suptitle(title, fontsize=20 * factor)
     else:
         ax0, ax1 = kwargs["axes"]
 
     errorbar_kwargs = dict(
-        fmt=".",
+        fmt=kwargs.get("fmt", "."),
         elinewidth=1,
         capsize=10,
     )
@@ -337,7 +337,7 @@ def _plot_1D_scan_res(res, scan_parameter, ylim=None, do_log=False, **kwargs):
 
     if "axes" not in kwargs:
         fig.tight_layout()
-        fig.subplots_adjust(top=0.8, wspace=0.55)
+        fig.subplots_adjust(top=0.8, wspace=kwargs.get("wspace", 0.55))
         return fig, (ax0, ax1)
 
 

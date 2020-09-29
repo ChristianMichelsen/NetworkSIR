@@ -26,10 +26,10 @@ all_simulation_parameters:
   - {rho: *rhos}
   - {rho: [0.1], epsilon_rho: [0, 0.04], make_random_initial_infections: [0, 1]} #make local initial infection
   - {rho: *rhos, beta: 0.005}
+  - {beta: [0.02, 0.04], mu: [20, 10], sigma_mu: [0, 1], sigma_beta: [0, 1], rho: [0, 0.1]}
   - {sigma_beta: [0, 0.25, 0.5, 0.75, 1], sigma_mu: [0, 1], rho: [0, 0.1]}
   - {sigma_mu: [0, 0.25, 0.5, 0.75, 1], sigma_beta: [0, 1], rho: [0, 0.1]}
   - {N_init: [10, 100, 1_000, 10_000]}
-  - {beta: [0.02, 0.04], mu: [20, 10], sigma_mu: [0, 1], sigma_beta: [0, 1], rho: [0, 0.1]}
   - {lambda_E: [0.5, 1, 2, 4]}
   - {lambda_I: [0.5, 1, 2, 4]}
   - {N_tot: *N_tots_small, rho: [0, 0.1]}

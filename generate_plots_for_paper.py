@@ -117,33 +117,31 @@ res_rho = plot.get_1D_scan_results(scan_parameter="rho", non_default_parameters=
 res_rho_beta_007 = plot.get_1D_scan_results(
     scan_parameter="rho", non_default_parameters={"beta": 0.007}
 )
-# res_rho_beta_015 = plot.get_1D_scan_results(
-# scan_parameter="rho", non_default_parameters={"beta": 0.015}
-# )
 
 res_rho_sigmabeta_1 = plot.get_1D_scan_results(
     scan_parameter="rho", non_default_parameters={"sigma_beta": 1}
 )
 
+res_rho_sigmamu_1 = plot.get_1D_scan_results(
+    scan_parameter="rho", non_default_parameters={"sigma_mu": 1}
+)
+
+res_rho_sigmabeta_1_sigmamu_1 = plot.get_1D_scan_results(
+    scan_parameter="rho", non_default_parameters={"sigma_beta": 1, "sigma_mu": 1}
+)
 #%%
 reload(plot)
 
-ylim = np.array([(0.75, 1.5), (0.2, 1.05)])
+ylim = np.array([(0.75, 2.1), (0.2, 2.8)])
 
 fig, (ax0, ax1) = plot._plot_1D_scan_res(
     res_rho,
     scan_parameter="rho",
     ylim=ylim,
     label=r"$\beta = 0.01$",
+    fmt=".",
+    wspace=0.5,
 )
-
-# plot._plot_1D_scan_res(
-#     res_rho_beta_015,
-#     scan_parameter="rho",
-#     axes=(ax0, ax1),
-#     color=plot.d_colors["blue"],
-#     label=r"$\beta = 0.015$",
-# )
 
 plot._plot_1D_scan_res(
     res_rho_sigmabeta_1,
@@ -151,25 +149,48 @@ plot._plot_1D_scan_res(
     axes=(ax0, ax1),
     color=plot.d_colors["red"],
     label=r"$\sigma_\beta = 1$",
-    labelpad=-20,
+    fmt="v",
+    # labelpad=-20,
 )
+
+plot._plot_1D_scan_res(
+    res_rho_sigmamu_1,
+    scan_parameter="rho",
+    axes=(ax0, ax1),
+    color=plot.d_colors["orange"],
+    label=r"$\sigma_\mu = 1$",
+    fmt="^",
+    # labelpad=-20,
+)
+
+plot._plot_1D_scan_res(
+    res_rho_sigmabeta_1_sigmamu_1,
+    scan_parameter="rho",
+    axes=(ax0, ax1),
+    color=plot.d_colors["green"],
+    label=r"$\sigma_\mu=\sigma_\beta=1$",
+    labelpad=-20,
+    fmt="x",
+)
+
+
 ax0.axhline(1, color="grey", ls="--")
-# ax1.axhline(1, color="grey", ls="--")
+ax1.axhline(1, color="grey", ls="--")
 
 
-ax0.set(ylabel=r"$I_\mathrm{max}^\mathrm{ABM} \, / \,\, I_\mathrm{max}^\mathrm{SEIR}$")
-ax1.set(ylabel=r"$R_\infty^\mathrm{ABM} \, / \,\, R_\infty^\mathrm{SEIR}$")
+ax0.set_ylabel(r"$I_\mathrm{max}^\mathrm{ABM} \, / \,\, I_\mathrm{max}^\mathrm{SEIR}$", labelpad=10)
+ax1.set_ylabel(r"$R_\infty^\mathrm{ABM} \, / \,\, R_\infty^\mathrm{SEIR}$", labelpad=15)
 
 
 ax0b = ax0.twinx()  # instantiate a second axes that shares the same x-axis
-ax1b = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+# ax1b = ax1.twinx()  # instantiate a second axes that shares the same x-axis
 
 color = plot.d_colors["blue"]
 ax0b.tick_params(axis="y", labelcolor=color)
-ax1b.tick_params(axis="y", labelcolor=color)
+# ax1b.tick_params(axis="y", labelcolor=color)
 
 errorbar_kwargs = dict(
-    fmt=".",
+    fmt="*",
     elinewidth=1,
     capsize=10,
 )
@@ -184,7 +205,7 @@ ax0b.errorbar(
 )
 
 
-ax1b.errorbar(
+ax1.errorbar(
     res_rho_beta_007[0],
     res_rho_beta_007[2],
     res_rho_beta_007[4],
@@ -195,16 +216,30 @@ ax1b.errorbar(
 )
 
 lines, labels = ax1.get_legend_handles_labels()
-lines2, labels2 = ax1b.get_legend_handles_labels()
-lines = lines2 + lines
-labels = labels2 + labels
-ax1.legend(lines, labels)
+lines = [lines[-1]] + lines[:-1]
+labels = [labels[-1]] + labels[:-1]
+# lines2, labels2 = ax1b.get_legend_handles_labels()
+# lines = lines2 + lines
+# labels = labels2 + labels
+ax1.legend(
+    lines,
+    labels,
+    loc="upper center",
+    ncol=5,
+    bbox_to_anchor=(-0.3, 1.2),
+    columnspacing=0.8,
+    handletextpad=-0,
+)
+
+# ax0.set(xlim=(-0.02, 0.52))
+ax0.set(xticks=[0, 0.5])
+ax1.set(xticks=[0, 0.5])
 
 scale_I = 10
 scale_R = 4
 ax0b.set(ylim=ylim[0] * scale_I)
-ax1b.set(ylim=ylim[1] * scale_R)
-ax1b.set_yticks(ax1.get_yticks()[1:-1] * scale_R)
+# ax1b.set(ylim=ylim[1] * scale_R)
+# ax1b.set_yticks(ax1.get_yticks()[1:-1] * scale_R)
 # ax1b.axhline(1, color=color, ls="--")
 
 #%%
@@ -245,9 +280,124 @@ fig_plots_spatial, _ = plot.plot_single_fit(
 fig_plots_spatial.savefig("Figures/Paper/Figure_4b_fits_spatial.pdf", dpi=100)
 
 
-plot.plot_1D_scan_fit_results(
-    all_fits, scan_parameter="rho", figname_pdf="Figures/Paper/Figure_4cd_1D_scan_fit_rho.pdf"
+# plot.plot_1D_scan_fit_results(
+# all_fits, scan_parameter="rho", figname_pdf="Figures/Paper/Figure_4cd_1D_scan_fit_rho.pdf"
+# )
+
+#%%
+
+res_rho = plot.get_1D_scan_fit_results(
+    all_fits,
+    scan_parameter="rho",
+    non_default_parameters={},
 )
+
+res_rho_beta_007 = plot.get_1D_scan_fit_results(
+    all_fits,
+    scan_parameter="rho",
+    non_default_parameters={"beta": 0.007},
+)
+
+res_rho_sigmabeta_1 = plot.get_1D_scan_fit_results(
+    all_fits,
+    scan_parameter="rho",
+    non_default_parameters={"sigma_beta": 1},
+)
+
+res_rho_sigmamu_1 = plot.get_1D_scan_fit_results(
+    all_fits,
+    scan_parameter="rho",
+    non_default_parameters={"sigma_mu": 1},
+)
+
+res_rho_sigmabeta_1_sigmamu_1 = plot.get_1D_scan_fit_results(
+    all_fits,
+    scan_parameter="rho",
+    non_default_parameters={"sigma_beta": 1, "sigma_mu": 1},
+)
+
+#%%
+
+reload(plot)
+
+ylim = np.array([(0.8, 8.5), (0.8, 4.3)])
+
+fig, (ax0, ax1) = plot._plot_1D_scan_res(
+    res_rho_beta_007,  # res_rho,
+    scan_parameter="rho",
+    ylim=ylim,
+    label=r"$\beta = 0.007$",
+    color=plot.d_colors["blue"],
+    wspace=0.45,
+    fmt="*",
+)
+
+plot._plot_1D_scan_res(
+    res_rho,
+    scan_parameter="rho",
+    axes=(ax0, ax1),
+    # color="black",
+    label=r"$\beta = 0.01$",
+    fmt=".",
+)
+
+plot._plot_1D_scan_res(
+    res_rho_sigmabeta_1,
+    scan_parameter="rho",
+    axes=(ax0, ax1),
+    color=plot.d_colors["red"],
+    label=r"$\sigma_\beta = 1$",
+    fmt="v",
+)
+
+
+plot._plot_1D_scan_res(
+    res_rho_sigmamu_1,
+    scan_parameter="rho",
+    axes=(ax0, ax1),
+    color=plot.d_colors["orange"],
+    label=r"$\sigma_\mu = 1$",
+    fmt="^",
+)
+
+plot._plot_1D_scan_res(
+    res_rho_sigmabeta_1_sigmamu_1,
+    scan_parameter="rho",
+    axes=(ax0, ax1),
+    color=plot.d_colors["green"],
+    label=r"$\sigma_\mu = \sigma_\beta = 1$",
+    labelpad=-20,
+    fmt="x",
+)
+
+ax0.axhline(1, color="grey", ls="--")
+ax1.axhline(1, color="grey", ls="--")
+
+ax0.set_ylabel(r"$I_\mathrm{max}^\mathrm{fit} \, / \,\, I_\mathrm{max}^\mathrm{ABM}$", labelpad=10)
+ax1.set_ylabel(r"$R_\infty^\mathrm{fit} \, / \,\, R_\infty^\mathrm{ABM}$", labelpad=15)
+
+
+lines, labels = ax1.get_legend_handles_labels()
+ax1.legend(
+    lines,
+    labels,
+    loc="upper center",
+    ncol=5,
+    bbox_to_anchor=(-0.3, 1.2),
+    columnspacing=0.8,
+    handletextpad=-0,
+)
+
+ax0.set(xticks=[0, 0.5])
+ax1.set(xticks=[0, 0.5])
+
+
+#%%
+fig.savefig(
+    "Figures/Paper/Figure_4cd_1D_scan_fit_rho.pdf", dpi=100
+)  # bbox_inches='tight', pad_inches=0.3
+
+#%%
 
 plot.plot_1D_scan_fit_results(
     all_fits,
