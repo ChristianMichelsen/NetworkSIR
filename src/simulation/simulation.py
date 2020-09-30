@@ -335,3 +335,7 @@ if utils.is_ipython and debugging:
     #     f.create_dataset("df", data=utils.dataframe_to_hdf5_format(df))
     #     for key, val in simulation.cfg.items():
     #         f.attrs[key] = val
+
+    import uuid
+    filename = str(uuid.uuid4())
+    uuid.uuid4().hex
