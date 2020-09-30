@@ -345,7 +345,12 @@ from pandas.errors import EmptyDataError
 
 
 def plot_1D_scan(
-    scan_parameter, do_log=False, ylim=None, non_default_parameters=None, figname_pdf=None
+    scan_parameter,
+    do_log=False,
+    ylim=None,
+    non_default_parameters=None,
+    figname_pdf=None,
+    **kwargs,
 ):
 
     if non_default_parameters is None:
@@ -355,7 +360,7 @@ def plot_1D_scan(
     if res is None:
         return None
 
-    fig, (ax0, ax1) = _plot_1D_scan_res(res, scan_parameter, ylim, do_log)
+    fig, (ax0, ax1) = _plot_1D_scan_res(res, scan_parameter, ylim, do_log, **kwargs)
 
     ax0.set(ylabel=r"$I_\mathrm{max}^\mathrm{ABM} \, / \,\, I_\mathrm{max}^\mathrm{SEIR}$")
     ax1.set(ylabel=r"$R_\infty^\mathrm{ABM} \, / \,\, R_\infty^\mathrm{SEIR}$")

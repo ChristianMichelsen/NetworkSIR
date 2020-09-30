@@ -226,14 +226,15 @@ class Simulation:
         self.state_counts = np.array(out_state_counts)
         self.my_state = np.array(out_my_state)
 
-    def make_dataframe(self):
+    def make_dataframe(self, save_csv=True):
         #  Make DataFrame
         self.df = df = utils.state_counts_to_df(self.time, self.state_counts)
 
         # Save CSV
         utils.make_sure_folder_exist(self.filename)
         # save csv file
-        df.to_csv(self.filename, index=False)
+        if save_csv:
+            df.to_csv(self.filename, index=False)
         return df
 
     def save_simulation_results(self, save_only_ID_0=False, time_elapsed=None):
@@ -315,10 +316,11 @@ if utils.is_ipython and debugging:
         simulation.initialize_network(force_rerun=force_rerun)
         simulation.make_initial_infections()
         simulation.run_simulation()
-        df = simulation.make_dataframe()
+        df = simulation.make_dataframe(save_csv=False)
         display(df)
 
-    simulation.save_simulation_results(time_elapsed=t.elapsed)
+    if False:
+        simulation.save_simulation_results(time_elapsed=t.elapsed)
 
     my = simulation.my
     cfg = simulation.cfg
@@ -327,3 +329,9 @@ if utils.is_ipython and debugging:
     g = simulation.g
 
     # x = utils.dataframe_to_hdf5_format(simulation.df_coordinates)
+
+    # df.to_csv("test.csv", index=False)
+    # with h5py.File("test.hdf5", "w") as f:  #
+    #     f.create_dataset("df", data=utils.dataframe_to_hdf5_format(df))
+    #     for key, val in simulation.cfg.items():
+    #         f.attrs[key] = val

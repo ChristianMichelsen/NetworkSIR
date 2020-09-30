@@ -50,7 +50,10 @@ fig_ABM_vanilla, _ = plot.plot_single_ABM_simulation(
 fig_ABM_vanilla.savefig("Figures/Paper/Figure_2b_ABM_vanilla.pdf", dpi=100)
 
 plot.plot_1D_scan(scan_parameter="mu", figname_pdf="Figures/Paper/Figure_2c_1D_scan_mu.pdf")
-plot.plot_1D_scan(scan_parameter="beta", figname_pdf="Figures/Paper/Figure_2d_1D_scan_beta.pdf")
+plot.plot_1D_scan(
+    scan_parameter="beta", figname_pdf="Figures/Paper/Figure_2d_1D_scan_beta.pdf", labelpad=0
+)
+
 
 #%%
 
@@ -407,3 +410,17 @@ plot.plot_1D_scan_fit_results(
 )
 
 # %%
+
+# import h5py
+# f = h5py.File(filename_hdf5_spatial, "r")
+# d = f.attrs
+# with h5py.File(filename_hdf5_spatial, "r") as f:
+# d = f.attrs
+
+# with h5py.File(self.filenames["network_network"], "w") as f:  #
+#     f.create_dataset("time_elapsed", data=time_elapsed)
+
+#     for key, val in self.cfg.items():
+#         f.attrs[key] = val
+
+# # %%

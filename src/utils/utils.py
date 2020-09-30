@@ -816,7 +816,7 @@ def dataframe_to_hdf5_format(df_in, include_index=False, cols_to_str=None):
     kwargs = get_column_dtypes(df, cols_to_str)
     if include_index:
         kwargs["index_dtypes"] = f"<S{df.index.str.len().max()}"
-    return np.array(df.to_records(index=True, **kwargs))
+    return np.array(df.to_records(index=include_index, **kwargs))
 
 
 #%%
