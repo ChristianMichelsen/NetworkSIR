@@ -33,6 +33,7 @@ dependencies:
   - pathos
   - geopandas
   - descartes
+  - tinydb
   # - p_tqdm
   - pip:
     - mpl-scatter-density
@@ -40,3 +41,4 @@ dependencies:
     - contexttimer
     - awkward1>=0.2.32
     - range-key-dict
+    - p_tqdm

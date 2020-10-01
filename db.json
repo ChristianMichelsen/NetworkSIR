@@ -1,0 +1,21 @@
+{
+    "cfg": {
+        "1": {
+            "version": 1,
+            "N_tot": 58000,
+            "rho": 0,
+            "epsilon_rho": 0.04,
+            "mu": 40.0,
+            "sigma_mu": 0.0,
+            "beta": 0.01,
+            "sigma_beta": 0.0,
+            "algo": 2,
+            "N_init": 100,
+            "lambda_E": 1.0,
+            "lambda_I": 1.0,
+            "make_random_initial_infections": 1,
+            "N_connect_retries": 0,
+            "ID": 0
+        }
+    }
+}

@@ -10,12 +10,14 @@ from importlib import reload
 import os
 from IPython.display import display
 from contexttimer import Timer
+import yaml
 
 # conda install -c numba/label/dev numba
 import numba as nb
 from numba import njit, prange, objmode, typeof
 from numba.typed import List, Dict
-
+import uuid
+import datetime
 from numba.core.errors import (
     NumbaTypeSafetyWarning,
     NumbaExperimentalFeatureWarning,
@@ -40,30 +42,45 @@ from src.simulation import nb_simulation
 np.set_printoptions(linewidth=200)
 
 
+def get_hash():
+    return uuid.uuid4().hex
+
+
+def get_filename(basename="Data/ABM/ABM", hash_=None, filetype=".hdf5"):
+    date = datetime.datetime.now().strftime("%Y-%m-%d")
+    if hash_ is None:
+        hash_ = get_hash()
+    filename = "_".join([basename, date, hash_]) + filetype
+    return filename
+
+
 class Simulation:
-    def __init__(self, filename, verbose=False):
+    def __init__(self, cfg, verbose=False):
 
         self.verbose = verbose
-        self._Filename = Filename = utils.Filename(filename)
+        # self._Filename = Filename = utils.Filename(filename)
 
-        self.cfg = Filename.simulation_parameters
-        self.ID = Filename.ID
+        self.cfg = utils.DotDict(cfg)
+        self.ID = self.cfg.ID
         self.N_tot = self.cfg.N_tot
 
-        self.filenames = {}
-        self.filename = self.filenames["filename"] = Filename.filename
-        self.filenames["network_initialisation"] = Filename.filename_network_initialisation
-        self.filenames["network_network"] = Filename.filename_network
+        # unique code that identifies this simulation
+        self.hash = get_hash()
+
+        # self.filenames = {}
+        # self.filename = self.filenames["filename"] = Filename.filename
+        # self.filenames["network_initialisation"] = Filename.filename_network_initialisation
+        # self.filenames["network_network"] = Filename.filename_network
 
         self.my = nb_simulation.initialize_My(self.cfg)
 
-        utils.set_numba_random_seed(self.ID)
+        utils.set_numba_random_seed(self.cfg.ID)
 
     def _initialize_network(self):
 
         cfg = self.cfg
 
-        self.df_coordinates = utils.load_df_coordinates(self.N_tot, self.ID)
+        self.df_coordinates = utils.load_df_coordinates(self.N_tot, self.cfg.ID)
         coordinates_raw = utils.df_coordinates_to_coordinates(self.df_coordinates)
 
         if self.verbose:
@@ -74,7 +91,7 @@ class Simulation:
             (
                 people_in_household,
                 age_distribution_per_people_in_household,
-            ) = utils.load_household_data(self._Filename.household_data_filenames)
+            ) = utils.load_household_data()
             N_ages = age_distribution_per_people_in_household.shape[1]
 
             if self.verbose:
@@ -138,20 +155,20 @@ class Simulation:
     #     )
 
     def initialize_network(self, force_rerun=False, save_initial_network=True):
-        utils.set_numba_random_seed(self.ID)
+        utils.set_numba_random_seed(self.cfg.ID)
 
         with Timer() as t:
             self._initialize_network()
 
     def make_initial_infections(self):
-        utils.set_numba_random_seed(self.ID)
+        utils.set_numba_random_seed(self.cfg.ID)
 
         if self.verbose:
             print("INITIAL INFECTIONS")
 
         cfg = self.cfg
 
-        np.random.seed(self.ID)
+        np.random.seed(self.cfg.ID)
 
         self.nts = 0.1  # Time step (0.1 - ten times a day)
         self.N_states = 9  # number of states
@@ -179,7 +196,7 @@ class Simulation:
         )
 
     def run_simulation(self):
-        utils.set_numba_random_seed(self.ID)
+        utils.set_numba_random_seed(self.cfg.ID)
 
         if self.verbose:
             print("RUN SIMULATION")
@@ -221,30 +238,60 @@ class Simulation:
         )
 
         out_time, out_state_counts, out_my_state = res
-
-        self.time = np.array(out_time)
-        self.state_counts = np.array(out_state_counts)
+        # self.time =
+        # self.state_counts =
         self.my_state = np.array(out_my_state)
+        self.df = utils.state_counts_to_df(np.array(out_time), np.array(out_state_counts))
+        return self.df
 
-    def make_dataframe(self, save_csv=True):
-        #  Make DataFrame
-        self.df = df = utils.state_counts_to_df(self.time, self.state_counts)
+    def _save_cfg(self):
+        filename_cfg = get_filename(
+            basename="Data/cfgs/cfg",
+            hash_=self.hash,
+            filetype=".yaml",
+        )
+        self.cfg.dump_to_file(filename_cfg)
+        return None
+
+    def _save_dataframe(self, save_csv=False, save_hdf5=True):
 
         # Save CSV
-        utils.make_sure_folder_exist(self.filename)
-        # save csv file
         if save_csv:
-            df.to_csv(self.filename, index=False)
-        return df
+            filename_csv = get_filename(
+                basename="Data/ABM/ABM",
+                hash_=self.hash,
+                filetype=".csv",
+            )
+            utils.make_sure_folder_exist(filename_csv)
+            self.df.to_csv(filename_csv, index=False)
 
-    def save_simulation_results(self, save_only_ID_0=False, time_elapsed=None):
+        if save_hdf5:
+            filename_hdf5 = get_filename(
+                basename="Data/ABM/ABM",
+                hash_=self.hash,
+                filetype=".hdf5",
+            )
+            utils.make_sure_folder_exist(filename_hdf5)
+            with h5py.File(filename_hdf5, "w") as f:  #
+                f.create_dataset("df", data=utils.dataframe_to_hdf5_format(self.df))
+                for key, val in simulation.cfg.items():
+                    f.attrs[key] = val
 
-        if save_only_ID_0 and self.ID != 0:
+        return None
+
+    def _save_simulation_results(self, save_only_ID_0=False, time_elapsed=None):
+
+        if save_only_ID_0 and self.cfg.ID != 0:
             return None
 
-        utils.make_sure_folder_exist(self.filenames["network_network"], delete_file_if_exists=True)
+        filename_hdf5 = get_filename(
+            basename="Data/network/network",
+            hash_=self.hash,
+            filetype=".hdf5",
+        )
+        utils.make_sure_folder_exist(filename_hdf5)
 
-        with h5py.File(self.filenames["network_network"], "w") as f:  #
+        with h5py.File(filename_hdf5, "w") as f:  #
             f.create_dataset("my_state", data=self.my_state)
             f.create_dataset("my_number_of_contacts", data=self.my.number_of_contacts)
             f.create_dataset(
@@ -262,12 +309,19 @@ class Simulation:
             for key, val in self.cfg.items():
                 f.attrs[key] = val
 
+        return None
+
+    def save(self, save_csv=False, save_hdf5=True, save_only_ID_0=False, time_elapsed=None):
+        self._save_cfg()
+        self._save_dataframe(save_csv=save_csv, save_hdf5=save_hdf5)
+        self._save_simulation_results(save_only_ID_0=save_only_ID_0, time_elapsed=time_elapsed)
+
 
 #%%
 
 
-def run_full_simulation(
-    filename,
+def run_single_simulation(
+    cfg,
     verbose=False,
     force_rerun=False,
     only_initialize_network=False,
@@ -281,7 +335,7 @@ def run_full_simulation(
             warnings.simplefilter("ignore", NumbaTypeSafetyWarning)
             # warnings.simplefilter("ignore", NumbaPendingDeprecationWarning)
 
-        simulation = Simulation(filename, verbose)
+        simulation = Simulation(cfg, verbose)
         simulation.initialize_network(
             force_rerun=force_rerun, save_initial_network=save_initial_network
         )
@@ -290,14 +344,121 @@ def run_full_simulation(
 
         simulation.make_initial_infections()
         simulation.run_simulation()
-        simulation.make_dataframe()
-        simulation.save_simulation_results(time_elapsed=t.elapsed)
+        simulation.save(time_elapsed=t.elapsed, save_hdf5=True)
 
-        if verbose and simulation.ID == 0:
-            print(f"\n\n{simulation.cfg}\n")
+        # if verbose and simulation.ID == 0:
+        # print(f"\n\n{simulation.cfg}\n")
 
-    if verbose:
-        print("\n\nFinished!!!")
+    # if verbose:
+    # print("\n\nFinished!!!")
+
+
+from tinydb import Query
+from functools import reduce
+from operator import iand
+
+
+def multiple_queries(*lst):
+    """
+    Takes multiple queries and combines them into one, e.g.
+    multiple_queries(q["ID"] == 0, q["version"] == 1)
+    """
+    return reduce(iand, lst)
+
+
+def query_dict(d):
+    """
+    Takes a whole dictionary (d) as input and turns it into
+    a database (TinyDB) query. Assumes q = Query()
+    """
+    lst = []
+    for key, val in d.items():
+        lst.append(Query()[key] == val)
+    return multiple_queries(*lst)
+
+
+from tinydb import TinyDB, Query
+from tqdm import tqdm
+from functools import partial
+from p_tqdm import p_umap
+
+
+def run_simulations(
+    d_simulation_parameters,
+    N_runs=1,
+    num_cores_max=None,
+    verbose=False,
+    force_rerun=False,
+    dry_run=False,
+    only_initialize_network=False,
+    save_initial_network=True,
+):
+
+    db = TinyDB("db.json", sort_keys=False, indent=4, separators=(",", ": "))
+    db_cfg = db.table("cfg", cache_size=0)
+    # q = Query()
+
+    cfgs_all = utils.generate_cfgs(d_simulation_parameters, N_runs)
+
+    db_counts = np.array([db_cfg.count(query_dict(cfg)) for cfg in cfgs_all])
+    assert np.max(db_counts) <= 1
+
+    # keep only cfgs that are not in the database already
+    if force_rerun:
+        cfgs = cfgs_all
+    else:
+        cfgs = [cfg for count, cfg in zip(cfg, db_counts) if count == 0]
+
+    # db_cfg.insert(cfg.data)
+    # db.search(q.ID == 0)
+    # db_cfg.search(q.ID == 0)
+    # db_cfg.count(q.ID == 0)
+    # db_cfg.count(query_dict(cfg))
+
+    N_files = len(cfgs)
+
+    num_cores = utils.get_num_cores_N_tot(d_simulation_parameters, num_cores_max)
+
+    print(
+        f"Generating {N_files:3d} network-based simulations",
+        f"with {num_cores} cores",
+        f"based on {d_simulation_parameters}.",
+        "Please wait. \n",
+        flush=True,
+    )
+
+    if dry_run:
+        return 0
+
+    kwargs = dict(force_rerun=force_rerun)
+
+    if num_cores == 1:
+        for cfg in tqdm(cfgs):
+            run_single_simulation(cfg, verbose=verbose, **kwargs)
+
+    else:
+        f_single_simulation = partial(run_single_simulation, verbose=False, **kwargs)
+        p_umap(f_single_simulation, cfgs, num_cpus=num_cores)
+
+        # with mp.Pool(num_cores) as p:
+        #     kwargs = dict(verbose=False, force_rerun=force_rerun)
+        #     f = partial(run_single_simulation, **kwargs)
+        #     list(tqdm(p.imap_unordered(f, cfgs), total=N_files))
+
+    # update database
+    for cfg in cfgs:
+        cfg[]
+        db_cfg.insert(cfg.data)
+
+
+    from dict_hash import dict_hash
+    from dict_hash import sha256
+
+    dict_hash(cfg.data)
+    sha256(cfg.data)
+
+
+
 
 
 if utils.is_ipython and debugging:
@@ -305,37 +466,37 @@ if utils.is_ipython and debugging:
     verbose = True
     force_rerun = True
 
-    filename = "Data/ABM/v__1.0__N_tot__58000__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__0__N_connect_retries__0/v__1.0__N_tot__58000__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__1__N_connect_retries__0__ID__000.csv"
-    # filename = filename.replace("v__1.0", "v__2.0")
-    # filename = filename.replace("rho__0.0__", "rho__0.1__")
-
-    # reload(nb_simulation)
+    cfg = utils.DotDict(
+        {
+            "version": 1,
+            "N_tot": 58000,
+            "rho": 0,
+            "epsilon_rho": 0.04,
+            "mu": 40.0,
+            "sigma_mu": 0.0,
+            "beta": 0.01,
+            "sigma_beta": 0.0,
+            "algo": 2,
+            "N_init": 100,
+            "lambda_E": 1.0,
+            "lambda_I": 1.0,
+            "make_random_initial_infections": 1,
+            "N_connect_retries": 0,
+            "ID": 0,
+        }
+    )
 
     with Timer() as t:
-        simulation = Simulation(filename, verbose)
+        simulation = Simulation(cfg, verbose)
         simulation.initialize_network(force_rerun=force_rerun)
         simulation.make_initial_infections()
-        simulation.run_simulation()
-        df = simulation.make_dataframe(save_csv=False)
+        df = simulation.run_simulation()
         display(df)
 
     if False:
-        simulation.save_simulation_results(time_elapsed=t.elapsed)
+        simulation.save(time_elapsed=t.elapsed, save_hdf5=True)
 
     my = simulation.my
-    cfg = simulation.cfg
     df_coordinates = simulation.df_coordinates
     intervention = simulation.intervention
     g = simulation.g
-
-    # x = utils.dataframe_to_hdf5_format(simulation.df_coordinates)
-
-    # df.to_csv("test.csv", index=False)
-    # with h5py.File("test.hdf5", "w") as f:  #
-    #     f.create_dataset("df", data=utils.dataframe_to_hdf5_format(df))
-    #     for key, val in simulation.cfg.items():
-    #         f.attrs[key] = val
-
-    import uuid
-    filename = str(uuid.uuid4())
-    uuid.uuid4().hex

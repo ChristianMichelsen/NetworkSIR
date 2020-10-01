@@ -35,8 +35,8 @@ def is_local_computer(N_local_cores=12):
 
 def get_num_cores(num_cores_max=None, subtract_cores=1):
     num_cores = mp.cpu_count() - subtract_cores
-    if num_cores_max and num_cores >= num_cores_max:
-        num_cores = num_cores_max
+    if num_cores_max and num_cores > num_cores_max:
+        return num_cores_max
     return num_cores
 
 
@@ -537,10 +537,10 @@ class MutableArray:
 
 
 #%%
-# DotDict
+from collections import UserDict
 
 
-class DotDict(dict):
+class DotDict(UserDict):
     """
     Class that allows a dict to indexed using dot-notation.
     Example:
@@ -549,24 +549,62 @@ class DotDict(dict):
     'Michelsen'
     """
 
-    def __getattr__(self, item):
-        if item in self:
-            return self.get(item)
-        raise KeyError(f"'{item}' not in dict")
-
     def __setattr__(self, key, value):
-        if key in self:
-            self[key] = value
-        elif not "__" in key:
-            raise KeyError("Not allowed to change keys with dot notation, use brackets instead.")
+        if key == "data":
+            super().__setattr__("data", value)
+        elif key in self.data:
+            self.data[key] = value
+        else:
+            raise KeyError("Not allowed to make new keys with dot notation, use brackets instead.")
 
-    # make class pickle-able
+    def __getattr__(self, key):
+        if key in self.data:
+            return self.data[key]
+        else:
+            raise AttributeError
+
+    def __delattr__(self, key):
+        del self.data[key]
+
     def __getstate__(self):
-        return self.__dict__
+        return self.data
 
-    # make class pickle-able
     def __setstate__(self, state):
-        self.__dict__ = state
+        self.data = state
+
+    def dump_to_file(self, filename):
+        if any(substring in filename for substring in ["yaml", "yml"]):
+            make_sure_folder_exist(filename)
+            with open(filename, "w") as yaml_file:
+                yaml.dump(self.data, yaml_file, default_flow_style=False, sort_keys=False)
+        else:
+            raise AssertionError("This method is not yet implemented. Currently only yamls")
+
+    def __repr__(self):
+        s = f"{type(self).__name__}(" + "\n    {\n"
+        s += "\n".join(f"\t{repr(k)}: {repr(v)}," for k, v in self.data.items())
+        s += "\n    }\n)"
+        return s
+
+
+# dotdict = DotDict({"first_name": "Christian", "last_name": "Michelsen"})
+# dotdict.last_name
+# dotdict.first_name = "XXX"
+# # dotdict.middle_name = "YYY"
+# dotdict["middle_name"] = "YYY"
+
+
+# dotdict.dump_to_file("test.yaml")
+
+# import pickle
+
+# print('Pickling')
+# s = pickle.dumps(dotdict, pickle.HIGHEST_PROTOCOL)
+# print(s)
+
+# print('Unpickling')
+# obj = pickle.loads(s)
+# print(obj)
 
 
 #%%
@@ -881,7 +919,7 @@ import numba as nb
 # # except ImportError:
 # from src.utils import utils
 
-INTEGER_SIMULATION_PARAMETERS = load_yaml("cfg/settings.yaml")["INTEGER_SIMULATION_PARAMETERS"]
+# INTEGER_SIMULATION_PARAMETERS = load_yaml("cfg/settings.yaml")["INTEGER_SIMULATION_PARAMETERS"]
 
 
 def get_cfg_default():
@@ -892,77 +930,100 @@ def get_cfg_default():
     return load_yaml(yaml_filename)
 
 
-def dict_to_filename_with_dir(cfg, ID, data_dir="ABM"):
-    filename = Path("Data") / data_dir
-    file_string = ""
-    for key, val in cfg.items():
-        if key == "version":
-            key = "v"
-        file_string += f"{key}__{val}__"
-    file_string = file_string[:-2]  # remove trailing _
-    filename = filename / file_string
-    file_string += f"__ID__{ID:03d}.csv"
-    filename = filename / file_string
-    return str(filename)
+# def dict_to_filename_with_dir(cfg, ID, data_dir="ABM"):
+#     filename = Path("Data") / data_dir
+#     file_string = ""
+#     for key, val in cfg.items():
+#         if key == "version":
+#             key = "v"
+#         file_string += f"{key}__{val}__"
+#     file_string = file_string[:-2]  # remove trailing _
+#     filename = filename / file_string
+#     file_string += f"__ID__{ID:03d}.csv"
+#     filename = filename / file_string
+#     return str(filename)
 
 
-def get_all_combinations(d_simulation_parameters):
-    nameval_to_str = []
+# def get_all_combinations(d_simulation_parameters):
+#     nameval_to_str = []
+#     for name, lst in reversed(d_simulation_parameters.items()):
+#         if isinstance(lst, (int, float)):
+#             lst = [lst]
+#         nameval_to_str.append([f"{name}__{x}" for x in lst])
+#     all_combinations = list(product(*nameval_to_str))
+#     return all_combinations
+
+
+# def generate_filenames(
+#     d_simulation_parameters, N_loops=10, force_rerun=False, N_tot_max=False, verbose=True
+# ):
+#     filenames = []
+
+#     all_combinations = get_all_combinations(d_simulation_parameters)
+#     cfg = get_cfg_default()
+
+#     has_printed_once = False
+
+#     for combination in all_combinations:
+#         for s in combination:
+#             name, val = s.split("__")
+#             val = int(val) if name in INTEGER_SIMULATION_PARAMETERS else float(val)
+#             cfg[name] = val
+
+#         if not N_tot_max or cfg["N_tot"] < N_tot_max:
+
+#             # ID = 0
+#             for ID in range(N_loops):
+#                 filename = dict_to_filename_with_dir(cfg, ID)
+
+#                 not_existing = not Path(filename).exists()
+#                 try:
+#                     zero_size = Path(filename).stat().st_size == 0
+#                 except FileNotFoundError:
+#                     zero_size = True
+#                 if not_existing or zero_size or force_rerun:
+#                     filenames.append(filename)
+
+#         else:
+#             if verbose and not has_printed_once:
+#                 print(
+#                     f"Skipping some files since N_tot={human_format(cfg['N_tot'])} > N_tot_max={human_format(N_tot_max)}"
+#                 )
+#                 has_printed_once = True
+
+#     return filenames
+
+
+def generate_cfgs(d_simulation_parameters, N_runs=10, N_tot_max=False):
+
+    cfg_default = get_cfg_default()
+
+    d_list = []
     for name, lst in reversed(d_simulation_parameters.items()):
         if isinstance(lst, (int, float)):
             lst = [lst]
-        nameval_to_str.append([f"{name}__{x}" for x in lst])
-    all_combinations = list(product(*nameval_to_str))
-    return all_combinations
+        d_list.append([{name: val} for val in lst])
+    d_list.append([{"ID": ID} for ID in range(N_runs)])
+    all_combinations = list(product(*d_list))
 
-
-def generate_filenames(
-    d_simulation_parameters, N_loops=10, force_rerun=False, N_tot_max=False, verbose=True
-):
-    filenames = []
-
-    all_combinations = get_all_combinations(d_simulation_parameters)
-    cfg = get_cfg_default()
-
-    has_printed_once = False
-
+    cfgs = []
     for combination in all_combinations:
-        for s in combination:
-            name, val = s.split("__")
-            val = int(val) if name in INTEGER_SIMULATION_PARAMETERS else float(val)
-            cfg[name] = val
-
+        cfg = cfg_default.copy()
+        for d in combination:
+            cfg.update(d)
         if not N_tot_max or cfg["N_tot"] < N_tot_max:
+            cfgs.append(cfg)
 
-            # ID = 0
-            for ID in range(N_loops):
-                filename = dict_to_filename_with_dir(cfg, ID)
-
-                not_existing = not Path(filename).exists()
-                try:
-                    zero_size = Path(filename).stat().st_size == 0
-                except FileNotFoundError:
-                    zero_size = True
-                if not_existing or zero_size or force_rerun:
-                    filenames.append(filename)
-
-        else:
-            if verbose and not has_printed_once:
-                print(
-                    f"Skipping some files since N_tot={human_format(cfg['N_tot'])} > N_tot_max={human_format(N_tot_max)}"
-                )
-                has_printed_once = True
-
-    return filenames
+    return cfgs
 
 
 d_num_cores_N_tot = RangeKeyDict(
     {
         (0, 1_000_001): 40,
-        (1_000_001, 2_000_001): 30,
-        (2_000_001, 5_000_001): 20,
-        (5_000_001, 6_000_001): 12,
-        (6_000_001, 10_000_001): 5,
+        (1_000_001, 2_000_001): 40,
+        (2_000_001, 5_000_001): 25,
+        (5_000_001, 6_000_001): 15,
+        (6_000_001, 10_000_001): 7,
     }
 )
 
@@ -977,14 +1038,10 @@ def extract_N_tot_max(d_simulation_parameters):
         return get_cfg_default()["N_tot"]
 
 
-def get_num_cores_N_tot_specific(d_simulation_parameters, num_cores_max=None):
-    N_tot_max = extract_N_tot_max(d_simulation_parameters)
-    num_cores = d_num_cores_N_tot[N_tot_max]
-
-    if num_cores > get_num_cores(num_cores_max):
-        num_cores = get_num_cores(num_cores_max)
-
-    return num_cores
+def get_num_cores_N_tot(d_simulation_parameters, num_cores_max=None):
+    N_tot_max = d_num_cores_N_tot[extract_N_tot_max(d_simulation_parameters)]
+    num_cores = get_num_cores(N_tot_max)
+    return min([num_cores, num_cores_max])
 
 
 def load_df_coordinates(N_tot, ID):
@@ -1659,12 +1716,16 @@ def parse_household_data_list(filename, convert_to_numpy=False):
     return out
 
 
-def load_household_data(household_data_filenames):
+def load_household_data():
+
+    filename_PeopleInHousehold = load_yaml("cfg/files.yaml")["PeopleInHousehold"]
+    filename_AgeDistribution = load_yaml("cfg/files.yaml")["AgeDistribution"]
+
     people_in_household = parse_household_data_list(
-        household_data_filenames[0], convert_to_numpy=True
+        filename_PeopleInHousehold, convert_to_numpy=True
     )
     age_distribution_per_people_in_household = parse_household_data_list(
-        household_data_filenames[1], convert_to_numpy=True
+        filename_AgeDistribution, convert_to_numpy=True
     )
     return people_in_household, age_distribution_per_people_in_household
 
