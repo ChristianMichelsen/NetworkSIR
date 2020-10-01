@@ -23,7 +23,6 @@ dependencies:
   - joblib
   - scikit-learn # uses ParameterSampler to fit multiple times
   - psutil
-  # - datashader
   - awkward
   - pyarrow
   - pytables
@@ -34,7 +33,7 @@ dependencies:
   - geopandas
   - descartes
   - tinydb
-  # - p_tqdm
+  # - datashader
   - pip:
     - mpl-scatter-density
     - pygifsicle
