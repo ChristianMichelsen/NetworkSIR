@@ -12,7 +12,7 @@ algo: 2  # node connection algorithm, ignore if version >= 2
 N_init: 100  # Initial Infected
 lambda_E: 1.0  # E->I, Lambda(from E states)
 lambda_I: 1.0  # I->R, Lambda(from I states)
-make_random_initial_infections: 1 # 1 = True = Make random infections. Otherwise 0 = False = Infections around a single agent
+make_random_initial_infections: True # Infections around a single agent
 N_connect_retries: 0 # number of times to try and reconnect two agents
 N_events: 0 # number of daily events
 event_size_max: 580_000 #max size of events. If 0 => N_tot (no max)
