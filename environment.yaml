@@ -33,6 +33,8 @@ dependencies:
   - geopandas
   - descartes
   - tinydb
+  - flake8
+  - pylint
   # - datashader
   - pip:
     - mpl-scatter-density
