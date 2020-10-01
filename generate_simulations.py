@@ -26,6 +26,8 @@ if utils.is_local_computer():
         {
             "N_tot": 58_000,
             "rho": 0,
+            "N_events": [0, 100],
+            "event_size_max": [10, 100],
             # "version": [1, 2],
             # "make_random_initial_infections": [0, 1],
             # "N_connect_retries": [0, 1],

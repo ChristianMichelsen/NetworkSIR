@@ -5,6 +5,7 @@ INTEGER_SIMULATION_PARAMETERS:
     - algo
     - make_random_initial_infections # 1 = True, 0 = False
     - N_connect_retries
+    - event_size_max
 
 # exclude these parameters in network initialization filename
 EXCLUDE_PARAMETER_IN_INIT:
@@ -12,3 +13,4 @@ EXCLUDE_PARAMETER_IN_INIT:
     - lambda_E
     - lambda_I
     - make_random_initial_infections
+    - event_size_max

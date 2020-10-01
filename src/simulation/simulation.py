@@ -305,9 +305,10 @@ if utils.is_ipython and debugging:
     verbose = True
     force_rerun = True
 
-    filename = "Data/ABM/v__1.0__N_tot__58000__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__0__N_connect_retries__0/v__1.0__N_tot__58000__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__1__N_connect_retries__0__ID__000.csv"
+    filename = "Data/ABM/v__1.0__N_tot__58000__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__1__N_connect_retries__0__N_events__0.0__event_size_max__1/v__1.0__N_tot__58000__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__1__N_connect_retries__0__N_events__0.0__event_size_max__1__ID__000.csv"
     # filename = filename.replace("v__1.0", "v__2.0")
-    # filename = filename.replace("rho__0.0__", "rho__0.1__")
+    # filename = filename.replace("N_events__0.0__", "N_events__100.0__")
+    # filename = filename.replace("event_size_max__1__", "event_size_max__100__")
 
     # reload(nb_simulation)
 
@@ -327,15 +328,3 @@ if utils.is_ipython and debugging:
     df_coordinates = simulation.df_coordinates
     intervention = simulation.intervention
     g = simulation.g
-
-    # x = utils.dataframe_to_hdf5_format(simulation.df_coordinates)
-
-    # df.to_csv("test.csv", index=False)
-    # with h5py.File("test.hdf5", "w") as f:  #
-    #     f.create_dataset("df", data=utils.dataframe_to_hdf5_format(df))
-    #     for key, val in simulation.cfg.items():
-    #         f.attrs[key] = val
-
-    import uuid
-    filename = str(uuid.uuid4())
-    uuid.uuid4().hex
