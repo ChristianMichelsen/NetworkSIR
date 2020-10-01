@@ -999,7 +999,7 @@ def generate_cfgs(d_simulation_parameters, N_runs=10, N_tot_max=False):
     cfg_default = get_cfg_default()
 
     d_list = []
-    for name, lst in reversed(d_simulation_parameters.items()):
+    for name, lst in d_simulation_parameters.items():
         if isinstance(lst, (int, float)):
             lst = [lst]
         d_list.append([{name: val} for val in lst])

@@ -39,18 +39,30 @@ while True:
 from src.utils import utils
 from src.simulation import nb_simulation
 
+from dict_hash import sha256
+
 np.set_printoptions(linewidth=200)
 
 
-def get_hash():
-    return uuid.uuid4().hex
+def get_hash(d=None, N=10):
+    """
+    d = input object, if None just get a random hash
+    N = len of hash (truncate hash)
+    """
+    if d is None:
+        s_hash = uuid.uuid4().hex
+    else:
+        if isinstance(d, utils.DotDict):
+            d = d.data
+        s_hash = sha256(d)
+    return s_hash[:N]
 
 
-def get_filename(basename="Data/ABM/ABM", hash_=None, filetype=".hdf5"):
+def get_filename(basename="Data/ABM/ABM", s_hash=None, filetype=".hdf5"):
     date = datetime.datetime.now().strftime("%Y-%m-%d")
-    if hash_ is None:
-        hash_ = get_hash()
-    filename = "_".join([basename, date, hash_]) + filetype
+    if s_hash is None:
+        s_hash = get_hash()
+    filename = "_".join([basename, date, s_hash]) + filetype
     return filename
 
 
@@ -58,19 +70,13 @@ class Simulation:
     def __init__(self, cfg, verbose=False):
 
         self.verbose = verbose
-        # self._Filename = Filename = utils.Filename(filename)
 
         self.cfg = utils.DotDict(cfg)
         self.ID = self.cfg.ID
         self.N_tot = self.cfg.N_tot
 
         # unique code that identifies this simulation
-        self.hash = get_hash()
-
-        # self.filenames = {}
-        # self.filename = self.filenames["filename"] = Filename.filename
-        # self.filenames["network_initialisation"] = Filename.filename_network_initialisation
-        # self.filenames["network_network"] = Filename.filename_network
+        self.hash = get_hash(self.cfg)
 
         self.my = nb_simulation.initialize_My(self.cfg)
 
@@ -247,7 +253,7 @@ class Simulation:
     def _save_cfg(self):
         filename_cfg = get_filename(
             basename="Data/cfgs/cfg",
-            hash_=self.hash,
+            s_hash=self.hash,
             filetype=".yaml",
         )
         self.cfg.dump_to_file(filename_cfg)
@@ -259,7 +265,7 @@ class Simulation:
         if save_csv:
             filename_csv = get_filename(
                 basename="Data/ABM/ABM",
-                hash_=self.hash,
+                s_hash=self.hash,
                 filetype=".csv",
             )
             utils.make_sure_folder_exist(filename_csv)
@@ -268,13 +274,13 @@ class Simulation:
         if save_hdf5:
             filename_hdf5 = get_filename(
                 basename="Data/ABM/ABM",
-                hash_=self.hash,
+                s_hash=self.hash,
                 filetype=".hdf5",
             )
             utils.make_sure_folder_exist(filename_hdf5)
             with h5py.File(filename_hdf5, "w") as f:  #
                 f.create_dataset("df", data=utils.dataframe_to_hdf5_format(self.df))
-                for key, val in simulation.cfg.items():
+                for key, val in self.cfg.items():
                     f.attrs[key] = val
 
         return None
@@ -286,7 +292,7 @@ class Simulation:
 
         filename_hdf5 = get_filename(
             basename="Data/network/network",
-            hash_=self.hash,
+            s_hash=self.hash,
             filetype=".hdf5",
         )
         utils.make_sure_folder_exist(filename_hdf5)
@@ -385,13 +391,12 @@ from p_tqdm import p_umap
 
 def run_simulations(
     d_simulation_parameters,
-    N_runs=1,
+    N_runs=2,
     num_cores_max=None,
     verbose=False,
     force_rerun=False,
     dry_run=False,
-    only_initialize_network=False,
-    save_initial_network=True,
+    **kwargs,
 ):
 
     db = TinyDB("db.json", sort_keys=False, indent=4, separators=(",", ": "))
@@ -407,13 +412,7 @@ def run_simulations(
     if force_rerun:
         cfgs = cfgs_all
     else:
-        cfgs = [cfg for count, cfg in zip(cfg, db_counts) if count == 0]
-
-    # db_cfg.insert(cfg.data)
-    # db.search(q.ID == 0)
-    # db_cfg.search(q.ID == 0)
-    # db_cfg.count(q.ID == 0)
-    # db_cfg.count(query_dict(cfg))
+        cfgs = [cfg for (cfg, count) in zip(cfgs_all, db_counts) if count == 0]
 
     N_files = len(cfgs)
 
@@ -427,10 +426,8 @@ def run_simulations(
         flush=True,
     )
 
-    if dry_run:
-        return 0
-
-    kwargs = dict(force_rerun=force_rerun)
+    if dry_run or N_files == 0:
+        return N_files
 
     if num_cores == 1:
         for cfg in tqdm(cfgs):
@@ -440,25 +437,14 @@ def run_simulations(
         f_single_simulation = partial(run_single_simulation, verbose=False, **kwargs)
         p_umap(f_single_simulation, cfgs, num_cpus=num_cores)
 
-        # with mp.Pool(num_cores) as p:
-        #     kwargs = dict(verbose=False, force_rerun=force_rerun)
-        #     f = partial(run_single_simulation, **kwargs)
-        #     list(tqdm(p.imap_unordered(f, cfgs), total=N_files))
-
     # update database
     for cfg in cfgs:
-        cfg[]
-        db_cfg.insert(cfg.data)
+        cfg_tmp = cfg.copy()
+        cfg_tmp["hash"] = get_hash(cfg_tmp)
+        if not db_cfg.contains(query_dict(cfg_tmp)):
+            db_cfg.insert(cfg_tmp.data)
 
-
-    from dict_hash import dict_hash
-    from dict_hash import sha256
-
-    dict_hash(cfg.data)
-    sha256(cfg.data)
-
-
-
+    return N_files
 
 
 if utils.is_ipython and debugging:
@@ -500,3 +486,13 @@ if utils.is_ipython and debugging:
     df_coordinates = simulation.df_coordinates
     intervention = simulation.intervention
     g = simulation.g
+
+    simulation.hash
+
+    # db_cfg.insert(cfg.data)
+    # db.search(q.ID == 0)
+    # db_cfg.search(q.ID == 0)
+    # db_cfg.count(q.ID == 0)
+    # db_cfg.count(query_dict(cfg))
+
+# %%
