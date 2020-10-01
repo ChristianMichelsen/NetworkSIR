@@ -41,3 +41,4 @@ dependencies:
     - awkward1>=0.2.32
     - range-key-dict
     - p_tqdm
+    - dict_hash
