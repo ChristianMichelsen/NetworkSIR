@@ -24,6 +24,7 @@ verbose = False
 #%%
 
 reload(plot)
+reload(file_loaders)
 
 abm_files = file_loaders.ABM_simulations()
 N_files = len(abm_files)

@@ -9,6 +9,12 @@ from numba.types import ListType, DictType, unicode_type
 
 from src.utils import utils
 
+
+@njit
+def set_numba_random_seed(seed):
+    np.random.seed(seed)
+
+
 #%%
 
 #      ██ ██ ████████      ██████ ██       █████  ███████ ███████ ███████ ███████
@@ -1070,11 +1076,11 @@ def run_simulation(
 
                 event_size_max = my.cfg.event_size_max
                 N_events = my.cfg.N_events
+                typical_event_size = 50  # XXX add as parameter
 
                 if N_events > 0:
 
                     beta_scaling = 100
-                    typical_event_size = 50
 
                     # if weekend increase number of events
                     if (day % 7) == 0 or (day % 7) == 1:
@@ -1106,8 +1112,6 @@ def run_simulation(
                             ):
                                 agents_in_this_event.append(np.uint32(guest))
 
-                        # disease_matrix = np.zeros((event_size, event_size), dtype=np.float32)
-
                         # extract all agents that are infectious and then
                         for agent in agents_in_this_event:
                             if my.agent_is_infectious(agent):
@@ -1122,45 +1126,55 @@ def run_simulation(
                                                 agents_getting_infected_at_any_event.append(
                                                     np.uint32(guest)
                                                 )
-                        # agents_in_event.append(agents_in_this_event)
 
                     # N = len(agents_getting_infected_at_any_event)
                     # if N > 0:
                     #     print(N)
 
-                    for agent_getting_infected in agents_getting_infected_at_any_event:
+                    for agent_getting_infected_at_event in agents_getting_infected_at_any_event:
+
+                        # XXX this update was needed
+                        my.state[agent_getting_infected_at_event] = 0
+                        agents_in_state[0].append(np.uint32(agent_getting_infected_at_event))
+                        state_total_counts[0] += 1
+                        g.total_sum_of_state_changes += SIR_transition_rates[0]
+                        g.cumulative_sum_of_state_changes += SIR_transition_rates[0]
 
                         # loop over contacts of the newly infected agent in order to:
                         # 1) remove newly infected agent from contact list (find_myself) by setting rate to 0
                         # 2) remove rates from contacts gillespie sums (only if they are in infections state (I))
-                        for contact_of_agent_getting_infected in my.connections[
-                            agent_getting_infected
+                        for contact_of_agent_getting_infected_at_event in my.connections[
+                            agent_getting_infected_at_event
                         ]:
 
                             # loop over indexes of the contact to find_myself and set rate to 0
-                            for ith_contact_of_agent_getting_infected in range(
-                                my.number_of_contacts[contact_of_agent_getting_infected]
+                            for ith_contact_of_agent_getting_infected_at_event in range(
+                                my.number_of_contacts[contact_of_agent_getting_infected_at_event]
                             ):
 
-                                find_myself = my.connections[contact_of_agent_getting_infected][
-                                    ith_contact_of_agent_getting_infected
-                                ]
+                                find_myself = my.connections[
+                                    contact_of_agent_getting_infected_at_event
+                                ][ith_contact_of_agent_getting_infected_at_event]
 
                                 # check if the contact found is myself
-                                if find_myself == agent_getting_infected:
+                                if find_myself == agent_getting_infected_at_event:
 
-                                    rate = g.rates[contact_of_agent_getting_infected][
-                                        ith_contact_of_agent_getting_infected
+                                    rate = g.rates[contact_of_agent_getting_infected_at_event][
+                                        ith_contact_of_agent_getting_infected_at_event
                                     ]
 
                                     # set rates to myself to 0 (I cannot get infected again)
-                                    g.rates[contact_of_agent_getting_infected][
-                                        ith_contact_of_agent_getting_infected
+                                    g.rates[contact_of_agent_getting_infected_at_event][
+                                        ith_contact_of_agent_getting_infected_at_event
                                     ] = 0
 
                                     # if the contact can infect, then remove the rates from the overall gillespie accounting
-                                    if my.agent_is_infectious(contact_of_agent_getting_infected):
-                                        g.update_rates(my, -rate, contact_of_agent_getting_infected)
+                                    if my.agent_is_infectious(
+                                        contact_of_agent_getting_infected_at_event
+                                    ):
+                                        g.update_rates(
+                                            my, -rate, contact_of_agent_getting_infected_at_event
+                                        )
 
                                     break
 

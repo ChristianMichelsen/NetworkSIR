@@ -69,25 +69,23 @@ def compute_df_deterministic(cfg, variable, T_max=100):
 #         return s
 
 
-def plot_single_ABM_simulation(ABM_parameter, abm_files, add_top_text=True, xlim=(0, None)):
+def plot_single_ABM_simulation(cfg, filenames, add_top_text=True, xlim=(0, None)):
 
     d_ylabel = {"I": "Infected", "R": "Recovered"}
     d_label_loc = {"I": "upper right", "R": "lower right"}
-
-    cfg = utils.string_to_dict(ABM_parameter)
 
     fig, axes = plt.subplots(ncols=2, figsize=(16, 7))
     fig.subplots_adjust(top=0.8)
 
     T_max = 0
-    lw = 0.3 * 10 / np.sqrt(len(abm_files[ABM_parameter]))
+    lw = 0.3 * 10 / np.sqrt(len(filenames))
 
     stochastic_noise_I = []
     stochastic_noise_R = []
 
     # file, i = abm_files[ABM_parameter][0], 0
-    for i, file in enumerate(abm_files[ABM_parameter]):
-        df = file_loaders.pandas_load_file(file)
+    for i, filename in enumerate(filenames):
+        df = file_loaders.pandas_load_file(filename)
         t = df["time"].values
         label = r"ABM" if i == 0 else None
 
@@ -138,7 +136,7 @@ def plot_single_ABM_simulation(ABM_parameter, abm_files, add_top_text=True, xlim
                 fontsize=12,
             )
 
-    title = utils.dict_to_title(cfg, len(abm_files[ABM_parameter]))
+    title = utils.dict_to_title(cfg, len(filenames))
     fig.suptitle(title, fontsize=24)
     plt.subplots_adjust(wspace=0.4)
 
@@ -155,12 +153,21 @@ def plot_ABM_simulations(abm_files, force_rerun=False):
         print(f"{pdf_name} already exists\n", flush=True)
         return None
 
+    # def iter_folders(self):
+    #     for cfg in self.cfgs:
+    #         filenames = self.d[cfg.hash]
+    #         yield cfg, filenames
+
     with PdfPages(pdf_name) as pdf:
 
-        for ABM_parameter in tqdm(abm_files.keys, desc="Plotting individual ABM parameters"):
-            # break
+        # for ABM_parameter in tqdm(abm_files.keys, desc="Plotting individual ABM parameters"):
+        for cfg, filenames in tqdm(
+            abm_files.iter_folders(),
+            desc="Plotting individual ABM parameters",
+            total=len(abm_files.cfgs),
+        ):
 
-            fig, ax = plot_single_ABM_simulation(ABM_parameter, abm_files)
+            fig, ax = plot_single_ABM_simulation(cfg, filenames)
 
             pdf.savefig(fig, dpi=100)
             plt.close("all")

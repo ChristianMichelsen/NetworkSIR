@@ -411,16 +411,3 @@ plot.plot_1D_scan_fit_results(
 
 # %%
 
-# import h5py
-# f = h5py.File(filename_hdf5_spatial, "r")
-# d = f.attrs
-# with h5py.File(filename_hdf5_spatial, "r") as f:
-# d = f.attrs
-
-# with h5py.File(self.filenames["network_network"], "w") as f:  #
-#     f.create_dataset("time_elapsed", data=time_elapsed)
-
-#     for key, val in self.cfg.items():
-#         f.attrs[key] = val
-
-# # %%

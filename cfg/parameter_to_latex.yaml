@@ -14,4 +14,5 @@
   make_random_initial_infections: \mathrm{rand.inf.}
   N_connect_retries: N_\mathrm{retries}^\mathrm{connect}
   N_events: N_\mathrm{events}
-  event_size_max: \mathrm{event}_\mathrm{size}_\mathrm{max}
+  event_size_max: \mathrm{event}_{\mathrm{size}_\mathrm{max}}
+  hash: \mathrm{hash}

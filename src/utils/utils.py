@@ -572,11 +572,21 @@ class DotDict(UserDict):
     def __setstate__(self, state):
         self.data = state
 
-    def dump_to_file(self, filename):
+    def dump_to_file(self, filename, exclude=None):
         if any(substring in filename for substring in ["yaml", "yml"]):
             make_sure_folder_exist(filename)
+
+            if exclude is None:
+                out = self.data
+            else:
+                if not isinstance(exclude, list):
+                    exclude = [exclude]
+                out = self.data.copy()
+                for key in exclude:
+                    out.pop(key)
+
             with open(filename, "w") as yaml_file:
-                yaml.dump(self.data, yaml_file, default_flow_style=False, sort_keys=False)
+                yaml.dump(out, yaml_file, default_flow_style=False, sort_keys=False)
         else:
             raise AssertionError("This method is not yet implemented. Currently only yamls")
 
@@ -680,7 +690,7 @@ def human_format_scientific(num, digits=3):
     )
 
 
-def dict_to_title(d, N=None, exclude=None, in_two_line=True):
+def dict_to_title(d, N=None, exclude="hash", in_two_line=True):
 
     # important to make a copy since overwriting below
     cfg = DotDict(d)
@@ -994,7 +1004,7 @@ def get_cfg_default():
 #     return filenames
 
 
-def generate_cfgs(d_simulation_parameters, N_runs=10, N_tot_max=False):
+def generate_cfgs(d_simulation_parameters, N_runs=1, N_tot_max=False):
 
     cfg_default = get_cfg_default()
 
@@ -1041,7 +1051,10 @@ def extract_N_tot_max(d_simulation_parameters):
 def get_num_cores_N_tot(d_simulation_parameters, num_cores_max=None):
     N_tot_max = d_num_cores_N_tot[extract_N_tot_max(d_simulation_parameters)]
     num_cores = get_num_cores(N_tot_max)
-    return min([num_cores, num_cores_max])
+    if num_cores_max:
+        return min([num_cores, num_cores_max])
+    else:
+        return num_cores
 
 
 def load_df_coordinates(N_tot, ID):
@@ -1773,3 +1786,38 @@ def load_kommune_shapefiles(shapefile_size, verbose=False):
 
     kommuner["idx"] = kommune_idx
     return kommuner, name_to_idx, idx_to_name
+
+
+#%%
+
+from tinydb import Query
+from functools import reduce
+from operator import iand
+
+
+def multiple_queries(*lst):
+    """
+    Takes multiple queries and combines them into one, e.g.
+    multiple_queries(q["ID"] == 0, q["version"] == 1)
+    """
+    return reduce(iand, lst)
+
+
+def query_dict(d):
+    """
+    Takes a whole dictionary (d) as input and turns it into
+    a database (TinyDB) query. Assumes q = Query()
+    """
+    lst = []
+    for key, val in d.items():
+        lst.append(Query()[key] == val)
+    return multiple_queries(*lst)
+
+
+from tinydb import TinyDB, Query
+
+
+def get_db_cfg():
+    db = TinyDB("db.json", sort_keys=False, indent=4, separators=(",", ": "))
+    db_cfg = db.table("cfg", cache_size=0)
+    return db_cfg
