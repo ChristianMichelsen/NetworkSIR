@@ -166,7 +166,6 @@ def plot_ABM_simulations(abm_files, force_rerun=False):
             desc="Plotting individual ABM parameters",
             total=len(abm_files.cfgs),
         ):
-
             fig, ax = plot_single_ABM_simulation(cfg, filenames)
 
             pdf.savefig(fig, dpi=100)
