@@ -1008,7 +1008,7 @@ def get_cfg_default():
 #     return filenames
 
 
-def generate_cfgs(d_simulation_parameters, N_runs=1, N_tot_max=False):
+def generate_cfgs(d_simulation_parameters, N_runs=1, N_tot_max=False, verbose=False):
 
     cfg_default = get_cfg_default()
 
@@ -1020,6 +1020,8 @@ def generate_cfgs(d_simulation_parameters, N_runs=1, N_tot_max=False):
     d_list.append([{"ID": ID} for ID in range(N_runs)])
     all_combinations = list(product(*d_list))
 
+    has_not_printed = True
+
     cfgs = []
     for combination in all_combinations:
         cfg = cfg_default.copy()
@@ -1027,6 +1029,10 @@ def generate_cfgs(d_simulation_parameters, N_runs=1, N_tot_max=False):
             cfg.update(d)
         if not N_tot_max or cfg["N_tot"] < N_tot_max:
             cfgs.append(cfg)
+        else:
+            if verbose and has_not_printed:
+                print("Skipping some files due to N_tot > N_tot_max")
+                has_not_printed = False
 
     return cfgs
 

@@ -356,7 +356,11 @@ def run_simulations(
     db_cfg = db.table("cfg", cache_size=0)
     q = Query()
 
-    cfgs_all = utils.generate_cfgs(d_simulation_parameters, N_runs, N_tot_max)
+    cfgs_all = utils.generate_cfgs(d_simulation_parameters, N_runs, N_tot_max, verbose=verbose)
+    if len(cfgs_all) == 0:
+        N_files = 0
+        return N_files
+
 
     db_counts = np.array([db_cfg.count(q.hash == get_hash(cfg)) for cfg in cfgs_all])
     assert np.max(db_counts) <= 1
