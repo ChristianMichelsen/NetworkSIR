@@ -1539,6 +1539,10 @@ def get_1D_scan_cfgs_all_filenames(scan_parameter, non_default_parameters):
     cfgs = db_cfg.search(query_dict(parameters))
     cfgs = [DotDict(cfg) for cfg in cfgs]
     all_filenames = [hash_to_filenames(cfg.hash) for cfg in cfgs]
+
+    cfgs = [cfg for i, cfg in enumerate(cfgs) if len(all_filenames[i]) > 0]
+    all_filenames = [filenames for filenames in all_filenames if len(filenames) > 0]
+
     return cfgs, all_filenames
 
 
@@ -1839,3 +1843,36 @@ def get_db_cfg():
 def hash_to_cfg(hash_):
     db_cfg = get_db_cfg()
     return DotDict(db_cfg.search(Query().hash == hash_)[0])
+
+
+# ls -R | grep 7274ac6030 | xargs rm -f
+
+#%%
+
+
+def delete_every_file_with_hash(hashes, base_dir="./Data/", verbose=True):
+
+    if isinstance(hashes, str):
+        hashes = [hashes]
+
+    files_to_delete = []
+    for hash_ in hashes:
+        files_to_delete.extend(list(Path(base_dir).rglob(f"*{hash_}*")))
+
+    prompt = f"You are about the delete {len(files_to_delete)} files or folders. "
+    prompt += "Please type exactly 'yes' (without apostrofes) to delete them."
+    input_str = input(prompt)
+
+    if input_str == "yes":
+        folders_to_delete = []
+        for file_to_delete in files_to_delete:
+            if "." in str(file_to_delete):
+                if verbose:
+                    print(f"Deleting file: {file_to_delete}")
+                file_to_delete.unlink()
+            else:
+                folders_to_delete.append(file_to_delete)
+        for folder_to_delete in folders_to_delete:
+            if verbose:
+                print(f"Deleting folder: {folder_to_delete}")
+            folder_to_delete.rmdir()

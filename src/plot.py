@@ -183,9 +183,10 @@ def compute_ABM_SEIR_proportions(cfg, filenames):
     for filename in filenames:
         try:
             df = file_loaders.pandas_load_file(filename)
-        except EmptyDataError:
+        except EmptyDataError as e:
             print(f"Empty file error at {filename}")
-            continue
+            raise e
+            # continue
         I_max_ABM.append(df["I"].max())
         R_inf_ABM.append(df["R"].iloc[-1])
     I_max_ABM = np.array(I_max_ABM)
@@ -608,26 +609,6 @@ def compute_fit_ABM_proportions(fit_objects):
     z_rel_R = R_inf_fit / R_inf_ABM
 
     return z_rel_I, z_rel_R
-
-    # cfgs, all_filenames = utils.get_1D_scan_cfgs_all_filenames(
-    #     scan_parameter, non_default_parameters
-    # )
-    # N_cfgs = len(cfgs)
-    # if N_cfgs <= 1:
-    #     return None
-
-    # x = np.zeros(N_cfgs)
-    # y_I = np.zeros(N_cfgs)
-    # y_R = np.zeros(N_cfgs)
-    # sy_I = np.zeros(N_cfgs)
-    # sy_R = np.zeros(N_cfgs)
-    # n = np.zeros(N_cfgs)
-
-    # # ABM_parameter = simulation_parameters_1D_scan[0]
-    # it = zip(cfgs, all_filenames)
-    # for i, (cfg, filenames) in enumerate(tqdm(it, desc=scan_parameter, total=N_cfgs)):
-
-    #     z_rel_I, z_rel_R = compute_ABM_SEIR_proportions(cfg, filenames)
 
 
 def get_1D_scan_fit_results(all_fits, scan_parameter, non_default_parameters):
