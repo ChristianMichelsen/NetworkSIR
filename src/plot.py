@@ -175,7 +175,7 @@ def plot_ABM_simulations(abm_files, force_rerun=False):
 # %%
 
 
-def compute_ABM_SEIR_proportions(filenames):
+def compute_ABM_SEIR_proportions(cfg, filenames):
     "Compute the fraction (z) between ABM and SEIR for I_max and R_inf "
 
     I_max_ABM = []
@@ -192,48 +192,45 @@ def compute_ABM_SEIR_proportions(filenames):
     R_inf_ABM = np.array(R_inf_ABM)
 
     T_max = max(df["time"].max() * 1.2, 300)
-    cfg = utils.string_to_dict(filename)
     df_SIR = SIR.integrate(cfg, T_max, dt=0.01, ts=0.1)
 
     # break out if the SIR model dies out
     if df_SIR["I"].max() < cfg.N_init:
         N = len(I_max_ABM)
-        return np.full(N, np.nan), np.full(N, np.nan), cfg
+        return np.full(N, np.nan), np.full(N, np.nan)
 
     z_rel_I = I_max_ABM / df_SIR["I"].max()
     z_rel_R = R_inf_ABM / df_SIR["R"].iloc[-1]
 
-    return z_rel_I, z_rel_R, cfg
+    return z_rel_I, z_rel_R
+
+
+# def get_1D_scan_cfgs_all_filenames(scan_parameter, non_default_parameters):
+#     return cfgs, all_filenames
 
 
 def get_1D_scan_results(scan_parameter, non_default_parameters):
     "Compute the fraction between ABM and SEIR for all simulations related to the scan_parameter"
 
-    simulation_parameters_1D_scan = utils.get_simulation_parameters_1D_scan(
+    cfgs, all_filenames = utils.get_1D_scan_cfgs_all_filenames(
         scan_parameter, non_default_parameters
     )
-    N_simulation_parameters = len(simulation_parameters_1D_scan)
-    if N_simulation_parameters <= 1:
+    N_cfgs = len(cfgs)
+    if N_cfgs <= 1:
         return None
 
-    base_dir = Path("Data") / "ABM"
-
-    x = np.zeros(N_simulation_parameters)
-    y_I = np.zeros(N_simulation_parameters)
-    y_R = np.zeros(N_simulation_parameters)
-    sy_I = np.zeros(N_simulation_parameters)
-    sy_R = np.zeros(N_simulation_parameters)
-    n = np.zeros(N_simulation_parameters)
+    x = np.zeros(N_cfgs)
+    y_I = np.zeros(N_cfgs)
+    y_R = np.zeros(N_cfgs)
+    sy_I = np.zeros(N_cfgs)
+    sy_R = np.zeros(N_cfgs)
+    n = np.zeros(N_cfgs)
 
     # ABM_parameter = simulation_parameters_1D_scan[0]
-    for i, ABM_parameter in enumerate(tqdm(simulation_parameters_1D_scan, desc=scan_parameter)):
-        filenames = [
-            str(filename)
-            for filename in base_dir.rglob("*.csv")
-            if f"{ABM_parameter}/" in str(filename)
-        ]
+    it = zip(cfgs, all_filenames)
+    for i, (cfg, filenames) in enumerate(tqdm(it, desc=scan_parameter, total=N_cfgs)):
 
-        z_rel_I, z_rel_R, cfg = compute_ABM_SEIR_proportions(filenames)
+        z_rel_I, z_rel_R = compute_ABM_SEIR_proportions(cfg, filenames)
 
         x[i] = cfg[scan_parameter]
         y_I[i] = np.mean(z_rel_I)
@@ -264,6 +261,8 @@ def extract_limits(lim):
 
 def _plot_1D_scan_res(res, scan_parameter, ylim=None, do_log=False, **kwargs):
 
+    # kwargs = {}
+
     x, y_I, y_R, sy_I, sy_R, n, cfg = res
 
     d_par_pretty = utils.get_parameter_to_latex()
@@ -278,6 +277,11 @@ def _plot_1D_scan_res(res, scan_parameter, ylim=None, do_log=False, **kwargs):
 
     # n>1 datapoints
     mask = n > 1
+    mask_n1 = n == 1
+    if scan_parameter == "event_size_max":
+        mask_event_size_max = x != 0
+        mask = mask & mask_event_size_max
+        mask_n1 = mask_n1 & mask_event_size_max
 
     factor = 0.7
 
@@ -303,9 +307,9 @@ def _plot_1D_scan_res(res, scan_parameter, ylim=None, do_log=False, **kwargs):
         # label=kwargs.get("label", None),
     )
     ax0.errorbar(
-        x[~mask],
-        y_I[~mask],
-        sy_I[~mask],
+        x[mask_n1],
+        y_I[mask_n1],
+        sy_I[mask_n1],
         **errorbar_kwargs,
         color="grey",
         ecolor="grey",
@@ -322,14 +326,20 @@ def _plot_1D_scan_res(res, scan_parameter, ylim=None, do_log=False, **kwargs):
         label=kwargs.get("label", None),
     )
     ax1.errorbar(
-        x[~mask],
-        y_R[~mask],
-        sy_R[~mask],
+        x[mask_n1],
+        y_R[mask_n1],
+        sy_R[mask_n1],
         **errorbar_kwargs,
         color="grey",
         ecolor="grey",
     )
     ax1.set(ylim=ylim1)
+
+    if scan_parameter == "event_size_max":
+        mask_limit = ~mask_event_size_max
+        if any(mask_limit):
+            ax0.axhline(y_I[mask_limit], ls="--", color=kwargs.get("color", "black"))
+            ax1.axhline(y_R[mask_limit], ls="--", color=kwargs.get("color", "black"))
 
     ax0.set_xlabel(xlabel, labelpad=kwargs.get("labelpad", -5))
     ax1.set_xlabel(xlabel, labelpad=kwargs.get("labelpad", -5))
@@ -366,6 +376,7 @@ def plot_1D_scan(
     if res is None:
         return None
 
+    # kwargs = {}
     fig, (ax0, ax1) = _plot_1D_scan_res(res, scan_parameter, ylim, do_log, **kwargs)
 
     ax0.set(ylabel=r"$I_\mathrm{max}^\mathrm{ABM} \, / \,\, I_\mathrm{max}^\mathrm{SEIR}$")
@@ -391,7 +402,7 @@ def rug_plot(xs, ax, ymax=0.1, **kwargs):
 
 
 def plot_single_fit(
-    ABM_parameter, all_fits, add_top_text=True, xlim=(0, None), ylim=(0, None), legend_loc=None
+    cfg, fit_objects, add_top_text=True, xlim=(0, None), ylim=(0, None), legend_loc=None
 ):
 
     relative_names = [
@@ -399,14 +410,14 @@ def plot_single_fit(
         r"\frac{R_\infty^\mathrm{fit}} {R_\infty^\mathrm{fit}}",
     ]
 
-    fit_objects = all_fits[ABM_parameter]
+    # fit_objects = all_fits[ABM_parameter]
 
     d_ylabel = {"I": r"Infected", "R": r"Recovered"}
 
     if legend_loc is None:
         legend_loc = {"I": "upper right", "R": "lower right"}
 
-    cfg = utils.string_to_dict(ABM_parameter)
+    # cfg = utils.string_to_dict(ABM_parameter)
 
     fig, axes = plt.subplots(ncols=2, figsize=(16, 7))
     fig.subplots_adjust(top=0.8)
@@ -551,16 +562,17 @@ def plot_fits(all_fits, force_rerun=False, verbose=False):
 
     with PdfPages(pdf_name) as pdf:
 
-        for ABM_parameter, fit_objects in tqdm(all_fits.items(), desc="Plotting all fits"):
+        for hash_, fit_objects in tqdm(all_fits.items(), desc="Plotting all fits"):
             # break
 
             # skip if no fits
             if len(fit_objects) == 0:
                 if verbose:
-                    print(f"Skipping {ABM_parameter}")
+                    print(f"Skipping {hash_}")
                 continue
 
-            fig, ax = plot_single_fit(ABM_parameter, all_fits)
+            cfg = utils.hash_to_cfg(hash_)
+            fig, ax = plot_single_fit(cfg, fit_objects)
 
             pdf.savefig(fig, dpi=100)
             plt.close("all")
@@ -597,20 +609,37 @@ def compute_fit_ABM_proportions(fit_objects):
 
     return z_rel_I, z_rel_R
 
+    # cfgs, all_filenames = utils.get_1D_scan_cfgs_all_filenames(
+    #     scan_parameter, non_default_parameters
+    # )
+    # N_cfgs = len(cfgs)
+    # if N_cfgs <= 1:
+    #     return None
+
+    # x = np.zeros(N_cfgs)
+    # y_I = np.zeros(N_cfgs)
+    # y_R = np.zeros(N_cfgs)
+    # sy_I = np.zeros(N_cfgs)
+    # sy_R = np.zeros(N_cfgs)
+    # n = np.zeros(N_cfgs)
+
+    # # ABM_parameter = simulation_parameters_1D_scan[0]
+    # it = zip(cfgs, all_filenames)
+    # for i, (cfg, filenames) in enumerate(tqdm(it, desc=scan_parameter, total=N_cfgs)):
+
+    #     z_rel_I, z_rel_R = compute_ABM_SEIR_proportions(cfg, filenames)
+
 
 def get_1D_scan_fit_results(all_fits, scan_parameter, non_default_parameters):
     "Compute the fraction between ABM and SEIR for all simulations related to the scan_parameter"
 
-    simulation_parameters_1D_scan = utils.get_simulation_parameters_1D_scan(
-        scan_parameter, non_default_parameters
-    )
+    cfgs, _ = utils.get_1D_scan_cfgs_all_filenames(scan_parameter, non_default_parameters)
 
-    selected_fits = {
-        key: val for key, val in all_fits.items() if key in simulation_parameters_1D_scan
-    }
+    cfg_hashes = set([cfg.hash for cfg in cfgs])
+    selected_fits = {hash_: val for hash_, val in all_fits.items() if hash_ in cfg_hashes}
 
-    N_simulation_parameters = len(selected_fits)
-    if N_simulation_parameters <= 1:
+    N_cfgs = len(selected_fits)
+    if N_cfgs <= 1:
         return None
 
     N = len(selected_fits)
@@ -623,10 +652,11 @@ def get_1D_scan_fit_results(all_fits, scan_parameter, non_default_parameters):
     n = np.zeros(N)
 
     it = tqdm(enumerate(selected_fits.items()), desc=scan_parameter, total=N)
-    for i, (ABM_parameter, fit_objects) in it:
+    for i, (hash_, fit_objects) in it:
         # break
 
-        cfg = utils.string_to_dict(ABM_parameter)
+        cfg = utils.hash_to_cfg(hash_)
+        # cfg = utils.string_to_dict(ABM_parameter)
         z_rel_I, z_rel_R = compute_fit_ABM_proportions(fit_objects)
 
         x[i] = cfg[scan_parameter]

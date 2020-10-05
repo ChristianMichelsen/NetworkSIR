@@ -561,7 +561,7 @@ class DotDict(UserDict):
         if key in self.data:
             return self.data[key]
         else:
-            raise AttributeError
+            raise AttributeError(f"Tried to acces DotDict value {key} which does not exist.")
 
     def __delattr__(self, key):
         del self.data[key]
@@ -700,6 +700,8 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True):
     cfg.make_random_initial_infections = (
         r"\mathrm{" + str(bool(cfg.make_random_initial_infections)) + r"}"
     )
+    cfg.N_events = human_format(cfg.N_events)
+    cfg.event_size_max = human_format(cfg.event_size_max)
 
     # parameter_to_latex = get_parameter_to_latex()
     parameter_to_latex = load_yaml("cfg/parameter_to_latex.yaml")
@@ -708,12 +710,14 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True):
     if isinstance(exclude, str) or exclude is None:
         exclude = [exclude]
     exclude.append("version")
+    exclude.append("hash")
 
     title = "$"
     for sim_par, val in cfg.items():
         if not sim_par in exclude:
             title += f"{parameter_to_latex[sim_par]} = {val}, \,"
     title += f"{parameter_to_latex['version']} = {cfg.version}, \,"
+    title += f"{parameter_to_latex['hash']} = {cfg.hash}, \,"
 
     if in_two_line:
         if "lambda_E" in title:
@@ -1504,29 +1508,32 @@ def get_search_string_time(filename, search_string):
 #%%
 
 
-def get_simulation_parameters_1D_scan(parameter, non_defaults):
-    """ Get a list of simulation parameters (as strings) for a given parameter to be used in a 1D-scan. Can take non-default values ('non_defaults')."""
+def path(file):
+    if isinstance(file, str):
+        file = Path(file)
+    return file
 
-    base_dir = Path("Data") / "ABM"
-    simulation_parameters = sorted([x.name for x in base_dir.glob("*") if "N_tot" in x.name])
-    d_simulation_parameters = {s: string_to_dict(s) for s in simulation_parameters}
-    df_simulation_parameters = pd.DataFrame.from_dict(d_simulation_parameters, orient="index")
+
+def hash_to_filenames(hash_, base_dir="Data/ABM", filetype="hdf5"):
+    folder = path(base_dir) / hash_
+    files = list(folder.rglob(f"*.{filetype}"))
+    return [str(file) for file in files]
+
+
+def get_1D_scan_cfgs_all_filenames(scan_parameter, non_default_parameters):
+    """ Get a list of simulation parameters (as strings) for a given parameter to be used in a 1D-scan. Can take non-default values ('non_default_parameters')."""
 
     parameters = get_cfg_default()
-    for key, val in non_defaults.items():
+    for key, val in non_default_parameters.items():
         parameters[key] = val
 
-    if isinstance(parameter, str):
-        parameter = [parameter]
+    parameters.pop(scan_parameter)
 
-    query = ""
-    for key, val in parameters.items():
-        if not key in parameter:
-            query += f"{key} == {val} & "
-    query = query[:-3]
-
-    df_different_than_default = df_simulation_parameters.query(query).sort_values(parameter)
-    return list(df_different_than_default.index)
+    db_cfg = get_db_cfg()
+    cfgs = db_cfg.search(query_dict(parameters))
+    cfgs = [DotDict(cfg) for cfg in cfgs]
+    all_filenames = [hash_to_filenames(cfg.hash) for cfg in cfgs]
+    return cfgs, all_filenames
 
 
 #%%
@@ -1821,3 +1828,8 @@ def get_db_cfg():
     db = TinyDB("db.json", sort_keys=False, indent=4, separators=(",", ": "))
     db_cfg = db.table("cfg", cache_size=0)
     return db_cfg
+
+
+def hash_to_cfg(hash_):
+    db_cfg = get_db_cfg()
+    return DotDict(db_cfg.search(Query().hash == hash_)[0])

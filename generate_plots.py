@@ -18,7 +18,7 @@ rc_params.set_rc_params()
 num_cores_max = 30
 
 do_make_1D_scan = True
-force_rerun = True
+force_rerun = False
 verbose = False
 
 #%%
@@ -38,6 +38,11 @@ plot.plot_ABM_simulations(abm_files, force_rerun=force_rerun)
 reload(plot)
 
 parameters_1D_scan = [
+    dict(scan_parameter="event_size_max", non_default_parameters=dict(N_events=1)),
+    dict(scan_parameter="event_size_max", non_default_parameters=dict(N_events=10)),
+    dict(scan_parameter="event_size_max", non_default_parameters=dict(N_events=100)),
+    dict(scan_parameter="event_size_max", non_default_parameters=dict(N_events=1_000)),
+    dict(scan_parameter="event_size_max", non_default_parameters=dict(N_events=10_000)),
     dict(scan_parameter="mu"),
     dict(scan_parameter="beta", non_default_parameters=dict(rho=0.1)),
     dict(scan_parameter="beta"),
@@ -79,11 +84,13 @@ if do_make_1D_scan:
 
 #%%
 
+reload(fits)
 num_cores = utils.get_num_cores(num_cores_max)
-
 all_fits = fits.get_fit_results(abm_files, force_rerun=False, num_cores=num_cores)
 
+
 #%%
+
 reload(plot)
 plot.plot_fits(all_fits, force_rerun=force_rerun, verbose=verbose)
 

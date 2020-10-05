@@ -3,7 +3,7 @@
 mus: &mus [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 
 betas: &betas [0.005, 0.006, 0.007, 0.008, 0.009, 0.01, 0.02, 0.03, 0.04, 0.05]
-
+e
 epsilon_rhos: &epsilon_rhos [0, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.9, 0.9, 0.95, 0.99, 1.0]
 
 rhos: &rhos [0, 0.005, 0.010, 0.015, 0.025, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5]
@@ -13,7 +13,7 @@ N_tots_medium: &N_tots_medium [3_000_000, 4_000_000]
 N_tots_large: &N_tots_large [5_000_000, 5_800_000]
 
 N_events: &N_events [1, 10, 100, 1000, 10000]
-event_size_maxs: &event_size_maxs [0, 1, 10, 20, 50, 100, 500, 1000]
+event_size_maxs: &event_size_maxs [0, 1, 2, 3, 4, 5, 10, 15, 20, 30, 40, 50, 75, 100]
 
 # define list of simulation_parameters to be simulated
 all_simulation_parameters:

@@ -10,19 +10,18 @@ from scipy.stats import uniform as sp_uniform
 from copy import copy, deepcopy
 from importlib import reload
 import warnings
+from p_tqdm import p_umap
 
 try:
     from src.utils import utils
     from src import file_loaders
     from src import SIR
-    from src import parallel
 except ImportError:
     import utils
     import file_loaders
     import SIR
-    import parallel
 
-reload(SIR)
+# reload(SIR)
 
 
 def uniform(a, b):
@@ -141,7 +140,8 @@ def run_actual_fit(t, y, sy, cfg, dt, ts):
     debug = False
     # debug = True
 
-    np.random.seed(cfg.ID)
+    # np.random.seed(cfg.ID)
+    np.random.seed(42)
 
     if debug:
         reload(SIR)
@@ -193,9 +193,9 @@ def run_actual_fit(t, y, sy, cfg, dt, ts):
     return fit_object, fit_failed
 
 
-def fit_single_file(filename, ts=0.1, dt=0.01):
+def fit_single_file(cfg, filename, ts=0.1, dt=0.01):
 
-    cfg = utils.string_to_dict(filename)
+    # cfg = utils.string_to_dict(filename)
     df = file_loaders.pandas_load_file(filename)
 
     df_interpolated = SIR.interpolate_df(df)
@@ -235,15 +235,16 @@ def fit_single_file(filename, ts=0.1, dt=0.01):
 #%%
 
 
-def fit_multiple_files(filenames, num_cores=1, do_tqdm=True):
+def fit_multiple_files(cfg, filenames, num_cores=1, do_tqdm=True):
 
     if num_cores == 1:
         if do_tqdm:
             filenames = tqdm(filenames)
-        results = [fit_single_file(filename) for filename in filenames]
+        results = [fit_single_file(cfg, filename) for filename in filenames]
 
     else:
-        results = parallel.p_umap(fit_single_file, filenames, num_cpus=num_cores, do_tqdm=False)
+        cfgs_tmp = [cfg for _ in filenames]
+        results = p_umap(fit_single_file, cfgs_tmp, filenames, num_cpus=num_cores, disable=True)
         # with mp.Pool(num_cores) as p:
         # results = list(p.imap_unordered(fit_single_file, filenames))
 
@@ -272,28 +273,27 @@ def get_fit_results(abm_files, force_rerun=False, num_cores=1):
 
         all_fits = {}
         print(
-            f"Fitting {len(abm_files.all_files)} files with {len(abm_files.ABM_parameters)} different simulation parameters, please wait.",
+            f"Fitting {len(abm_files.all_filenames)} files with {len(abm_files.cfgs)} different simulation parameters, please wait.",
             flush=True,
         )
 
-        for ABM_parameter in tqdm(abm_files.keys):
+        desc = "Fitting ABM simulations"
+        for cfg, filenames in tqdm(abm_files.iter_folders(), total=len(abm_files.cfgs), desc=desc):
             # break
-            cfg = utils.string_to_dict(ABM_parameter)
-            files = abm_files[ABM_parameter]
-            output_filename = Path("Data/fits") / f"fits_{ABM_parameter}.joblib"
+            output_filename = Path("Data/fits") / f"fits_{cfg.hash}.joblib"
             utils.make_sure_folder_exist(output_filename)
 
             if output_filename.exists():
-                all_fits[ABM_parameter] = joblib.load(output_filename)
+                all_fits[cfg.hash] = joblib.load(output_filename)
 
             else:
                 with warnings.catch_warnings():
                     warnings.filterwarnings(
                         "ignore", message="covariance is not positive-semidefinite."
                     )
-                    fit_results = fit_multiple_files(files, num_cores=num_cores)
+                    fit_results = fit_multiple_files(cfg, filenames, num_cores=num_cores)
                 joblib.dump(fit_results, output_filename)
-                all_fits[ABM_parameter] = fit_results
+                all_fits[cfg.hash] = fit_results
 
         joblib.dump(all_fits, all_fits_file)
         return all_fits

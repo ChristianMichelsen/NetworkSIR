@@ -117,9 +117,7 @@ class ABM_simulations:
         """
         d = {}
         for cfg in self.cfgs:
-            folder = path(self.base_dir) / cfg.hash
-            files = list(folder.rglob(f"*.{filetype}"))
-            d[cfg.hash] = [str(file) for file in files]
+            d[cfg.hash] = utils.hash_to_filenames(cfg.hash, self.base_dir, self.filetype)
         return d
 
     def iter_all_files(self):
