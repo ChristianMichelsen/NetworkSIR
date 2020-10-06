@@ -290,7 +290,7 @@ class Simulation:
         self._save_cfg()
         self._save_dataframe(save_csv=save_csv, save_hdf5=save_hdf5)
         self._save_simulation_results(save_only_ID_0=save_only_ID_0, time_elapsed=time_elapsed)
-        self._update_database()
+        # self._update_database()
 
 
 #%%
@@ -383,14 +383,14 @@ def run_simulations(
         p_umap(f_single_simulation, cfgs, num_cpus=num_cores)
         print("\n")
 
-    # print("save cfgs", flush=True)
+    print("save cfgs", flush=True)
     # update database
-    # for cfg in cfgs:
-    #     cfg["hash"] = utils.cfg_to_hash(cfg)
-    #     cfg.pop("ID")
-    #     if not db_cfg.contains(q.hash == cfg.hash):
-    #         db_cfg.insert(cfg)
-    # print("saved cfgs", flush=True)
+    for cfg in cfgs:
+        cfg["hash"] = utils.cfg_to_hash(cfg)
+        cfg.pop("ID")
+        if not db_cfg.contains(q.hash == cfg.hash):
+            db_cfg.insert(cfg)
+    print("saved cfgs", flush=True)
     return N_files
 
 
