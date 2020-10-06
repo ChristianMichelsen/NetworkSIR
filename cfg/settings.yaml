@@ -3,7 +3,6 @@ INTEGER_SIMULATION_PARAMETERS:
     - N_tot
     - N_init
     - algo
-    - make_random_initial_infections # 1 = True, 0 = False
     - N_connect_retries
     - N_events
     - event_size_max

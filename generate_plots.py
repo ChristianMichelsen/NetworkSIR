@@ -18,7 +18,7 @@ rc_params.set_rc_params()
 num_cores_max = 30
 
 do_make_1D_scan = True
-force_rerun = False
+force_rerun = True
 verbose = False
 
 #%%
@@ -28,9 +28,6 @@ reload(file_loaders)
 
 abm_files = file_loaders.ABM_simulations()
 N_files = len(abm_files)
-
-x = x
-
 
 #%%
 plot.plot_ABM_simulations(abm_files, force_rerun=force_rerun)

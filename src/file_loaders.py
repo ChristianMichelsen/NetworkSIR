@@ -92,10 +92,10 @@ def folder_to_cfg(folder):
     return cfg
 
 
-def get_cfgs(folders):
+def get_cfgs(all_folders):
     hashes = set()
     cfgs = []
-    for folder in folders:
+    for folder in all_folders:
         cfg = folder_to_cfg(folder)
         if cfg is not None:
             if not cfg.hash in hashes:
