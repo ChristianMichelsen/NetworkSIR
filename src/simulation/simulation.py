@@ -136,8 +136,8 @@ class Simulation:
     def initialize_network(self, force_rerun=False, save_initial_network=True):
         utils.set_numba_random_seed(self.cfg.ID)
 
-        with Timer() as t:
-            self._initialize_network()
+        # with Timer() as t:
+        self._initialize_network()
 
     def make_initial_infections(self):
         utils.set_numba_random_seed(self.cfg.ID)
@@ -278,10 +278,19 @@ class Simulation:
 
         return None
 
+    def _update_database(self):
+        db_cfg = utils.get_db_cfg()
+        cfg = utils.DotDict(self.cfg.copy())
+        cfg.hash = self.hash
+        cfg.pop("ID")
+        if not db_cfg.contains(Query().hash == cfg.hash):
+            db_cfg.insert(cfg)
+
     def save(self, save_csv=False, save_hdf5=True, save_only_ID_0=False, time_elapsed=None):
         self._save_cfg()
         self._save_dataframe(save_csv=save_csv, save_hdf5=save_hdf5)
         self._save_simulation_results(save_only_ID_0=save_only_ID_0, time_elapsed=time_elapsed)
+        self._update_database()
 
 
 #%%
@@ -326,14 +335,13 @@ def run_simulations(
     N_runs=2,
     num_cores_max=None,
     N_tot_max=False,
-    verbose=False,
+    verbose=True,
     force_rerun=False,
     dry_run=False,
     **kwargs,
 ):
 
-    db = TinyDB("db.json", sort_keys=False, indent=4, separators=(",", ": "))
-    db_cfg = db.table("cfg", cache_size=0)
+    db_cfg = utils.get_db_cfg()
     q = Query()
 
     cfgs_all = utils.generate_cfgs(d_simulation_parameters, N_runs, N_tot_max, verbose=verbose)
@@ -377,11 +385,11 @@ def run_simulations(
 
     # print("save cfgs", flush=True)
     # update database
-    for cfg in cfgs:
-        cfg["hash"] = utils.cfg_to_hash(cfg)
-        cfg.pop("ID")
-        if not db_cfg.contains(q.hash == cfg["hash"]):
-            db_cfg.insert(cfg.data)
+    # for cfg in cfgs:
+    #     cfg["hash"] = utils.cfg_to_hash(cfg)
+    #     cfg.pop("ID")
+    #     if not db_cfg.contains(q.hash == cfg.hash):
+    #         db_cfg.insert(cfg)
     # print("saved cfgs", flush=True)
     return N_files
 
@@ -393,9 +401,8 @@ if utils.is_ipython and debugging:
 
     d_simulation_parameters = {
         "N_tot": 58_000,
-        "N_events": [100],
+        "N_events": [0, 100],
         "mu": 20,
-        "event_size_max": [10, 100],
     }
 
     cfg = utils.DotDict(
@@ -413,9 +420,12 @@ if utils.is_ipython and debugging:
             "lambda_E": 1.0,
             "lambda_I": 1.0,
             "make_random_initial_infections": True,
-            "N_connect_retries": 0,
+            "clustering_connection_retries": 0,
             "N_events": 0,
-            "event_size_max": 10,
+            "event_size_max": 0,
+            "event_size_mean": 50.0,
+            "event_beta_scaling": 10.0,
+            "event_weekend_multiplier": 1.0,
             "ID": 0,
         }
     )
@@ -436,7 +446,7 @@ if utils.is_ipython and debugging:
 
     simulation.hash
 
-    # db_cfg.insert(cfg.data)
+    # db_cfg.insert(cfg)
     # db.search(q.ID == 0)
     # db_cfg.search(q.ID == 0)
     # db_cfg.count(q.ID == 0)

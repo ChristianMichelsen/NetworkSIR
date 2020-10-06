@@ -35,6 +35,7 @@ dependencies:
   - tinydb
   - flake8
   - pylint
+  - attrdict
   # - datashader
   - pip:
     - mpl-scatter-density

@@ -3,7 +3,7 @@ INTEGER_SIMULATION_PARAMETERS:
     - N_tot
     - N_init
     - algo
-    - N_connect_retries
+    - clustering_connection_retries
     - N_events
     - event_size_max
     - ID

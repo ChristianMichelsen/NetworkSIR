@@ -13,6 +13,13 @@ N_init: 100  # Initial Infected
 lambda_E: 1.0  # E->I, Lambda(from E states)
 lambda_I: 1.0  # I->R, Lambda(from I states)
 make_random_initial_infections: True # Infections around a single agent
-N_connect_retries: 0 # number of times to try and reconnect two agents
+clustering_connection_retries: 0 # number of times to try and reconnect two agents
+
+# event-related variables
 N_events: 0 # number of daily events
-event_size_max: 580_000 #max size of events. If 0 => N_tot (no max)
+event_size_max: 0 #max size of events. If 0 => N_tot (no max)
+event_size_mean: 50 # mean size of events (exponential distribution)
+event_beta_scaling: 10 # how much more disease spreads at events
+event_weekend_multiplier: 1.0 # ratio of how many more events are happening in weekends. 1 = similar, 2 = double
+
+day_max: 0 # if other than 0, sets the maximum number of days the algorithm runs

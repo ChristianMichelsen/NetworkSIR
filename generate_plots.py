@@ -111,7 +111,6 @@ plot.plot_number_of_contacts(network_files, force_rerun=force_rerun)
 
 from matplotlib.backends.backend_pdf import PdfPages
 
-
 db_cfg = utils.get_db_cfg()
 
 d_query = utils.DotDict(

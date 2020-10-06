@@ -45,11 +45,22 @@ spec_cfg = {
     "lambda_E": nb.float32,
     "lambda_I": nb.float32,
     "make_random_initial_infections": nb.boolean,
-    "N_connect_retries": nb.uint32,
+    "clustering_connection_retries": nb.uint32,
     "N_events": nb.uint16,
     "event_size_max": nb.uint16,
+    "event_size_mean": nb.float32,
+    "event_beta_scaling": nb.float32,
+    "event_weekend_multiplier": nb.float32,
+    "day_max": nb.float32,
     "ID": nb.uint16,
 }
+
+
+# N_events = my.cfg.N_events
+# event_size_mean = 50  # XXX add as parameter
+
+# if N_events > 0:
+#     event_beta_scaling = 100
 
 
 @jitclass(spec_cfg)
@@ -68,9 +79,13 @@ class Config(object):
         self.lambda_E = 1.0
         self.lambda_I = 1.0
         self.make_random_initial_infections = 1
+        self.clustering_connection_retries = 0
         self.N_events = 0
-        self.event_size_max = 580_000
-        self.N_connect_retries = 0
+        self.event_size_max = 0
+        self.event_size_mean = 50
+        self.event_beta_scaling = 10
+        self.event_weekend_multiplier = 1.0
+        self.day_max = 0
         self.ID = 0
 
     def print(self):
@@ -90,6 +105,10 @@ class Config(object):
             *("make_random_initial_infections: ", self.make_random_initial_infections, "\n"),
             *("N_events: ", self.N_events, "\n"),
             *("event_size_max: ", self.event_size_max, "\n"),
+            *("event_size_mean: ", self.event_size_mean, "\n"),
+            *("event_beta_scaling: ", self.event_beta_scaling, "\n"),
+            *("event_weekend_multiplier: ", self.event_weekend_multiplier, "\n"),
+            *("day_max: ", self.day_max, "\n"),
             *("ID: ", self.ID, "\n"),
         )
 
@@ -97,13 +116,6 @@ class Config(object):
 def initialize_nb_cfg(cfg):
     config = Config()
     for key, val in cfg.items():
-        if key == "N_events":
-            if val < 1:
-                val = cfg["N_tot"] * val
-            val = int(val)
-
-        if key == "event_size_max" and val == 0:
-            val = int(cfg["N_tot"])
         setattr(config, key, val)
     return config
 
@@ -490,14 +502,14 @@ def computer_number_of_cluster_retries(my, agent1, agent2):
     connectivity_factor = 1
     for contact in my.connections[agent1]:
         if contact in my.connections[agent2]:
-            connectivity_factor += my.cfg.N_connect_retries
+            connectivity_factor += my.cfg.clustering_connection_retries
     return connectivity_factor
 
 
 @njit
 def cluster_retry_succesful(my, agent1, agent2, rho_tmp):
     """" (Re)Try to connect two agents. Returns True if succesful, else False"""
-    if my.cfg.N_connect_retries == 0:
+    if my.cfg.clustering_connection_retries == 0:
         return False
     connectivity_factor = computer_number_of_cluster_retries(my, agent1, agent2)
     for _ in range(connectivity_factor):
@@ -804,28 +816,33 @@ def do_bug_check(
     x,
 ):
 
-    if day > 10_000:
+    if my.cfg.day_max > 0 and day > my.cfg.day_max:
+        if verbose:
+            print("day exceeded day_max")
+        continue_run = False
+
+    elif day > 10_000:
         print("day exceeded 10_000")
         continue_run = False
 
-    if step_number > 100_000_000:
+    elif step_number > 100_000_000:
         print("step_number > 100_000_000")
         continue_run = False
 
-    if (g.total_sum_infections + g.total_sum_of_state_changes < 0.0001) and (
+    elif (g.total_sum_infections + g.total_sum_of_state_changes < 0.0001) and (
         g.total_sum_of_state_changes + g.total_sum_infections > -0.00001
     ):
         continue_run = False
         if verbose:
             print("Equilibrium")
 
-    if state_total_counts[N_states - 1] > my.cfg.N_tot - 10:
+    elif state_total_counts[N_states - 1] > my.cfg.N_tot - 10:
         if verbose:
             print("2/3 through")
         continue_run = False
 
     # Check for bugs
-    if not accept:
+    elif not accept:
         print("\nNo Chosen rate")
         print("s: \t", s)
         print("g.total_sum_infections: \t", g.total_sum_infections)
@@ -835,13 +852,13 @@ def do_bug_check(
         print("ra1: \t", ra1)
         continue_run = False
 
-    if (g.total_sum_of_state_changes < 0) and (g.total_sum_of_state_changes > -0.001):
+    elif (g.total_sum_of_state_changes < 0) and (g.total_sum_of_state_changes > -0.001):
         g.total_sum_of_state_changes = 0
 
-    if (g.total_sum_infections < 0) and (g.total_sum_infections > -0.001):
+    elif (g.total_sum_infections < 0) and (g.total_sum_infections > -0.001):
         g.total_sum_infections = 0
 
-    if (g.total_sum_of_state_changes < 0) or (g.total_sum_infections < 0):
+    elif (g.total_sum_of_state_changes < 0) or (g.total_sum_infections < 0):
         print("\nNegative Problem", g.total_sum_of_state_changes, g.total_sum_infections)
         print("s: \t", s)
         print("g.total_sum_infections: \t", g.total_sum_infections)
@@ -1069,114 +1086,10 @@ def run_simulation(
 
             if daily_counter >= 10:
 
-                N_tot = my.cfg.N_tot
-
-                # event_size_max = 100
-                # N_events = int(5 / 10_000 * N_tot)
-
-                event_size_max = my.cfg.event_size_max
-                N_events = my.cfg.N_events
-                typical_event_size = 50  # XXX add as parameter
-
-                if N_events > 0:
-
-                    beta_scaling = 100
-
-                    # if weekend increase number of events
-                    if (day % 7) == 0 or (day % 7) == 1:
-                        N_events = int(N_events * 1.2)  #  randomness x XXX
-
-                    # agents_in_event = List()
-
-                    agents_getting_infected_at_any_event = List()
-
-                    for _ in range(N_events):
-
-                        event_size = min(
-                            int(10 - np.log(np.random.rand()) * typical_event_size), event_size_max
-                        )
-                        event_duration = (
-                            -np.log(np.random.rand()) * 2 / 24
-                        )  # event duration in days
-
-                        event_id = np.random.randint(N_tot)
-
-                        agents_in_this_event = List()
-                        while len(agents_in_this_event) < event_size:
-                            guest = np.random.randint(N_tot)
-                            rho_tmp = 0.5
-                            epsilon_rho_tmp = 4 / 100
-                            if (
-                                my.dist_accepted(event_id, guest, rho_tmp)
-                                or np.random.rand() < epsilon_rho_tmp
-                            ):
-                                agents_in_this_event.append(np.uint32(guest))
-
-                        # extract all agents that are infectious and then
-                        for agent in agents_in_this_event:
-                            if my.agent_is_infectious(agent):
-                                for guest in agents_in_this_event:
-                                    if guest != agent and my.agent_is_susceptable(guest):
-                                        time = np.random.uniform(0, event_duration)
-                                        probability = (
-                                            my.infection_weight[agent] * time * beta_scaling
-                                        )
-                                        if np.random.rand() < probability:
-                                            if guest not in agents_getting_infected_at_any_event:
-                                                agents_getting_infected_at_any_event.append(
-                                                    np.uint32(guest)
-                                                )
-
-                    # N = len(agents_getting_infected_at_any_event)
-                    # if N > 0:
-                    #     print(N)
-
-                    for agent_getting_infected_at_event in agents_getting_infected_at_any_event:
-
-                        # XXX this update was needed
-                        my.state[agent_getting_infected_at_event] = 0
-                        agents_in_state[0].append(np.uint32(agent_getting_infected_at_event))
-                        state_total_counts[0] += 1
-                        g.total_sum_of_state_changes += SIR_transition_rates[0]
-                        g.cumulative_sum_of_state_changes += SIR_transition_rates[0]
-
-                        # loop over contacts of the newly infected agent in order to:
-                        # 1) remove newly infected agent from contact list (find_myself) by setting rate to 0
-                        # 2) remove rates from contacts gillespie sums (only if they are in infections state (I))
-                        for contact_of_agent_getting_infected_at_event in my.connections[
-                            agent_getting_infected_at_event
-                        ]:
-
-                            # loop over indexes of the contact to find_myself and set rate to 0
-                            for ith_contact_of_agent_getting_infected_at_event in range(
-                                my.number_of_contacts[contact_of_agent_getting_infected_at_event]
-                            ):
-
-                                find_myself = my.connections[
-                                    contact_of_agent_getting_infected_at_event
-                                ][ith_contact_of_agent_getting_infected_at_event]
-
-                                # check if the contact found is myself
-                                if find_myself == agent_getting_infected_at_event:
-
-                                    rate = g.rates[contact_of_agent_getting_infected_at_event][
-                                        ith_contact_of_agent_getting_infected_at_event
-                                    ]
-
-                                    # set rates to myself to 0 (I cannot get infected again)
-                                    g.rates[contact_of_agent_getting_infected_at_event][
-                                        ith_contact_of_agent_getting_infected_at_event
-                                    ] = 0
-
-                                    # if the contact can infect, then remove the rates from the overall gillespie accounting
-                                    if my.agent_is_infectious(
-                                        contact_of_agent_getting_infected_at_event
-                                    ):
-                                        g.update_rates(
-                                            my, -rate, contact_of_agent_getting_infected_at_event
-                                        )
-
-                                    break
+                if my.cfg.N_events > 0:
+                    add_daily_events(
+                        my, g, day, agents_in_state, state_total_counts, SIR_transition_rates
+                    )
 
                 daily_counter = 0
                 day += 1
@@ -1639,3 +1552,103 @@ def test_a_person(my, g, intervention, agent, click, day):
     intervention.reason_for_test[agent] = -1
 
     return None
+
+
+#%%
+# ███████ ██    ██ ███████ ███    ██ ████████ ███████
+# ██      ██    ██ ██      ████   ██    ██    ██
+# █████   ██    ██ █████   ██ ██  ██    ██    ███████
+# ██       ██  ██  ██      ██  ██ ██    ██         ██
+# ███████   ████   ███████ ██   ████    ██    ███████
+#
+
+
+@njit
+def add_daily_events(my, g, day, agents_in_state, state_total_counts, SIR_transition_rates):
+    N_tot = my.cfg.N_tot
+    event_size_max = my.cfg.event_size_max
+    # if no max, set it to N_tot
+    if event_size_max == 0:
+        event_size_max = N_tot
+
+    # if weekend increase number of events
+    if (day % 7) == 0 or (day % 7) == 1:
+        my.cfg.N_events = int(
+            my.cfg.N_events * my.cfg.event_weekend_multiplier
+        )  #  randomness x XXX
+
+    # agents_in_event = List()
+
+    agents_getting_infected_at_any_event = List()
+
+    for _ in range(my.cfg.N_events):
+
+        event_size = min(
+            int(10 - np.log(np.random.rand()) * my.cfg.event_size_mean),
+            event_size_max,
+        )
+        event_duration = -np.log(np.random.rand()) * 2 / 24  # event duration in days
+
+        event_id = np.random.randint(N_tot)
+
+        agents_in_this_event = List()
+        while len(agents_in_this_event) < event_size:
+            guest = np.random.randint(N_tot)
+            rho_tmp = 0.5
+            epsilon_rho_tmp = 4 / 100
+            if my.dist_accepted(event_id, guest, rho_tmp) or np.random.rand() < epsilon_rho_tmp:
+                agents_in_this_event.append(np.uint32(guest))
+
+        # extract all agents that are infectious and then
+        for agent in agents_in_this_event:
+            if my.agent_is_infectious(agent):
+                for guest in agents_in_this_event:
+                    if guest != agent and my.agent_is_susceptable(guest):
+                        time = np.random.uniform(0, event_duration)
+                        probability = my.infection_weight[agent] * time * my.cfg.event_beta_scaling
+                        if np.random.rand() < probability:
+                            if guest not in agents_getting_infected_at_any_event:
+                                agents_getting_infected_at_any_event.append(np.uint32(guest))
+
+    for agent_getting_infected_at_event in agents_getting_infected_at_any_event:
+
+        # XXX this update was needed
+        my.state[agent_getting_infected_at_event] = 0
+        agents_in_state[0].append(np.uint32(agent_getting_infected_at_event))
+        state_total_counts[0] += 1
+        g.total_sum_of_state_changes += SIR_transition_rates[0]
+        g.cumulative_sum_of_state_changes += SIR_transition_rates[0]
+
+        # loop over contacts of the newly infected agent in order to:
+        # 1) remove newly infected agent from contact list (find_myself) by setting rate to 0
+        # 2) remove rates from contacts gillespie sums (only if they are in infections state (I))
+        for contact_of_agent_getting_infected_at_event in my.connections[
+            agent_getting_infected_at_event
+        ]:
+
+            # loop over indexes of the contact to find_myself and set rate to 0
+            for ith_contact_of_agent_getting_infected_at_event in range(
+                my.number_of_contacts[contact_of_agent_getting_infected_at_event]
+            ):
+
+                find_myself = my.connections[contact_of_agent_getting_infected_at_event][
+                    ith_contact_of_agent_getting_infected_at_event
+                ]
+
+                # check if the contact found is myself
+                if find_myself == agent_getting_infected_at_event:
+
+                    rate = g.rates[contact_of_agent_getting_infected_at_event][
+                        ith_contact_of_agent_getting_infected_at_event
+                    ]
+
+                    # set rates to myself to 0 (I cannot get infected again)
+                    g.rates[contact_of_agent_getting_infected_at_event][
+                        ith_contact_of_agent_getting_infected_at_event
+                    ] = 0
+
+                    # if the contact can infect, then remove the rates from the overall gillespie accounting
+                    if my.agent_is_infectious(contact_of_agent_getting_infected_at_event):
+                        g.update_rates(my, -rate, contact_of_agent_getting_infected_at_event)
+
+                    break

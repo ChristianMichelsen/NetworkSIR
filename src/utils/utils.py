@@ -13,7 +13,15 @@ import datetime
 
 # pip install awkward1
 import awkward1 as ak
-from dict_hash import sha256
+import dict_hash
+
+from attrdict import AttrDict
+
+
+def sha256(d):
+    if isinstance(d, DotDict):
+        d = d.copy()
+    return dict_hash.sha256(d)
 
 
 def _is_ipython():
@@ -538,10 +546,10 @@ class MutableArray:
 
 
 #%%
-from collections import UserDict
+# from collections import UserDict
 
 
-class DotDict(UserDict):
+class DotDict(AttrDict):
     """
     Class that allows a dict to indexed using dot-notation.
     Example:
@@ -550,39 +558,39 @@ class DotDict(UserDict):
     'Michelsen'
     """
 
-    def __setattr__(self, key, value):
-        if key == "data":
-            super().__setattr__("data", value)
-        elif key in self.data:
-            self.data[key] = value
-        else:
-            raise KeyError("Not allowed to make new keys with dot notation, use brackets instead.")
+    # def __setattr__(self, key, value):
+    #     if key == "data":
+    #         super().__setattr__("data", value)
+    #     elif key in self.data:
+    #         self.data[key] = value
+    #     else:
+    #         raise KeyError("Not allowed to make new keys with dot notation, use brackets instead.")
 
-    def __getattr__(self, key):
-        if key in self.data:
-            return self.data[key]
-        else:
-            raise AttributeError(f"Tried to acces DotDict value {key} which does not exist.")
+    # def __getattr__(self, key):
+    #     if key in self.data:
+    #         return self.data[key]
+    #     else:
+    #         raise AttributeError(f"Tried to acces DotDict value {key} which does not exist.")
 
-    def __delattr__(self, key):
-        del self.data[key]
+    # def __delattr__(self, key):
+    #     del self.data[key]
 
-    def __getstate__(self):
-        return self.data
+    # def __getstate__(self):
+    #     return self.data
 
-    def __setstate__(self, state):
-        self.data = state
+    # def __setstate__(self, state):
+    #     self.data = state
 
     def dump_to_file(self, filename, exclude=None):
         if any(substring in filename for substring in ["yaml", "yml"]):
             make_sure_folder_exist(filename)
 
             if exclude is None:
-                out = self.data
+                out = self
             else:
                 if not isinstance(exclude, list):
                     exclude = [exclude]
-                out = self.data.copy()
+                out = self.copy()
                 for key in exclude:
                     out.pop(key)
 
@@ -593,10 +601,13 @@ class DotDict(UserDict):
 
     def __repr__(self):
         s = f"{type(self).__name__}(" + "\n    {\n"
-        s += "\n".join(f"\t{repr(k)}: {repr(v)}," for k, v in self.data.items())
+        s += "\n".join(f"\t{repr(k)}: {repr(v)}," for k, v in self.items())
         s += "\n    }\n)"
         return s
 
+
+# dotdict = DotDict({"first_name": "Christian", "last_name": "Michelsen"})
+# dotdict.middle = 'XXX'
 
 #%%
 
@@ -934,10 +945,7 @@ def cfg_to_hash(cfg, N=10, exclude_ID=True, exclude_hash=True):
     N = len of hash (truncate hash)
     """
 
-    if isinstance(cfg, dict):
-        cfg = DotDict(cfg)
-
-    d = format_cfg(cfg.data.copy())
+    d = format_cfg(cfg.copy())
 
     if exclude_ID and "ID" in d:
         d.pop("ID")
@@ -1009,94 +1017,6 @@ def load_df_coordinates(N_tot, ID):
 
 def df_coordinates_to_coordinates(df_coordinates):
     return df_coordinates[["Longitude", "Lattitude"]].values
-
-
-#%%
-
-# EXCLUDE_PARAMETER_IN_INIT = load_yaml("cfg/settings.yaml")["EXCLUDE_PARAMETER_IN_INIT"]
-
-
-# class Filename:
-#     def __init__(self, filename):
-
-#         if isinstance(filename, dict):
-#             filename = generate_filenames(filename, N_loops=1, force_rerun=True)[0]
-
-#         self._filename = filename
-#         self.filename = self.filename_prefix + filename
-#         self.cfg = string_to_dict(filename.replace(".animation", ""))
-#         # self.cfg = self.simulation_parameters
-
-#     def __repr__(self):
-#         return str(self.cfg)
-
-#     # @property
-#     # def to_dict(self):  # ,
-#     # return DotDict({key: val for key, val in self.d.items() if key != "ID"})
-
-#     @property
-#     def simulation_parameters(self):
-#         return self.cfg
-
-#     @property
-#     def to_ID(self):
-#         return self.cfg["ID"]
-
-#     @property
-#     def ID(self):
-#         return self.to_ID
-
-#     @property
-#     def filename_prefix(self):
-#         filename_prefix = ""
-#         if str(Path.cwd()).endswith("src"):
-#             filename_prefix = "../"
-#         return filename_prefix
-
-#     def _filename_to_network(self, d, filename, extension):
-#         file_string = ""
-#         for key, val in d.items():
-#             file_string += f"{key}__{val}__"
-#         file_string = file_string[:-2]  # remove trailing _
-#         file_string += extension
-#         filename = filename / file_string
-#         filename = str(filename).replace("version", "v")
-#         return filename
-
-#     def get_filename_network_initialisation(self, extension=".hdf5"):
-#         variables_to_save_in_filename = []
-#         for parameter in self.cfg.keys():
-#             if not parameter in EXCLUDE_PARAMETER_IN_INIT:
-#                 variables_to_save_in_filename.append(parameter)
-#         d = {key: self.cfg[key] for key in variables_to_save_in_filename}
-#         filename = Path(f"{self.filename_prefix}Data") / "network_initialization"
-#         return self._filename_to_network(d, filename, extension)
-
-#     filename_network_initialisation = property(get_filename_network_initialisation)
-
-#     def get_filename_network(self, extension=".hdf5"):
-#         filename = Path(f"{self.filename_prefix}Data") / "network"
-#         return self._filename_to_network(self.cfg, filename, extension)
-
-#     filename_network = property(get_filename_network)
-
-#     @property
-#     def memory_filename(self):
-#         filename = Path(f"{self.filename_prefix}Data") / "memory"
-#         return self._filename_to_network(self.cfg, filename, ".memory_file.txt")
-#         # return self.filename_prefix + self.filename.replace('.csv', '.memory_file.txt')
-
-#     @property
-#     def coordinates_filename(self):
-#         # return self.filename_prefix + "Data/GPS_coordinates.npy"
-#         return self.filename_prefix + "Data/GPS_coordinates.feather"
-
-#     @property
-#     def household_data_filenames(self):
-#         return (
-#             self.filename_prefix + "Data/PeopleInHousehold_NorthJutland.txt",
-#             self.filename_prefix + "Data/AgeDistributionPerPeopleInHousehold_NorthJutland.txt",
-#         )
 
 
 #%%
