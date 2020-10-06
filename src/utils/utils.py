@@ -13,6 +13,7 @@ import datetime
 
 # pip install awkward1
 import awkward1 as ak
+from dict_hash import sha256
 
 
 def _is_ipython():
@@ -597,74 +598,11 @@ class DotDict(UserDict):
         return s
 
 
-# dotdict = DotDict({"first_name": "Christian", "last_name": "Michelsen"})
-# dotdict.last_name
-# dotdict.first_name = "XXX"
-# # dotdict.middle_name = "YYY"
-# dotdict["middle_name"] = "YYY"
-
-
-# dotdict.dump_to_file("test.yaml")
-
-# import pickle
-
-# print('Pickling')
-# s = pickle.dumps(dotdict, pickle.HIGHEST_PROTOCOL)
-# print(s)
-
-# print('Unpickling')
-# obj = pickle.loads(s)
-# print(obj)
-
-
-#%%
-
-
-INTEGER_SIMULATION_PARAMETERS = load_yaml("cfg/settings.yaml")["INTEGER_SIMULATION_PARAMETERS"]
-
-
-# def string_to_dict(string):
-#     # if path-like string
-
-#     if isinstance(string, Path):
-#         string = str(string)
-
-#     if isinstance(string, str) and "/" in string:
-#         string = Path(string).stem
-
-#     d = {}
-#     keyvals = string.split("__")
-#     keyvals_chunks = [keyvals[i : i + 2] for i in range(0, len(keyvals), 2)]
-#     for key, val in keyvals_chunks:
-#         if key in INTEGER_SIMULATION_PARAMETERS + ["ID"]:
-#             d[key] = int(val)
-#         elif key == "v":
-#             d["version"] = float(val)
-#         else:
-#             d[key] = float(val)
-#     return DotDict(d)
-
-
 #%%
 
 
 def get_parameter_to_latex():
     return load_yaml("cfg/parameter_to_latex.yaml")
-    # parameter_to_latex = {
-    #     "N_tot": r"N_\mathrm{tot}",
-    #     "N_init": r"N_\mathrm{init}",
-    #     "rho": r"\rho",
-    #     "epsilon_rho": r"\epsilon_\rho",
-    #     "mu": r"\mu",
-    #     "sigma_mu": r"\sigma_\mu",
-    #     "beta": r"\beta",
-    #     "sigma_beta": r"\sigma_\beta",
-    #     "lambda_E": r"\lambda_E",
-    #     "lambda_I": r"\lambda_I",
-    #     "algo": r"\mathrm{algo}",
-    #     "ID": "ID",
-    # }
-    # return parameter_to_latex
 
 
 def human_format(num, digits=3):
@@ -928,11 +866,6 @@ import matplotlib.pyplot as plt
 import csv
 import numba as nb
 
-# # try:
-# # from src.utils import utils
-# # except ImportError:
-# from src.utils import utils
-
 INTEGER_SIMULATION_PARAMETERS = load_yaml("cfg/settings.yaml")["INTEGER_SIMULATION_PARAMETERS"]
 
 
@@ -950,70 +883,6 @@ def get_cfg_settings():
     # if Path("").cwd().stem == "src":
     # yaml_filename = "../" + yaml_filename
     return load_yaml(yaml_filename)
-
-
-# def dict_to_filename_with_dir(cfg, ID, data_dir="ABM"):
-#     filename = Path("Data") / data_dir
-#     file_string = ""
-#     for key, val in cfg.items():
-#         if key == "version":
-#             key = "v"
-#         file_string += f"{key}__{val}__"
-#     file_string = file_string[:-2]  # remove trailing _
-#     filename = filename / file_string
-#     file_string += f"__ID__{ID:03d}.csv"
-#     filename = filename / file_string
-#     return str(filename)
-
-
-# def get_all_combinations(d_simulation_parameters):
-#     nameval_to_str = []
-#     for name, lst in reversed(d_simulation_parameters.items()):
-#         if isinstance(lst, (int, float)):
-#             lst = [lst]
-#         nameval_to_str.append([f"{name}__{x}" for x in lst])
-#     all_combinations = list(product(*nameval_to_str))
-#     return all_combinations
-
-
-# def generate_filenames(
-#     d_simulation_parameters, N_loops=10, force_rerun=False, N_tot_max=False, verbose=True
-# ):
-#     filenames = []
-
-#     all_combinations = get_all_combinations(d_simulation_parameters)
-#     cfg = get_cfg_default()
-
-#     has_printed_once = False
-
-#     for combination in all_combinations:
-#         for s in combination:
-#             name, val = s.split("__")
-#             val = int(val) if name in INTEGER_SIMULATION_PARAMETERS else float(val)
-#             cfg[name] = val
-
-#         if not N_tot_max or cfg["N_tot"] < N_tot_max:
-
-#             # ID = 0
-#             for ID in range(N_loops):
-#                 filename = dict_to_filename_with_dir(cfg, ID)
-
-#                 not_existing = not Path(filename).exists()
-#                 try:
-#                     zero_size = Path(filename).stat().st_size == 0
-#                 except FileNotFoundError:
-#                     zero_size = True
-#                 if not_existing or zero_size or force_rerun:
-#                     filenames.append(filename)
-
-#         else:
-#             if verbose and not has_printed_once:
-#                 print(
-#                     f"Skipping some files since N_tot={human_format(cfg['N_tot'])} > N_tot_max={human_format(N_tot_max)}"
-#                 )
-#                 has_printed_once = True
-
-#     return filenames
 
 
 def format_cfg(cfg):
@@ -1057,6 +926,28 @@ def generate_cfgs(d_simulation_parameters, N_runs=1, N_tot_max=False, verbose=Fa
     cfgs = [format_cfg(cfg) for cfg in cfgs]
 
     return cfgs
+
+
+def cfg_to_hash(cfg, N=10, exclude_ID=True, exclude_hash=True):
+    """
+    d = input object
+    N = len of hash (truncate hash)
+    """
+
+    if isinstance(cfg, dict):
+        cfg = DotDict(cfg)
+
+    d = format_cfg(cfg.data.copy())
+
+    if exclude_ID and "ID" in d:
+        d.pop("ID")
+
+    if exclude_hash and "hash" in d:
+        d.pop("hash")
+
+    s_hash = sha256(d)
+
+    return s_hash[:N]
 
 
 d_num_cores_N_tot = RangeKeyDict(

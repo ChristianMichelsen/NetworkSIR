@@ -137,3 +137,15 @@ with PdfPages(pdf_name) as pdf:
         fig, ax = plot.plot_single_ABM_simulation(cfg, filenames)
         pdf.savefig(fig, dpi=100)
         plt.close("all")
+
+#%%
+
+# cfg_default = utils.get_cfg_default()
+# x = db_cfg.search(utils.query_dict(cfg_default))
+
+# cfg1 = x[0]
+# cfg2 = x[1]
+
+# for key in cfg1:
+#     print(key, cfg1[key], cfg2[key], cfg1[key] == cfg2[key])
+# # %%

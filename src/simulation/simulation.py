@@ -11,7 +11,6 @@ import os
 from IPython.display import display
 from contexttimer import Timer
 import yaml
-from dict_hash import sha256
 
 # conda install -c numba/label/dev numba
 import numba as nb
@@ -45,28 +44,6 @@ hdf5_kwargs = dict(track_order=True)
 np.set_printoptions(linewidth=200)
 
 
-def get_hash(d=None, N=10, exclude_ID=True, exclude_hash=True):
-    """
-    d = input object, if None just get a random hash
-    N = len of hash (truncate hash)
-    """
-    if d is None:
-        s_hash = uuid.uuid4().hex
-    else:
-        if isinstance(d, utils.DotDict):
-            d = d.copy().data
-
-        if exclude_ID and "ID" in d:
-            d.pop("ID")
-
-        if exclude_hash and "hash" in d:
-            d.pop("hash")
-
-        s_hash = sha256(d)
-
-    return s_hash[:N]
-
-
 class Simulation:
     def __init__(self, cfg, verbose=False):
 
@@ -76,7 +53,7 @@ class Simulation:
         self.N_tot = self.cfg.N_tot
 
         # unique code that identifies this simulation
-        self.hash = get_hash(self.cfg)
+        self.hash = utils.cfg_to_hash(self.cfg)
         self.my = nb_simulation.initialize_My(self.cfg)
         utils.set_numba_random_seed(self.cfg.ID)
 
@@ -364,7 +341,7 @@ def run_simulations(
         N_files = 0
         return N_files
 
-    db_counts = np.array([db_cfg.count(q.hash == get_hash(cfg)) for cfg in cfgs_all])
+    db_counts = np.array([db_cfg.count(q.hash == utils.cfg_to_hash(cfg)) for cfg in cfgs_all])
     assert np.max(db_counts) <= 1
 
     # keep only cfgs that are not in the database already
@@ -401,7 +378,7 @@ def run_simulations(
     # print("save cfgs", flush=True)
     # update database
     for cfg in cfgs:
-        cfg["hash"] = get_hash(cfg)
+        cfg["hash"] = utils.cfg_to_hash(cfg)
         cfg.pop("ID")
         if not db_cfg.contains(q.hash == cfg["hash"]):
             db_cfg.insert(cfg.data)
