@@ -85,6 +85,8 @@ def folder_to_cfg(folder):
     db_cfg = utils.get_db_cfg()
     q = Query()
     q_result = db_cfg.search(q.hash == hash_)
+    if len(q_result) == 0:
+        return None
     assert len(q_result) == 1
     cfg = utils.DotDict(q_result[0])
     return cfg
@@ -95,9 +97,10 @@ def get_cfgs(folders):
     cfgs = []
     for folder in folders:
         cfg = folder_to_cfg(folder)
-        if not cfg.hash in hashes:
-            cfgs.append(cfg)
-        hashes.add(cfg.hash)
+        if cfg is not None:
+            if not cfg.hash in hashes:
+                cfgs.append(cfg)
+            hashes.add(cfg.hash)
     return cfgs
 
 

@@ -71,6 +71,9 @@ def compute_df_deterministic(cfg, variable, T_max=100):
 
 def plot_single_ABM_simulation(cfg, filenames, add_top_text=True, xlim=(0, None)):
 
+    if not isinstance(cfg, utils.DotDict):
+        cfg = utils.DocDict(cfg)
+
     d_ylabel = {"I": "Infected", "R": "Recovered"}
     d_label_loc = {"I": "upper right", "R": "lower right"}
 
@@ -137,7 +140,7 @@ def plot_single_ABM_simulation(cfg, filenames, add_top_text=True, xlim=(0, None)
             )
 
     title = utils.dict_to_title(cfg, len(filenames))
-    fig.suptitle(title, fontsize=24)
+    fig.suptitle(title, fontsize=20)
     plt.subplots_adjust(wspace=0.4)
 
     return fig, ax
@@ -166,6 +169,9 @@ def plot_ABM_simulations(abm_files, force_rerun=False):
             desc="Plotting individual ABM parameters",
             total=len(abm_files.cfgs),
         ):
+
+            # break
+
             fig, ax = plot_single_ABM_simulation(cfg, filenames)
 
             pdf.savefig(fig, dpi=100)

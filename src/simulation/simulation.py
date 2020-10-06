@@ -361,7 +361,6 @@ def run_simulations(
         N_files = 0
         return N_files
 
-
     db_counts = np.array([db_cfg.count(q.hash == get_hash(cfg)) for cfg in cfgs_all])
     assert np.max(db_counts) <= 1
 
@@ -461,5 +460,9 @@ if utils.is_ipython and debugging:
     # db_cfg.search(q.ID == 0)
     # db_cfg.count(q.ID == 0)
     # db_cfg.count(query_dict(cfg))
+
+    # from pathos.helpers import mp as pathos_multiprocess
+    # manager = pathos_multiprocess.Manager()
+    # queue = manager.Queue()
 
 # %%

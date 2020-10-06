@@ -17,6 +17,7 @@ event_size_maxs: &event_size_maxs [0, 1, 2, 3, 4, 5, 10, 15, 20, 30, 40, 50, 75,
 
 # define list of simulation_parameters to be simulated
 all_simulation_parameters:
+  - {N_events: 0, mu: 20, beta: 0.012}
   - {N_events: [100, 500, 1_000, 5_000, 10_000], event_size_max: [50, 20, 10], mu: 20, beta: 0.012}
   # - {N_events: *N_events, event_size_max: *event_size_maxs}
   # - {beta: [0.001, 0.002, 0.003, 0.004, 0.0045, 0.005, 0.0055, 0.006, 0.0065, 0.007], sigma_beta: [0, 1], rho:[0, 0.1]}

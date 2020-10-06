@@ -18,7 +18,7 @@ rc_params.set_rc_params()
 num_cores_max = 30
 
 do_make_1D_scan = True
-force_rerun = True
+force_rerun = False
 verbose = False
 
 #%%
@@ -28,6 +28,8 @@ reload(file_loaders)
 
 abm_files = file_loaders.ABM_simulations()
 N_files = len(abm_files)
+
+x = x
 
 
 #%%
@@ -106,5 +108,38 @@ if do_make_1D_scan:
 # force_rerun=True
 network_files = file_loaders.ABM_simulations(base_dir="Data/network", filetype="hdf5")
 plot.plot_number_of_contacts(network_files, force_rerun=force_rerun)
+
+# %%
+
+
+from matplotlib.backends.backend_pdf import PdfPages
+
+
+db_cfg = utils.get_db_cfg()
+
+d_query = utils.DotDict(
+    {
+        "mu": 20,
+        "beta": 0.012,
+    },
+)
+
+# cfg_default = utils.get_cfg_default()
+# x = db_cfg.search(utils.query_dict(cfg_default))
+
+cfgs = db_cfg.search(utils.query_dict(d_query))
+cfgs.sort(key=lambda cfg: cfg["N_events"])
+
+
+pdf_name = Path(f"Figures/ABM_simulations_events.pdf")
+utils.make_sure_folder_exist(pdf_name)
+with PdfPages(pdf_name) as pdf:
+    for cfg in tqdm(cfgs, desc="Plotting only events"):
+        cfg = utils.DotDict(cfg)
+        filenames = utils.hash_to_filenames(cfg.hash)
+        fig, ax = plot.plot_single_ABM_simulation(cfg, filenames)
+        pdf.savefig(fig, dpi=100)
+        plt.close("all")
+
 
 # %%
