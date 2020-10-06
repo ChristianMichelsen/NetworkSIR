@@ -45,7 +45,7 @@ hdf5_kwargs = dict(track_order=True)
 np.set_printoptions(linewidth=200)
 
 
-def get_hash(d=None, N=10, exclude_ID=True):
+def get_hash(d=None, N=10, exclude_ID=True, exclude_hash=True):
     """
     d = input object, if None just get a random hash
     N = len of hash (truncate hash)
@@ -58,6 +58,9 @@ def get_hash(d=None, N=10, exclude_ID=True):
 
         if exclude_ID and "ID" in d:
             d.pop("ID")
+
+        if exclude_hash and "hash" in d:
+            d.pop("hash")
 
         s_hash = sha256(d)
 
@@ -414,6 +417,7 @@ if utils.is_ipython and debugging:
     d_simulation_parameters = {
         "N_tot": 58_000,
         "N_events": [100],
+        "mu": 20,
         "event_size_max": [10, 100],
     }
 

@@ -124,9 +124,6 @@ d_query = utils.DotDict(
     },
 )
 
-# cfg_default = utils.get_cfg_default()
-# x = db_cfg.search(utils.query_dict(cfg_default))
-
 cfgs = db_cfg.search(utils.query_dict(d_query))
 cfgs.sort(key=lambda cfg: cfg["N_events"])
 
@@ -140,6 +137,3 @@ with PdfPages(pdf_name) as pdf:
         fig, ax = plot.plot_single_ABM_simulation(cfg, filenames)
         pdf.savefig(fig, dpi=100)
         plt.close("all")
-
-
-# %%

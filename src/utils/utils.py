@@ -623,26 +623,26 @@ class DotDict(UserDict):
 INTEGER_SIMULATION_PARAMETERS = load_yaml("cfg/settings.yaml")["INTEGER_SIMULATION_PARAMETERS"]
 
 
-def string_to_dict(string):
-    # if path-like string
+# def string_to_dict(string):
+#     # if path-like string
 
-    if isinstance(string, Path):
-        string = str(string)
+#     if isinstance(string, Path):
+#         string = str(string)
 
-    if isinstance(string, str) and "/" in string:
-        string = Path(string).stem
+#     if isinstance(string, str) and "/" in string:
+#         string = Path(string).stem
 
-    d = {}
-    keyvals = string.split("__")
-    keyvals_chunks = [keyvals[i : i + 2] for i in range(0, len(keyvals), 2)]
-    for key, val in keyvals_chunks:
-        if key in INTEGER_SIMULATION_PARAMETERS + ["ID"]:
-            d[key] = int(val)
-        elif key == "v":
-            d["version"] = float(val)
-        else:
-            d[key] = float(val)
-    return DotDict(d)
+#     d = {}
+#     keyvals = string.split("__")
+#     keyvals_chunks = [keyvals[i : i + 2] for i in range(0, len(keyvals), 2)]
+#     for key, val in keyvals_chunks:
+#         if key in INTEGER_SIMULATION_PARAMETERS + ["ID"]:
+#             d[key] = int(val)
+#         elif key == "v":
+#             d["version"] = float(val)
+#         else:
+#             d[key] = float(val)
+#     return DotDict(d)
 
 
 #%%
@@ -933,12 +933,20 @@ import numba as nb
 # # except ImportError:
 # from src.utils import utils
 
-# INTEGER_SIMULATION_PARAMETERS = load_yaml("cfg/settings.yaml")["INTEGER_SIMULATION_PARAMETERS"]
+INTEGER_SIMULATION_PARAMETERS = load_yaml("cfg/settings.yaml")["INTEGER_SIMULATION_PARAMETERS"]
 
 
 def get_cfg_default():
     """ Default Simulation Parameters """
     yaml_filename = "cfg/simulation_parameters_default.yaml"
+    # if Path("").cwd().stem == "src":
+    # yaml_filename = "../" + yaml_filename
+    return load_yaml(yaml_filename)
+
+
+def get_cfg_settings():
+    """ CFG Settings """
+    yaml_filename = "cfg/settings.yaml"
     # if Path("").cwd().stem == "src":
     # yaml_filename = "../" + yaml_filename
     return load_yaml(yaml_filename)
@@ -1008,6 +1016,18 @@ def get_cfg_default():
 #     return filenames
 
 
+def format_cfg(cfg):
+    if not isinstance(cfg, DotDict):
+        cfg = DotDict(cfg)
+    for key, val in cfg.items():
+        if isinstance(val, (int, float)):
+            if key in INTEGER_SIMULATION_PARAMETERS:
+                cfg[key] = int(val)
+            else:
+                cfg[key] = float(val)
+    return cfg
+
+
 def generate_cfgs(d_simulation_parameters, N_runs=1, N_tot_max=False, verbose=False):
 
     cfg_default = get_cfg_default()
@@ -1033,6 +1053,8 @@ def generate_cfgs(d_simulation_parameters, N_runs=1, N_tot_max=False, verbose=Fa
             if verbose and has_not_printed:
                 print("Skipping some files due to N_tot > N_tot_max")
                 has_not_printed = False
+
+    cfgs = [format_cfg(cfg) for cfg in cfgs]
 
     return cfgs
 
@@ -1100,90 +1122,90 @@ def df_coordinates_to_coordinates(df_coordinates):
 
 #%%
 
-EXCLUDE_PARAMETER_IN_INIT = load_yaml("cfg/settings.yaml")["EXCLUDE_PARAMETER_IN_INIT"]
+# EXCLUDE_PARAMETER_IN_INIT = load_yaml("cfg/settings.yaml")["EXCLUDE_PARAMETER_IN_INIT"]
 
 
-class Filename:
-    def __init__(self, filename):
+# class Filename:
+#     def __init__(self, filename):
 
-        if isinstance(filename, dict):
-            filename = generate_filenames(filename, N_loops=1, force_rerun=True)[0]
+#         if isinstance(filename, dict):
+#             filename = generate_filenames(filename, N_loops=1, force_rerun=True)[0]
 
-        self._filename = filename
-        self.filename = self.filename_prefix + filename
-        self.cfg = string_to_dict(filename.replace(".animation", ""))
-        # self.cfg = self.simulation_parameters
+#         self._filename = filename
+#         self.filename = self.filename_prefix + filename
+#         self.cfg = string_to_dict(filename.replace(".animation", ""))
+#         # self.cfg = self.simulation_parameters
 
-    def __repr__(self):
-        return str(self.cfg)
+#     def __repr__(self):
+#         return str(self.cfg)
 
-    # @property
-    # def to_dict(self):  # ,
-    # return DotDict({key: val for key, val in self.d.items() if key != "ID"})
+#     # @property
+#     # def to_dict(self):  # ,
+#     # return DotDict({key: val for key, val in self.d.items() if key != "ID"})
 
-    @property
-    def simulation_parameters(self):
-        return self.cfg
+#     @property
+#     def simulation_parameters(self):
+#         return self.cfg
 
-    @property
-    def to_ID(self):
-        return self.cfg["ID"]
+#     @property
+#     def to_ID(self):
+#         return self.cfg["ID"]
 
-    @property
-    def ID(self):
-        return self.to_ID
+#     @property
+#     def ID(self):
+#         return self.to_ID
 
-    @property
-    def filename_prefix(self):
-        filename_prefix = ""
-        if str(Path.cwd()).endswith("src"):
-            filename_prefix = "../"
-        return filename_prefix
+#     @property
+#     def filename_prefix(self):
+#         filename_prefix = ""
+#         if str(Path.cwd()).endswith("src"):
+#             filename_prefix = "../"
+#         return filename_prefix
 
-    def _filename_to_network(self, d, filename, extension):
-        file_string = ""
-        for key, val in d.items():
-            file_string += f"{key}__{val}__"
-        file_string = file_string[:-2]  # remove trailing _
-        file_string += extension
-        filename = filename / file_string
-        filename = str(filename).replace("version", "v")
-        return filename
+#     def _filename_to_network(self, d, filename, extension):
+#         file_string = ""
+#         for key, val in d.items():
+#             file_string += f"{key}__{val}__"
+#         file_string = file_string[:-2]  # remove trailing _
+#         file_string += extension
+#         filename = filename / file_string
+#         filename = str(filename).replace("version", "v")
+#         return filename
 
-    def get_filename_network_initialisation(self, extension=".hdf5"):
-        variables_to_save_in_filename = []
-        for parameter in self.cfg.keys():
-            if not parameter in EXCLUDE_PARAMETER_IN_INIT:
-                variables_to_save_in_filename.append(parameter)
-        d = {key: self.cfg[key] for key in variables_to_save_in_filename}
-        filename = Path(f"{self.filename_prefix}Data") / "network_initialization"
-        return self._filename_to_network(d, filename, extension)
+#     def get_filename_network_initialisation(self, extension=".hdf5"):
+#         variables_to_save_in_filename = []
+#         for parameter in self.cfg.keys():
+#             if not parameter in EXCLUDE_PARAMETER_IN_INIT:
+#                 variables_to_save_in_filename.append(parameter)
+#         d = {key: self.cfg[key] for key in variables_to_save_in_filename}
+#         filename = Path(f"{self.filename_prefix}Data") / "network_initialization"
+#         return self._filename_to_network(d, filename, extension)
 
-    filename_network_initialisation = property(get_filename_network_initialisation)
+#     filename_network_initialisation = property(get_filename_network_initialisation)
 
-    def get_filename_network(self, extension=".hdf5"):
-        filename = Path(f"{self.filename_prefix}Data") / "network"
-        return self._filename_to_network(self.cfg, filename, extension)
+#     def get_filename_network(self, extension=".hdf5"):
+#         filename = Path(f"{self.filename_prefix}Data") / "network"
+#         return self._filename_to_network(self.cfg, filename, extension)
 
-    filename_network = property(get_filename_network)
+#     filename_network = property(get_filename_network)
 
-    @property
-    def memory_filename(self):
-        filename = Path(f"{self.filename_prefix}Data") / "memory"
-        return self._filename_to_network(self.cfg, filename, ".memory_file.txt")
-        # return self.filename_prefix + self.filename.replace('.csv', '.memory_file.txt')
+#     @property
+#     def memory_filename(self):
+#         filename = Path(f"{self.filename_prefix}Data") / "memory"
+#         return self._filename_to_network(self.cfg, filename, ".memory_file.txt")
+#         # return self.filename_prefix + self.filename.replace('.csv', '.memory_file.txt')
 
-    @property
-    def coordinates_filename(self):
-        # return self.filename_prefix + "Data/GPS_coordinates.npy"
-        return self.filename_prefix + "Data/GPS_coordinates.feather"
+#     @property
+#     def coordinates_filename(self):
+#         # return self.filename_prefix + "Data/GPS_coordinates.npy"
+#         return self.filename_prefix + "Data/GPS_coordinates.feather"
 
-    @property
-    def household_data_filenames(self):
-        return (
-            self.filename_prefix + "Data/PeopleInHousehold_NorthJutland.txt",
-            self.filename_prefix + "Data/AgeDistributionPerPeopleInHousehold_NorthJutland.txt",
-        )
+#     @property
+#     def household_data_filenames(self):
+#         return (
+#             self.filename_prefix + "Data/PeopleInHousehold_NorthJutland.txt",
+#             self.filename_prefix + "Data/AgeDistributionPerPeopleInHousehold_NorthJutland.txt",
+#         )
 
 
 #%%

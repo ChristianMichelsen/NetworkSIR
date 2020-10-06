@@ -27,6 +27,7 @@ if utils.is_local_computer():
             "N_tot": 58_000,
             "rho": 0,
             "N_events": [0, 100],
+            "mu": 20,
             # "event_size_max": [10, 100],
         },
     ]
