@@ -19,7 +19,7 @@ clustering_connection_retries: 0 # number of times to try and reconnect two agen
 N_events: 0 # number of daily events
 event_size_max: 0 #max size of events. If 0 => N_tot (no max)
 event_size_mean: 50 # mean size of events (exponential distribution)
-event_beta_scaling: 10 # how much more disease spreads at events
+event_beta_scaling: 10 # how much more disease spreads at events (1 = normal, 2 = double of normal)
 event_weekend_multiplier: 1.0 # ratio of how many more events are happening in weekends. 1 = similar, 2 = double
 
 day_max: 0 # if other than 0, sets the maximum number of days the algorithm runs

@@ -17,5 +17,5 @@
   event_size_max: \mathrm{event}_{\mathrm{size}_\mathrm{max}}
   event_size_mean: \mathrm{event}_{\mathrm{size}_\mathrm{mean}}
   event_weekend_multiplier: \mathrm{event}_{\mathrm{weekend}_\mathrm{multiplier}}
-  event_beta_scaling: \mathrm{event}_{\beta_\mathrm{mean}}
+  event_beta_scaling: \mathrm{event}_{\beta_\mathrm{scaling}}
   hash: \mathrm{hash}
