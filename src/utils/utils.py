@@ -660,6 +660,7 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True):
         exclude = [exclude]
     exclude.append("version")
     exclude.append("hash")
+    exclude.append("day_max")
 
     title = "$"
     for sim_par, val in cfg.items():
@@ -673,6 +674,10 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True):
             title = title.replace(", \\,\\lambda_E", "$\n$\\lambda_E")
         else:
             title = title.replace(", \\,\\lambda_I", "$\n$\\lambda_I")
+        if "N_\\mathrm{events}" in title:
+            title = title.replace(", \\,N_\\mathrm{events}", "$\n$N_\\mathrm{events}")
+        if "\\mathrm{v.}" in title:
+            title = title.replace(", \\,\\mathrm{v.}", "$\n$\\mathrm{v.}")
 
     if N:
         title += r"\#" + f"{N}, \,"
@@ -682,9 +687,9 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True):
     return title
 
 
-def string_to_title(s, N=None, exclude=None, in_two_line=True):
-    d = string_to_dict(s)
-    return dict_to_title(d, N, exclude, in_two_line)
+# def string_to_title(s, N=None, exclude=None, in_two_line=True):
+#     d = string_to_dict(s)
+#     return dict_to_title(d, N, exclude, in_two_line)
 
 
 from decimal import Decimal

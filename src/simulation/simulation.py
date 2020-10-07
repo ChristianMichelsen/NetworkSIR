@@ -383,14 +383,14 @@ def run_simulations(
         p_umap(f_single_simulation, cfgs, num_cpus=num_cores)
         print("\n")
 
-    print("save cfgs", flush=True)
+    # print("save cfgs", flush=True)
     # update database
     for cfg in cfgs:
         cfg["hash"] = utils.cfg_to_hash(cfg)
         cfg.pop("ID")
         if not db_cfg.contains(q.hash == cfg.hash):
             db_cfg.insert(cfg)
-    print("saved cfgs", flush=True)
+    # print("saved cfgs", flush=True)
     return N_files
 
 
@@ -439,12 +439,12 @@ if utils.is_ipython and debugging:
             display(df)
             simulation.save(time_elapsed=t.elapsed, save_hdf5=True, save_csv=True)
 
-    my = simulation.my
-    df_coordinates = simulation.df_coordinates
-    intervention = simulation.intervention
-    g = simulation.g
+        my = simulation.my
+        df_coordinates = simulation.df_coordinates
+        intervention = simulation.intervention
+        g = simulation.g
 
-    simulation.hash
+        simulation.hash
 
     # db_cfg.insert(cfg)
     # db.search(q.ID == 0)

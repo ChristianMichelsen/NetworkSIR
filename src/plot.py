@@ -140,7 +140,7 @@ def plot_single_ABM_simulation(cfg, filenames, add_top_text=True, xlim=(0, None)
             )
 
     title = utils.dict_to_title(cfg, len(filenames))
-    fig.suptitle(title, fontsize=20)
+    fig.suptitle(title, fontsize=16)
     plt.subplots_adjust(wspace=0.4)
 
     return fig, ax
@@ -294,7 +294,7 @@ def _plot_1D_scan_res(res, scan_parameter, ylim=None, do_log=False, **kwargs):
 
     if "axes" not in kwargs:
         fig, (ax0, ax1) = plt.subplots(ncols=2, figsize=(16 * factor, 9 * factor))  #
-        fig.suptitle(title, fontsize=20 * factor)
+        fig.suptitle(title, fontsize=16 * factor)
     else:
         ax0, ax1 = kwargs["axes"]
 
@@ -552,7 +552,7 @@ def plot_single_fit(
         legobj.set_alpha(1.0)
 
     title = utils.dict_to_title(cfg, len(fit_objects))
-    fig.suptitle(title, fontsize=24)
+    fig.suptitle(title, fontsize=16)
     plt.subplots_adjust(wspace=0.4)
 
     return fig, ax

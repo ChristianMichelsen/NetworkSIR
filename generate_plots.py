@@ -108,6 +108,7 @@ plot.plot_number_of_contacts(network_files, force_rerun=force_rerun)
 
 # %%
 
+reload(plot)
 
 from matplotlib.backends.backend_pdf import PdfPages
 
