@@ -15,13 +15,39 @@ abm_files = file_loaders.ABM_simulations()
 N_files = len(abm_files)
 Path("Figures/Paper").mkdir(parents=True, exist_ok=True)
 
-ABM_parameter_vanilla = "v__1.0__N_tot__5800000__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__1__N_connect_retries__0"
+cfg_vanilla = utils.DotDict(
+    {
+        "version": 1.0,
+        "N_tot": 5_800_000,
+        "rho": 0.0,
+        "epsilon_rho": 0.04,
+        "mu": 40.0,
+        "sigma_mu": 0.0,
+        "beta": 0.01,
+        "sigma_beta": 0.0,
+        "algo": 2,
+        "N_init": 100,
+        "lambda_E": 1.0,
+        "lambda_I": 1.0,
+        "make_random_initial_infections": True,
+        "clustering_connection_retries": 0,
+        "N_events": 0,
+    }
+)
+hash_vanilla = utils.query_cfg(cfg_vanilla)[0].hash
 
-ABM_parameter_spatial = "v__1.0__N_tot__5800000__rho__0.1__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__1__N_connect_retries__0"
+#
 
-filename_hdf5_vanilla = "Data/network/v__1.0__N_tot__5800000__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__1__N_connect_retries__0__ID__0.hdf5"
+cfg_spatial = {**cfg_vanilla, "rho": 0.1}
+hash_spatial = utils.query_cfg(cfg_spatial)[0].hash
 
-filename_hdf5_spatial = "Data/network/v__1.0__N_tot__5800000__rho__0.1__epsilon_rho__0.0__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__0__N_connect_retries__0__ID__0.hdf5"
+cfg_spatial_local_outbreak = {**cfg_spatial, "make_random_initial_infections": False}
+cfg_spatial_local_outbreak = utils.query_cfg(cfg_spatial_local_outbreak)[0].hash
+
+
+# filename_hdf5_vanilla = "Data/network/v__1.0__N_tot__5800000__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__1__N_connect_retries__0__ID__0.hdf5"
+
+# filename_hdf5_spatial = "Data/network/v__1.0__N_tot__5800000__rho__0.1__epsilon_rho__0.0__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__0__N_connect_retries__0__ID__0.hdf5"
 
 # x=x
 
@@ -45,7 +71,7 @@ fig_coordinates_vanilla.savefig("Figures/Paper/Figure_2a_coordinates_vanilla.pdf
 
 # reload(plot)
 fig_ABM_vanilla, _ = plot.plot_single_ABM_simulation(
-    ABM_parameter_vanilla, abm_files, add_top_text=False, xlim=(0, 300)
+    cfg_vanilla, abm_files, add_top_text=False, xlim=(0, 300)
 )
 fig_ABM_vanilla.savefig("Figures/Paper/Figure_2b_ABM_vanilla.pdf", dpi=100)
 
@@ -410,4 +436,3 @@ plot.plot_1D_scan_fit_results(
 )
 
 # %%
-

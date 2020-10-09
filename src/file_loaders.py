@@ -132,6 +132,14 @@ class ABM_simulations:
             filenames = self.d[cfg.hash]
             yield cfg, filenames
 
+    def iter_cfgs(self):
+        for cfg in self.cfgs:
+            yield cfg
+
+    def cfg_to_filenames(self, cfg):
+        cfg = utils.DotDict(cfg)
+        return self.d[cfg.hash]
+
     # def __getitem__(self, key):
     #     if isinstance(key, int):
     #         return self.all_files[key]

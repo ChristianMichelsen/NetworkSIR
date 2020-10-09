@@ -69,7 +69,9 @@ def compute_df_deterministic(cfg, variable, T_max=100):
 #         return s
 
 
-def plot_single_ABM_simulation(cfg, filenames, add_top_text=True, xlim=(0, None)):
+def plot_single_ABM_simulation(cfg, abm_files, add_top_text=True, xlim=(0, None)):
+
+    filenames = abm_files.cfg_to_filenames(cfg)
 
     if not isinstance(cfg, utils.DotDict):
         cfg = utils.DocDict(cfg)
@@ -164,15 +166,15 @@ def plot_ABM_simulations(abm_files, force_rerun=False):
     with PdfPages(pdf_name) as pdf:
 
         # for ABM_parameter in tqdm(abm_files.keys, desc="Plotting individual ABM parameters"):
-        for cfg, filenames in tqdm(
-            abm_files.iter_folders(),
+        for cfg in tqdm(
+            abm_files.iter_cfgs(),
             desc="Plotting individual ABM parameters",
             total=len(abm_files.cfgs),
         ):
 
             # break
 
-            fig, ax = plot_single_ABM_simulation(cfg, filenames)
+            fig, ax = plot_single_ABM_simulation(cfg, abm_files)
 
             pdf.savefig(fig, dpi=100)
             plt.close("all")

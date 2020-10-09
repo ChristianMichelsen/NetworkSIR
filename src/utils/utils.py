@@ -651,6 +651,7 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True):
     )
     cfg.N_events = human_format(cfg.N_events)
     cfg.event_size_max = human_format(cfg.event_size_max)
+    cfg.hash = r"\mathrm{" + str(cfg.hash) + r"}"
 
     # parameter_to_latex = get_parameter_to_latex()
     parameter_to_latex = load_yaml("cfg/parameter_to_latex.yaml")
@@ -1681,6 +1682,12 @@ def get_db_cfg():
 def hash_to_cfg(hash_):
     db_cfg = get_db_cfg()
     return DotDict(db_cfg.search(Query().hash == hash_)[0])
+
+
+def query_cfg(cfg):
+    db_cfg = get_db_cfg()
+    cfgs = db_cfg.search(query_dict(cfg))
+    return [DotDict(cfg) for cfg in cfgs]
 
 
 # ls -R | grep 7274ac6030 | xargs rm -f
