@@ -650,8 +650,10 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True):
         r"\mathrm{" + str(bool(cfg.make_random_initial_infections)) + r"}"
     )
     cfg.N_events = human_format(cfg.N_events)
-    cfg.event_size_max = human_format(cfg.event_size_max)
-    cfg.hash = r"\mathrm{" + str(cfg.hash) + r"}"
+    if "event_size_max" in cfg:
+        cfg.event_size_max = human_format(cfg.event_size_max)
+    if "hash" in cfg:
+        cfg.hash = r"\mathrm{" + str(cfg.hash) + r"}"
 
     # parameter_to_latex = get_parameter_to_latex()
     parameter_to_latex = load_yaml("cfg/parameter_to_latex.yaml")
@@ -668,7 +670,8 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True):
         if not sim_par in exclude:
             title += f"{parameter_to_latex[sim_par]} = {val}, \,"
     title += f"{parameter_to_latex['version']} = {cfg.version}, \,"
-    title += f"{parameter_to_latex['hash']} = {cfg.hash}, \,"
+    if "hash" in cfg:
+        title += f"{parameter_to_latex['hash']} = {cfg.hash}, \,"
 
     if in_two_line:
         if "lambda_E" in title:
@@ -884,6 +887,7 @@ import csv
 import numba as nb
 
 INTEGER_SIMULATION_PARAMETERS = load_yaml("cfg/settings.yaml")["INTEGER_SIMULATION_PARAMETERS"]
+BOOL_SIMULATION_PARAMETERS = load_yaml("cfg/settings.yaml")["BOOL_SIMULATION_PARAMETERS"]
 
 
 def get_cfg_default():
@@ -906,11 +910,16 @@ def format_cfg(cfg):
     if not isinstance(cfg, DotDict):
         cfg = DotDict(cfg)
     for key, val in cfg.items():
-        if isinstance(val, (int, float)):
+        # if isinstance(val, (int, float)):
+        try:
             if key in INTEGER_SIMULATION_PARAMETERS:
                 cfg[key] = int(val)
+            elif key in BOOL_SIMULATION_PARAMETERS:
+                cfg[key] = bool(val)
             else:
                 cfg[key] = float(val)
+        except ValueError:
+            cfg[key] = val
     return cfg
 
 
@@ -966,11 +975,11 @@ def cfg_to_hash(cfg, N=10, exclude_ID=True, exclude_hash=True):
 
 d_num_cores_N_tot = RangeKeyDict(
     {
-        (0, 1_000_001): 40,
-        (1_000_001, 2_000_001): 40,
-        (2_000_001, 5_000_001): 25,
-        (5_000_001, 6_000_001): 15,
-        (6_000_001, 10_000_001): 7,
+        (0, 1_000_001): 100,
+        (1_000_001, 2_000_001): 50,
+        (2_000_001, 5_000_001): 30,
+        (5_000_001, 6_000_001): 18,
+        (6_000_001, 10_000_001): 10,
     }
 )
 

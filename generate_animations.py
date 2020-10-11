@@ -15,9 +15,10 @@ import h5py
 from src import rc_params
 from src.utils import utils
 from src import animation_utils
+from src import file_loaders
 
 rc_params.set_rc_params(fig_dpi=50)  #
-num_cores_max = 20
+num_cores_max = 1
 
 #%%
 
@@ -95,6 +96,7 @@ from pathos.multiprocessing import ProcessPool as Pool
 # from pathos.threading import ThreadPool as Pool
 from collections.abc import Sized
 
+
 class AnimationBase:
     def __init__(
         self,
@@ -120,8 +122,8 @@ class AnimationBase:
                     print(f"N_max has to be 12 or larger (choosing 12 instead of {N_max} for now).")
                     N_max = 12
                 self.N_days = N_max
-        self._Filename = utils.Filename(filename)
-        self.cfg = self._Filename.simulation_parameters
+        # self._Filename = utils.Filename(filename)
+        self.cfg = file_loaders.filename_to_cfg(filename)
         self.__name__ = "AnimationBase"
 
     def __len__(self):
@@ -132,8 +134,8 @@ class AnimationBase:
         with h5py.File(self.filename, "r") as f:
 
             # self.coordinate_indices = f["coordinate_indices"][()]
-            self.df_raw = pd.DataFrame(f["df"][()]).drop("index", axis=1)
-            self.df_coordinates = pd.DataFrame(f["df_coordinates"][()]).drop("index", axis=1)
+            self.df_raw = pd.DataFrame(f["df"][()])
+            self.df_coordinates = pd.DataFrame(f["df_coordinates"][()])  # .drop("index", axis=1)
             self.my_state = f["my_state"][()]
             self.my_number_of_contacts = f["my_number_of_contacts"][()]
 
@@ -575,7 +577,13 @@ class AnimateSIR(AnimationBase):
         # delta_width = 0 * width / 100
         ax2 = fig.add_axes([left, bottom, width, height])
         I_up_to_today = self.df_counts["I"].iloc[: i_day + 1] / self.cfg["N_tot"]
-        ax2.plot(I_up_to_today.index, I_up_to_today, "-", color=self.d_colors["I"])
+        ax2.plot(
+            I_up_to_today.index,
+            I_up_to_today,
+            "-",
+            color=self.d_colors["I"],
+            lw=2,
+        )
         ax2.plot(
             I_up_to_today.index[-1],
             I_up_to_today.iloc[-1],
@@ -1147,8 +1155,8 @@ def make_paper_screenshot(
         animation._initialize_data()
 
     geo_plot_kwargs = {}
-    geo_plot_kwargs["S"] = dict(alpha=0.5, norm=animation.norm_100)
-    geo_plot_kwargs["R"] = dict(alpha=0.5, norm=animation.norm_100)
+    geo_plot_kwargs["S"] = dict(alpha=0.8, norm=animation.norm_100)
+    geo_plot_kwargs["R"] = dict(alpha=0.8, norm=animation.norm_100)
     geo_plot_kwargs["I"] = dict(norm=animation.norm_10)
 
     fig = plt.figure(figsize=(10 * 1.3, 12 * 1.3))
@@ -1188,7 +1196,13 @@ def make_paper_screenshot(
     # delta_width = 0 * width / 100
     ax2 = fig.add_axes([left, bottom, width, height])
     I_up_to_today = animation.df_counts["I"].iloc[: i_day + 1] / animation.cfg["N_tot"]
-    ax2.plot(I_up_to_today.index, I_up_to_today, "-", color=animation.d_colors["I"], lw=2)
+    ax2.plot(
+        I_up_to_today.index,
+        I_up_to_today,
+        "-",
+        color=animation.d_colors["I"],
+        lw=3,
+    )
     ax2.plot(
         I_up_to_today.index[-1],
         I_up_to_today.iloc[-1],
@@ -1287,9 +1301,10 @@ reload(animation_utils)
 num_cores = utils.get_num_cores(num_cores_max)
 
 
-filenames = animation_utils.get_animation_filenames()
+network_files = file_loaders.ABM_simulations(base_dir="Data/network", filetype="hdf5")
 # print("Only keeping animations with ID_0 for now")
-filenames = [filename for filename in filenames if "ID__0" in filename]
+# filenames = [filename for filename in network_files.iter_all_files() if "ID__0" in filename]
+filenames = [filename for filename in network_files.iter_all_files()]
 
 
 N_files = len(filenames)

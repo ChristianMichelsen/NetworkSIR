@@ -69,12 +69,14 @@ def compute_df_deterministic(cfg, variable, T_max=100):
 #         return s
 
 
-def plot_single_ABM_simulation(cfg, abm_files, add_top_text=True, xlim=(0, None)):
+def plot_single_ABM_simulation(
+    cfg, abm_files, add_top_text=True, xlim=(0, None), legend_fontsize=30
+):
 
     filenames = abm_files.cfg_to_filenames(cfg)
 
     if not isinstance(cfg, utils.DotDict):
-        cfg = utils.DocDict(cfg)
+        cfg = utils.DotDict(cfg)
 
     d_ylabel = {"I": "Infected", "R": "Recovered"}
     d_label_loc = {"I": "upper right", "R": "lower right"}
@@ -114,7 +116,7 @@ def plot_single_ABM_simulation(cfg, abm_files, add_top_text=True, xlim=(0, None)
             color=d_colors["red"],
             label="SEIR",
         )
-        leg = ax.legend(loc=d_label_loc[variable])
+        leg = ax.legend(loc=d_label_loc[variable], fontsize=legend_fontsize)
         for legobj in leg.legendHandles:
             legobj.set_linewidth(lw * 4)
 
@@ -268,7 +270,7 @@ def extract_limits(lim):
     return lim0, lim1
 
 
-def _plot_1D_scan_res(res, scan_parameter, ylim=None, do_log=False, **kwargs):
+def _plot_1D_scan_res(res, scan_parameter, ylim=None, do_log=False, add_title=True, **kwargs):
 
     # kwargs = {}
 
@@ -296,7 +298,8 @@ def _plot_1D_scan_res(res, scan_parameter, ylim=None, do_log=False, **kwargs):
 
     if "axes" not in kwargs:
         fig, (ax0, ax1) = plt.subplots(ncols=2, figsize=(16 * factor, 9 * factor))  #
-        fig.suptitle(title, fontsize=16 * factor)
+        if add_title:
+            fig.suptitle(title, fontsize=16 * factor)
     else:
         ax0, ax1 = kwargs["axes"]
 
@@ -411,7 +414,13 @@ def rug_plot(xs, ax, ymax=0.1, **kwargs):
 
 
 def plot_single_fit(
-    cfg, fit_objects, add_top_text=True, xlim=(0, None), ylim=(0, None), legend_loc=None
+    cfg,
+    fit_objects,
+    add_top_text=True,
+    xlim=(0, None),
+    ylim=(0, None),
+    legend_loc=None,
+    legend_fontsize=28,
 ):
 
     relative_names = [
@@ -460,17 +469,17 @@ def plot_single_fit(
                 ax.fill_between(tmp["time"], tmp[I_or_R], **axvline_kwargs)
 
                 vertical_lines = tmp["time"].iloc[0], tmp["time"].iloc[-1]
-                line_kwargs = dict(ymax=0.45, color=d_colors["blue"], lw=2 * lw)
-                ax.axvline(vertical_lines[0], label="Fit Range", **line_kwargs)
+                line_kwargs = dict(ymax=0.6, color=d_colors["blue"], lw=2 * lw)
+                ax.axvline(vertical_lines[0], **line_kwargs)
                 ax.axvline(vertical_lines[1], **line_kwargs)
 
                 ax.text(
                     vertical_lines[0] * 0.65,
-                    0.23 * ax.get_ylim()[1],
+                    0.3 * ax.get_ylim()[1],
                     "Fit Range",
                     horizontalalignment="center",
                     verticalalignment="center",
-                    fontsize=26,
+                    fontsize=34,
                     rotation=90,
                     color=d_colors["blue"],
                 )
@@ -548,7 +557,7 @@ def plot_single_fit(
         #     ax.xaxis.set_label_coords(0.91, -0.14)
         ax.yaxis.set_major_formatter(EngFormatter())
 
-    leg = axes[0].legend(loc=legend_loc["I"])
+    leg = axes[0].legend(loc=legend_loc["I"], fontsize=legend_fontsize)
     for legobj in leg.legendHandles:
         legobj.set_linewidth(3.0)
         legobj.set_alpha(1.0)
@@ -714,7 +723,7 @@ def _load_my_state_and_my_number_of_contacts(filename):
     return my_state, my_number_of_contacts
 
 
-def _plot_single_number_of_contacts(
+def plot_single_number_of_contacts(
     filename,
     make_fraction_subplot=True,
     figsize=None,
@@ -727,10 +736,8 @@ def _plot_single_number_of_contacts(
     fontsize=30,
     labelsize=None,
     add_average_arrows=False,
+    title_pad=20,
 ):
-
-    if title is None:
-        title = utils.string_to_title(filename)
 
     if xlabel is None:
         xlabel = "Number of contacts"
@@ -784,7 +791,7 @@ def _plot_single_number_of_contacts(
     ax1.yaxis.set_major_formatter(EngFormatter())
     ax1.set(xlim=x_range)
     ax1.set_ylabel(ylabel, fontsize=fontsize)
-    ax1.set_title(title, pad=40, fontsize=fontsize)
+    ax1.set_title(title, pad=title_pad, fontsize=fontsize)
 
     if make_fraction_subplot:
         ax2.set(ylim=(0, 1), ylabel=r"Fraction")
@@ -837,12 +844,14 @@ def plot_number_of_contacts(network_files, force_rerun=False):
         return None
 
     with PdfPages(pdf_name) as pdf:
-        for network_filename in tqdm(network_files, desc="Number of contacts"):
-            cfg = utils.string_to_dict(str(network_filename))
-            if cfg.ID != 0:
-                continue
-            else:
-                fig, ax = _plot_single_number_of_contacts(network_filename)
+        for network_filename in tqdm(
+            network_files.iter_all_files(),
+            desc="Number of contacts",
+            total=len(network_files),
+        ):
+            # cfg = utils.string_to_dict(str(network_filename))
+            if "_ID__0" in network_filename:
+                fig, ax = plot_single_number_of_contacts(network_filename)
                 pdf.savefig(fig, dpi=100)
                 plt.close("all")
 

@@ -15,6 +15,10 @@ abm_files = file_loaders.ABM_simulations()
 N_files = len(abm_files)
 Path("Figures/Paper").mkdir(parents=True, exist_ok=True)
 
+#%%
+
+ID = 0
+
 cfg_vanilla = utils.DotDict(
     {
         "version": 1.0,
@@ -35,21 +39,65 @@ cfg_vanilla = utils.DotDict(
     }
 )
 hash_vanilla = utils.query_cfg(cfg_vanilla)[0].hash
+filename_hdf5_vanilla = str(
+    list(Path(f"./Data/network/{hash_vanilla}").rglob(f"*ID__{ID}.hdf5"))[0]
+)
 
-#
-
-cfg_spatial = {**cfg_vanilla, "rho": 0.1}
+cfg_spatial = utils.DotDict(
+    {
+        **cfg_vanilla,
+        "rho": 0.1,
+    }
+)
 hash_spatial = utils.query_cfg(cfg_spatial)[0].hash
+filename_hdf5_spatial = str(
+    list(Path(f"./Data/network/{hash_spatial}").rglob(f"*ID__{ID}.hdf5"))[0]
+)
 
-cfg_spatial_local_outbreak = {**cfg_spatial, "make_random_initial_infections": False}
-cfg_spatial_local_outbreak = utils.query_cfg(cfg_spatial_local_outbreak)[0].hash
+cfg_spatial_local_outbreak = utils.DotDict(
+    {
+        "epsilon_rho": 0.04,
+        "make_random_initial_infections": False,
+    }
+)
+hash_spatial_local_outbreak = utils.query_cfg(cfg_spatial_local_outbreak)[0].hash
+filename_hdf5_spatial_local_outbreak = str(
+    list(Path(f"./Data/network/{hash_spatial_local_outbreak}").rglob(f"*ID__{ID}.hdf5"))[0]
+)
 
 
-# filename_hdf5_vanilla = "Data/network/v__1.0__N_tot__5800000__rho__0.0__epsilon_rho__0.04__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__1__N_connect_retries__0__ID__0.hdf5"
+#%%
 
-# filename_hdf5_spatial = "Data/network/v__1.0__N_tot__5800000__rho__0.1__epsilon_rho__0.0__mu__40.0__sigma_mu__0.0__beta__0.01__sigma_beta__0.0__algo__2__N_init__100__lambda_E__1.0__lambda_I__1.0__make_random_initial_infections__0__N_connect_retries__0__ID__0.hdf5"
 
-# x=x
+#  ██████  ██      ██████
+# ██    ██ ██      ██   ██
+# ██    ██ ██      ██   ██
+# ██    ██ ██      ██   ██
+#  ██████  ███████ ██████
+#
+# # http://patorjk.com/software/taag/#p=display&f=ANSI%20Regular&t=Figure%202
+
+
+# # reload(generate_animations)
+# fig_coordinates_vanilla, _ = generate_animations.make_paper_screenshot(
+#     filename_hdf5_vanilla, title="5.8M, vanilla", i_day=80
+# )
+# fig_coordinates_vanilla
+# fig_coordinates_vanilla.savefig("Figures/Paper/Figure_2a_coordinates_vanilla.pdf", dpi=100)
+
+# # reload(plot)
+# fig_ABM_vanilla, _ = plot.plot_single_ABM_simulation(
+#     cfg_vanilla, abm_files, add_top_text=False, xlim=(0, 300)
+# )
+# fig_ABM_vanilla.savefig("Figures/Paper/Figure_2b_ABM_vanilla.pdf", dpi=100)
+
+# plot.plot_1D_scan(scan_parameter="mu", figname_pdf="Figures/Paper/Figure_2c_1D_scan_mu.pdf")
+# plot.plot_1D_scan(
+#     scan_parameter="beta", figname_pdf="Figures/Paper/Figure_2d_1D_scan_beta.pdf", labelpad=0
+# )
+
+
+#%%
 
 #%%
 
@@ -58,48 +106,14 @@ cfg_spatial_local_outbreak = utils.query_cfg(cfg_spatial_local_outbreak)[0].hash
 # █████   ██ ██   ███ ██    ██ ██████  █████        █████
 # ██      ██ ██    ██ ██    ██ ██   ██ ██          ██
 # ██      ██  ██████   ██████  ██   ██ ███████     ███████
-#
-# http://patorjk.com/software/taag/#p=display&f=ANSI%20Regular&t=Figure%202
-
-
-# reload(generate_animations)
-fig_coordinates_vanilla, _ = generate_animations.make_paper_screenshot(
-    filename_hdf5_vanilla, title="5.8M, vanilla", i_day=80
-)
-fig_coordinates_vanilla
-fig_coordinates_vanilla.savefig("Figures/Paper/Figure_2a_coordinates_vanilla.pdf", dpi=100)
-
-# reload(plot)
-fig_ABM_vanilla, _ = plot.plot_single_ABM_simulation(
-    cfg_vanilla, abm_files, add_top_text=False, xlim=(0, 300)
-)
-fig_ABM_vanilla.savefig("Figures/Paper/Figure_2b_ABM_vanilla.pdf", dpi=100)
-
-plot.plot_1D_scan(scan_parameter="mu", figname_pdf="Figures/Paper/Figure_2c_1D_scan_mu.pdf")
-plot.plot_1D_scan(
-    scan_parameter="beta", figname_pdf="Figures/Paper/Figure_2d_1D_scan_beta.pdf", labelpad=0
-)
-
-
-#%%
-
-#%%
-
-
-# ███████ ██  ██████  ██    ██ ██████  ███████     ██████
-# ██      ██ ██       ██    ██ ██   ██ ██               ██
-# █████   ██ ██   ███ ██    ██ ██████  █████        █████
-# ██      ██ ██    ██ ██    ██ ██   ██ ██               ██
-# ██      ██  ██████   ██████  ██   ██ ███████     ██████
-
 
 reload(plot)
 
-fig_contacts_vanilla, _ = plot._plot_single_number_of_contacts(
+fig_contacts_vanilla, _ = plot.plot_single_number_of_contacts(
     filename_hdf5_vanilla,
     make_fraction_subplot=False,
     xlim=(18, 62),
-    figsize=(5 * 0.9, 8 * 0.9),
+    figsize=(5 * 0.9, 6.5 * 0.9),
     title="5.8M, vanilla",
     add_legend=False,
     xlabel="",
@@ -108,10 +122,10 @@ fig_contacts_vanilla, _ = plot._plot_single_number_of_contacts(
     labelsize=48,
 )
 
-fig_contacts_vanilla.savefig("Figures/Paper/Figure_3a_contacts_vanilla.pdf", dpi=100)
+fig_contacts_vanilla.savefig("Figures/Paper/Figure_2a_contacts_vanilla.pdf", dpi=100)
 
 reload(plot)
-fig_contacts_spatial, ax_contacts_spatial = plot._plot_single_number_of_contacts(
+fig_contacts_spatial, ax_contacts_spatial = plot.plot_single_number_of_contacts(
     filename_hdf5_spatial,
     make_fraction_subplot=False,
     figsize=(8 * 1.2, 4 * 1.2),
@@ -122,23 +136,27 @@ fig_contacts_spatial, ax_contacts_spatial = plot._plot_single_number_of_contacts
     labelsize=30,
     add_average_arrows=True,
 )
-fig_contacts_spatial.savefig("Figures/Paper/Figure_3a_contacts_spatial.pdf", dpi=100)
+fig_contacts_spatial.savefig("Figures/Paper/Figure_2a_contacts_spatial.pdf", dpi=100)
 
-# reload(generate_animations)
+reload(generate_animations)
 fig_coordinates_spatial, _ = generate_animations.make_paper_screenshot(
-    filename_hdf5_spatial,
+    filename_hdf5_spatial_local_outbreak,
     title="5.8M, spatial",
-    i_day=200,
+    i_day=100,
     R_eff_max=7,
 )
 fig_coordinates_spatial
-fig_coordinates_spatial.savefig("Figures/Paper/Figure_3b_coordinates_spatial.pdf", dpi=100)
+fig_coordinates_spatial.savefig("Figures/Paper/Figure_2b_coordinates_spatial.pdf", dpi=100)
 
-
+# reload(plot)
 fig_ABM_spatial, _ = plot.plot_single_ABM_simulation(
-    ABM_parameter_spatial, abm_files, add_top_text=False, xlim=(0, 250)
+    cfg_spatial,
+    abm_files,
+    add_top_text=False,
+    xlim=(0, 230),
+    legend_fontsize=28,
 )
-fig_ABM_spatial.savefig("Figures/Paper/Figure_3c_ABM_spatial.pdf", dpi=100)
+fig_ABM_spatial.savefig("Figures/Paper/Figure_2cd_ABM_spatial.pdf", dpi=100)
 
 
 # plot.plot_1D_scan(scan_parameter="rho", figname_pdf="Figures/Paper/Figure_3de_1D_scan_rho.pdf")
@@ -170,6 +188,7 @@ fig, (ax0, ax1) = plot._plot_1D_scan_res(
     label=r"$\beta = 0.01$",
     fmt=".",
     wspace=0.5,
+    add_title=False,
 )
 
 plot._plot_1D_scan_res(
@@ -179,6 +198,7 @@ plot._plot_1D_scan_res(
     color=plot.d_colors["red"],
     label=r"$\sigma_\beta = 1$",
     fmt="v",
+    add_title=False,
     # labelpad=-20,
 )
 
@@ -189,6 +209,7 @@ plot._plot_1D_scan_res(
     color=plot.d_colors["orange"],
     label=r"$\sigma_\mu = 1$",
     fmt="^",
+    add_title=False,
     # labelpad=-20,
 )
 
@@ -199,6 +220,7 @@ plot._plot_1D_scan_res(
     color=plot.d_colors["green"],
     label=r"$\sigma_\mu=\sigma_\beta=1$",
     labelpad=-20,
+    add_title=False,
     fmt="x",
 )
 
@@ -255,9 +277,10 @@ ax1.legend(
     labels,
     loc="upper center",
     ncol=5,
-    bbox_to_anchor=(-0.3, 1.2),
-    columnspacing=0.8,
-    handletextpad=-0,
+    bbox_to_anchor=(-0.28, 1.22),
+    columnspacing=0.6,
+    handletextpad=-0.5,
+    fontsize=27,
 )
 
 # ax0.set(xlim=(-0.02, 0.52))
@@ -274,44 +297,52 @@ ax0b.set(ylim=ylim[0] * scale_I)
 #%%
 
 fig.savefig(
-    "Figures/Paper/Figure_3de_1D_scan_rho.pdf", dpi=100
+    "Figures/Paper/Figure_2ef_1D_scan_rho.pdf", dpi=100
 )  # bbox_inches='tight', pad_inches=0.3
 
 
 plot.plot_1D_scan(
     scan_parameter="epsilon_rho",
     non_default_parameters=dict(rho=0.1),
-    figname_pdf="Figures/Paper/Figure_3fg_1D_scan_epsilon_rho.pdf",
+    figname_pdf="Figures/Paper/Figure_2gh_1D_scan_epsilon_rho.pdf",
 )
-
 
 #%%
 
 
-# ███████ ██  ██████  ██    ██ ██████  ███████     ██   ██
-# ██      ██ ██       ██    ██ ██   ██ ██          ██   ██
-# █████   ██ ██   ███ ██    ██ ██████  █████       ███████
-# ██      ██ ██    ██ ██    ██ ██   ██ ██               ██
-# ██      ██  ██████   ██████  ██   ██ ███████          ██
-
+# ███████ ██  ██████  ██    ██ ██████  ███████     ██████
+# ██      ██ ██       ██    ██ ██   ██ ██               ██
+# █████   ██ ██   ███ ██    ██ ██████  █████        █████
+# ██      ██ ██    ██ ██    ██ ██   ██ ██               ██
+# ██      ██  ██████   ██████  ██   ██ ███████     ██████
+#
+# http://patorjk.com/software/taag/#p=display&f=ANSI%20Regular&t=Figure%203
 
 num_cores = utils.get_num_cores(num_cores_max)
 all_fits = fits.get_fit_results(abm_files, force_rerun=False, num_cores=num_cores)
 
+fit_objects_vanilla = all_fits[hash_vanilla]
+fit_objects_spatial = all_fits[hash_spatial]
+
+reload(plot)
 fig_plots_vanilla, _ = plot.plot_single_fit(
-    ABM_parameter_vanilla, all_fits, add_top_text=False, xlim=(0, 350)
+    cfg_vanilla,
+    fit_objects_vanilla,
+    add_top_text=False,
+    xlim=(0, 350),
+    legend_fontsize=30,
 )
-fig_plots_vanilla.savefig("Figures/Paper/Figure_4a_fits_vanilla.pdf", dpi=100)
+fig_plots_vanilla.savefig("Figures/Paper/Figure_3a_fits_vanilla.pdf", dpi=100)
 
 fig_plots_spatial, _ = plot.plot_single_fit(
-    ABM_parameter_spatial, all_fits, add_top_text=False, xlim=(0, 210)
+    cfg_spatial,
+    fit_objects_spatial,
+    add_top_text=False,
+    xlim=(0, 210),
+    legend_fontsize=30,
 )
-fig_plots_spatial.savefig("Figures/Paper/Figure_4b_fits_spatial.pdf", dpi=100)
+fig_plots_spatial.savefig("Figures/Paper/Figure_3b_fits_spatial.pdf", dpi=100)
 
-
-# plot.plot_1D_scan_fit_results(
-# all_fits, scan_parameter="rho", figname_pdf="Figures/Paper/Figure_4cd_1D_scan_fit_rho.pdf"
-# )
 
 #%%
 
@@ -359,6 +390,7 @@ fig, (ax0, ax1) = plot._plot_1D_scan_res(
     color=plot.d_colors["blue"],
     wspace=0.45,
     fmt="*",
+    add_title=False,
 )
 
 plot._plot_1D_scan_res(
@@ -368,6 +400,7 @@ plot._plot_1D_scan_res(
     # color="black",
     label=r"$\beta = 0.01$",
     fmt=".",
+    add_title=False,
 )
 
 plot._plot_1D_scan_res(
@@ -377,6 +410,7 @@ plot._plot_1D_scan_res(
     color=plot.d_colors["red"],
     label=r"$\sigma_\beta = 1$",
     fmt="v",
+    add_title=False,
 )
 
 
@@ -387,6 +421,7 @@ plot._plot_1D_scan_res(
     color=plot.d_colors["orange"],
     label=r"$\sigma_\mu = 1$",
     fmt="^",
+    add_title=False,
 )
 
 plot._plot_1D_scan_res(
@@ -397,6 +432,7 @@ plot._plot_1D_scan_res(
     label=r"$\sigma_\mu = \sigma_\beta = 1$",
     labelpad=-20,
     fmt="x",
+    add_title=False,
 )
 
 ax0.axhline(1, color="grey", ls="--")
@@ -412,18 +448,18 @@ ax1.legend(
     labels,
     loc="upper center",
     ncol=5,
-    bbox_to_anchor=(-0.3, 1.2),
-    columnspacing=0.8,
-    handletextpad=-0,
+    bbox_to_anchor=(-0.28, 1.22),
+    columnspacing=0.6,
+    handletextpad=-0.5,
+    fontsize=27,
 )
 
 ax0.set(xticks=[0, 0.5])
 ax1.set(xticks=[0, 0.5])
 
-
 #%%
 fig.savefig(
-    "Figures/Paper/Figure_4cd_1D_scan_fit_rho.pdf", dpi=100
+    "Figures/Paper/Figure_3cd_1D_scan_fit_rho.pdf", dpi=100
 )  # bbox_inches='tight', pad_inches=0.3
 
 #%%
@@ -432,7 +468,7 @@ plot.plot_1D_scan_fit_results(
     all_fits,
     scan_parameter="epsilon_rho",
     non_default_parameters=dict(rho=0.1),
-    figname_pdf="Figures/Paper/Figure_4ef_1D_scan_fit_epsilon_rho.pdf",
+    figname_pdf="Figures/Paper/Figure_3ef_1D_scan_fit_epsilon_rho.pdf",
 )
 
 # %%

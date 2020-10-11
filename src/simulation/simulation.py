@@ -63,7 +63,7 @@ class Simulation:
         coordinates_raw = utils.df_coordinates_to_coordinates(self.df_coordinates)
 
         if self.verbose:
-            print(f"INITIALIZE VERSION {cfg.version} NETWORK")
+            print(f"INITIALIZE VERSION {self.cfg.version} NETWORK")
 
         if self.cfg.version >= 2:
 
@@ -322,12 +322,20 @@ def run_single_simulation(
         simulation.make_initial_infections()
         simulation.run_simulation()
         simulation.save(time_elapsed=t.elapsed, save_hdf5=True, save_csv=save_csv)
+    return cfg
 
 
 from tinydb import TinyDB, Query
 from tqdm import tqdm
 from functools import partial
-from p_tqdm import p_umap
+from p_tqdm import p_umap, p_uimap
+
+
+def update_database(db_cfg, q, cfg):
+    cfg["hash"] = utils.cfg_to_hash(cfg)
+    cfg.pop("ID")
+    if not db_cfg.contains(q.hash == cfg.hash):
+        db_cfg.insert(cfg)
 
 
 def run_simulations(
@@ -377,20 +385,25 @@ def run_simulations(
     if num_cores == 1:
         for cfg in tqdm(cfgs):
             run_single_simulation(cfg, verbose=verbose, **kwargs)
+            update_database(db_cfg, q, cfg)
     else:
         # print("run simulation", flush=True)
         f_single_simulation = partial(run_single_simulation, verbose=False, **kwargs)
-        p_umap(f_single_simulation, cfgs, num_cpus=num_cores)
-        print("\n")
+        for cfg in p_uimap(f_single_simulation, cfgs, num_cpus=num_cores):
+            update_database(db_cfg, q, cfg)
 
-    # print("save cfgs", flush=True)
-    # update database
-    for cfg in cfgs:
-        cfg["hash"] = utils.cfg_to_hash(cfg)
-        cfg.pop("ID")
-        if not db_cfg.contains(q.hash == cfg.hash):
-            db_cfg.insert(cfg)
-    # print("saved cfgs", flush=True)
+        # # p_umap(f_single_simulation, cfgs, num_cpus=num_cores)
+        # # print("\n")
+        # with mp.Pool(num_cores) as p:
+        #     for cfg in tqdm(p.imap(f_single_simulation, cfgs), total=N_files):
+        #         update_database(db_cfg, q, cfg)
+
+        # print("\nFinished run simulation\n\n", flush=True)
+    # # print("save cfgs", flush=True)
+    # # update database
+    # for cfg in cfgs:
+    #     update_database(db_cfg, q, cfg)
+    # # print("saved cfgs", flush=True)
     return N_files
 
 
@@ -429,6 +442,9 @@ if utils.is_ipython and debugging:
             "ID": 0,
         }
     )
+
+    if __name__ == "__main__" and True:
+        run_simulations(d_simulation_parameters)
 
     if False:
         with Timer() as t:

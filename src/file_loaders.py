@@ -59,6 +59,10 @@ def filename_to_hash(filename):
     return re.split("_|\.", filename)[-5]
 
 
+def filename_to_cfg(filename):
+    return hash_to_cfg(filename_to_hash(filename))
+
+
 def folder_to_hash(folder):
     folder = str(folder)
     # split at "_" and "."
@@ -68,20 +72,12 @@ def folder_to_hash(folder):
 from tinydb import Query
 
 
-# def filename_to_cfg(filename, db_cfg=None, q=None):
-#     hash_ = filename_to_hash(filename)
-#     if db_cfg is None:
-#         db_cfg = utils.get_db_cfg()
-#     if q is None:
-#         q = Query()
-#     q_result = db_cfg.search(q.hash == hash_)
-#     assert len(q_result) == 1
-#     cfg = utils.DotDict(q_result[0])
-#     return cfg
-
-
 def folder_to_cfg(folder):
     hash_ = folder_to_hash(folder)
+    return hash_to_cfg(hash_)
+
+
+def hash_to_cfg(hash_):
     db_cfg = utils.get_db_cfg()
     q = Query()
     q_result = db_cfg.search(q.hash == hash_)
@@ -124,8 +120,8 @@ class ABM_simulations:
         return d
 
     def iter_all_files(self):
-        for file in self.all_filenames:
-            yield file
+        for filename in self.all_filenames:
+            yield filename
 
     def iter_folders(self):
         for cfg in self.cfgs:
@@ -138,7 +134,16 @@ class ABM_simulations:
 
     def cfg_to_filenames(self, cfg):
         cfg = utils.DotDict(cfg)
-        return self.d[cfg.hash]
+        cfg_list = utils.query_cfg(cfg)
+        if not len(cfg_list) == 1:
+            raise AssertionError(
+                f"cfg did not give unique results in the database",
+                "cfg:",
+                cfg,
+                "cfg_list:",
+                cfg_list,
+            )
+        return self.d[cfg_list[0].hash]
 
     # def __getitem__(self, key):
     #     if isinstance(key, int):

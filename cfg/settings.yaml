@@ -8,6 +8,9 @@ INTEGER_SIMULATION_PARAMETERS:
     - event_size_max
     - ID
 
+BOOL_SIMULATION_PARAMETERS:
+    - make_random_initial_infections
+
 # # exclude these parameters in network initialization filename
 # EXCLUDE_PARAMETER_IN_INIT:
 #     - N_init

@@ -10,10 +10,10 @@ import yaml
 from contexttimer import Timer
 
 
-N_tot_max = 1_000_000  # TODO ignored atm, fix
-num_cores_max = 30
+N_tot_max = False
+num_cores_max = 40
 N_runs = 10
-dry_run = True
+dry_run = False
 force_rerun = False
 verbose = True
 
@@ -24,10 +24,11 @@ if utils.is_local_computer():
 
     all_simulation_parameters = [
         {
-            "N_tot": 58_000,
+            # "N_tot": 58_000,
+            "N_tot": [58_000, 580_000],
             "rho": 0,
-            "N_events": [0, 100],
-            "mu": 20,
+            # "N_events": [0, 100],
+            "mu": 40,
             # "event_size_max": [10, 100],
         },
     ]
@@ -43,6 +44,8 @@ N_runs = 2 if utils.is_local_computer() else N_runs
 
 N_files_total = 0
 
+
+# if __name__ == "__main__":
 
 with Timer() as t:
 
