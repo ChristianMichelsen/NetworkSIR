@@ -13,7 +13,7 @@ from contexttimer import Timer
 N_tot_max = False
 num_cores_max = 40
 N_runs = 10
-dry_run = False
+dry_run = True
 force_rerun = False
 verbose = True
 
