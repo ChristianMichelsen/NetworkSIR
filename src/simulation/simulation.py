@@ -392,18 +392,6 @@ def run_simulations(
         for cfg in p_uimap(f_single_simulation, cfgs, num_cpus=num_cores):
             update_database(db_cfg, q, cfg)
 
-        # # p_umap(f_single_simulation, cfgs, num_cpus=num_cores)
-        # # print("\n")
-        # with mp.Pool(num_cores) as p:
-        #     for cfg in tqdm(p.imap(f_single_simulation, cfgs), total=N_files):
-        #         update_database(db_cfg, q, cfg)
-
-        # print("\nFinished run simulation\n\n", flush=True)
-    # # print("save cfgs", flush=True)
-    # # update database
-    # for cfg in cfgs:
-    #     update_database(db_cfg, q, cfg)
-    # # print("saved cfgs", flush=True)
     return N_files
 
 

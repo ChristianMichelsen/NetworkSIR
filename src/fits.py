@@ -11,6 +11,7 @@ from copy import copy, deepcopy
 from importlib import reload
 import warnings
 from p_tqdm import p_umap
+from functools import partial
 
 try:
     from src.utils import utils
@@ -30,19 +31,19 @@ def uniform(a, b):
     return sp_uniform(loc, scale)
 
 
-def extract_data(t, y, T_max, N_tot):
+def extract_data(t, y, T_max, N_tot, y_max=0.01):
     """Extract data where:
     1) y is larger than 1‰ (permille) of N_tot
-    1) y is smaller than 1% (percent) of N_tot
+    1) y is smaller than y_max of N_tot (default 1%)
     1) t is less than T_max"""
     mask_min_1_permille = y > N_tot * 1 / 1000
-    mask_max_1_percent = y < N_tot * 1 / 100
+    mask_max_1_percent = y < N_tot * y_max
     mask_T_max = t < T_max
     mask = mask_min_1_permille & mask_max_1_percent & mask_T_max
     return t[mask], y[mask]
 
 
-def add_fit_results_to_fit_object(fit_object, filename, cfg, T_max, df):
+def add_fit_results_to_fit_object(fit_object, filename, cfg, T_max, df, make_MC_fits=False):
 
     fit_object.filename = filename
 
@@ -57,12 +58,13 @@ def add_fit_results_to_fit_object(fit_object, filename, cfg, T_max, df):
     fit_object.R_inf_fit = R_inf_fit
     fit_object.R_inf_SIR = R_inf_SIR
 
-    SIR_results, I_max_MC, R_inf_MC = fit_object.make_monte_carlo_fits(
-        N_samples=100, T_max=T_max * 1.5, ts=0.1
-    )
-    # fit_object.SIR_results = SIR_results
-    fit_object.I_max_MC = I_max_MC
-    fit_object.R_inf_MC = R_inf_MC
+    if make_MC_fits:
+        SIR_results, I_max_MC, R_inf_MC = fit_object.make_monte_carlo_fits(
+            N_samples=100, T_max=T_max * 1.5, ts=0.1
+        )
+        # fit_object.SIR_results = SIR_results
+        fit_object.I_max_MC = I_max_MC
+        fit_object.R_inf_MC = R_inf_MC
 
 
 def draw_random_p0(cfg, N_max_fits):
@@ -193,7 +195,7 @@ def run_actual_fit(t, y, sy, cfg, dt, ts):
     return fit_object, fit_failed
 
 
-def fit_single_file(cfg, filename, ts=0.1, dt=0.01):
+def fit_single_file(filename, cfg, ts=0.1, dt=0.01, y_max=0.01):
 
     # cfg = utils.string_to_dict(filename)
     df = file_loaders.pandas_load_file(filename)
@@ -212,6 +214,7 @@ def fit_single_file(cfg, filename, ts=0.1, dt=0.01):
         y=df_interpolated["I"].values,
         T_max=T_peak,
         N_tot=cfg.N_tot,
+        y_max=y_max,
     )
     sy = np.sqrt(y)
 
@@ -223,7 +226,14 @@ def fit_single_file(cfg, filename, ts=0.1, dt=0.01):
         return filename, "Fit failed"
 
     try:
-        add_fit_results_to_fit_object(fit_object, filename, cfg, T_max, df)
+        add_fit_results_to_fit_object(
+            fit_object,
+            filename,
+            cfg,
+            T_max,
+            df,
+            make_MC_fits=False,
+        )
     except AttributeError as e:
         print(filename)
         print("\n\n")
@@ -234,36 +244,43 @@ def fit_single_file(cfg, filename, ts=0.1, dt=0.01):
 
 #%%
 
+from collections import Counter
 
-def fit_multiple_files(cfg, filenames, num_cores=1, do_tqdm=True):
+
+def fit_multiple_files(cfg, filenames, num_cores=1, do_tqdm=True, y_max=0.01, verbose=False):
+
+    func = partial(fit_single_file, cfg=cfg, y_max=y_max)
 
     if num_cores == 1:
         if do_tqdm:
             filenames = tqdm(filenames)
-        results = [fit_single_file(cfg, filename) for filename in filenames]
+        results = [func(filename) for filename in filenames]
 
     else:
-        cfgs_tmp = [cfg for _ in filenames]
-        results = p_umap(fit_single_file, cfgs_tmp, filenames, num_cpus=num_cores, disable=True)
-        # with mp.Pool(num_cores) as p:
-        # results = list(p.imap_unordered(fit_single_file, filenames))
+        results = p_umap(func, filenames, num_cpus=num_cores, disable=True)
+
+    reject_counter = Counter()
 
     # postprocess results from multiprocessing:
     fit_objects = {}
     for filename, fit_result in results:
 
         if isinstance(fit_result, str):
-            print(f"\n\n{filename} was rejected due to {fit_result.lower()}")
+            if verbose:
+                print(f"\n\n{filename} was rejected due to {fit_result.lower()}")
+            reject_counter[fit_result.lower()] += 1
 
         else:
             fit_object = fit_result
             fit_objects[filename] = fit_object
-    return fit_objects
+            reject_counter["no rejection"] += 1
+
+    return fit_objects, reject_counter
 
 
-def get_fit_results(abm_files, force_rerun=False, num_cores=1):
+def get_fit_results(abm_files, force_rerun=False, num_cores=1, y_max=0.01):
 
-    all_fits_file = "Data/fits.joblib"
+    all_fits_file = f"Data/fits_ymax_{y_max}.joblib"
 
     if Path(all_fits_file).exists() and not force_rerun:
         print("Loading all Imax fits", flush=True)
@@ -277,10 +294,12 @@ def get_fit_results(abm_files, force_rerun=False, num_cores=1):
             flush=True,
         )
 
+        reject_counter = Counter()
+
         desc = "Fitting ABM simulations"
         for cfg, filenames in tqdm(abm_files.iter_folders(), total=len(abm_files.cfgs), desc=desc):
             # break
-            output_filename = Path("Data/fits") / f"fits_{cfg.hash}.joblib"
+            output_filename = Path("Data/fits") / f"fits_{cfg.hash}_ymax_{y_max}.joblib"
             utils.make_sure_folder_exist(output_filename)
 
             if output_filename.exists():
@@ -291,9 +310,48 @@ def get_fit_results(abm_files, force_rerun=False, num_cores=1):
                     warnings.filterwarnings(
                         "ignore", message="covariance is not positive-semidefinite."
                     )
-                    fit_results = fit_multiple_files(cfg, filenames, num_cores=num_cores)
+                    fit_results, reject_counter_tmp = fit_multiple_files(
+                        cfg,
+                        filenames,
+                        num_cores=num_cores,
+                        y_max=y_max,
+                    )
+
                 joblib.dump(fit_results, output_filename)
                 all_fits[cfg.hash] = fit_results
+                reject_counter += reject_counter_tmp
+
+        print(reject_counter)
 
         joblib.dump(all_fits, all_fits_file)
         return all_fits
+
+
+if False:
+
+    import matplotlib.pyplot as plt
+    from matplotlib.ticker import EngFormatter
+
+    filename = "Data/ABM/e24e6303fc/ABM_2020-10-12_e24e6303fc_ID__0.hdf5"
+    cfg = file_loaders.filename_to_cfg(filename)
+    filename, fit_result = fit_single_file(filename, cfg, ts=0.1, dt=0.01, y_max=0.01)
+
+    t = fit_result.t
+    T_max = max(t) * 1.1
+    df_fit = fit_result.calc_df_fit(ts=0.1, T_max=T_max)
+
+    xlim = (63, 97)
+    ylim = (0, 75_000)
+
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.errorbar(t, fit_result.y, fit_result.sy, fmt=".", label="ABM")
+    ax.plot(df_fit["time"], df_fit["I"], label="Fit")
+    ax.set(xlim=xlim, title="Fit", ylim=ylim)
+    ax.text(
+        0.1,
+        0.8,
+        f"$\chi^2 = {fit_result.chi2:.1f}, N = {fit_result.N}$",
+        transform=ax.transAxes,
+        fontsize=24,
+    )
+    ax.yaxis.set_major_formatter(EngFormatter())

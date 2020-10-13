@@ -3,6 +3,13 @@ import pandas as pd
 from scipy import interpolate
 from numba import njit
 from functools import lru_cache
+import matplotlib.pyplot as plt
+
+try:
+    from src import file_loaders
+except ImportError:
+    import file_loaders
+
 
 # from scipy.signal import savgol_filter
 def interpolate_array(y, time, t_interpolated, force_positive=True):
@@ -208,43 +215,15 @@ class FitSIR:  # override the class with a better one
         self.N = len(t)
         self.mask = self.y > 0  # max to exclude 0 divisions
 
-    def __call__(
-        self, lambda_E, lambda_I, beta, tau
-    ):  # parameter are a variable number of model parameters
+    def __call__(self, lambda_E, lambda_I, beta, tau):
         # compute the function value
         y_hat = self._compute_yhat(lambda_E, lambda_I, beta, tau)
         # compute the chi2-value
         chi2 = np.sum((self.y[self.mask] - y_hat[self.mask]) ** 2 / self.sy[self.mask] ** 2)
 
-        # prior = self._add_prior(self.priors, lambda_E, lambda_I, beta, tau)
-        # alpha = self.priors['multiplier']
-
-        # chi2_tilde = 1/(1+alpha)*chi2 + (alpha/prior)*(1/1+alpha) * chi2
-
-        # chi2_tilde = chi2 + self.priors['multiplier'] * prior
-        # chi2 = chi2_tilde
-        # chi2 = chi2 + prior*alpha*self.N
-        # chi2 = chi2
-
         if np.isnan(chi2):
             return 1e10
         return chi2
-
-    # def _add_gaussian_prior(self, x, mean_x, std_x):
-    #     return ((x-mean_x)/std_x)**2
-
-    # def _add_prior(self, priors, lambda_E, lambda_I, beta, tau):
-    #     prior = 0
-    #     if 'lambda_E' in priors:
-    #         prior += self._add_gaussian_prior(lambda_E, priors['lambda_E']['mean'], priors['lambda_E']['std'])
-    #     if 'lambda_I' in priors:
-    #         prior += self._add_gaussian_prior(lambda_I, priors['lambda_I']['mean'], priors['lambda_I']['std'])
-    #     if 'beta' in priors:
-    #         prior += self._add_gaussian_prior(beta, priors['beta']['mean'], priors['beta']['std'])
-    #     if 'tau' in priors:
-    #         prior += self._add_gaussian_prior(tau, priors['tau']['mean'], priors['tau']['std'])
-    #     # prior *= self.N
-    #     return prior
 
     def __repr__(self):
         s = (
@@ -439,3 +418,16 @@ class FitSIR:  # override the class with a better one
             I_max_MC[i] = get_I_max(I)
             R_inf_MC[i] = get_R_inf(R)
         return SIR_results, I_max_MC, R_inf_MC
+
+    def plot_fit(self, ts=0.1, dt=0.01, T_max=None, xlim=(0, None)):
+        t = self.t
+        if T_max is None:
+            T_max = max(t) * 1.1
+        df_fit = self.calc_df_fit(ts=ts, T_max=T_max)
+
+        fig, ax = plt.subplots(figsize=(16, 7))
+        ax.errorbar(t, self.y, self.sy, fmt=".", label="ABM")
+        ax.plot(df_fit["time"], df_fit["I"], label="Fit")
+        ax.set(xlim=xlim, title="Fit")
+        # ax.text(0.1, 0.8, f"chi^2 = {self.chi2}")
+        return fig, ax

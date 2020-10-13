@@ -715,7 +715,7 @@ def round_to_uncertainty(value, uncertainty):
 def format_asymmetric_uncertanties(value, errors, name="I"):
 
     if name == "I":
-        name = r"I_\mathrm{max}^\mathrm{fit}"
+        name = r"I_\mathrm{peak}^\mathrm{fit}"
     elif name == "R":
         name = r"R_\infty^\mathrm{fit}"
     else:

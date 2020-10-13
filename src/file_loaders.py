@@ -7,7 +7,7 @@ from tqdm import tqdm
 from src.utils import utils
 
 
-def pandas_load_file(filename, return_only_df=False):
+def pandas_load_file(filename):
     # df_raw = pd.read_csv(file)  # .convert_dtypes()
 
     with h5py.File(filename, "r") as f:

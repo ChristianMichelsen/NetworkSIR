@@ -6,7 +6,9 @@ from src import rc_params
 from matplotlib.backends.backend_pdf import PdfPages
 from pathlib import Path
 import pandas as pd
-from matplotlib.ticker import EngFormatter
+from matplotlib.ticker import PercentFormatter, EngFormatter, MaxNLocator
+from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
+from matplotlib.transforms import Bbox
 from collections import defaultdict
 import warnings
 
@@ -70,7 +72,13 @@ def compute_df_deterministic(cfg, variable, T_max=100):
 
 
 def plot_single_ABM_simulation(
-    cfg, abm_files, add_top_text=True, xlim=(0, None), legend_fontsize=30
+    cfg,
+    abm_files,
+    add_top_text=True,
+    xlim=(0, None),
+    ylim_scale=1.0,
+    legend_fontsize=30,
+    d_label_loc=None,
 ):
 
     filenames = abm_files.cfg_to_filenames(cfg)
@@ -79,7 +87,10 @@ def plot_single_ABM_simulation(
         cfg = utils.DotDict(cfg)
 
     d_ylabel = {"I": "Infected", "R": "Recovered"}
-    d_label_loc = {"I": "upper right", "R": "lower right"}
+    if d_label_loc is None:
+        d_label_loc = {"I": "upper right", "R": "lower right"}
+
+    N_tot = cfg.N_tot
 
     fig, axes = plt.subplots(ncols=2, figsize=(16, 7))
     fig.subplots_adjust(top=0.8)
@@ -96,8 +107,8 @@ def plot_single_ABM_simulation(
         t = df["time"].values
         label = r"ABM" if i == 0 else None
 
-        axes[0].plot(t, df["I"], lw=lw, c="k", label=label)
-        axes[1].plot(t, df["R"], lw=lw, c="k", label=label)
+        axes[0].plot(t, df["I"] / N_tot, lw=lw, c="k", label=label)
+        axes[1].plot(t, df["R"] / N_tot, lw=lw, c="k", label=label)
 
         if t.max() > T_max:
             T_max = t.max()
@@ -111,7 +122,7 @@ def plot_single_ABM_simulation(
 
         ax.plot(
             df_deterministic["time"],
-            df_deterministic[variable],
+            df_deterministic[variable] / N_tot,
             lw=lw * 4,
             color=d_colors["red"],
             label="SEIR",
@@ -126,12 +137,14 @@ def plot_single_ABM_simulation(
             ylabel=d_ylabel[variable],
             xlim=xlim,
         )
+        ax.set_ylim(0, ax.get_ylim()[1] * ylim_scale)
         # ax.set_xlabel('Time', ha='right')
         # ax.xaxis.set_label_coords(0.91, -0.14)
-        ax.yaxis.set_major_formatter(EngFormatter())
+        # ax.yaxis.set_major_formatter(EngFormatter())
+        ax.yaxis.set_major_formatter(PercentFormatter(xmax=1))
 
     if add_top_text:
-        names = [r"I_\mathrm{max}^\mathrm{ABM}", r"R_\infty^\mathrm{ABM}"]
+        names = [r"I_\mathrm{peak}^\mathrm{ABM}", r"R_\infty^\mathrm{ABM}"]
         for name, x, ax in zip(names, [stochastic_noise_I, stochastic_noise_R], axes):
             s = utils.format_relative_uncertainties(x, name)
             ax.text(
@@ -147,7 +160,7 @@ def plot_single_ABM_simulation(
     fig.suptitle(title, fontsize=16)
     plt.subplots_adjust(wspace=0.4)
 
-    return fig, ax
+    return fig, axes
 
 
 def plot_ABM_simulations(abm_files, force_rerun=False):
@@ -176,7 +189,7 @@ def plot_ABM_simulations(abm_files, force_rerun=False):
 
             # break
 
-            fig, ax = plot_single_ABM_simulation(cfg, abm_files)
+            fig, _ = plot_single_ABM_simulation(cfg, abm_files)
 
             pdf.savefig(fig, dpi=100)
             plt.close("all")
@@ -202,7 +215,7 @@ def compute_ABM_SEIR_proportions(cfg, filenames):
     I_max_ABM = np.array(I_max_ABM)
     R_inf_ABM = np.array(R_inf_ABM)
 
-    T_max = max(df["time"].max() * 1.2, 300)
+    T_max = max(df["time"].max() * 10, 300)
     df_SIR = SIR.integrate(cfg, T_max, dt=0.01, ts=0.1)
 
     # break out if the SIR model dies out
@@ -270,7 +283,15 @@ def extract_limits(lim):
     return lim0, lim1
 
 
-def _plot_1D_scan_res(res, scan_parameter, ylim=None, do_log=False, add_title=True, **kwargs):
+def _plot_1D_scan_res(
+    res,
+    scan_parameter,
+    ylim=None,
+    do_log=False,
+    add_title=True,
+    add_horizontal_line=False,
+    **kwargs,
+):
 
     # kwargs = {}
 
@@ -347,6 +368,10 @@ def _plot_1D_scan_res(res, scan_parameter, ylim=None, do_log=False, add_title=Tr
     )
     ax1.set(ylim=ylim1)
 
+    if add_horizontal_line:
+        ax0.axhline(1, color="grey", ls="--", lw=2)
+        ax1.axhline(1, color="grey", ls="--", lw=2)
+
     if scan_parameter == "event_size_max":
         mask_limit = ~mask_event_size_max
         if any(mask_limit):
@@ -391,7 +416,7 @@ def plot_1D_scan(
     # kwargs = {}
     fig, (ax0, ax1) = _plot_1D_scan_res(res, scan_parameter, ylim, do_log, **kwargs)
 
-    ax0.set(ylabel=r"$I_\mathrm{max}^\mathrm{ABM} \, / \,\, I_\mathrm{max}^\mathrm{SEIR}$")
+    ax0.set(ylabel=r"$I_\mathrm{peak}^\mathrm{ABM} \, / \,\, I_\mathrm{peak}^\mathrm{SEIR}$")
     ax1.set(ylabel=r"$R_\infty^\mathrm{ABM} \, / \,\, R_\infty^\mathrm{SEIR}$")
 
     if figname_pdf is None:
@@ -413,6 +438,13 @@ def rug_plot(xs, ax, ymax=0.1, **kwargs):
         ax.axvline(x, ymax=ymax, **kwargs)
 
 
+def compute_reduced_chi2s(fit_objects):
+    red_chi2 = []
+    for fit_object in fit_objects.values():
+        red_chi2.append(fit_object.chi2 / fit_object.N)
+    return np.array(red_chi2)
+
+
 def plot_single_fit(
     cfg,
     fit_objects,
@@ -421,15 +453,17 @@ def plot_single_fit(
     ylim=(0, None),
     legend_loc=None,
     legend_fontsize=28,
+    add_chi2=True,
 ):
 
     relative_names = [
-        r"\frac{I_\mathrm{max}^\mathrm{fit}} {I_\mathrm{max}^\mathrm{ABM}}",
+        r"\frac{I_\mathrm{peak}^\mathrm{fit}} {I_\mathrm{peak}^\mathrm{ABM}}",
         r"\frac{R_\infty^\mathrm{fit}} {R_\infty^\mathrm{fit}}",
     ]
 
     # fit_objects = all_fits[ABM_parameter]
 
+    N_tot = cfg.N_tot
     d_ylabel = {"I": r"Infected", "R": r"Recovered"}
 
     if legend_loc is None:
@@ -452,12 +486,12 @@ def plot_single_fit(
         for I_or_R, ax in zip(["I", "R"], axes):
 
             label = "ABM" if i == 0 else None
-            ax.plot(t, df[I_or_R], "k-", lw=lw, label=label)
+            ax.plot(t, df[I_or_R] / N_tot, "k-", lw=lw, label=label)
 
             label = "Fits" if i == 0 else None
             ax.plot(
                 df_fit["time"],
-                df_fit[I_or_R],
+                df_fit[I_or_R] / N_tot,
                 lw=lw,
                 color=d_colors["green"],
                 label=label,
@@ -466,7 +500,7 @@ def plot_single_fit(
             if i == 0:
                 axvline_kwargs = dict(lw=lw, color=d_colors["blue"], alpha=0.4)
                 tmp = df.query("@fit_object.t.min() <= time <= @fit_object.t.max()")
-                ax.fill_between(tmp["time"], tmp[I_or_R], **axvline_kwargs)
+                ax.fill_between(tmp["time"], tmp[I_or_R] / N_tot, **axvline_kwargs)
 
                 vertical_lines = tmp["time"].iloc[0], tmp["time"].iloc[-1]
                 line_kwargs = dict(ymax=0.6, color=d_colors["blue"], lw=2 * lw)
@@ -498,11 +532,11 @@ def plot_single_fit(
             # all_I_max_MC.extend(fit_object.I_max_MC)
             # all_R_inf_MC.extend(fit_object.R_inf_MC)
             all_I_max_fit.append(fit_object.I_max_fit)
-            all_R_inf_fit.append(fit_object.R_inf_MC)
+            all_R_inf_fit.append(fit_object.R_inf_fit)
         d_fits = {"I": all_I_max_fit, "R": all_R_inf_fit}
 
         names_fit = {}
-        names_fit["I"] = r"I_\mathrm{max}^\mathrm{fit}"
+        names_fit["I"] = r"I_\mathrm{peak}^\mathrm{fit}"
         names_fit["R"] = r"R_\infty^\mathrm{fit}"
 
         for I_or_R, ax in zip(["I", "R"], axes):
@@ -544,7 +578,7 @@ def plot_single_fit(
 
         ax.plot(
             df_SIR["time"],
-            df_SIR[I_or_R],
+            df_SIR[I_or_R] / N_tot,
             lw=lw * 4,
             color=d_colors["red"],
             label="SEIR",
@@ -555,7 +589,20 @@ def plot_single_fit(
         ax.set(xlabel="Time [days]", ylabel=d_ylabel[I_or_R])
         # if add_top_text:
         #     ax.xaxis.set_label_coords(0.91, -0.14)
-        ax.yaxis.set_major_formatter(EngFormatter())
+        ax.yaxis.set_major_formatter(PercentFormatter(xmax=1))
+
+    if add_chi2:
+        reduced_chi2s = compute_reduced_chi2s(fit_objects)
+        mean_chi2 = np.mean(reduced_chi2s)
+        std_chi2 = utils.SDOM(reduced_chi2s)
+        s = r"${\tilde{\chi}}^2 = " + f"{mean_chi2:.2f} \pm {std_chi2:.2f}$"
+        axes[1].text(
+            0.53,
+            0.05,
+            s,
+            transform=axes[1].transAxes,
+            fontsize=24,
+        )
 
     leg = axes[0].legend(loc=legend_loc["I"], fontsize=legend_fontsize)
     for legobj in leg.legendHandles:
@@ -686,6 +733,7 @@ def plot_1D_scan_fit_results(
     ylim=None,
     non_default_parameters=None,
     figname_pdf=None,
+    **kwargs,
 ):
 
     if not non_default_parameters:
@@ -695,9 +743,15 @@ def plot_1D_scan_fit_results(
     if not res:
         return None
 
-    fig, (ax0, ax1) = _plot_1D_scan_res(res, scan_parameter, ylim, do_log)
+    fig, (ax0, ax1) = _plot_1D_scan_res(
+        res,
+        scan_parameter,
+        ylim,
+        do_log,
+        **kwargs,
+    )
 
-    ax0.set(ylabel=r"$I_\mathrm{max}^\mathrm{fit} \, / \,\, I_\mathrm{max}^\mathrm{ABM}$")
+    ax0.set(ylabel=r"$I_\mathrm{peak}^\mathrm{fit} \, / \,\, I_\mathrm{peak}^\mathrm{ABM}$")
     ax1.set(ylabel=r"$R_\infty^\mathrm{fit} \, / \,\, R_\infty^\mathrm{ABM}$")
 
     if figname_pdf is None:
@@ -747,6 +801,10 @@ def plot_single_number_of_contacts(
 
     my_state, my_number_of_contacts = _load_my_state_and_my_number_of_contacts(filename)
 
+    cfg = file_loaders.filename_to_cfg(filename)
+    N_tot = cfg.N_tot
+    factor = 1 / N_tot
+
     mask_S = my_state[-1] == -1
     mask_R = my_state[-1] == 8
 
@@ -767,19 +825,33 @@ def plot_single_number_of_contacts(
     else:
         fig, ax1 = plt.subplots(figsize=figsize)
 
-    H_all = ax1.hist(my_number_of_contacts, label="All", color=d_colors["blue"], **kwargs)
+    H_all = ax1.hist(
+        my_number_of_contacts,
+        weights=factor * np.ones_like(my_number_of_contacts),
+        label="All",
+        color=d_colors["blue"],
+        **kwargs,
+    )
     H_S = ax1.hist(
-        my_number_of_contacts[mask_S], label="Susceptable", color=d_colors["red"], **kwargs
+        my_number_of_contacts[mask_S],
+        weights=factor * np.ones_like(my_number_of_contacts[mask_S]),
+        label="Susceptable",
+        color=d_colors["red"],
+        **kwargs,
     )
     H_R = ax1.hist(
-        my_number_of_contacts[mask_R], label="Recovered", color=d_colors["green"], **kwargs
+        my_number_of_contacts[mask_R],
+        weights=factor * np.ones_like(my_number_of_contacts[mask_R]),
+        label="Recovered",
+        color=d_colors["green"],
+        **kwargs,
     )
 
     x = 0.5 * (H_all[1][:-1] + H_all[1][1:])
     frac_S = H_S[0] / H_all[0]
-    s_frac_S = np.sqrt(frac_S * (1 - frac_S) / H_all[0])
+    s_frac_S = np.sqrt(frac_S * (1 - frac_S) / (H_all[0] / factor))
     frac_R = H_R[0] / H_all[0]
-    s_frac_R = np.sqrt(frac_R * (1 - frac_R) / H_all[0])
+    s_frac_R = np.sqrt(frac_R * (1 - frac_R) / (H_all[0] / factor))
 
     if make_fraction_subplot:
         kwargs_errorbar = dict(fmt=".", elinewidth=1.5, capsize=4, capthick=1.5)
@@ -788,7 +860,7 @@ def plot_single_number_of_contacts(
 
     if add_legend:
         ax1.legend(loc=loc)
-    ax1.yaxis.set_major_formatter(EngFormatter())
+    ax1.yaxis.set_major_formatter(PercentFormatter(xmax=1))
     ax1.set(xlim=x_range)
     ax1.set_ylabel(ylabel, fontsize=fontsize)
     ax1.set_title(title, pad=title_pad, fontsize=fontsize)
@@ -952,3 +1024,162 @@ def plot_number_of_contacts(network_files, force_rerun=False):
 
 
 #     # %%
+
+
+#%%
+
+import generate_animations
+from matplotlib.lines import Line2D
+
+
+def make_paper_screenshot(
+    filename,
+    title="",
+    i_day=1,
+    dpi=50,
+    R_eff_max=4,
+    do_tqdm=False,
+    verbose=False,
+):
+
+    animation = generate_animations.AnimateSIR(
+        filename, do_tqdm=do_tqdm, verbose=verbose, N_max=i_day + 1
+    )
+    if animation.df_counts is None:
+        animation._initialize_data()
+
+    geo_plot_kwargs = {}
+    geo_plot_kwargs["S"] = dict(alpha=0.9, norm=animation.norm_100)
+    geo_plot_kwargs["I"] = dict(alpha=1.0, norm=animation.norm_10)
+    geo_plot_kwargs["R"] = dict(alpha=1.0, norm=animation.norm_1000)
+
+    fig = plt.figure(figsize=(10 * 1.3, 12 * 1.3))
+    ax = fig.add_subplot(1, 1, 1, projection="scatter_density")
+
+    for state in animation.states:
+        if animation.df_counts.loc[i_day, state] > 0:
+            ax.scatter_density(
+                *animation.coordinates[animation._get_mask(i_day, state)].T,
+                color=animation.d_colors[state],
+                dpi=dpi,
+                **geo_plot_kwargs[state],
+            )
+
+    ax.set(xlim=(7.9, 13.3), ylim=(54.5, 58.2), xlabel="Longitude")
+    ax.set_ylabel("Latitude", rotation=90)  # fontsize=20, labelpad=20
+    ax.set_title(title, pad=40, fontsize=32)
+
+    kw_args_circle = dict(xdata=[0], ydata=[0], marker="o", color="w", markersize=16)
+    circles = [
+        Line2D(
+            label=animation.state_names[state],
+            markerfacecolor=animation.d_colors[state],
+            **kw_args_circle,
+        )
+        for state in animation.states
+    ]
+    ax.legend(handles=circles, fontsize=30, frameon=False, loc=(0, 0.82))
+
+    # secondary plots:
+
+    # These are in unitless percentage of the figure size. (0,0 is bottom left)
+    left, bottom, width, height = [0.63, 0.75, 0.39 * 0.6, 0.08]
+
+    i_day_max = i_day + max(3, i_day * 0.1)
+
+    # delta_width = 0 * width / 100
+    ax2 = fig.add_axes([left, bottom, width, height])
+    I_up_to_today = animation.df_counts["I"].iloc[: i_day + 1] / animation.cfg["N_tot"]
+    ax2.plot(
+        I_up_to_today.index,
+        I_up_to_today,
+        "-",
+        color=animation.d_colors["I"],
+        lw=3,
+    )
+    ax2.plot(
+        I_up_to_today.index[-1],
+        I_up_to_today.iloc[-1],
+        "o",
+        color=animation.d_colors["I"],
+    )
+    I_max = np.max(I_up_to_today)
+    ax2.set(
+        ylim=(0, I_max * 1.3),
+        xlim=(0, i_day_max),
+    )
+    decimals = max(int(-np.log10(I_max)) - 1, 0)  # max important, otherwise decimals=-1
+    ax2.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=decimals))
+    ax2.text(
+        0,
+        1.18,
+        "Infected",
+        fontsize=30,
+        transform=ax2.transAxes,
+        rotation=0,
+        ha="center",
+    )
+    ax2.xaxis.set_major_locator(MaxNLocator(4, integer=True))
+    # add_spines(ax2, exclude=["upper", "right"])
+    generate_animations.remove_spines(ax2)
+
+    ax3 = fig.add_axes([left, bottom - height * 2, width, height])
+
+    if i_day > 0:
+        R_eff_up_to_today = animation._interpolate_R_eff(animation.R_eff_smooth[: i_day + 1])
+        z = (R_eff_up_to_today["R_eff"] > 1) / 1
+        ax3.scatter(
+            R_eff_up_to_today["t"],
+            R_eff_up_to_today["R_eff"],
+            s=10,
+            c=z,
+            **animation._scatter_kwargs,
+        )
+        R_eff_today = R_eff_up_to_today.iloc[-1]
+        z_today = R_eff_today["R_eff"] > 1
+        ax3.scatter(
+            R_eff_today["t"],
+            R_eff_today["R_eff"],
+            s=100,
+            c=z_today,
+            **animation._scatter_kwargs,
+        )
+
+    ax3.axhline(1, ls="--", color="k", lw=1)  # x = 0
+    ax3.set(
+        ylim=(0, R_eff_max * 1.1),
+        xlim=(0, i_day_max),
+    )
+    ax3.set_xlabel(r"Time [days]", fontsize=30)
+    ax3.text(
+        -0.27,
+        0.5,
+        r"$\mathcal{R}_\mathrm{eff}$",
+        fontsize=30,
+        transform=ax3.transAxes,
+        rotation=0,
+        ha="center",
+        va="center",
+    )
+    ax3.xaxis.set_major_locator(MaxNLocator(4, integer=True))
+    ax3.yaxis.set_major_locator(MaxNLocator(3, integer=True))
+    generate_animations.remove_spines(ax3)
+
+    scalebar = AnchoredSizeBar(
+        ax.transData,
+        generate_animations.longitudes_per_50km,
+        "50 km",
+        loc="lower left",
+        sep=10,
+        color="black",
+        frameon=False,
+        size_vertical=0.003,
+        fontproperties=generate_animations.fontprops,
+        bbox_to_anchor=Bbox.from_bounds(8, 54.52, 0, 0),
+        bbox_transform=ax.transData,
+    )
+
+    ax.add_artist(scalebar)
+
+    plt.close("all")
+    return fig, (ax, ax2, ax3)

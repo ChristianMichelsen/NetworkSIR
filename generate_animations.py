@@ -7,6 +7,7 @@ from scipy.stats import uniform as sp_uniform
 import joblib
 from tqdm import tqdm
 import multiprocessing as mp
+from p_tqdm import p_umap
 import os
 from functools import partial
 import awkward
@@ -133,6 +134,9 @@ class AnimationBase:
 
         with h5py.File(self.filename, "r") as f:
 
+            if self.verbose:
+                print("Loading hdf5-file")
+
             # self.coordinate_indices = f["coordinate_indices"][()]
             self.df_raw = pd.DataFrame(f["df"][()])
             self.df_coordinates = pd.DataFrame(f["df_coordinates"][()])  # .drop("index", axis=1)
@@ -249,7 +253,7 @@ class AnimationBase:
         sim_pars_str = self._get_sim_pars_str()
         return f"Figures/{self.animation_type}/tmp_{sim_pars_str}/{self.animation_type}_{sim_pars_str}_frame_{i_day:06d}.png"
 
-    def _make_single_frame(self, i_day, do_tqdm, force_rerun, **kwargs):
+    def _make_single_frame(self, i_day, force_rerun=False, **kwargs):
 
         # print(os.getpid())
         # print(i_day)
@@ -265,41 +269,45 @@ class AnimationBase:
                 fig.savefig(png_name, dpi=dpi, bbox_inches="tight", pad_inches=0.3)
                 plt.close(fig)
                 plt.close("all")
+                del fig
 
-    def _make_png_files(self, force_rerun, **kwargs):
+    def _make_png_files(self, force_rerun=False, **kwargs):
 
-        n_jobs = kwargs.pop("n_jobs", 1)
+        # n_jobs = kwargs.pop("n_jobs", 1)
         do_tqdm = kwargs.pop("do_tqdm", self.do_tqdm)
 
         it = range(self.N_days)
 
         # make_single_frame = partial(self._make_single_frame(do_tqdm=do_tqdm, force_rerun=force_rerun, **kwargs))
-        make_single_frame = lambda i_day: self._make_single_frame(
-            i_day=i_day, do_tqdm=do_tqdm, force_rerun=force_rerun, **kwargs
-        )
+        # make_single_frame = lambda i_day: self._make_single_frame(
+        # i_day=i_day, do_tqdm=do_tqdm, force_rerun=force_rerun, **kwargs
+        # )
 
-        if n_jobs == 1:
+        # if n_jobs == 1:
 
-            if do_tqdm:
-                it = tqdm(it, desc="Make individual frames")
+        if do_tqdm:
+            it = tqdm(it, desc="Make individual frames")
 
-            for i_day in it:
-                make_single_frame(i_day)
+        for i_day in it:
+            self._make_single_frame(
+                i_day=i_day,
+                force_rerun=force_rerun,
+                **kwargs,
+            )
+            # make_single_frame(i_day)
 
-        else:
+        # else:
+        #     from pathos.pools import ProcessPool
+        #     pool = ProcessPool(nodes=n_jobs)
+        #     pool.map(make_single_frame, it)
+        #     # p_umap(make_single_frame, it, num_cpus=n_jobs, do_tqdm=do_tqdm)
 
-            from pathos.pools import ProcessPool
-
-            pool = ProcessPool(nodes=n_jobs)
-            pool.map(make_single_frame, it)
-            # p_umap(make_single_frame, it, num_cpus=n_jobs, do_tqdm=do_tqdm)
-
-            # p_umap(make_single_frame, it, num_cpus=n_jobs)
-            # with mp.Pool(n_jobs) as p:
-            # iterator = p_uimap(make_single_frame, it)
-            # for result in iterator:
-            #     print(result) # prints '1a', '2b', '3c' in any order
-            # list(tqdm(p.imap_unordered(make_single_frame, it), total=self.N_days))
+        # p_umap(make_single_frame, it, num_cpus=n_jobs)
+        # with mp.Pool(n_jobs) as p:
+        # iterator = p_uimap(make_single_frame, it)
+        # for result in iterator:
+        #     print(result) # prints '1a', '2b', '3c' in any order
+        # list(tqdm(p.imap_unordered(make_single_frame, it), total=self.N_days))
         return None
 
     def _make_gif_file(self, gif_name):
@@ -418,6 +426,7 @@ class AnimateSIR(AnimationBase):
         self.norm_1000 = ImageNormalize(vmin=0.0, vmax=1000 * factor, stretch=LogStretch())
         self.norm_100 = ImageNormalize(vmin=0.0, vmax=100 * factor, stretch=LogStretch())
         self.norm_10 = ImageNormalize(vmin=0.0, vmax=10 * factor, stretch=LogStretch())
+        self.f_norm = lambda x: ImageNormalize(vmin=0.0, vmax=x * factor, stretch=LogStretch())
 
         # self.states = ['S', 'E', 'I', 'R']
         self.states = ["S", "I", "R"]
@@ -448,7 +457,9 @@ class AnimateSIR(AnimationBase):
             self.df_counts = self._compute_df_counts()
         self.R_eff = self._compute_R_eff()
         self.R_eff_smooth = self._smoothen(
-            self.R_eff, method="savgol", window_length=11, polyorder=3
+            self.R_eff,
+            method=None,
+            # method="savgol", window_length=11, polyorder=3
         )
         assert self.cfg["N_tot"] == self.df_counts.iloc[0].sum()
 
@@ -476,6 +487,8 @@ class AnimateSIR(AnimationBase):
             )  # window size used for filtering, # order of fitted polynomial
         elif any([s in method for s in ["moving", "rolling", "average"]]):
             return pd.Series(x).rolling(**kwargs).mean().values
+        elif method is None or method.lower() == "none":
+            return x
         else:
             raise AssertionError(f"Got wrong type of method for _smoothen(), got {method}")
 
@@ -1138,160 +1151,38 @@ class KommuneMapAnimation(AnimationBase):
 # fig, ax = animation._plot_i_day(50)
 # fig
 
-
 #%%
 
 
-def make_paper_screenshot(
+def animate_file(
     filename,
-    title="",
-    i_day=1,
+    do_tqdm=False,
+    verbose=False,
     dpi=50,
-    R_eff_max=4,
+    remove_frames=True,
+    force_rerun=False,
+    make_gif=True,
+    optimize_gif=True,
+    animate_kommuner=False,
 ):
 
-    animation = AnimateSIR(filename, do_tqdm=False, verbose=False)
-    if animation.df_counts is None:
-        animation._initialize_data()
+    animation = AnimateSIR(filename, do_tqdm=do_tqdm, verbose=verbose)
+    animation.make_animation(
+        remove_frames=remove_frames,
+        force_rerun=force_rerun,
+        make_gif=make_gif,
+        optimize_gif=optimize_gif,
+        dpi=dpi,
+    )
 
-    geo_plot_kwargs = {}
-    geo_plot_kwargs["S"] = dict(alpha=0.8, norm=animation.norm_100)
-    geo_plot_kwargs["R"] = dict(alpha=0.8, norm=animation.norm_100)
-    geo_plot_kwargs["I"] = dict(norm=animation.norm_10)
-
-    fig = plt.figure(figsize=(10 * 1.3, 12 * 1.3))
-    ax = fig.add_subplot(1, 1, 1, projection="scatter_density")
-
-    for state in animation.states:
-        if animation.df_counts.loc[i_day, state] > 0:
-            ax.scatter_density(
-                *animation.coordinates[animation._get_mask(i_day, state)].T,
-                color=animation.d_colors[state],
-                dpi=dpi,
-                **geo_plot_kwargs[state],
-            )
-
-    ax.set(xlim=(7.9, 13.3), ylim=(54.5, 58.2), xlabel="Longitude")
-    ax.set_ylabel("Latitude", rotation=90)  # fontsize=20, labelpad=20
-    ax.set_title(title, pad=40, fontsize=32)
-
-    kw_args_circle = dict(xdata=[0], ydata=[0], marker="o", color="w", markersize=16)
-    circles = [
-        Line2D(
-            label=animation.state_names[state],
-            markerfacecolor=animation.d_colors[state],
-            **kw_args_circle,
+    if animate_kommuner:
+        kommune_animation = KommuneMapAnimation(filename, do_tqdm=do_tqdm, verbose=verbose)
+        kommune_animation.make_animation(
+            remove_frames=remove_frames,
+            force_rerun=force_rerun,
+            make_gif=False,
+            normalize_legend=False,  # TODO: Set to True normally
         )
-        for state in animation.states
-    ]
-    ax.legend(handles=circles, fontsize=30, frameon=False, loc=(0, 0.82))
-
-    # secondary plots:
-
-    # These are in unitless percentage of the figure size. (0,0 is bottom left)
-    left, bottom, width, height = [0.63, 0.75, 0.39 * 0.6, 0.08]
-
-    i_day_max = i_day + max(3, i_day * 0.1)
-
-    # delta_width = 0 * width / 100
-    ax2 = fig.add_axes([left, bottom, width, height])
-    I_up_to_today = animation.df_counts["I"].iloc[: i_day + 1] / animation.cfg["N_tot"]
-    ax2.plot(
-        I_up_to_today.index,
-        I_up_to_today,
-        "-",
-        color=animation.d_colors["I"],
-        lw=3,
-    )
-    ax2.plot(
-        I_up_to_today.index[-1],
-        I_up_to_today.iloc[-1],
-        "o",
-        color=animation.d_colors["I"],
-    )
-    I_max = np.max(I_up_to_today)
-    ax2.set(
-        ylim=(0, I_max * 1.3),
-        xlim=(0, i_day_max),
-    )
-    decimals = max(int(-np.log10(I_max)) - 1, 0)  # max important, otherwise decimals=-1
-    ax2.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=decimals))
-    ax2.text(
-        0,
-        1.18,
-        "Infected",
-        fontsize=30,
-        transform=ax2.transAxes,
-        rotation=0,
-        ha="center",
-    )
-    ax2.xaxis.set_major_locator(MaxNLocator(4, integer=True))
-    # add_spines(ax2, exclude=["upper", "right"])
-    remove_spines(ax2)
-
-    ax3 = fig.add_axes([left, bottom - height * 2, width, height])
-
-    if i_day > 0:
-        R_eff_up_to_today = animation._interpolate_R_eff(animation.R_eff_smooth[: i_day + 1])
-        z = (R_eff_up_to_today["R_eff"] > 1) / 1
-        ax3.scatter(
-            R_eff_up_to_today["t"],
-            R_eff_up_to_today["R_eff"],
-            s=10,
-            c=z,
-            **animation._scatter_kwargs,
-        )
-        R_eff_today = R_eff_up_to_today.iloc[-1]
-        z_today = R_eff_today["R_eff"] > 1
-        ax3.scatter(
-            R_eff_today["t"],
-            R_eff_today["R_eff"],
-            s=100,
-            c=z_today,
-            **animation._scatter_kwargs,
-        )
-
-    ax3.axhline(1, ls="--", color="k", lw=1)  # x = 0
-    ax3.set(
-        ylim=(0, R_eff_max * 1.1),
-        xlim=(0, i_day_max),
-    )
-    ax3.set_xlabel(r"Time [days]", fontsize=30)
-    ax3.text(
-        -0.27,
-        0.5,
-        r"$\mathcal{R}_\mathrm{eff}$",
-        fontsize=30,
-        transform=ax3.transAxes,
-        rotation=0,
-        ha="center",
-        va="center",
-    )
-    ax3.xaxis.set_major_locator(MaxNLocator(4, integer=True))
-    ax3.yaxis.set_major_locator(MaxNLocator(3, integer=True))
-    remove_spines(ax3)
-
-    scalebar = AnchoredSizeBar(
-        ax.transData,
-        longitudes_per_50km,
-        "50 km",
-        loc="lower left",
-        sep=10,
-        color="black",
-        frameon=False,
-        size_vertical=0.003,
-        fontproperties=fontprops,
-        bbox_to_anchor=Bbox.from_bounds(8, 54.52, 0, 0),
-        bbox_transform=ax.transData,
-    )
-
-    ax.add_artist(scalebar)
-
-    plt.close("all")
-    return fig, (ax, ax2, ax3)
-
-
-#%%
 
 
 #%%
@@ -1320,59 +1211,98 @@ kwargs = dict(
 )
 
 
-def animate_file(
-    filename,
-    do_tqdm=False,
-    verbose=False,
-    dpi=50,
-    remove_frames=True,
-    force_rerun=False,
-    make_gif=True,
-    optimize_gif=True,
-):
+#%%
 
-    animation = AnimateSIR(filename, do_tqdm=do_tqdm, verbose=verbose)
-    animation.make_animation(
-        remove_frames=remove_frames,
-        force_rerun=force_rerun,
-        make_gif=make_gif,
-        optimize_gif=optimize_gif,
-        dpi=dpi,
-    )
+import sys
 
-    kommune_animation = KommuneMapAnimation(filename, do_tqdm=do_tqdm, verbose=verbose)
-    kommune_animation.make_animation(
-        remove_frames=remove_frames,
-        force_rerun=force_rerun,
-        make_gif=False,
-        normalize_legend=False,  # TODO: Set to True normally
-    )
+if __name__ == "__main__":
 
-
-if __name__ == "__main__" and True:
-
-    if len(filenames) == 1:
-        animate_file(filenames[0], **kwargs)
+    if utils.is_ipython:
+        print("Not running animations for now")
 
     else:
 
-        if num_cores == 1:
-            for filename in tqdm(filenames):
-                animate_file(filename, **kwargs)
+        if len(filenames) == 1:
+            animate_file(filenames[0], **kwargs)
 
         else:
-            print(
-                f"Generating {N_files} animations using {num_cores} cores, please wait",
-                flush=True,
-            )
-            kwargs["do_tqdm"] = False
-            kwargs["verbose"] = False
-            with mp.Pool(num_cores) as p:
-                list(
-                    tqdm(
-                        p.imap_unordered(partial(animate_file, **kwargs), filenames),
-                        total=N_files,
-                    )
-                )
+            if num_cores == 1:
+                for filename in tqdm(filenames):
+                    animate_file(filename, **kwargs)
 
-    print("\n\nFinished generating animations!")
+            else:
+                print(
+                    f"Generating {N_files} animations using {num_cores} cores, please wait",
+                    flush=True,
+                )
+                kwargs["do_tqdm"] = False
+                kwargs["verbose"] = False
+
+                p_umap(partial(animate_file, **kwargs), filenames, num_cpus=num_cores)
+
+                # with mp.Pool(num_cores) as p:
+                #     list(
+                #         tqdm(
+                #             p.imap_unordered(partial(animate_file, **kwargs), filenames),
+                #             total=N_files,
+                #         )
+                #     )
+
+        print("\n\nFinished generating animations!")
+
+
+from pympler.asizeof import asizeof
+from pympler import summary
+from pympler import muppy
+from pympler import tracker
+
+
+def get_size(obj):
+    "returns size i MiB"
+    return asizeof(obj) / 2 ** 20
+
+
+def print_size(animation, min_size=None):
+    print(f"animation = {get_size(animation):.1f} MiB")
+    for key, val in animation.__dict__.items():
+        if min_size is None or get_size(val) > min_size:
+            print(f"{key} = {get_size(val):.1f} MiB")
+
+
+if False:
+
+    # tr = tracker.SummaryTracker()
+    # tr.print_diff()
+
+    filename = "Data/network/958bc1a031/network_2020-10-12_958bc1a031_ID__0.hdf5"
+    animation = AnimateSIR(filename, do_tqdm=True, verbose=True)
+
+    # import cartopy.crs as ccrs
+    # projected = gv.operation.project(points, projection=ccrs.GOOGLE_MERCATOR)
+
+    # tr.print_diff()
+
+    # # print_size(animation)
+    # all_objects = muppy.get_objects()
+    # summary1 = summary.summarize(all_objects)
+    # summary.print_(summary1)
+
+    animation._initialize_data()
+
+    # tr.print_diff()
+
+    # i_day = 100
+    # animation._make_single_frame(i_day=i_day)
+    # print_size(animation)
+    # animation._make_png_files()
+
+    for i_day in tqdm(range(30)):
+        # animation._make_single_frame(i_day=i_day, force_rerun=True)
+        _ = animation._plot_i_day(i_day, dpi=50)
+        # if (i_day % 10) == 0:
+        # print(f"\ni_day: {i_day}")
+        # tr.print_diff()
+
+    # summary2 = summary.summarize(muppy.get_objects())
+    # diff = summary.get_diff(summary1, summary2)
+    # summary.print_(diff)
