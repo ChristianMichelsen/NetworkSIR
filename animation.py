@@ -335,6 +335,13 @@ def animate_single_network(
 # animate_single_network(filename, verbose=True, N_day_max=100, dpi=50, frames=None, fps=10)
 
 
+def try_animate_single_network(filename, **kwargs):
+    try:
+        animate_single_network(filename, **kwargs)
+    except:
+        print(f"Got error at {filename}, skipping for now")
+
+
 def animate_all_networks(
     base_dir="./Data/network",
     num_cores=1,
@@ -369,10 +376,10 @@ def animate_all_networks(
     # kwargs = {}
     if num_cores == 1:
         for filename in tqdm(filenames, desc=desc):
-            animate_single_network(filename, verbose=False, **kwargs)
+            try_animate_single_network(filename, verbose=False, **kwargs)
     else:
         p_umap(
-            partial(animate_single_network, verbose=False, **kwargs),
+            partial(try_animate_single_network, verbose=False, **kwargs),
             filenames,
             num_cpus=num_cores,
             desc=desc,
