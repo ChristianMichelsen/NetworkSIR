@@ -117,8 +117,8 @@ def f_norm(vmax):
 
 def compute_filename_out(filename):
     hash_ = file_loaders.filename_to_hash(filename)
-    ID = int(filename.split("ID__")[1].strip(".hdf5"))
-    filename_out = f"./figures/animations/animation_{hash_}_ID_{ID}.mp4"
+    ID = int(filename.split("ID__")[1].split(".hdf5")[0])
+    filename_out = f"./Figures/animations/animation_{hash_}_ID_{ID}.mp4"
     return filename_out
 
 
@@ -335,15 +335,18 @@ def animate_single_network(
     anim.save(filename_out, fps=fps, extra_args=["-vcodec", "libx264"], dpi=100)
 
 
+#
 # filename = "Data/network/95a0789cf3/network_2020-10-12_95a0789cf3_ID__0.hdf5"
+# filename = "Data/network/032d40d6d3/network_2020-10-12_032d40d6d3_ID__5.hdf5"
 # animate_single_network(filename, verbose=True, N_day_max=100, dpi=50, frames=None, fps=10)
 
 
 def try_animate_single_network(filename, **kwargs):
     try:
         animate_single_network(filename, **kwargs)
-    except:
+    except Exception as e:
         print(f"Got error 0 at {filename}, skipping for now")
+        print(e)
 
 
 def animate_all_networks(
@@ -359,14 +362,19 @@ def animate_all_networks(
         filenames = [filename for filename in filenames if f"ID__{ID}." in filename]
 
     if not force_rerun:
-        filenames_tmp = []
-        for filename in filenames:
-            try:
-                if not utils.file_exists(compute_filename_out(filename)):
-                    filenames_tmp.append(filename)
-            except ValueError:
-                print(f"Got error 1B at {filename}, skipping for now")
-        filename = filenames_tmp
+        filenames = [
+            filename
+            for filename in filenames
+            if not utils.file_exists(compute_filename_out(filename))
+        ]
+        # filenames_tmp = []
+        # for filename in filenames:
+        #     try:
+        #         if not utils.file_exists(compute_filename_out(filename)):
+        #             filenames_tmp.append(filename)
+        #     except ValueError:
+        #         print(f"Got error 1B at {filename}, skipping for now")
+        # filenames = filenames_tmp
 
     if len(filenames) == 0:
         return None
@@ -376,7 +384,7 @@ def animate_all_networks(
     print(f"Creating {len(filenames)} animations using {num_cores} cores")
 
     if "N_day_max" in kwargs and kwargs["N_day_max"] is not None:
-        print(f"Not, running only for {kwargs['N_day_max']} days")
+        print(f"Note, running only for {kwargs['N_day_max']} days")
 
     desc = "Animating"
 
@@ -393,4 +401,4 @@ def animate_all_networks(
         )
 
 
-animate_all_networks(base_dir="./Data/network", num_cores=None, N_day_max=None)
+# animate_all_networks(base_dir="./Data/network", num_cores=None, N_day_max=None)
