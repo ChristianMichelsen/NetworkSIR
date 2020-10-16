@@ -86,7 +86,7 @@ def plot_single_ABM_simulation(
     if not isinstance(cfg, utils.DotDict):
         cfg = utils.DotDict(cfg)
 
-    d_ylabel = {"I": "Infected", "R": "Recovered"}
+    d_ylabel = {"I": "Fraction Infected", "R": "Fraction Recovered"}
     if d_label_loc is None:
         d_label_loc = {"I": "upper right", "R": "lower right"}
 
@@ -464,7 +464,7 @@ def plot_single_fit(
     # fit_objects = all_fits[ABM_parameter]
 
     N_tot = cfg.N_tot
-    d_ylabel = {"I": r"Infected", "R": r"Recovered"}
+    d_ylabel = {"I": r"Fraction Infected", "R": r"Fraction Recovered"}
 
     if legend_loc is None:
         legend_loc = {"I": "upper right", "R": "lower right"}
@@ -1111,13 +1111,13 @@ def make_paper_screenshot(
     decimals = max(int(-np.log10(I_max)) - 1, 0)  # max important, otherwise decimals=-1
     ax2.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=decimals))
     ax2.text(
-        0,
+        0.01,
         1.18,
-        "Infected",
+        "Fraction Infected",
         fontsize=30,
         transform=ax2.transAxes,
         rotation=0,
-        ha="center",
+        ha="left",
     )
     ax2.xaxis.set_major_locator(MaxNLocator(4, integer=True))
     # add_spines(ax2, exclude=["upper", "right"])
@@ -1152,14 +1152,14 @@ def make_paper_screenshot(
     )
     ax3.set_xlabel(r"Time [days]", fontsize=30)
     ax3.text(
-        -0.27,
-        0.5,
+        0.01,
+        1.18,
         r"$\mathcal{R}_\mathrm{eff}$",
         fontsize=30,
         transform=ax3.transAxes,
         rotation=0,
-        ha="center",
-        va="center",
+        ha="left",
+        # va="center",
     )
     ax3.xaxis.set_major_locator(MaxNLocator(4, integer=True))
     ax3.yaxis.set_major_locator(MaxNLocator(3, integer=True))

@@ -477,18 +477,20 @@ class AnimateSIR(AnimationBase):
         df_counts = self.df_counts
         I = df_counts["I"].values
         R = df_counts["R"].values
-        R_eff = (I[1:] - I[:-1]) / (R[1:] - R[:-1]) + 1
+        S = (self.cfg["N_tot"] - df_counts[["I", "R"]].sum(axis=1)).values
+        R_eff = -(S[1:] - S[:-1]) / (R[1:] - R[:-1])
+        # R_eff = (I[1:] - I[:-1]) / (R[1:] - R[:-1]) + 1
         return R_eff
 
-    def _smoothen(self, x, method="savgol", **kwargs):  # window_length=11, polyorder=3
-        if "savgol" in method:
+    def _smoothen(self, x, method="none", **kwargs):  # window_length=11, polyorder=3
+        if method is None or method.lower() == "none":
+            return x
+        elif "savgol" in method:
             return signal.savgol_filter(
                 x, **kwargs
             )  # window size used for filtering, # order of fitted polynomial
         elif any([s in method for s in ["moving", "rolling", "average"]]):
             return pd.Series(x).rolling(**kwargs).mean().values
-        elif method is None or method.lower() == "none":
-            return x
         else:
             raise AssertionError(f"Got wrong type of method for _smoothen(), got {method}")
 

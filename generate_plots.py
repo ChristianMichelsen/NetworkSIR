@@ -193,7 +193,7 @@ def plot_R_eff(cfg):
         T_peak = df["time"].iloc[df["I"].argmax()]
         time = df_interpolated["time"].values[:-1] - T_peak + np.mean(T_peaks)
         S = (cfg.N_tot - df_interpolated[["E", "I", "R"]].sum(axis=1)).values
-        I = df_interpolated["I"].values
+        # I = df_interpolated["I"].values
         R = df_interpolated["R"].values
         R_eff = -(S[1:] - S[:-1]) / (R[1:] - R[:-1])
         R_eff_running_median = np.array(running_median_insort(R_eff, 7))
@@ -233,15 +233,11 @@ pdf_name = "Figures/R_eff.pdf"
 from matplotlib.backends.backend_pdf import PdfPages
 
 with PdfPages(pdf_name) as pdf:
-
-    # for ABM_parameter in tqdm(abm_files.keys, desc="Plotting individual ABM parameters"):
     for cfg in tqdm(
         cfgs,
         desc="Plotting R_eff for beta 1D-scan",
     ):
-
         fig, ax = plot_R_eff(cfg)
-
         pdf.savefig(fig, dpi=100)
         plt.close("all")
 

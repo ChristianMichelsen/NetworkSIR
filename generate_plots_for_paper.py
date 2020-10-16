@@ -142,6 +142,7 @@ fig_contacts_spatial, ax_contacts_spatial = plot.plot_single_number_of_contacts(
 )
 fig_contacts_spatial.savefig("Figures/Paper/Figure_2a_contacts_spatial.pdf", dpi=100)
 
+reload(plot)
 fig_coordinates_spatial, _ = plot.make_paper_screenshot(
     filename_hdf5_spatial_local_outbreak,
     title="5.8M, spatial",
@@ -149,7 +150,7 @@ fig_coordinates_spatial, _ = plot.make_paper_screenshot(
     R_eff_max=7,
     dpi=40,
 )
-# fig_coordinates_spatial
+fig_coordinates_spatial
 fig_coordinates_spatial.savefig("Figures/Paper/Figure_2b_coordinates_spatial.pdf", dpi=75)
 
 
@@ -184,26 +185,26 @@ axes_ABM_spatial[0].text(
     35,
     7.7 / 100,
     r"$I_\mathrm{peak}^\mathrm{ABM}$",
-    fontsize=34,
+    fontsize=38,
 )
 axes_ABM_spatial[0].text(
     115,
     5.6 / 100,
     r"$I_\mathrm{peak}^\mathrm{SEIR}$",
-    fontsize=34,
+    fontsize=38,
     color=plot.d_colors["red"],
 )
 axes_ABM_spatial[1].text(
-    179,
+    172,
     41 / 100,
     r"$R_\infty^\mathrm{ABM}$",
-    fontsize=34,
+    fontsize=38,
 )
 axes_ABM_spatial[1].text(
-    179,
+    172,
     69 / 100,
     r"$R_\infty^\mathrm{SEIR}$",
-    fontsize=34,
+    fontsize=38,
     color=plot.d_colors["red"],
 )
 fig_ABM_spatial.savefig("Figures/Paper/Figure_2cd_ABM_spatial.pdf", dpi=100)
@@ -211,7 +212,9 @@ fig_ABM_spatial.savefig("Figures/Paper/Figure_2cd_ABM_spatial.pdf", dpi=100)
 
 # reload(plot)
 # plot.plot_1D_scan(scan_parameter="rho", figname_pdf="Figures/Paper/Figure_3de_1D_scan_rho.pdf")
+
 res_rho = plot.get_1D_scan_results(scan_parameter="rho", non_default_parameters={})
+
 res_rho_beta_007 = plot.get_1D_scan_results(
     scan_parameter="rho", non_default_parameters={"beta": 0.007}
 )
@@ -321,8 +324,9 @@ ax1.errorbar(
 )
 
 lines, labels = ax1.get_legend_handles_labels()
-lines = [lines[-1]] + lines[:-1]
-labels = [labels[-1]] + labels[:-1]
+# lines.insert()
+labels.insert(1, labels.pop(-1))
+lines.insert(1, lines.pop(-1))
 # lines2, labels2 = ax1b.get_legend_handles_labels()
 # lines = lines2 + lines
 # labels = labels2 + labels
@@ -384,6 +388,13 @@ all_fits_y_max_2_percent = fits.get_fit_results(
     y_max=0.02,
 )
 
+all_fits_y_max_05_percent = fits.get_fit_results(
+    abm_files,
+    force_rerun=False,
+    num_cores=num_cores,
+    y_max=0.005,
+)
+
 fit_objects_vanilla = all_fits[hash_vanilla]
 fit_objects_spatial = all_fits[hash_spatial]
 
@@ -404,6 +415,14 @@ plot.plot_single_fit(
     xlim=(0, 350),
     legend_fontsize=30,
 )[0].savefig("Figures/Paper/Figure_3a_fits_vanilla_y_max_2_percent.pdf", dpi=100)
+plot.plot_single_fit(
+    cfg_vanilla,
+    all_fits_y_max_05_percent[hash_vanilla],
+    add_top_text=False,
+    xlim=(0, 350),
+    legend_fontsize=30,
+)[0].savefig("Figures/Paper/Figure_3a_fits_vanilla_y_max_0.5_percent.pdf", dpi=100)
+
 
 fig_plots_spatial, _ = plot.plot_single_fit(
     cfg_spatial,
@@ -421,38 +440,48 @@ plot.plot_single_fit(
     xlim=(0, 210),
     legend_fontsize=30,
 )[0].savefig("Figures/Paper/Figure_3b_fits_spatial_y_max_2_percent.pdf", dpi=100)
+plot.plot_single_fit(
+    cfg_spatial,
+    all_fits_y_max_05_percent[hash_spatial],
+    add_top_text=False,
+    xlim=(0, 210),
+    legend_fontsize=30,
+)[0].savefig("Figures/Paper/Figure_3b_fits_spatial_y_max_05_percent.pdf", dpi=100)
 
 
 #%%
 
-for percent, fits in zip([1, 2], [all_fits_y_max_1_percent, all_fits_y_max_2_percent]):
+for percent, all_fits_percent in zip(
+    [0.5, 1, 2],
+    [all_fits_y_max_05_percent, all_fits_y_max_1_percent, all_fits_y_max_2_percent],
+):
 
     res_rho = plot.get_1D_scan_fit_results(
-        fits,
+        all_fits_percent,
         scan_parameter="rho",
         non_default_parameters={},
     )
 
     res_rho_beta_007 = plot.get_1D_scan_fit_results(
-        fits,
+        all_fits_percent,
         scan_parameter="rho",
         non_default_parameters={"beta": 0.007},
     )
 
     res_rho_sigmabeta_1 = plot.get_1D_scan_fit_results(
-        fits,
+        all_fits_percent,
         scan_parameter="rho",
         non_default_parameters={"sigma_beta": 1},
     )
 
     res_rho_sigmamu_1 = plot.get_1D_scan_fit_results(
-        fits,
+        all_fits_percent,
         scan_parameter="rho",
         non_default_parameters={"sigma_mu": 1},
     )
 
     res_rho_sigmabeta_1_sigmamu_1 = plot.get_1D_scan_fit_results(
-        fits,
+        all_fits_percent,
         scan_parameter="rho",
         non_default_parameters={"sigma_beta": 1, "sigma_mu": 1},
     )
@@ -525,6 +554,9 @@ for percent, fits in zip([1, 2], [all_fits_y_max_1_percent, all_fits_y_max_2_per
     ax1.set_ylabel(r"$R_\infty^\mathrm{fit} \, / \,\, R_\infty^\mathrm{ABM}$", labelpad=15)
 
     lines, labels = ax1.get_legend_handles_labels()
+    labels.insert(1, labels.pop(0))
+    lines.insert(1, lines.pop(0))
+
     ax1.legend(
         lines,
         labels,
@@ -553,7 +585,7 @@ for percent, fits in zip([1, 2], [all_fits_y_max_1_percent, all_fits_y_max_2_per
     #%%
 
     plot.plot_1D_scan_fit_results(
-        fits,
+        all_fits_percent,
         scan_parameter="epsilon_rho",
         non_default_parameters=dict(rho=0.1),
         figname_pdf="Figures/Paper/Figure_3ef_1D_scan_fit_epsilon_rho.pdf"

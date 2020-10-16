@@ -17,6 +17,9 @@ GPS_coordinates.npy
 *(Conflicted)*
 *jottacloud*
 
+# autoswitch conda https://github.com/bckim92/zsh-autoswitch-conda
+*.cenv
+
 # C extensions
 *.so
 
