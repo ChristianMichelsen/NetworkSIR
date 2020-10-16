@@ -336,7 +336,6 @@ def animate_single_network(
 
 
 # filename = "Data/network/95a0789cf3/network_2020-10-12_95a0789cf3_ID__0.hdf5"
-filename = "Data/network/8eea091a6a/network_2020-10-14_8eea091a6a_ID__0.hdf5"
 # animate_single_network(filename, verbose=True, N_day_max=100, dpi=50, frames=None, fps=10)
 
 
