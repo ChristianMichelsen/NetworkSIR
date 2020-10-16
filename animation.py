@@ -156,11 +156,11 @@ def animate_single_network(
 ):
 
     cfg = file_loaders.filename_to_cfg(filename)
-    try:
-        filename_out = compute_filename_out(filename)
-    except ValueError:
-        print(f"Got error 1A at {filename}, skipping for now")
-        return None
+    if cfg is None:
+        print(f"Couldnt find a proper cfg for {filename}, skipping for now")
+        return
+
+    filename_out = compute_filename_out(filename)
 
     if utils.file_exists(filename_out) and not force_rerun:
         return
@@ -335,9 +335,8 @@ def animate_single_network(
     anim.save(filename_out, fps=fps, extra_args=["-vcodec", "libx264"], dpi=100)
 
 
-#
 # filename = "Data/network/95a0789cf3/network_2020-10-12_95a0789cf3_ID__0.hdf5"
-# filename = "Data/network/032d40d6d3/network_2020-10-12_032d40d6d3_ID__5.hdf5"
+filename = "Data/network/8eea091a6a/network_2020-10-14_8eea091a6a_ID__0.hdf5"
 # animate_single_network(filename, verbose=True, N_day_max=100, dpi=50, frames=None, fps=10)
 
 
@@ -367,14 +366,6 @@ def animate_all_networks(
             for filename in filenames
             if not utils.file_exists(compute_filename_out(filename))
         ]
-        # filenames_tmp = []
-        # for filename in filenames:
-        #     try:
-        #         if not utils.file_exists(compute_filename_out(filename)):
-        #             filenames_tmp.append(filename)
-        #     except ValueError:
-        #         print(f"Got error 1B at {filename}, skipping for now")
-        # filenames = filenames_tmp
 
     if len(filenames) == 0:
         return None
@@ -401,4 +392,4 @@ def animate_all_networks(
         )
 
 
-# animate_all_networks(base_dir="./Data/network", num_cores=None, N_day_max=None)
+# animate_all_networks(base_dir="./Data/network", num_cores=None, N_day_max=None, ID=0)
