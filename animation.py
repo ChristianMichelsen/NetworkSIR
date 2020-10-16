@@ -156,7 +156,11 @@ def animate_single_network(
 ):
 
     cfg = file_loaders.filename_to_cfg(filename)
-    filename_out = compute_filename_out(filename)
+    try:
+        filename_out = compute_filename_out(filename)
+    except ValueError:
+        print(f"Got error 1A at {filename}, skipping for now")
+        return None
 
     if utils.file_exists(filename_out) and not force_rerun:
         return
@@ -339,7 +343,7 @@ def try_animate_single_network(filename, **kwargs):
     try:
         animate_single_network(filename, **kwargs)
     except:
-        print(f"Got error at {filename}, skipping for now")
+        print(f"Got error 0 at {filename}, skipping for now")
 
 
 def animate_all_networks(
@@ -355,11 +359,14 @@ def animate_all_networks(
         filenames = [filename for filename in filenames if f"ID__{ID}." in filename]
 
     if not force_rerun:
-        filenames = [
-            filename
-            for filename in filenames
-            if not utils.file_exists(compute_filename_out(filename))
-        ]
+        filenames_tmp = []
+        for filename in filenames:
+            try:
+                if not utils.file_exists(compute_filename_out(filename)):
+                    filenames_tmp.append(filename)
+            except ValueError:
+                print(f"Got error 1B at {filename}, skipping for now")
+        filename = filenames_tmp
 
     if len(filenames) == 0:
         return None
@@ -387,4 +394,3 @@ def animate_all_networks(
 
 
 animate_all_networks(base_dir="./Data/network", num_cores=None, N_day_max=None)
-# %%
