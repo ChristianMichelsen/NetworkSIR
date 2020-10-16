@@ -1183,3 +1183,7 @@ def make_paper_screenshot(
 
     plt.close("all")
     return fig, (ax, ax2, ax3)
+
+
+#%%
+

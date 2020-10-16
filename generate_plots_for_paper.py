@@ -17,6 +17,8 @@ Path("Figures/Paper").mkdir(parents=True, exist_ok=True)
 
 #%%
 
+# x=x
+
 ID = 0
 
 cfg_vanilla = utils.DotDict(
@@ -69,6 +71,9 @@ hash_spatial_local_outbreak = utils.query_cfg(cfg_spatial_local_outbreak)[0].has
 filename_hdf5_spatial_local_outbreak = str(
     list(Path(f"./Data/network/{hash_spatial_local_outbreak}").rglob(f"*ID__{ID}.hdf5"))[0]
 )
+
+
+x = x
 
 
 #%%
@@ -595,3 +600,4 @@ for percent, all_fits_percent in zip(
     )
 
 # %%
+

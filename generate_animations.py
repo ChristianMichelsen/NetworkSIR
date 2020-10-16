@@ -119,9 +119,9 @@ class AnimationBase:
             if N_max is None:
                 self.N_days = len(self.my_state)
             else:
-                if N_max < 12:
-                    print(f"N_max has to be 12 or larger (choosing 12 instead of {N_max} for now).")
-                    N_max = 12
+                # if N_max < 12:
+                # print(f"N_max has to be 12 or larger (choosing 12 instead of {N_max} for now).")
+                # N_max = 12
                 self.N_days = N_max
         # self._Filename = utils.Filename(filename)
         self.cfg = file_loaders.filename_to_cfg(filename)
