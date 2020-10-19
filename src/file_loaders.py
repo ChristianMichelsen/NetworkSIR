@@ -77,14 +77,16 @@ def folder_to_cfg(folder):
     return hash_to_cfg(hash_)
 
 
-def hash_to_cfg(hash_, cfgs_dir='./Data/cfgs'):
+def hash_to_cfg(hash_, cfgs_dir="./Data/cfgs"):
     db_cfg = utils.get_db_cfg()
     q = Query()
     q_result = db_cfg.search(q.hash == hash_)
     if len(q_result) == 0:
         cfgs = [str(file) for file in Path(cfgs_dir).rglob(f"*{hash_}.yaml")]
         if len(cfgs) == 1:
-            return utils.load_yaml(cfgs[0])
+            cfg = utils.load_yaml(cfgs[0])
+            cfg.hash = utils.cfg_to_hash(cfg)
+            return cfg
         else:
             return None
     assert len(q_result) == 1

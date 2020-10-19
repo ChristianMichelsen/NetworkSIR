@@ -335,8 +335,16 @@ def animate_single_network(
     anim.save(filename_out, fps=fps, extra_args=["-vcodec", "libx264"], dpi=100)
 
 
-# filename = "Data/network/95a0789cf3/network_2020-10-12_95a0789cf3_ID__0.hdf5"
-# animate_single_network(filename, verbose=True, N_day_max=100, dpi=50, frames=None, fps=10)
+filename = "Data/network/95a0789cf3/network_2020-10-12_95a0789cf3_ID__0.hdf5"
+# animate_single_network(
+#     filename,
+#     verbose=True,
+#     force_rerun=True,
+#     N_day_max=None,
+#     dpi=50,
+#     frames=None,
+#     fps=10,
+# )
 
 
 def try_animate_single_network(filename, **kwargs):

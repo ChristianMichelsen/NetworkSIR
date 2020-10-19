@@ -42,4 +42,7 @@ all_simulation_parameters:
   - {N_tot: *N_tots_medium, rho: [0, 0.1]}
   - {N_tot: *N_tots_large, rho: [0, 0.1]}
   - {N_tot: 5_800_000, rho: *rhos}
+  - {N_events: 0, mu: 20, beta: 0.012, rho: 0.1, N_tot: 5_800_000}
+  - {N_events: [100, 500, 1_000, 5_000, 10_000], event_size_max: [50, 20, 10], mu: 20, beta: 0.012, rho: 0.1, N_tot: 5_800_000}
+  - {N_events: *N_events, event_size_max: *event_size_maxs, rho: 0.1, N_tot: 5_800_000}
   - {N_tot: 10_000_000, rho: [0, 0.1]}
