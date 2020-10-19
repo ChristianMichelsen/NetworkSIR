@@ -408,11 +408,11 @@ if utils.is_ipython and debugging:
 
     cfg = utils.DotDict(
         {
-            "version": 1.0,
+            "version": 2.0,
             "N_tot": 58000,
             "rho": 0.0,
             "epsilon_rho": 0.04,
-            "mu": 40.0,
+            "mu": 20.0,
             "sigma_mu": 0.0,
             "beta": 0.01,
             "sigma_beta": 0.0,
@@ -421,17 +421,29 @@ if utils.is_ipython and debugging:
             "lambda_E": 1.0,
             "lambda_I": 1.0,
             "make_random_initial_infections": True,
+            "day_max": 0.0,
             "clustering_connection_retries": 0,
             "N_events": 0,
             "event_size_max": 0,
             "event_size_mean": 50.0,
             "event_beta_scaling": 10.0,
             "event_weekend_multiplier": 1.0,
+            "do_interventions": False,
+            "interventions_to_apply": {1, 4, 6},
+            "N_daily_tests": 20000,
+            "test_delay_in_clicks": np.array([0, 0, 25]),
+            "results_delay_in_clicks": np.array([5, 10, 5]),
+            "chance_of_finding_infected": np.array([0.0, 0.15, 0.15, 0.15, 0.0]),
+            "days_looking_back": 7,
+            "masking_rate_reduction": np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.8]]),
+            "lockdown_rate_reduction": np.array([[0.0, 1.0, 0.6], [0.0, 0.6, 0.6]]),
+            "isolation_rate_reduction": np.array([0.2, 1.0, 1.0]),
+            "tracking_rates": np.array([1.0, 0.8, 0.0]),
             "ID": 0,
         }
     )
 
-    if __name__ == "__main__" and True:
+    if __name__ == "__main__" and False:
         run_simulations(d_simulation_parameters)
 
     if False:
@@ -460,4 +472,46 @@ if utils.is_ipython and debugging:
     # manager = pathos_multiprocess.Manager()
     # queue = manager.Queue()
 
+    # x = [1, 2, 3]
+    # y = np.array([1, 2, 3], dtype=np.uint8)
+    # z = List(x)
+    # w = List(y)
+    # v = set(x)
+
+    # @njit
+    # def test(bar):
+    #     if 1 in bar:
+    #         return True
+    #     else:
+    #         return False
+
+    # %timeit test(x)
+    # # %timeit test(y)
+    # %timeit test(z)
+    # %timeit test(w)
+    # %timeit test(v)
+
+    # nb.typeof(v)
+    # nb.types.Set(nb.f8, reflected=True)
+
+#%%
+
+
+
+spec_cfg = {
+    "interventions_to_apply": nb.types.Set(nb.int64),
+    "N_daily_tests": nb.uint32,
+    "test_delay_in_clicks": nb.uint32[:],
+}
+
+
+# @jitclass(spec_cfg)
+# class Config(object):
+#     def __init__(self):
+#         # Default parameters
+#         self.interventions_to_apply = {1, 4, 6}
+#         self.N_daily_tests = 20_000
+#         self.test_delay_in_clicks = np.array([0, 0, 25], dtype=np.uint32)
+
+# bla = Config()
 # %%

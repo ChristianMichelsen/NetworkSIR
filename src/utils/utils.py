@@ -20,7 +20,10 @@ from attrdict import AttrDict
 
 def sha256(d):
     if isinstance(d, DotDict):
-        d = d.copy()
+        d = d.copy()  # converts to regular dict
+    for key, val in d.items():
+        if isinstance(val, set):
+            d[key] = list(val)
     return dict_hash.sha256(d)
 
 
@@ -888,6 +891,8 @@ import numba as nb
 
 INTEGER_SIMULATION_PARAMETERS = load_yaml("cfg/settings.yaml")["INTEGER_SIMULATION_PARAMETERS"]
 BOOL_SIMULATION_PARAMETERS = load_yaml("cfg/settings.yaml")["BOOL_SIMULATION_PARAMETERS"]
+ARRAY_SIMULATION_PARAMETERS = load_yaml("cfg/settings.yaml")["ARRAY_SIMULATION_PARAMETERS"]
+SET_SIMULATION_PARAMETERS = load_yaml("cfg/settings.yaml")["SET_SIMULATION_PARAMETERS"]
 
 
 def get_cfg_default():
@@ -916,9 +921,13 @@ def format_cfg(cfg):
                 cfg[key] = int(val)
             elif key in BOOL_SIMULATION_PARAMETERS:
                 cfg[key] = bool(val)
+            elif key in ARRAY_SIMULATION_PARAMETERS:
+                cfg[key] = np.array(val)
+            elif key in SET_SIMULATION_PARAMETERS:
+                cfg[key] = set(val)
             else:
                 cfg[key] = float(val)
-        except ValueError:
+        except ValueError or TypeError:
             cfg[key] = val
     return cfg
 

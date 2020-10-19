@@ -32,6 +32,7 @@ def set_numba_random_seed(seed):
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 spec_cfg = {
+    # Default parameters
     "version": nb.float32,
     "N_tot": nb.uint32,
     "rho": nb.float32,
@@ -44,29 +45,37 @@ spec_cfg = {
     "N_init": nb.uint16,
     "lambda_E": nb.float32,
     "lambda_I": nb.float32,
+    # other
+    "day_max": nb.float32,
     "make_random_initial_infections": nb.boolean,
     "clustering_connection_retries": nb.uint32,
+    # events
     "N_events": nb.uint16,
     "event_size_max": nb.uint16,
     "event_size_mean": nb.float32,
     "event_beta_scaling": nb.float32,
     "event_weekend_multiplier": nb.float32,
-    "day_max": nb.float32,
+    # lockdown-related / interventions
+    "do_interventions": nb.boolean,
+    "interventions_to_apply": nb.types.Set(nb.int64),
+    "N_daily_tests": nb.uint32,
+    "test_delay_in_clicks": nb.int64[:],
+    "results_delay_in_clicks": nb.int64[:],
+    "chance_of_finding_infected": nb.float64[:],
+    "days_looking_back": nb.float64,
+    "masking_rate_reduction": nb.float64[:, ::1],  # to make the type C instead if A
+    "lockdown_rate_reduction": nb.float64[:, ::1],  # to make the type C instead if A
+    "isolation_rate_reduction": nb.float64[:],
+    "tracking_rates": nb.float64[:],
     "ID": nb.uint16,
 }
-
-
-# N_events = my.cfg.N_events
-# event_size_mean = 50  # XXX add as parameter
-
-# if N_events > 0:
-#     event_beta_scaling = 100
 
 
 @jitclass(spec_cfg)
 class Config(object):
     def __init__(self):
-        self.version = 1.0
+        # Default parameters
+        self.version = 2.0
         self.N_tot = 580_000
         self.rho = 0.0
         self.epsilon_rho = 0.04
@@ -78,14 +87,32 @@ class Config(object):
         self.N_init = 100
         self.lambda_E = 1.0
         self.lambda_I = 1.0
-        self.make_random_initial_infections = 1
+
+        # other
+        self.make_random_initial_infections = True
+        self.day_max = 0
         self.clustering_connection_retries = 0
+
+        # events
         self.N_events = 0
         self.event_size_max = 0
         self.event_size_mean = 50
         self.event_beta_scaling = 10
         self.event_weekend_multiplier = 1.0
-        self.day_max = 0
+
+        # Interventions / Lockdown
+        self.do_interventions = False
+        self.interventions_to_apply = {1, 4, 6}
+        self.N_daily_tests = 20_000
+        self.test_delay_in_clicks = np.array([0, 0, 25])
+        self.results_delay_in_clicks = np.array([5, 10, 5])
+        self.chance_of_finding_infected = np.array([0.0, 0.15, 0.15, 0.15, 0.0])
+        self.days_looking_back = 7
+        self.masking_rate_reduction = np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.8]])
+        self.lockdown_rate_reduction = np.array([[0.0, 1.0, 0.6], [0.0, 0.6, 0.6]])
+        self.isolation_rate_reduction = np.array([0.2, 1.0, 1.0])
+        self.tracking_rates = np.array([1.0, 0.8, 0.0])
+
         self.ID = 0
 
     def print(self):
@@ -242,12 +269,13 @@ class Gillespie(object):
 #%%
 
 spec_intervention = {
+    "do_interventions": nb.boolean,
     "N_tot": nb.uint32,
     "N_daily_tests": nb.uint32,
     "labels": nb.uint8[:],  # affilitation? XXX
     "label_counter": nb.uint32[:],
     "N_labels": nb.uint32,
-    "interventions_to_apply": ListType(nb.int64),
+    "interventions_to_apply": ListType(nb.uint8),
     "day_found_infected": nb.int32[:],
     "reason_for_test": nb.int8[:],
     "positive_test_counter": nb.uint32[:],
@@ -270,6 +298,7 @@ spec_intervention = {
 @jitclass(spec_intervention)
 class Intervention(object):
     """
+    - do_interventions: bool, whether or not to apply any interventions, lockdowns or similar
     - N_tot: Number of agents
     - N_daily_tests: Number of total daily tests scaled relative to a full population
 
@@ -284,7 +313,7 @@ class Intervention(object):
         4: Test people with symptoms
         5: Isolate (if you get a positive test, isolate yourself from your contacts (isolation_rate_reduction))
         6: Random Testing
-        0/None: Do nothing
+        0: Do nothing
 
     - day_found_infected: -1 if not infected, otherwise the day of infection
 
@@ -327,28 +356,46 @@ class Intervention(object):
 
     """
 
-    def __init__(self, N_tot, N_daily_tests, labels, interventions_to_apply, verbose=False):
-        self.N_tot = N_tot
-        self.N_daily_tests = int(N_daily_tests * N_tot / 5_800_000)
+    def __init__(
+        self,
+        N_tot,
+        labels,
+        do_interventions,
+        interventions_to_apply,
+        N_daily_tests,
+        # test_delay_in_clicks,
+        # results_delay_in_clicks,
+        # chance_of_finding_infected,
+        # days_looking_back,
+        # masking_rate_reduction,
+        # lockdown_rate_reduction,
+        # isolation_rate_reduction,
+        # tracking_rates,
+        verbose=False,
+    ):
 
+        self.N_tot = N_tot
         self._initialize_labels(labels)
 
+        self.do_interventions = do_interventions
         self._initialize_interventions_to_apply(interventions_to_apply)
+        self.N_daily_tests = int(N_daily_tests * N_tot / 5_800_000)
 
         self.day_found_infected = np.full(N_tot, fill_value=-1, dtype=np.int32)
         self.reason_for_test = np.full(N_tot, fill_value=-1, dtype=np.int8)
         self.positive_test_counter = np.zeros(3, dtype=np.uint32)
         self.clicks_when_tested = np.full(N_tot, fill_value=-1, dtype=np.int32)
         self.clicks_when_tested_result = np.full(N_tot, fill_value=-1, dtype=np.int32)
-        self.test_delay_in_clicks = np.array([0, 0, 25], dtype=np.uint32)
-        self.results_delay_in_clicks = np.array([5, 10, 5], dtype=np.uint32)
-        self.chance_of_finding_infected = np.array([0.0, 0.15, 0.15, 0.15, 0.0], dtype=np.float32)
-        self.days_looking_back = 7.0
 
-        self.masking_rate_reduction = np.array([[0, 0, 0.0], [0, 0, 0.8]], dtype=np.float32)
-        self.lockdown_rate_reduction = np.array([[0, 1, 0.6], [0, 0.6, 0.6]], dtype=np.float32)
-        self.isolation_rate_reduction = np.array([0.2, 1, 1], dtype=np.float32)
-        self.tracking_rates = np.array([1, 0.8, 0], dtype=np.float32)
+        # self.test_delay_in_clicks = np.array(test_delay_in_clicks, dtype=np.uint32)
+        # self.results_delay_in_clicks = np.array(results_delay_in_clicks, dtype=np.uint32)
+        # self.chance_of_finding_infected = np.array([0.0, 0.15, 0.15, 0.15, 0.0], dtype=np.float32)
+        # self.days_looking_back = 7.0
+
+        # self.masking_rate_reduction = np.array([[0, 0, 0.0], [0, 0, 0.8]], dtype=np.float32)
+        # self.lockdown_rate_reduction = np.array([[0, 1, 0.6], [0, 0.6, 0.6]], dtype=np.float32)
+        # self.isolation_rate_reduction = np.array([0.2, 1, 1], dtype=np.float32)
+        # self.tracking_rates = np.array([1, 0.8, 0], dtype=np.float32)
 
         self.types = np.zeros(self.N_labels, dtype=np.uint8)
         self.started_as = np.zeros(self.N_labels, dtype=np.uint8)
@@ -356,13 +403,10 @@ class Intervention(object):
         self.verbose = verbose
 
     def _initialize_interventions_to_apply(self, interventions_to_apply=None):
-        if interventions_to_apply is None:
-            self.interventions_to_apply = List([np.int64(0)])
-        else:
-            lst = List()
-            for intervention in interventions_to_apply:
-                lst.append(np.int64(intervention))
-            self.interventions_to_apply = lst
+        lst = List()
+        for intervention in interventions_to_apply:
+            lst.append(np.uint64(intervention))
+        self.interventions_to_apply = lst
 
     def _initialize_labels(self, labels):
         self.labels = np.asarray(labels, dtype=np.uint8)

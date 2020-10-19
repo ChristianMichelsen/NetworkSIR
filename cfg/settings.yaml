@@ -6,10 +6,25 @@ INTEGER_SIMULATION_PARAMETERS:
     - clustering_connection_retries
     - N_events
     - event_size_max
+    - N_daily_tests
+    - days_looking_back
     - ID
 
 BOOL_SIMULATION_PARAMETERS:
     - make_random_initial_infections
+    - do_interventions
+
+ARRAY_SIMULATION_PARAMETERS:
+    - test_delay_in_clicks
+    - results_delay_in_clicks
+    - chance_of_finding_infected
+    - masking_rate_reduction
+    - lockdown_rate_reduction
+    - isolation_rate_reduction
+    - tracking_rates
+
+SET_SIMULATION_PARAMETERS:
+    - interventions_to_apply
 
 # # exclude these parameters in network initialization filename
 # EXCLUDE_PARAMETER_IN_INIT:
