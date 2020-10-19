@@ -29,7 +29,7 @@ reload(file_loaders)
 abm_files = file_loaders.ABM_simulations()
 N_files = len(abm_files)
 
-x=x
+# x=x
 
 #%%
 plot.plot_ABM_simulations(abm_files, force_rerun=force_rerun)

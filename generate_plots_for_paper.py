@@ -73,39 +73,6 @@ filename_hdf5_spatial_local_outbreak = str(
 
 #%%
 
-
-#  ██████  ██      ██████
-# ██    ██ ██      ██   ██
-# ██    ██ ██      ██   ██
-# ██    ██ ██      ██   ██
-#  ██████  ███████ ██████
-#
-# # http://patorjk.com/software/taag/#p=display&f=ANSI%20Regular&t=Figure%202
-
-
-# # reload(generate_animations)
-# fig_coordinates_vanilla, _ = generate_animations.make_paper_screenshot(
-#     filename_hdf5_vanilla, title="5.8M, vanilla", i_day=80
-# )
-# fig_coordinates_vanilla
-# fig_coordinates_vanilla.savefig("Figures/Paper/Figure_2a_coordinates_vanilla.pdf", dpi=100)
-
-# # reload(plot)
-# fig_ABM_vanilla, _ = plot.plot_single_ABM_simulation(
-#     cfg_vanilla, abm_files, add_top_text=False, xlim=(0, 300)
-# )
-# fig_ABM_vanilla.savefig("Figures/Paper/Figure_2b_ABM_vanilla.pdf", dpi=100)
-
-# plot.plot_1D_scan(scan_parameter="mu", figname_pdf="Figures/Paper/Figure_2c_1D_scan_mu.pdf")
-# plot.plot_1D_scan(
-#     scan_parameter="beta", figname_pdf="Figures/Paper/Figure_2d_1D_scan_beta.pdf", labelpad=0
-# )
-
-
-#%%
-
-#%%
-
 # ███████ ██  ██████  ██    ██ ██████  ███████     ██████
 # ██      ██ ██       ██    ██ ██   ██ ██               ██
 # █████   ██ ██   ███ ██    ██ ██████  █████        █████
