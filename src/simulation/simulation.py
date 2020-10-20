@@ -410,11 +410,11 @@ if utils.is_ipython and debugging:
         {
             "version": 1.0,
             "N_tot": 58000,
-            "rho": 0.0,
+            "rho": 0.1,
             "epsilon_rho": 0.04,
-            "mu": 40.0,
+            "mu": 20.0,
             "sigma_mu": 0.0,
-            "beta": 0.01,
+            "beta": 0.012,
             "sigma_beta": 0.0,
             "algo": 2,
             "N_init": 100,
@@ -431,17 +431,17 @@ if utils.is_ipython and debugging:
         }
     )
 
-    if __name__ == "__main__" and True:
+    if __name__ == "__main__" and False:
         run_simulations(d_simulation_parameters)
 
-    if False:
+    if True:
         with Timer() as t:
             simulation = Simulation(cfg, verbose)
             simulation.initialize_network(force_rerun=force_rerun)
             simulation.make_initial_infections()
             df = simulation.run_simulation()
             display(df)
-            simulation.save(time_elapsed=t.elapsed, save_hdf5=True, save_csv=True)
+        # simulation.save(time_elapsed=t.elapsed, save_hdf5=True, save_csv=True)
 
         my = simulation.my
         df_coordinates = simulation.df_coordinates
