@@ -561,29 +561,6 @@ class DotDict(AttrDict):
     'Michelsen'
     """
 
-    # def __setattr__(self, key, value):
-    #     if key == "data":
-    #         super().__setattr__("data", value)
-    #     elif key in self.data:
-    #         self.data[key] = value
-    #     else:
-    #         raise KeyError("Not allowed to make new keys with dot notation, use brackets instead.")
-
-    # def __getattr__(self, key):
-    #     if key in self.data:
-    #         return self.data[key]
-    #     else:
-    #         raise AttributeError(f"Tried to acces DotDict value {key} which does not exist.")
-
-    # def __delattr__(self, key):
-    #     del self.data[key]
-
-    # def __getstate__(self):
-    #     return self.data
-
-    # def __setstate__(self, state):
-    #     self.data = state
-
     def dump_to_file(self, filename, exclude=None):
         if any(substring in filename for substring in ["yaml", "yml"]):
             make_sure_folder_exist(filename)

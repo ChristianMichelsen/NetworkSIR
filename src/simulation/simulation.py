@@ -36,6 +36,7 @@ while True:
     else:
         break
 
+# print(Path("").cwd())
 from src.utils import utils
 from src.simulation import nb_simulation
 
@@ -394,7 +395,8 @@ def run_simulations(
     return N_files
 
 
-if utils.is_ipython and debugging:
+# if utils.is_ipython and debugging:
+if debugging:
 
     verbose = True
     force_rerun = True
@@ -407,7 +409,7 @@ if utils.is_ipython and debugging:
 
     cfg = utils.DotDict(
         {
-            "version": 2.0,
+            "version": 1.0,
             "N_tot": 58000,
             "rho": 0.1,
             "epsilon_rho": 0.04,
@@ -427,8 +429,9 @@ if utils.is_ipython and debugging:
             "event_size_mean": 50.0,
             "event_beta_scaling": 10.0,
             "event_weekend_multiplier": 1.0,
-            "do_interventions": True,
-            "interventions_to_apply": {1, 4, 6},
+            "do_interventions": False,
+            # "interventions_to_apply": {1, 4, 6},
+            "interventions_to_apply": {0},
             "f_daily_tests": 0.01,
             "test_delay_in_clicks": np.array([0, 0, 25]),
             "results_delay_in_clicks": np.array([5, 10, 5]),
@@ -452,7 +455,7 @@ if utils.is_ipython and debugging:
             simulation.make_initial_infections()
             df = simulation.run_simulation()
         display(df)
-        simulation.save(time_elapsed=t.elapsed, save_hdf5=True, save_csv=True)
+        # simulation.save(time_elapsed=t.elapsed, save_hdf5=True, save_csv=True)
 
         my = simulation.my
         df_coordinates = simulation.df_coordinates
