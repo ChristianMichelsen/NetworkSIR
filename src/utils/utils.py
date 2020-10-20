@@ -588,19 +588,24 @@ class DotDict(AttrDict):
         if any(substring in filename for substring in ["yaml", "yml"]):
             make_sure_folder_exist(filename)
 
-            if exclude is None:
-                out = self
-            else:
+            out = self.copy
+            if exclude is not None:
                 if not isinstance(exclude, list):
                     exclude = [exclude]
                 out = self.copy()
                 for key in exclude:
                     out.pop(key)
 
+            for key, val in out.items():
+                if isinstance(val, set):
+                    out[key] = list(val)
+                elif isinstance(val, np.ndarray):
+                    out[key] = val.tolist()
+
             with open(filename, "w") as yaml_file:
                 yaml.dump(out, yaml_file, default_flow_style=False, sort_keys=False)
         else:
-            raise AssertionError("This method is not yet implemented. Currently only yamls")
+            raise AssertionError("This filetype is not yet implemented. Currently only yamls")
 
     def __repr__(self):
         s = f"{type(self).__name__}(" + "\n    {\n"
@@ -889,46 +894,40 @@ import matplotlib.pyplot as plt
 import csv
 import numba as nb
 
-INTEGER_SIMULATION_PARAMETERS = load_yaml("cfg/settings.yaml")["INTEGER_SIMULATION_PARAMETERS"]
-BOOL_SIMULATION_PARAMETERS = load_yaml("cfg/settings.yaml")["BOOL_SIMULATION_PARAMETERS"]
-ARRAY_SIMULATION_PARAMETERS = load_yaml("cfg/settings.yaml")["ARRAY_SIMULATION_PARAMETERS"]
-SET_SIMULATION_PARAMETERS = load_yaml("cfg/settings.yaml")["SET_SIMULATION_PARAMETERS"]
+from src.simulation import nb_simulation
 
 
 def get_cfg_default():
     """ Default Simulation Parameters """
     yaml_filename = "cfg/simulation_parameters_default.yaml"
-    # if Path("").cwd().stem == "src":
-    # yaml_filename = "../" + yaml_filename
     return load_yaml(yaml_filename)
 
 
-def get_cfg_settings():
-    """ CFG Settings """
-    yaml_filename = "cfg/settings.yaml"
-    # if Path("").cwd().stem == "src":
-    # yaml_filename = "../" + yaml_filename
-    return load_yaml(yaml_filename)
+# def get_cfg_settings():
+#     """ CFG Settings """
+#     yaml_filename = "cfg/settings.yaml"
+#     return load_yaml(yaml_filename)
 
 
 def format_cfg(cfg):
+    spec_cfg = nb_simulation.spec_cfg
+
     if not isinstance(cfg, DotDict):
         cfg = DotDict(cfg)
+
     for key, val in cfg.items():
-        # if isinstance(val, (int, float)):
-        try:
-            if key in INTEGER_SIMULATION_PARAMETERS:
-                cfg[key] = int(val)
-            elif key in BOOL_SIMULATION_PARAMETERS:
-                cfg[key] = bool(val)
-            elif key in ARRAY_SIMULATION_PARAMETERS:
-                cfg[key] = np.array(val)
-            elif key in SET_SIMULATION_PARAMETERS:
-                cfg[key] = set(val)
-            else:
-                cfg[key] = float(val)
-        except ValueError or TypeError:
-            cfg[key] = val
+
+        if isinstance(spec_cfg[key], nb.types.Float):
+            cfg[key] = float(val)
+        elif isinstance(spec_cfg[key], nb.types.Integer):
+            cfg[key] = int(val)
+        elif isinstance(spec_cfg[key], nb.types.Boolean):
+            cfg[key] = bool(val)
+        elif isinstance(spec_cfg[key], nb.types.Set):
+            cfg[key] = set(val)
+        elif isinstance(spec_cfg[key], nb.types.Array):
+            cfg[key] = np.array(val, dtype=spec_cfg[key].dtype.name)
+
     return cfg
 
 

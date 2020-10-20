@@ -178,12 +178,12 @@ class Simulation:
         if self.verbose:
             print("RUN SIMULATION")
 
-        N_daily_tests = 20_000  # 20000  # TODO make Par?
+        # f_daily_tests = 20_000  # 20000  # TODO make Par?
         labels = self.df_coordinates["idx"].values
-        if self.my.cfg.version >= 2:
-            interventions_to_apply = List([1, 4, 6])
-        else:
-            interventions_to_apply = None
+        # if self.my.cfg.version >= 2:
+        # interventions_to_apply = List([1, 4, 6])
+        # else:
+        # interventions_to_apply = None
 
         # 1: Lockdown (jobs and schools)
         # 2: Cover (with face masks)
@@ -194,10 +194,11 @@ class Simulation:
         # 0: Do nothing
 
         self.intervention = nb_simulation.Intervention(
-            N_tot=self.cfg.N_tot,
-            N_daily_tests=N_daily_tests,
+            self.my.cfg,
+            # N_tot=self.cfg.N_tot,
+            # f_daily_tests=f_daily_tests,
             labels=labels,
-            interventions_to_apply=interventions_to_apply,
+            # interventions_to_apply=interventions_to_apply,
             verbose=self.verbose,
         )
 
@@ -214,11 +215,12 @@ class Simulation:
             self.verbose,
         )
 
-        out_time, out_state_counts, out_my_state = res
+        out_time, out_state_counts, out_my_state, intervention = res
         # self.time =
         # self.state_counts =
         self.my_state = np.array(out_my_state)
         self.df = utils.state_counts_to_df(np.array(out_time), np.array(out_state_counts))
+        self.intervention = intervention
         return self.df
 
     def _get_filename(self, name="ABM", filetype="hdf5"):
@@ -231,6 +233,14 @@ class Simulation:
         filename_cfg = f"Data/cfgs/cfg_{date}_{self.hash}.yaml"
         self.cfg.dump_to_file(filename_cfg, exclude="ID")
         return None
+
+    def _add_cfg_to_hdf5_file(self, f, cfg=None):
+        if cfg is None:
+            cfg = self.cfg
+        for key, val in cfg.items():
+            if isinstance(val, set):
+                val = list(val)
+            f.attrs[key] = val
 
     def _save_dataframe(self, save_csv=False, save_hdf5=True):
 
@@ -245,8 +255,7 @@ class Simulation:
             utils.make_sure_folder_exist(filename_hdf5)
             with h5py.File(filename_hdf5, "w", **hdf5_kwargs) as f:  #
                 f.create_dataset("df", data=utils.dataframe_to_hdf5_format(self.df))
-                for key, val in self.cfg.items():
-                    f.attrs[key] = val
+                self._add_cfg_to_hdf5_file(f)
 
         return None
 
@@ -261,9 +270,9 @@ class Simulation:
         with h5py.File(filename_hdf5, "w", **hdf5_kwargs) as f:  #
             f.create_dataset("my_state", data=self.my_state)
             f.create_dataset("my_number_of_contacts", data=self.my.number_of_contacts)
-            f.create_dataset(
-                "cfg_str", data=str(self.cfg)
-            )  # import ast; ast.literal_eval(str(cfg))
+            f.create_dataset("day_found_infected", data=self.intervention.day_found_infected)
+            # import ast; ast.literal_eval(str(cfg))
+            f.create_dataset("cfg_str", data=str(self.cfg))
             f.create_dataset("df", data=utils.dataframe_to_hdf5_format(self.df))
             f.create_dataset(
                 "df_coordinates",
@@ -273,24 +282,14 @@ class Simulation:
             if time_elapsed:
                 f.create_dataset("time_elapsed", data=time_elapsed)
 
-            for key, val in self.cfg.items():
-                f.attrs[key] = val
+            self._add_cfg_to_hdf5_file(f)
 
         return None
-
-    def _update_database(self):
-        db_cfg = utils.get_db_cfg()
-        cfg = utils.DotDict(self.cfg.copy())
-        cfg.hash = self.hash
-        cfg.pop("ID")
-        if not db_cfg.contains(Query().hash == cfg.hash):
-            db_cfg.insert(cfg)
 
     def save(self, save_csv=False, save_hdf5=True, save_only_ID_0=False, time_elapsed=None):
         self._save_cfg()
         self._save_dataframe(save_csv=save_csv, save_hdf5=save_hdf5)
         self._save_simulation_results(save_only_ID_0=save_only_ID_0, time_elapsed=time_elapsed)
-        # self._update_database()
 
 
 #%%
@@ -410,11 +409,11 @@ if utils.is_ipython and debugging:
         {
             "version": 2.0,
             "N_tot": 58000,
-            "rho": 0.0,
+            "rho": 0.1,
             "epsilon_rho": 0.04,
             "mu": 20.0,
             "sigma_mu": 0.0,
-            "beta": 0.01,
+            "beta": 0.012,
             "sigma_beta": 0.0,
             "algo": 2,
             "N_init": 100,
@@ -428,9 +427,9 @@ if utils.is_ipython and debugging:
             "event_size_mean": 50.0,
             "event_beta_scaling": 10.0,
             "event_weekend_multiplier": 1.0,
-            "do_interventions": False,
+            "do_interventions": True,
             "interventions_to_apply": {1, 4, 6},
-            "N_daily_tests": 20000,
+            "f_daily_tests": 0.01,
             "test_delay_in_clicks": np.array([0, 0, 25]),
             "results_delay_in_clicks": np.array([5, 10, 5]),
             "chance_of_finding_infected": np.array([0.0, 0.15, 0.15, 0.15, 0.0]),
@@ -446,72 +445,18 @@ if utils.is_ipython and debugging:
     if __name__ == "__main__" and False:
         run_simulations(d_simulation_parameters)
 
-    if False:
+    if True:
         with Timer() as t:
             simulation = Simulation(cfg, verbose)
             simulation.initialize_network(force_rerun=force_rerun)
             simulation.make_initial_infections()
             df = simulation.run_simulation()
-            display(df)
-            simulation.save(time_elapsed=t.elapsed, save_hdf5=True, save_csv=True)
+        display(df)
+        simulation.save(time_elapsed=t.elapsed, save_hdf5=True, save_csv=True)
 
         my = simulation.my
         df_coordinates = simulation.df_coordinates
         intervention = simulation.intervention
         g = simulation.g
 
-        simulation.hash
-
-    # db_cfg.insert(cfg)
-    # db.search(q.ID == 0)
-    # db_cfg.search(q.ID == 0)
-    # db_cfg.count(q.ID == 0)
-    # db_cfg.count(query_dict(cfg))
-
-    # from pathos.helpers import mp as pathos_multiprocess
-    # manager = pathos_multiprocess.Manager()
-    # queue = manager.Queue()
-
-    # x = [1, 2, 3]
-    # y = np.array([1, 2, 3], dtype=np.uint8)
-    # z = List(x)
-    # w = List(y)
-    # v = set(x)
-
-    # @njit
-    # def test(bar):
-    #     if 1 in bar:
-    #         return True
-    #     else:
-    #         return False
-
-    # %timeit test(x)
-    # # %timeit test(y)
-    # %timeit test(z)
-    # %timeit test(w)
-    # %timeit test(v)
-
-    # nb.typeof(v)
-    # nb.types.Set(nb.f8, reflected=True)
-
-#%%
-
-
-
-spec_cfg = {
-    "interventions_to_apply": nb.types.Set(nb.int64),
-    "N_daily_tests": nb.uint32,
-    "test_delay_in_clicks": nb.uint32[:],
-}
-
-
-# @jitclass(spec_cfg)
-# class Config(object):
-#     def __init__(self):
-#         # Default parameters
-#         self.interventions_to_apply = {1, 4, 6}
-#         self.N_daily_tests = 20_000
-#         self.test_delay_in_clicks = np.array([0, 0, 25], dtype=np.uint32)
-
-# bla = Config()
-# %%
+        # simulation.hash

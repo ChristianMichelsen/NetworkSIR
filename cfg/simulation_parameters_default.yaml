@@ -40,7 +40,9 @@ do_interventions: False
 # 0: Do nothing
 interventions_to_apply: [1, 4, 6]
 
-N_daily_tests: 20000 # Number of total daily tests scaled relative to a full population
+f_daily_tests: 0.01 # Daily tests as fraction of full population
+
+
 
 test_delay_in_clicks: [0, 0, 25] #clicks until test. [symptoms, random_test, tracing]
 results_delay_in_clicks: [5, 10, 5] #clicks from test until results. [symptoms, random_test, tracing]
