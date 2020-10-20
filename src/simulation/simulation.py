@@ -58,6 +58,10 @@ class Simulation:
         self.my = nb_simulation.initialize_My(self.cfg)
         utils.set_numba_random_seed(self.cfg.ID)
 
+        if self.cfg.version == 1:
+            if self.cfg.do_interventions:
+                raise AssertionError("interventions not yet implemented for version 1")
+
     def _initialize_network(self):
 
         self.df_coordinates = utils.load_df_coordinates(self.N_tot, self.cfg.ID)
@@ -132,8 +136,6 @@ class Simulation:
         self.N_ages = len(self.agents_in_age_group)
         return None
 
-    #     )
-
     def initialize_network(self, force_rerun=False, save_initial_network=True):
         utils.set_numba_random_seed(self.cfg.ID)
 
@@ -173,34 +175,21 @@ class Simulation:
             self.N_infectious_states,
         )
 
-    def run_simulation(self):
+    def run_simulation(self, verbose_interventions=None):
         utils.set_numba_random_seed(self.cfg.ID)
 
         if self.verbose:
             print("RUN SIMULATION")
 
-        # f_daily_tests = 20_000  # 20000  # TODO make Par?
         labels = self.df_coordinates["idx"].values
-        # if self.my.cfg.version >= 2:
-        # interventions_to_apply = List([1, 4, 6])
-        # else:
-        # interventions_to_apply = None
 
-        # 1: Lockdown (jobs and schools)
-        # 2: Cover (with face masks)
-        # 3: Tracking (infected and their connections)
-        # 4: Test people with symptoms
-        # 5: Isolate
-        # 6: Random Testing
-        # 0: Do nothing
+        if verbose_interventions is None:
+            verbose_interventions = self.verbose
 
         self.intervention = nb_simulation.Intervention(
             self.my.cfg,
-            # N_tot=self.cfg.N_tot,
-            # f_daily_tests=f_daily_tests,
             labels=labels,
-            # interventions_to_apply=interventions_to_apply,
-            verbose=self.verbose,
+            verbose=verbose_interventions,
         )
 
         res = nb_simulation.run_simulation(
@@ -217,8 +206,6 @@ class Simulation:
         )
 
         out_time, out_state_counts, out_my_state, intervention = res
-        # self.time =
-        # self.state_counts =
         self.my_state = np.array(out_my_state)
         self.df = utils.state_counts_to_df(np.array(out_time), np.array(out_state_counts))
         self.intervention = intervention
@@ -409,7 +396,7 @@ if debugging:
 
     cfg = utils.DotDict(
         {
-            "version": 1.0,
+            "version": 2.0,
             "N_tot": 58000,
             "rho": 0.1,
             "epsilon_rho": 0.04,
@@ -429,9 +416,8 @@ if debugging:
             "event_size_mean": 50.0,
             "event_beta_scaling": 10.0,
             "event_weekend_multiplier": 1.0,
-            "do_interventions": False,
-            # "interventions_to_apply": {1, 4, 6},
-            "interventions_to_apply": {0},
+            "do_interventions": True,
+            "interventions_to_apply": {1, 4, 6},
             "f_daily_tests": 0.01,
             "test_delay_in_clicks": np.array([0, 0, 25]),
             "results_delay_in_clicks": np.array([5, 10, 5]),
@@ -453,13 +439,14 @@ if debugging:
             simulation = Simulation(cfg, verbose)
             simulation.initialize_network(force_rerun=force_rerun)
             simulation.make_initial_infections()
-            df = simulation.run_simulation()
+            df = simulation.run_simulation(verbose_interventions=False)
         display(df)
+        print(f"Time taken: {t.elapsed:.1f}")
         # simulation.save(time_elapsed=t.elapsed, save_hdf5=True, save_csv=True)
 
         my = simulation.my
         df_coordinates = simulation.df_coordinates
-        intervention = simulation.intervention
+        # intervention = simulation.intervention
         g = simulation.g
 
         # simulation.hash
