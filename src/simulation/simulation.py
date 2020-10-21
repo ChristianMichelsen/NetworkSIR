@@ -160,8 +160,26 @@ class Simulation:
         self.SIR_transition_rates = utils.initialize_SIR_transition_rates(
             self.N_states, self.N_infectious_states, self.cfg
         )
+        if self.cfg.make_initial_infections_at_kommune:           
+            my_kommune = self.df_coordinates['kommune'].tolist()
+            municipality_filename = "Data/municipality_cases_time_series.csv"
+            mdf = pd.read_csv(municipality_filename, sep = ";")
+            mdf=mdf.set_index('date_sample')  
+            dates =['2020-09-14', '2020-09-13', '2020-09-12', '2020-09-11', '2020-09-10', '2020-09-09', '2020-09-08', '2020-09-07', '2020-09-06']
+            kommune_names = list(set(my_kommune))
+            infected_per_kommune_ints = np.zeros(len(kommune_names))
+            for date in dates:
+                infected_per_kommune_series = mdf.loc[date]           
 
-        nb_simulation.make_initial_infections(
+                for ith_kommune, kommune in enumerate(kommune_names):
+                    if kommune=="Samsø":
+                        infected_per_kommune_ints[ith_kommune] += 1
+                    elif kommune == "København":
+                        infected_per_kommune_ints[ith_kommune] += infected_per_kommune_series["Copenhagen"]
+                    else:
+                        infected_per_kommune_ints[ith_kommune] += infected_per_kommune_series[kommune]
+
+            nb_simulation.make_initial_infections_from_kommune_data(
             self.my,
             self.g,
             self.state_total_counts,
@@ -170,7 +188,21 @@ class Simulation:
             self.agents_in_age_group,
             self.initial_ages_exposed,
             self.N_infectious_states,
+            infected_per_kommune_ints,
+            kommune_names,
+            my_kommune,
         )
+        else:
+            nb_simulation.make_initial_infections(
+                self.my,
+                self.g,
+                self.state_total_counts,
+                self.agents_in_state,
+                self.SIR_transition_rates,
+                self.agents_in_age_group,
+                self.initial_ages_exposed,
+                self.N_infectious_states,
+            )
 
     def run_simulation(self):
         utils.set_numba_random_seed(self.cfg.ID)

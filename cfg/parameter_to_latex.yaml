@@ -6,12 +6,14 @@
   sigma_mu: \sigma_\mu
   beta: \beta
   sigma_beta: \sigma_\beta
+  beta_connection_type: \beta connection_type
   algo: \mathrm{algo}
   N_init: N_\mathrm{init}
   lambda_E: \lambda_E
   lambda_I: \lambda_I
   ID: \mathrm{ID}
   make_random_initial_infections: \mathrm{rand.inf.}
+  #make_initial_infections_at_kommune": \mathrm{rand.inf.}
   clustering_connection_retries: N_\mathrm{retries}^\mathrm{connect}
   N_events: N_\mathrm{events}
   event_size_max: \mathrm{event}_{\mathrm{size}_\mathrm{peak}}

@@ -664,7 +664,8 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True):
     exclude.append("version")
     exclude.append("hash")
     exclude.append("day_max")
-
+    exclude.append("make_initial_infections_at_kommune")
+    
     title = "$"
     for sim_par, val in cfg.items():
         if not sim_par in exclude:

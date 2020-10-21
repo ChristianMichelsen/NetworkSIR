@@ -1,5 +1,6 @@
 {
     "cfg": {
+<<<<<<< Updated upstream
         "1": {
             "version": 1.0,
             "N_tot": 580000,
@@ -9407,5 +9408,8 @@
             "day_max": 0.0,
             "hash": "92c40ebe0f"
         }
+=======
+        
+>>>>>>> Stashed changes
     }
 }
