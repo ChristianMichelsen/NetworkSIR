@@ -162,8 +162,88 @@ def plot_single_ABM_simulation(
 
     return fig, axes
 
+def plot_single_ABM_simulation_test_focus(
+    cfg, abm_files, add_top_text=True, xlim=(0, None), legend_fontsize=30
+):
 
-def plot_ABM_simulations(abm_files, force_rerun=False):
+    filenames = abm_files.cfg_to_filenames(cfg)
+
+    if not isinstance(cfg, utils.DotDict):
+        cfg = utils.DotDict(cfg)
+
+    d_ylabel = {"I": "Infected", "R": "Recovered"}
+    d_label_loc = {"I": "upper right", "R": "lower right"}
+
+    fig, axes = plt.subplots(ncols=2, figsize=(16, 7))
+    fig.subplots_adjust(top=0.8)
+
+    T_max = 0
+    lw = 0.3 * 10 / np.sqrt(len(filenames))
+
+    stochastic_noise_I = []
+    stochastic_noise_R = []
+
+    # file, i = abm_files[ABM_parameter][0], 0
+    for i, filename in enumerate(filenames):
+        df = file_loaders.pandas_load_file(filename)
+        t = df["time"].values
+        label = r"ABM" if i == 0 else None
+
+        axes[0].plot(t, df["I"], lw=lw, c="k", label=label)
+        axes[1].plot(t, df["R"], lw=lw, c="k", label=label)
+
+        if t.max() > T_max:
+            T_max = t.max()
+
+        stochastic_noise_I.append(df["I"].max())
+        stochastic_noise_R.append(df["R"].iloc[-1])
+
+    for variable, ax in zip(["I", "R"], axes):
+
+        df_deterministic = compute_df_deterministic(cfg, variable, T_max=T_max)
+
+        ax.plot(
+            df_deterministic["time"],
+            df_deterministic[variable],
+            lw=lw * 4,
+            color=d_colors["red"],
+            label="SEIR",
+        )
+        leg = ax.legend(loc=d_label_loc[variable], fontsize=legend_fontsize)
+        for legobj in leg.legendHandles:
+            legobj.set_linewidth(lw * 4)
+
+        ax.set(
+            xlabel="Time [days]",
+            ylim=(0, None),
+            ylabel=d_ylabel[variable],
+            xlim=xlim,
+        )
+        # ax.set_xlabel('Time', ha='right')
+        # ax.xaxis.set_label_coords(0.91, -0.14)
+        ax.yaxis.set_major_formatter(EngFormatter())
+
+    if add_top_text:
+        names = [r"I_\mathrm{max}^\mathrm{ABM}", r"R_\infty^\mathrm{ABM}"]
+        for name, x, ax in zip(names, [stochastic_noise_I, stochastic_noise_R], axes):
+            s = utils.format_relative_uncertainties(x, name)
+            ax.text(
+                0.5,
+                1.05,
+                s,
+                horizontalalignment="center",
+                transform=ax.transAxes,
+                fontsize=12,
+            )
+
+    title = utils.dict_to_title(cfg, len(filenames))
+    fig.suptitle(title, fontsize=16)
+    plt.subplots_adjust(wspace=0.4)
+
+    return fig, ax    
+
+
+def plot_ABM_simulations(abm_files, force_rerun=False, plot_found_vs_real_inf = False):
 
     # pdf_name = "test.pdf"
     pdf_name = Path(f"Figures/ABM_simulations.pdf")
@@ -188,8 +268,15 @@ def plot_ABM_simulations(abm_files, force_rerun=False):
         ):
 
             # break
+<<<<<<< Updated upstream
 
             fig, _ = plot_single_ABM_simulation(cfg, abm_files)
+=======
+            if plot_found_vs_real_inf:
+                fig, ax = plot_single_ABM_simulation_test_focus(cfg, abm_files)
+            else:
+                fig, ax = plot_single_ABM_simulation(cfg, abm_files)
+>>>>>>> Stashed changes
 
             pdf.savefig(fig, dpi=100)
             plt.close("all")

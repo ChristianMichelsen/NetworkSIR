@@ -41,6 +41,7 @@ spec_cfg = {
     "sigma_mu": nb.float32,
     "beta": nb.float32,
     "sigma_beta": nb.float32,
+    "beta_connection_type": nb.float32[:],
     "algo": nb.uint8,
     "N_init": nb.uint16,
     "lambda_E": nb.float32,
@@ -48,6 +49,7 @@ spec_cfg = {
     # other
     "day_max": nb.float32,
     "make_random_initial_infections": nb.boolean,
+    "make_initial_infections_at_kommune": nb.boolean,
     "clustering_connection_retries": nb.uint32,
     # events
     "N_events": nb.uint16,
@@ -93,6 +95,7 @@ class Config(object):
 
         # other
         self.make_random_initial_infections = True
+        self.make_initial_infections_at_kommune = False
         self.day_max = 0
         self.clustering_connection_retries = 0
 
@@ -182,6 +185,7 @@ spec_my = {
     "age": nb.uint8[:],
     "connections": ListType(ListType(nb.uint32)),
     "connections_type": ListType(ListType(nb.uint8)),
+    "beta_connection_type": nb.float32[:],
     "coordinates": nb.float32[:, :],
     "connection_weight": nb.float32[:],
     "infection_weight": nb.float64[:],
@@ -203,6 +207,9 @@ class My(object):
         self.coordinates = np.zeros((N_tot, 2), dtype=np.float32)
         self.connections = utils.initialize_nested_lists(N_tot, np.uint32)
         self.connections_type = utils.initialize_nested_lists(N_tot, np.uint8)
+        self.beta_connection_type = np.array(
+            [3.0, 1.0, 1.0, 1.0], dtype=np.float32
+        )  # beta multiplier for [House, work, others, events]
         self.connection_weight = np.ones(N_tot, dtype=np.float32)
         self.infection_weight = np.ones(N_tot, dtype=np.float64)
         self.number_of_contacts = np.zeros(N_tot, dtype=nb.uint16)
@@ -269,11 +276,15 @@ class Gillespie(object):
     def _initialize_rates(self, my):
         rates = List()
         for i in range(my.cfg.N_tot):
-            x = np.full(
-                shape=my.number_of_contacts[i],
-                fill_value=my.infection_weight[i],
-                dtype=np.float64,
-            )
+            # x = np.full(
+            #     shape=my.number_of_contacts[i],
+            #     fill_value=my.infection_weight[i],
+            #     dtype=np.float64,
+            # )
+            x = np.zeros(my.number_of_contacts[i])
+            for j in range(my.number_of_contacts[i]):
+                x[j] = my.beta_connection_type[my.connections_type[i][j]] * my.infection_weight[i]
+
             rates.append(x)
         self.rates = rates
         self.sum_of_rates = np.zeros(my.cfg.N_tot, dtype=np.float64)
@@ -694,8 +705,9 @@ def connect_work_and_others(
     matrix_work,
     matrix_other,
     agents_in_age_group,
+    verbose=True,
 ):
-
+    mu_printer = 1
     while mu_counter < my.cfg.mu / 2 * my.cfg.N_tot:
 
         ra_work_other = np.random.rand()
@@ -721,6 +733,9 @@ def connect_work_and_others(
             rho_tmp,
         )
         mu_counter += 1
+        if verbose and mu_counter * 100 / (my.cfg.mu / 2 * my.cfg.N_tot) > mu_printer:
+            print("connected n percent of things", mu_printer)
+            mu_printer += 1
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -760,6 +775,50 @@ def compute_initial_agents_to_infect(my, possible_agents):
 
 
 @njit
+def compute_initial_agents_to_infect_from_kommune(
+    my,
+    infected_per_kommune_start,
+    kommune_names,
+    my_kommune,
+):
+    fraction_found = 0.5  # estimate of size of fraction of positive we find. roughly speaking "mørketallet" is the inverse of this times n_found_positive- TODO: make this a function based on N_daily_test, tracking_rates and symptomatics
+    contact_number_init = (
+        1.05  # used to estimate how many people are in the e state, from how many found positive.
+    )
+    N_tot_frac = my.cfg.N_tot / 5_800_000
+    time_inf = 1 / my.cfg.lambda_I
+    time_e = 1 / my.cfg.lambda_E
+    norm_factor = contact_number_init / fraction_found * N_tot_frac * (1 + time_e / time_inf)
+
+    initial_agents_to_infect = []
+    # num_infected = 0
+
+    for num_of_infected_in_kommune, kommune in zip(infected_per_kommune_start, kommune_names):
+        num_of_infected_normed = np.int32(np.ceil(num_of_infected_in_kommune * norm_factor))
+        print(
+            "kommune",
+            kommune,
+            "num_infected",
+            num_of_infected_normed,
+            "non normed",
+            num_of_infected_in_kommune,
+        )
+        list_of_agent_in_kommune = []
+        for agent, agent_kommune in zip(range(my.cfg.N_tot), my_kommune):
+            if kommune == agent_kommune:
+                list_of_agent_in_kommune.append(agent)
+        if num_of_infected_normed != 0:
+            print("kommune", kommune, "num_infected", num_of_infected_normed)
+            liste = np.random.choice(
+                np.asarray(list_of_agent_in_kommune), size=num_of_infected_normed, replace=False
+            )
+            for entry in liste:
+                initial_agents_to_infect.append(entry)
+    E_I_ratio = contact_number_init * time_e / (contact_number_init * time_e + time_inf)
+    return initial_agents_to_infect, E_I_ratio
+
+
+@njit
 def make_initial_infections(
     my,
     g,
@@ -795,6 +854,59 @@ def make_initial_infections(
         g.total_sum_of_state_changes += SIR_transition_rates[new_state]
         g.cumulative_sum_of_state_changes[new_state:] += SIR_transition_rates[new_state]
 
+    return None
+
+
+@njit
+def make_initial_infections_from_kommune_data(
+    my,
+    g,
+    state_total_counts,
+    agents_in_state,
+    SIR_transition_rates,
+    agents_in_age_group,
+    initial_ages_exposed,
+    N_infectious_states,
+    infected_per_kommune_ints,
+    kommune_names,
+    my_kommune,
+):
+
+    # version 2 has age groups
+    if my.cfg.version >= 2:
+        possible_agents = List()
+        for age_exposed in initial_ages_exposed:
+            for agent in agents_in_age_group[age_exposed]:
+                possible_agents.append(agent)
+        possible_agents = np.asarray(possible_agents, dtype=np.uint32)
+    # version 1 has no age groups
+    else:
+        possible_agents = np.arange(my.cfg.N_tot, dtype=np.uint32)
+
+    initial_agents_to_infect, E_I_ratio = compute_initial_agents_to_infect_from_kommune(
+        my, infected_per_kommune_ints, kommune_names, my_kommune
+    )
+    # initial_agents_to_infect.flatten()
+    g.total_sum_of_state_changes = 0.0
+
+    ##  Now make initial infections
+    for _, agent in enumerate(initial_agents_to_infect):
+        new_state = np.random.randint(N_infectious_states)  # E1, E2, E3 or E4
+        if np.random.rand() < E_I_ratio:
+            new_state += 4
+        my.state[agent] = new_state
+
+        agents_in_state[new_state].append(np.uint32(agent))
+        state_total_counts[new_state] += 1
+
+        g.total_sum_of_state_changes += SIR_transition_rates[new_state]
+        g.cumulative_sum_of_state_changes[new_state:] += SIR_transition_rates[new_state]
+
+        if my.state[agent] >= N_infectious_states:
+            for contact, rate in zip(my.connections[agent], g.rates[agent]):
+                # update rates if contact is susceptible
+                if my.agent_is_susceptable(contact):
+                    g.update_rates(my, +rate, agent)
     return None
 
 
@@ -945,6 +1057,7 @@ def run_simulation(
     real_time = 0.0
 
     s_counter = np.zeros(4)
+    where_infections_happened_counter = np.zeros(4)
 
     # Run the simulation ################################
     continue_run = True
@@ -1028,6 +1141,7 @@ def run_simulation(
                 suggested_cumulative_sum = g.cumulative_sum + g.sum_of_rates[agent] / g.total_sum
 
                 if suggested_cumulative_sum > ra1:
+                    ith_contact = 0
                     for rate, contact in zip(g.rates[agent], my.connections[agent]):
 
                         # if contact is susceptible
@@ -1037,6 +1151,9 @@ def run_simulation(
 
                             # here agent infect contact
                             if g.cumulative_sum > ra1:
+                                where_infections_happened_counter[
+                                    my.connections_type[agent][ith_contact]
+                                ] += 1
                                 my.state[contact] = 0
                                 agents_in_state[0].append(np.uint32(contact))
                                 state_total_counts[0] += 1
@@ -1045,6 +1162,7 @@ def run_simulation(
                                 accept = True
                                 agent_getting_infected = contact
                                 break
+                            ith_contact += 1
                 else:
                     g.cumulative_sum = suggested_cumulative_sum
 
@@ -1081,7 +1199,13 @@ def run_simulation(
 
                 if my.cfg.N_events > 0:
                     add_daily_events(
-                        my, g, day, agents_in_state, state_total_counts, SIR_transition_rates
+                        my,
+                        g,
+                        day,
+                        agents_in_state,
+                        state_total_counts,
+                        SIR_transition_rates,
+                        where_infections_happened_counter,
                     )
 
                 daily_counter = 0
@@ -1113,7 +1237,10 @@ def run_simulation(
     if verbose:
         print("Simulation step_number, ", step_number)
         print("s_counter", s_counter)
-        # print("positive_test_counter", intervention.positive_test_counter)
+        print("Where", where_infections_happened_counter)
+        print("positive_test_counter", intervention.positive_test_counter)
+        # print("N_daily_tests", intervention.N_daily_tests)
+        # print("N_positive_tested", N_positive_tested)
 
     return out_time, out_state_counts, out_my_state, intervention
 
@@ -1186,7 +1313,7 @@ def test_if_label_needs_intervention(
     intervention,
     day,
     intervention_type_to_init,
-    threshold=0.004,  # threshold is the fraction that need to be positive.
+    threshold=0.000,  # threshold is the fraction that need to be positive.
 ):
     infected_per_label = np.zeros_like(intervention.label_counter, dtype=np.uint32)
 
@@ -1266,7 +1393,7 @@ def remove_intervention_at_label(my, g, intervention, ith_label):
 
 
 @njit
-def test_if_intervention_on_labels_can_be_removed(my, g, intervention, day, threshold=0.001):
+def test_if_intervention_on_labels_can_be_removed(my, g, intervention, day, threshold=0.5):
 
     infected_per_label = np.zeros(intervention.N_labels, dtype=np.int32)
     for agent, day_found in enumerate(intervention.day_found_infected):
@@ -1368,7 +1495,7 @@ def reduce_frac_rates_of_agent(my, g, intervention, agent, rate_reduction):
     for ith_contact, contact in enumerate(my.connections[agent]):
 
         # update rates from agent to contact. Rate_reduction makes it depending on connection type
-        if np.random.rand() < remove_rates[my.connections_type[agent][ith_contact]]:
+        if np.random.rand() > remove_rates[my.connections_type[agent][ith_contact]]:
             act_rate_reduction = np.array([0, 0, 0], dtype=np.float64)
         else:
             act_rate_reduction = reduce_rates
@@ -1388,7 +1515,7 @@ def reduce_frac_rates_of_agent(my, g, intervention, agent, rate_reduction):
             contact,
             rate,
             agent_update_rate,
-            rate_reduction=rate_reduction,
+            rate_reduction=act_rate_reduction,
         )
 
     # actually updates to gillespie sums
@@ -1398,7 +1525,7 @@ def reduce_frac_rates_of_agent(my, g, intervention, agent, rate_reduction):
 
 @njit
 def remove_and_reduce_rates_of_agent(my, g, intervention, agent, rate_reduction):
-    # rate reduction is 2 3-vectors. is used for masking interventions
+    # rate reduction is 2 3-vectors. is used for lockdown interventions
     agent_update_rate = 0.0
     remove_rates = rate_reduction[0]
     reduce_rates = rate_reduction[1]
@@ -1579,7 +1706,15 @@ def test_tagged_agents(my, g, intervention, day, click):
 
 
 @njit
-def add_daily_events(my, g, day, agents_in_state, state_total_counts, SIR_transition_rates):
+def add_daily_events(
+    my,
+    g,
+    day,
+    agents_in_state,
+    state_total_counts,
+    SIR_transition_rates,
+    where_infections_happened_counter,
+):
     N_tot = my.cfg.N_tot
     event_size_max = my.cfg.event_size_max
     # if no max, set it to N_tot
@@ -1629,6 +1764,7 @@ def add_daily_events(my, g, day, agents_in_state, state_total_counts, SIR_transi
 
         # XXX this update was needed
         my.state[agent_getting_infected_at_event] = 0
+        where_infections_happened_counter[3] += 1
         agents_in_state[0].append(np.uint32(agent_getting_infected_at_event))
         state_total_counts[0] += 1
         g.total_sum_of_state_changes += SIR_transition_rates[0]

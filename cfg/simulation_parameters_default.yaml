@@ -1,5 +1,6 @@
 #  Define default simulation parameters
 
+
 # Default parameters:
 version: 2.0 # the version of the algorithm
 N_tot: 580_000  # Total number of nodes!
@@ -16,9 +17,10 @@ lambda_I: 1.0  # I->R, Lambda(from I states)
 
 # Other:
 make_random_initial_infections: True # Infections around a single agent
+make_initial_infections_at_kommune: False # Initiate infections at kommune basis
+
 day_max: 0 # if other than 0, sets the maximum number of days the algorithm runs
 clustering_connection_retries: 0 # number of times to try and reconnect two agents
-
 # event-related variables
 N_events: 0 # number of daily events
 event_size_max: 0 #max size of events. If 0 => N_tot (no max)
@@ -49,7 +51,7 @@ days_looking_back: 7 # When looking for local outbreaks, how many days are we lo
 
 # Reductions.
 # The rate reductions are list of list, first and second entry are rate reductions for the groups [family, job, other]. The third entry is the chance of choosing the first set. As such you can have some follow the lockdown and some not or some one group being able to work from home and another isn't.
-masking_rate_reduction: [[0.0, 0.0, 0.0], [0.0, 0.0, 0.8]] # [family, job, other]
+masking_rate_reduction: [[0.0, 0.0, 0.3], [0.0, 0.0, 0.8]] # [family, job, other]
 lockdown_rate_reduction: [[0.0, 1.0, 0.6], [0.0, 0.6, 0.6]] # [family, job, other]
 isolation_rate_reduction: [0.2, 1.0, 1.0] # [family, job, other]
 tracking_rates: [1.0, 0.8, 0.0] # [family, job, other]

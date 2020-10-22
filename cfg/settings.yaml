@@ -1,7 +1,0 @@
-# # exclude these parameters in network initialization filename
-# EXCLUDE_PARAMETER_IN_INIT:
-#     - N_init
-#     - lambda_E
-#     - lambda_I
-#     - make_random_initial_infections
-#     - event_size_max
