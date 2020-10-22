@@ -32,6 +32,7 @@ def set_numba_random_seed(seed):
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 spec_cfg = {
+    # Default parameters
     "version": nb.float32,
     "N_tot": nb.uint32,
     "rho": nb.float32,
@@ -45,29 +46,39 @@ spec_cfg = {
     "N_init": nb.uint16,
     "lambda_E": nb.float32,
     "lambda_I": nb.float32,
+    # other
+    "day_max": nb.float32,
     "make_random_initial_infections": nb.boolean,
     "make_initial_infections_at_kommune": nb.boolean,
     "clustering_connection_retries": nb.uint32,
+    # events
     "N_events": nb.uint16,
     "event_size_max": nb.uint16,
     "event_size_mean": nb.float32,
     "event_beta_scaling": nb.float32,
     "event_weekend_multiplier": nb.float32,
-    "day_max": nb.float32,
+    # lockdown-related / interventions
+    "do_interventions": nb.boolean,
+    "interventions_to_apply": nb.types.Set(nb.int64),
+    "f_daily_tests": nb.float32,
+    "test_delay_in_clicks": nb.int64[:],
+    "results_delay_in_clicks": nb.int64[:],
+    "chance_of_finding_infected": nb.float64[:],
+    "days_looking_back": nb.float64,
+    "masking_rate_reduction": nb.float64[:, ::1],  # to make the type C instead if A
+    "lockdown_rate_reduction": nb.float64[:, ::1],  # to make the type C instead if A
+    "isolation_rate_reduction": nb.float64[:],
+    "tracking_rates": nb.float64[:],
+    # ID
     "ID": nb.uint16,
 }
-
-
-# N_events = my.cfg.N_events
-# event_size_mean = 50  # XXX add as parameter
-
-# if N_events > 0:
-#     event_beta_scaling = 100
 
 
 @jitclass(spec_cfg)
 class Config(object):
     def __init__(self):
+
+        # Default parameters
         self.version = 2.0
         self.N_tot = 580_000
         self.rho = 0.0
@@ -82,7 +93,13 @@ class Config(object):
         self.lambda_I = 1.0
         self.make_random_initial_infections = 1
         self.make_initial_infections_at_kommune = 0
+
+        # other
+        self.make_random_initial_infections = True
+        self.day_max = 0
         self.clustering_connection_retries = 0
+
+        # events
         self.N_events = 0
         self.event_size_max = 0
         self.event_size_mean = 50
@@ -91,36 +108,62 @@ class Config(object):
         self.day_max = 100
         self.ID = 0
 
-    def print(self):
-        print(
-            *(" version: ", self.version, "\n"),
-            *("N_tot: ", self.N_tot, "\n"),
-            *("rho: ", self.rho, "\n"),
-            *("epsilon_rho: ", self.epsilon_rho, "\n"),
-            *("mu: ", self.mu, "\n"),
-            *("sigma_mu: ", self.sigma_mu, "\n"),
-            *("beta: ", self.beta, "\n"),
-            *("sigma_beta: ", self.sigma_beta, "\n"),
-            *("beta_connection_type: ", self.beta_connection_type, "\n"),
-            *("algo: ", self.algo, "\n"),
-            *("N_init: ", self.N_init, "\n"),
-            *("lambda_E: ", self.lambda_E, "\n"),
-            *("lambda_I: ", self.lambda_I, "\n"),
-            *("make_random_initial_infections: ", self.make_random_initial_infections, "\n"),
-            *("make_initial_infections_at_kommune: ", self.make_initial_infections_at_kommune, "\n"),
-            *("N_events: ", self.N_events, "\n"),
-            *("event_size_max: ", self.event_size_max, "\n"),
-            *("event_size_mean: ", self.event_size_mean, "\n"),
-            *("event_beta_scaling: ", self.event_beta_scaling, "\n"),
-            *("event_weekend_multiplier: ", self.event_weekend_multiplier, "\n"),
-            *("day_max: ", self.day_max, "\n"),
-            *("ID: ", self.ID, "\n"),
-        )
 
+        # Interventions / Lockdown
+        self.do_interventions = False
+        self.interventions_to_apply = {1, 4, 6}
+        self.f_daily_tests = 0.01
+        self.test_delay_in_clicks = np.array([0, 0, 25])
+        self.results_delay_in_clicks = np.array([5, 10, 5])
+        self.chance_of_finding_infected = np.array([0.0, 0.15, 0.15, 0.15, 0.0])
+        self.days_looking_back = 7
+        self.masking_rate_reduction = np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.8]])
+        self.lockdown_rate_reduction = np.array([[0.0, 1.0, 0.6], [0.0, 0.6, 0.6]])
+        self.isolation_rate_reduction = np.array([0.2, 1.0, 1.0])
+        self.tracking_rates = np.array([1.0, 0.8, 0.0])
+
+        self.ID = 0
+
+    # def print(self):
+    #     print(
+    #         *(" version: ", self.version, "\n"),
+    #         *("N_tot: ", self.N_tot, "\n"),
+    #         *("rho: ", self.rho, "\n"),
+    #         *("epsilon_rho: ", self.epsilon_rho, "\n"),
+    #         *("mu: ", self.mu, "\n"),
+    #         *("sigma_mu: ", self.sigma_mu, "\n"),
+    #         *("beta: ", self.beta, "\n"),
+    #         *("sigma_beta: ", self.sigma_beta, "\n"),
+    #         *("algo: ", self.algo, "\n"),
+    #         *("N_init: ", self.N_init, "\n"),
+    #         *("lambda_E: ", self.lambda_E, "\n"),
+    #         *("lambda_I: ", self.lambda_I, "\n"),
+    #         *("make_random_initial_infections: ", self.make_random_initial_infections, "\n"),
+    #         *("day_max: ", self.day_max, "\n"),
+    #         *("N_events: ", self.N_events, "\n"),
+    #         *("event_size_max: ", self.event_size_max, "\n"),
+    #         *("event_size_mean: ", self.event_size_mean, "\n"),
+    #         *("event_beta_scaling: ", self.event_beta_scaling, "\n"),
+    #         *("event_weekend_multiplier: ", self.event_weekend_multiplier, "\n"),
+    #         # *("do_interventions: ", self.do_interventions, "\n"),
+    #         # *("interventions_to_apply: ", self.interventions_to_apply, "\n"),
+    #         # *("f_daily_tests: ", self.f_daily_tests, "\n"),
+    #         # *("test_delay_in_clicks: ", self.test_delay_in_clicks, "\n"),
+    #         # *("results_delay_in_clicks: ", self.results_delay_in_clicks, "\n"),
+    #         # *("chance_of_finding_infected: ", self.chance_of_finding_infected, "\n"),
+    #         # *("days_looking_back: ", self.days_looking_back, "\n"),
+    #         # *("masking_rate_reduction: ", self.masking_rate_reduction, "\n"),
+    #         # *("lockdown_rate_reduction: ", self.lockdown_rate_reduction, "\n"),
+    #         # *("isolation_rate_reduction: ", self.isolation_rate_reduction, "\n"),
+    #         # *("tracking_rates: ", self.tracking_rates, "\n"),
+    #         *("ID: ", self.ID, "\n"),
+    #     )
 
 def initialize_nb_cfg(cfg):
     config = Config()
     for key, val in cfg.items():
+        # if isinstance(val, list):
+        # val = List(val)
         setattr(config, key, val)
     return config
 
@@ -246,32 +289,22 @@ class Gillespie(object):
         self.cumulative_sum_infection_rates[my.state[agent] :] += rate
 
 
+#%%
+
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # # # # # # # # # # # # # # Intervention Class  # # # # # # # # # # # # # # # #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-#%%
-#%%
 
 spec_intervention = {
-    "N_tot": nb.uint32,
-    "N_daily_tests": nb.uint32,
+    "cfg": nb_cfg_type,
     "labels": nb.uint8[:],  # affilitation? XXX
     "label_counter": nb.uint32[:],
     "N_labels": nb.uint32,
-    "interventions_to_apply": ListType(nb.int64),
     "day_found_infected": nb.int32[:],
     "reason_for_test": nb.int8[:],
     "positive_test_counter": nb.uint32[:],
     "clicks_when_tested": nb.int32[:],
     "clicks_when_tested_result": nb.int32[:],
-    "test_delay_in_clicks": nb.uint32[:],
-    "results_delay_in_clicks": nb.uint32[:],
-    "chance_of_finding_infected": nb.float32[:],
-    "days_looking_back": nb.float32,
-    "masking_rate_reduction": nb.float32[:, ::1],  # to make the type C instead if A
-    "lockdown_rate_reduction": nb.float32[:, ::1],  # to make the type C instead if A
-    "isolation_rate_reduction": nb.float32[:],
-    "tracking_rates": nb.float32[:],
     "types": nb.uint8[:],
     "started_as": nb.uint8[:],
     "verbose": nb.boolean,
@@ -281,21 +314,9 @@ spec_intervention = {
 @jitclass(spec_intervention)
 class Intervention(object):
     """
-    - N_tot: Number of agents
-    - N_daily_tests: Number of total daily tests scaled relative to a full population
-
     - N_labels: Number of labels. "Label" here can refer to either tent or kommune.
     - labels: a label or ID which is either the nearest tent or the kommune which the agent belongs to
     - label_counter: count how many agent belong to a particular label
-
-    - interventions_to_apply:
-        1: Lockdown (jobs and schools)
-        2: Cover (with face masks)
-        3: Tracking (infected and their connections)
-        4: Test people with symptoms
-        5: Isolate (if you get a positive test, isolate yourself from your contacts (isolation_rate_reduction))
-        6: Random Testing
-        0/None: Do nothing
 
     - day_found_infected: -1 if not infected, otherwise the day of infection
 
@@ -311,21 +332,6 @@ class Intervention(object):
 
     - clicks_when_tested_result: When you get your test results measured in clicks
 
-    - test_delay_in_clicks: clicks until test. [symptoms, random_test, tracing]
-
-    - results_delay_in_clicks: clicks from test until results. [symptoms, random_test, tracing]
-
-    - chance_of_finding_infected: When people moves into the ith I state, what is the chance to detect them in a test
-
-    - days_looking_back: When looking for local outbreaks, how many days are we looking back, e.g. number of people infected within the last 7 days
-
-    # Reductions.
-        The rate reductions are list of list, first and second entry are rate reductions for the groups [family, job, other]. The third entry is the chance of choosing the first set. As such you can have some follow the lockdown and some not or some one group being able to work from home and another isn't.
-    - masking_rate_reduction: Rate reduction for the groups [family, job, other]
-    - lockdown_rate_reduction: Rate reduction for the groups [family, job, other]
-    - isolation_rate_reduction: Rate reduction for the groups [family, job, other]
-    - tracking_rates: fraction of connections we track for the groups [family, job, other]
-
     - types: array to keep count of which intervention are at place at which label
         0: Do nothing
         1: lockdown (jobs and schools)
@@ -338,42 +344,28 @@ class Intervention(object):
 
     """
 
-    def __init__(self, N_tot, N_daily_tests, labels, interventions_to_apply, verbose=False):
-        self.N_tot = N_tot
-        self.N_daily_tests = int(N_daily_tests * N_tot / 5_800_000)
+    def __init__(
+        self,
+        nb_cfg,
+        labels,
+        verbose=False,
+    ):
+
+        self.cfg = nb_cfg
 
         self._initialize_labels(labels)
 
-        self._initialize_interventions_to_apply(interventions_to_apply)
-
-        self.day_found_infected = np.full(N_tot, fill_value=-1, dtype=np.int32)
-        self.reason_for_test = np.full(N_tot, fill_value=-1, dtype=np.int8)
+        self.day_found_infected = np.full(self.cfg.N_tot, fill_value=-1, dtype=np.int32)
+        self.reason_for_test = np.full(self.cfg.N_tot, fill_value=-1, dtype=np.int8)
         self.positive_test_counter = np.zeros(3, dtype=np.uint32)
-        self.clicks_when_tested = np.full(N_tot, fill_value=-1, dtype=np.int32)
-        self.clicks_when_tested_result = np.full(N_tot, fill_value=-1, dtype=np.int32)
-        self.test_delay_in_clicks = np.array([0, 0, 25], dtype=np.uint32)
-        self.results_delay_in_clicks = np.array([5, 10, 5], dtype=np.uint32)
-        self.chance_of_finding_infected = np.array([0.0, 0.15, 0.15, 0.15, 0.0], dtype=np.float32)
-        self.days_looking_back = 7.0
 
-        self.masking_rate_reduction = np.array([[0, 0, 0.4], [0, 0, 0.8]], dtype=np.float32)
-        self.lockdown_rate_reduction = np.array([[0, 1, 0.6], [0, 0.6, 0.6]], dtype=np.float32)
-        self.isolation_rate_reduction = np.array([0.2, 1, 1], dtype=np.float32)
-        self.tracking_rates = np.array([1, 0.8, 0], dtype=np.float32)
+        self.clicks_when_tested = np.full(self.cfg.N_tot, fill_value=-1, dtype=np.int32)
+        self.clicks_when_tested_result = np.full(self.cfg.N_tot, fill_value=-1, dtype=np.int32)
 
         self.types = np.zeros(self.N_labels, dtype=np.uint8)
         self.started_as = np.zeros(self.N_labels, dtype=np.uint8)
 
         self.verbose = verbose
-
-    def _initialize_interventions_to_apply(self, interventions_to_apply=None):
-        if interventions_to_apply is None:
-            self.interventions_to_apply = List([np.int64(0)])
-        else:
-            lst = List()
-            for intervention in interventions_to_apply:
-                lst.append(np.int64(intervention))
-            self.interventions_to_apply = lst
 
     def _initialize_labels(self, labels):
         self.labels = np.asarray(labels, dtype=np.uint8)
@@ -384,23 +376,29 @@ class Intervention(object):
     def agent_has_not_been_tested(self, agent):
         return self.day_found_infected[agent] == -1
 
-    def do_apply_intervention_on_label(self):
-        return 1 in self.interventions_to_apply or 2 in self.interventions_to_apply
+    @property
+    def apply_interventions(self):
+        return self.cfg.do_interventions
 
-    def do_tracking(self):
-        return 3 in self.interventions_to_apply
+    @property
+    def apply_interventions_on_label(self):
+        return (1 in self.cfg.interventions_to_apply) or (2 in self.cfg.interventions_to_apply)
 
-    def do_test_people_with_symptoms(self):
-        return 4 in self.interventions_to_apply
+    @property
+    def apply_tracking(self):
+        return 3 in self.cfg.interventions_to_apply
 
-    def do_isolate(self):
-        return 5 in self.interventions_to_apply
+    @property
+    def apply_symptom_testing(self):
+        return 4 in self.cfg.interventions_to_apply
 
-    def do_random_test(self):
-        return 6 in self.interventions_to_apply
+    @property
+    def apply_isolation(self):
+        return 5 in self.cfg.interventions_to_apply
 
-    def any_testing(self):
-        return self.do_tracking() or self.do_test_people_with_symptoms() or self.do_random_test()
+    @property
+    def apply_random_testing(self):
+        return 6 in self.cfg.interventions_to_apply
 
 
 #%%
@@ -969,6 +967,47 @@ def do_bug_check(
     return continue_run
 
 
+#%%
+
+
+@njit
+def update_infection_list_for_newly_infected_agent(my, g, agent_getting_infected):
+
+    # Here we update infection lists so that newly infected cannot be infected again
+
+    # loop over contacts of the newly infected agent in order to:
+    # 1) remove newly infected agent from contact list (find_myself) by setting rate to 0
+    # 2) remove rates from contacts gillespie sums (only if they are in infections state (I))
+    for contact_of_agent_getting_infected in my.connections[agent_getting_infected]:
+
+        # loop over indexes of the contact to find_myself and set rate to 0
+        for ith_contact_of_agent_getting_infected in range(
+            my.number_of_contacts[contact_of_agent_getting_infected]
+        ):
+
+            find_myself = my.connections[contact_of_agent_getting_infected][
+                ith_contact_of_agent_getting_infected
+            ]
+
+            # check if the contact found is myself
+            if find_myself == agent_getting_infected:
+
+                rate = g.rates[contact_of_agent_getting_infected][
+                    ith_contact_of_agent_getting_infected
+                ]
+
+                # set rates to myself to 0 (I cannot get infected again)
+                g.rates[contact_of_agent_getting_infected][
+                    ith_contact_of_agent_getting_infected
+                ] = 0
+
+                # if the contact can infect, then remove the rates from the overall gillespie accounting
+                if my.agent_is_infectious(contact_of_agent_getting_infected):
+                    g.update_rates(my, -rate, contact_of_agent_getting_infected)
+
+                break
+
+
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # # # # # # # # # # # # # # # # SIMULATION  # # # # # # # # # # # # # # # # # #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -992,9 +1031,6 @@ def run_simulation(
     out_state_counts = List()
     out_my_state = List()
 
-    # out_infection_counter = List()
-    # out_my_number_of_contacts = List()
-    # N_positive_tested = List()
 
     daily_counter = 0
     day = 0
@@ -1004,8 +1040,6 @@ def run_simulation(
 
     s_counter = np.zeros(4)
     where_infections_happened_counter = np.zeros(4)
-
-    # infectious_states = {4, 5, 6, 7}  # TODO: fix
 
     # Run the simulation ################################
     continue_run = True
@@ -1055,24 +1089,8 @@ def run_simulation(
 
             accept = True
 
-            if intervention.do_test_people_with_symptoms():
-
-                # test infectious people
-                if my.state[agent] >= N_infectious_states:
-
-                    randomly_selected = (
-                        np.random.rand()
-                        < intervention.chance_of_finding_infected[my.state[agent] - 4]
-                    )
-                    not_tested_before = intervention.clicks_when_tested[agent] == -1
-
-                    if randomly_selected and not_tested_before:
-                        # testing in n_clicks for symptom checking
-                        intervention.clicks_when_tested[agent] = (
-                            click + intervention.test_delay_in_clicks[0]
-                        )
-                        # set the reason for testing to symptoms (0)
-                        intervention.reason_for_test[agent] = 0
+            if intervention.apply_interventions and intervention.apply_symptom_testing:
+                apply_symptom_testing(my, intervention, agent, click)
 
             # Moves TO infectious State from non-infectious
             if my.state[agent] == N_infectious_states:
@@ -1137,45 +1155,12 @@ def run_simulation(
                     *("\nstep_number", step_number),
                     "\ncfg:",
                 )
-                my.cfg.print()
+                # my.cfg.print()
                 break
 
             # Here we update infection lists so that newly infected cannot be infected again
 
-            # loop over contacts of the newly infected agent in order to:
-            # 1) remove newly infected agent from contact list (find_myself) by setting rate to 0
-            # 2) remove rates from contacts gillespie sums (only if they are in infections state (I))
-            for contact_of_agent_getting_infected in my.connections[agent_getting_infected]:
-
-                # loop over indexes of the contact to find_myself and set rate to 0
-                for ith_contact_of_agent_getting_infected in range(
-                    my.number_of_contacts[contact_of_agent_getting_infected]
-                ):
-
-                    find_myself = my.connections[contact_of_agent_getting_infected][
-                        ith_contact_of_agent_getting_infected
-                    ]
-
-                    # check if the contact found is myself
-                    if find_myself == agent_getting_infected:
-
-                        rate = g.rates[contact_of_agent_getting_infected][
-                            ith_contact_of_agent_getting_infected
-                        ]
-
-                        # set rates to myself to 0 (I cannot get infected again)
-                        g.rates[contact_of_agent_getting_infected][
-                            ith_contact_of_agent_getting_infected
-                        ] = 0
-
-                        # if the contact can infect, then remove the rates from the overall gillespie accounting
-                        if my.agent_is_infectious(contact_of_agent_getting_infected):
-                            g.update_rates(my, -rate, contact_of_agent_getting_infected)
-
-                        break
-
-                # else:
-                #     continue
+            update_infection_list_for_newly_infected_agent(my, g, agent_getting_infected)
 
         ################
 
@@ -1187,6 +1172,9 @@ def run_simulation(
 
             if daily_counter >= 10:
 
+                if intervention.apply_interventions and intervention.apply_interventions_on_label:
+                    apply_interventions_on_label(my, g, intervention, day, click)
+
                 if my.cfg.N_events > 0:
                     add_daily_events(
                         my, g, day, agents_in_state, state_total_counts, SIR_transition_rates, where_infections_happened_counter
@@ -1196,78 +1184,9 @@ def run_simulation(
                 day += 1
                 out_my_state.append(my.state.copy())
 
-                if intervention.do_apply_intervention_on_label():
 
-                    if intervention.do_random_test():
-
-                        # choose N_daily_test people at random to test
-                        random_people_for_test = np.random.choice(
-                            np.arange(my.cfg.N_tot, dtype=np.uint32), intervention.N_daily_tests
-                        )
-                        intervention.clicks_when_tested[random_people_for_test] = (
-                            click + intervention.test_delay_in_clicks[1]
-                        )
-                        # count that random test is the reason for test
-                        intervention.reason_for_test[random_people_for_test] = 1
-
-                    test_if_label_needs_intervention(
-                        intervention, day, intervention_type_to_init=2, threshold=0.0
-                    )
-
-                    test_if_intervention_on_labels_can_be_removed(
-                        my, g, intervention, day, threshold=0.000
-                    )
-
-                    for ith_label, intervention_type in enumerate(intervention.types):
-
-                        if intervention_type in intervention.interventions_to_apply:
-                            intervention_has_not_been_applied = (
-                                intervention.started_as[ith_label] == 0
-                            )
-
-                            apply_lockdown = intervention_type == 1
-                            if apply_lockdown and intervention_has_not_been_applied:
-                                intervention.started_as[ith_label] = 1
-                                lockdown_on_label(
-                                    my,
-                                    g,
-                                    intervention,
-                                    label=ith_label,
-                                    rate_reduction=intervention.lockdown_rate_reduction,
-                                )
-                            
-                            apply_masking = intervention_type == 2
-                            if apply_masking and intervention_has_not_been_applied:
-                                intervention.started_as[ith_label] = 2
-                                masking_on_label(
-                                    my,
-                                    g,
-                                    intervention,
-                                    label=ith_label,
-                                    rate_reduction=intervention.masking_rate_reduction,
-                                )
-
-
-            if intervention.any_testing():
-
-                # test everybody whose counter say we should test
-                for agent in range(my.cfg.N_tot):
-                    # testing everybody who should be tested
-                    if intervention.clicks_when_tested[agent] == click:
-                        test_a_person(my, g, intervention, agent, click, day)
-
-                    # getting results for people
-                    if intervention.clicks_when_tested_result[agent] == click:
-                        intervention.clicks_when_tested_result[agent] = -1
-                        intervention.day_found_infected[agent] = day
-                        if intervention.do_isolate():
-                            cut_rates_of_agent(
-                                my,
-                                g,
-                                intervention,
-                                agent,
-                                rate_reduction=intervention.isolation_rate_reduction,
-                            )
+            if intervention.apply_interventions:
+                test_tagged_agents(my, g, intervention, day, click)
 
             click += 1
 
@@ -1296,7 +1215,7 @@ def run_simulation(
         # print("N_daily_tests", intervention.N_daily_tests)
         # print("N_positive_tested", N_positive_tested)
 
-    return out_time, out_state_counts, out_my_state
+    return out_time, out_state_counts, out_my_state, intervention
 
 
 #%%
@@ -1372,7 +1291,7 @@ def test_if_label_needs_intervention(
     infected_per_label = np.zeros_like(intervention.label_counter, dtype=np.uint32)
 
     for agent, day_found in enumerate(intervention.day_found_infected):
-        if day_found > max(0, day - intervention.days_looking_back):
+        if day_found > max(0, day - intervention.cfg.days_looking_back):
             infected_per_label[intervention.labels[agent]] += 1
 
     it = enumerate(
@@ -1451,7 +1370,7 @@ def test_if_intervention_on_labels_can_be_removed(my, g, intervention, day, thre
 
     infected_per_label = np.zeros(intervention.N_labels, dtype=np.int32)
     for agent, day_found in enumerate(intervention.day_found_infected):
-        if day_found > day - intervention.days_looking_back:
+        if day_found > day - intervention.cfg.days_looking_back:
             infected_per_label[intervention.labels[agent]] += 1
 
     it = enumerate(
@@ -1549,8 +1468,9 @@ def reduce_frac_rates_of_agent(my, g, intervention, agent, rate_reduction):
     for ith_contact, contact in enumerate(my.connections[agent]):
 
         # update rates from agent to contact. Rate_reduction makes it depending on connection type
+
         if np.random.rand() > remove_rates[my.connections_type[agent][ith_contact]]:
-            act_rate_reduction = np.array([0, 0, 0], dtype=np.float32)
+            act_rate_reduction = np.array([0, 0, 0], dtype=np.float64)
         else:
             act_rate_reduction = reduce_rates
 
@@ -1590,7 +1510,7 @@ def remove_and_reduce_rates_of_agent(my, g, intervention, agent, rate_reduction)
         # update rates from agent to contact. Rate_reduction makes it depending on connection type
         act_rate_reduction = reduce_rates
         if np.random.rand() < remove_rates[my.connections_type[agent][ith_contact]]:
-            act_rate_reduction = np.array([1.0, 1.0, 1.0], dtype=np.float32)
+            act_rate_reduction = np.array([1.0, 1.0, 1.0], dtype=np.float64)
 
         rate = (
             g.rates[agent][ith_contact]
@@ -1642,30 +1562,112 @@ def test_a_person(my, g, intervention, agent, click, day):
     # if agent is infectious and hasn't been tested before
     if my.agent_is_infectious(agent) and intervention.agent_has_not_been_tested(agent):
         intervention.clicks_when_tested_result[agent] = (
-            click + intervention.results_delay_in_clicks[intervention.reason_for_test[agent]]
+            click + intervention.cfg.results_delay_in_clicks[intervention.reason_for_test[agent]]
         )
         intervention.positive_test_counter[
             intervention.reason_for_test[agent]
         ] += 1  # count reason found infected
 
         # check if tracking is on
-        if intervention.do_tracking():
+        if intervention.apply_tracking:
             # loop over contacts
             for ith_contact, contact in enumerate(my.connections[agent]):
                 if (
                     np.random.rand()
-                    < intervention.tracking_rates[my.connections_type[agent][ith_contact]]
+                    < intervention.cfg.tracking_rates[my.connections_type[agent][ith_contact]]
                     and intervention.clicks_when_tested[contact] == -1
                 ):
                     intervention.reason_for_test[contact] = 2
                     intervention.clicks_when_tested[contact] = (
-                        click + intervention.test_delay_in_clicks[2]
+                        click + intervention.cfg.test_delay_in_clicks[2]
                     )
 
     intervention.clicks_when_tested[agent] = -1
     intervention.reason_for_test[agent] = -1
 
     return None
+
+
+@njit
+def apply_symptom_testing(my, intervention, agent, click):
+
+    # if my.state[agent] >= N_infectious_states: # old line
+    if my.agent_is_infectious(agent):  # TODO: XXX which one of these to lines
+
+        prob = intervention.cfg.chance_of_finding_infected[my.state[agent] - 4]
+        randomly_selected = np.random.rand() < prob
+        not_tested_before = intervention.clicks_when_tested[agent] == -1
+
+        if randomly_selected and not_tested_before:
+            # testing in n_clicks for symptom checking
+            intervention.clicks_when_tested[agent] = (
+                click + intervention.cfg.test_delay_in_clicks[0]
+            )
+            # set the reason for testing to symptoms (0)
+            intervention.reason_for_test[agent] = 0
+
+
+@njit
+def apply_random_testing(my, intervention, click):
+    # choose N_daily_test people at random to test
+    N_daily_test = int(intervention.cfg.f_daily_tests * my.cfg.N_tot)
+    agents = np.arange(my.cfg.N_tot, dtype=np.uint32)
+    random_agents_to_be_tested = np.random.choice(agents, N_daily_test)
+    intervention.clicks_when_tested[random_agents_to_be_tested] = (
+        click + intervention.cfg.test_delay_in_clicks[1]
+    )
+    # specify that random test is the reason for test
+    intervention.reason_for_test[random_agents_to_be_tested] = 1
+
+
+@njit
+def apply_interventions_on_label(my, g, intervention, day, click):
+
+    if intervention.apply_random_testing:
+        apply_random_testing(my, intervention, click)
+
+    test_if_label_needs_intervention(
+        intervention, day, intervention_type_to_init=1, threshold=0.004
+    )
+    test_if_intervention_on_labels_can_be_removed(my, g, intervention, day, threshold=0.001)
+
+    for ith_label, intervention_type in enumerate(intervention.types):
+
+        if intervention_type in intervention.cfg.interventions_to_apply:
+            intervention_has_not_been_applied = intervention.started_as[ith_label] == 0
+
+            apply_lockdown = intervention_type == 1
+            if apply_lockdown and intervention_has_not_been_applied:
+                intervention.started_as[ith_label] = 1
+                lockdown_on_label(
+                    my,
+                    g,
+                    intervention,
+                    label=ith_label,
+                    rate_reduction=intervention.cfg.lockdown_rate_reduction,
+                )
+
+
+@njit
+def test_tagged_agents(my, g, intervention, day, click):
+    # test everybody whose counter say we should test
+    for agent in range(my.cfg.N_tot):
+        # testing everybody who should be tested
+        if intervention.clicks_when_tested[agent] == click:
+            test_a_person(my, g, intervention, agent, click, day)
+
+        # getting results for people
+        if intervention.clicks_when_tested_result[agent] == click:
+            intervention.clicks_when_tested_result[agent] = -1
+            intervention.day_found_infected[agent] = day
+            if intervention.apply_isolation:
+                cut_rates_of_agent(
+                    my,
+                    g,
+                    intervention,
+                    agent,
+                    rate_reduction=intervention.cfg.isolation_rate_reduction,
+                )
 
 
 #%%
@@ -1734,36 +1736,4 @@ def add_daily_events(my, g, day, agents_in_state, state_total_counts, SIR_transi
         g.total_sum_of_state_changes += SIR_transition_rates[0]
         g.cumulative_sum_of_state_changes += SIR_transition_rates[0]
 
-        # loop over contacts of the newly infected agent in order to:
-        # 1) remove newly infected agent from contact list (find_myself) by setting rate to 0
-        # 2) remove rates from contacts gillespie sums (only if they are in infections state (I))
-        for contact_of_agent_getting_infected_at_event in my.connections[
-            agent_getting_infected_at_event
-        ]:
-
-            # loop over indexes of the contact to find_myself and set rate to 0
-            for ith_contact_of_agent_getting_infected_at_event in range(
-                my.number_of_contacts[contact_of_agent_getting_infected_at_event]
-            ):
-
-                find_myself = my.connections[contact_of_agent_getting_infected_at_event][
-                    ith_contact_of_agent_getting_infected_at_event
-                ]
-
-                # check if the contact found is myself
-                if find_myself == agent_getting_infected_at_event:
-
-                    rate = g.rates[contact_of_agent_getting_infected_at_event][
-                        ith_contact_of_agent_getting_infected_at_event
-                    ]
-
-                    # set rates to myself to 0 (I cannot get infected again)
-                    g.rates[contact_of_agent_getting_infected_at_event][
-                        ith_contact_of_agent_getting_infected_at_event
-                    ] = 0
-
-                    # if the contact can infect, then remove the rates from the overall gillespie accounting
-                    if my.agent_is_infectious(contact_of_agent_getting_infected_at_event):
-                        g.update_rates(my, -rate, contact_of_agent_getting_infected_at_event)
-
-                    break
+        update_infection_list_for_newly_infected_agent(my, g, agent_getting_infected_at_event)

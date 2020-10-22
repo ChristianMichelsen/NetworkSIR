@@ -1,3 +1,4 @@
+
 # which simulation parameters are integers (the rest are floats)
 INTEGER_SIMULATION_PARAMETERS:
     - N_tot
@@ -11,6 +12,7 @@ INTEGER_SIMULATION_PARAMETERS:
 BOOL_SIMULATION_PARAMETERS:
     - make_random_initial_infections
     - make_initial_infections_at_kommune
+
 # # exclude these parameters in network initialization filename
 # EXCLUDE_PARAMETER_IN_INIT:
 #     - N_init
