@@ -59,7 +59,8 @@ spec_cfg = {
     "event_weekend_multiplier": nb.float32,
     # lockdown-related / interventions
     "do_interventions": nb.boolean,
-    "interventions_to_apply": nb.types.Set(nb.int64),
+    # "interventions_to_apply": nb.types.Set(nb.int64),
+    "interventions_to_apply": ListType(nb.int64),
     "f_daily_tests": nb.float32,
     "test_delay_in_clicks": nb.int64[:],
     "results_delay_in_clicks": nb.int64[:],
@@ -111,7 +112,8 @@ class Config(object):
 
         # Interventions / Lockdown
         self.do_interventions = False
-        self.interventions_to_apply = {1, 4, 6}
+        # self.interventions_to_apply = {1, 4, 6}
+        self.interventions_to_apply = List([1, 4, 6])
         self.f_daily_tests = 0.01
         self.test_delay_in_clicks = np.array([0, 0, 25])
         self.results_delay_in_clicks = np.array([5, 10, 5])
@@ -162,8 +164,13 @@ class Config(object):
 def initialize_nb_cfg(cfg):
     config = Config()
     for key, val in cfg.items():
-        # if isinstance(val, list):
-        # val = List(val)
+        if isinstance(val, list):
+            if isinstance(spec_cfg[key], nb.types.ListType):
+                val = List(val)
+            elif isinstance(spec_cfg[key], nb.types.Array):
+                val = np.array(val, dtype=spec_cfg[key].dtype.name)
+            else:
+                raise AssertionError(f"Got {key}: {val}, not working")
         setattr(config, key, val)
     return config
 
