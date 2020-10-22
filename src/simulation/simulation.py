@@ -434,7 +434,7 @@ if debugging:
     if __name__ == "__main__" and False:
         run_simulations(d_simulation_parameters)
 
-    if True:
+    if False:
         with Timer() as t:
             simulation = Simulation(cfg, verbose)
             simulation.initialize_network(force_rerun=force_rerun)
