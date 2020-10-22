@@ -4,6 +4,7 @@
 /Data_SK_P1_UK/
 /Data_animation/
 /Data_*/
+db.json
 #/Figures_SK_P1_UK/
 *.joblib
 *.pickle
@@ -16,6 +17,7 @@ GPS_coordinates.npy
 #Jottacloud conflicted files
 *(Conflicted)*
 *jottacloud*
+*.log
 
 # autoswitch conda https://github.com/bckim92/zsh-autoswitch-conda
 *.cenv
