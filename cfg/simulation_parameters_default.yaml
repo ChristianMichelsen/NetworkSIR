@@ -17,7 +17,6 @@ lambda_I: 1.0  # I->R, Lambda(from I states)
 
 # Other:
 make_random_initial_infections: True # Infections around a single agent
-
 make_initial_infections_at_kommune: False # Initiate infections at kommune basis
 
 day_max: 0 # if other than 0, sets the maximum number of days the algorithm runs

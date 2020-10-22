@@ -26,20 +26,16 @@ if utils.is_local_computer():
 
     all_simulation_parameters = [
         {
-
             # "N_tot": 58_000,
             "N_tot": 580_003,
             "rho": 0.1,
-            "beta": [0.0015,0.002],
+            "beta": [0.0015, 0.002],
             "make_initial_infections_at_kommune": True,
             "N_events": [3000],
-
             "mu": 40,
             "day_max": 150,
-            "lambda_I" : 0.5,
+            "lambda_I": 0.5,
             "event_size_max": [50],
-
-
         },
     ]
 
@@ -50,7 +46,7 @@ else:
 
 #%%
 
-N_runs = 1 if utils.is_local_computer() else N_runs
+N_runs = 2 if utils.is_local_computer() else N_runs
 
 N_files_total = 0
 
@@ -66,7 +62,7 @@ with Timer() as t:
         print("Notice: forced rerun is set to True")
 
     for d_simulation_parameters in all_simulation_parameters:
-       # break
+        # break
 
         N_files = simulation.run_simulations(
             d_simulation_parameters,
