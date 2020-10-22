@@ -232,9 +232,10 @@ class Gillespie(object):
             #     fill_value=my.infection_weight[i],
             #     dtype=np.float64,
             # )
-            print(my.connections_type[i])
-            x = np.array([my.beta_connection_type[contact_type] * my.infection_weight[i] for contact_type in my.connections_type[i]])
-            print(x)
+            x = np.zeros(my.number_of_contacts[i])
+            for j in range(my.number_of_contacts[i]):
+            	x[j] = my.beta_connection_type[my.connections_type[i][j]]*my.infection_weight[i]
+
             rates.append(x)
         self.rates = rates
         self.sum_of_rates = np.zeros(my.cfg.N_tot, dtype=np.float64)
@@ -355,7 +356,7 @@ class Intervention(object):
         self.chance_of_finding_infected = np.array([0.0, 0.15, 0.15, 0.15, 0.0], dtype=np.float32)
         self.days_looking_back = 7.0
 
-        self.masking_rate_reduction = np.array([[0, 0, 0.0], [0, 0, 0.8]], dtype=np.float32)
+        self.masking_rate_reduction = np.array([[0, 0, 0.4], [0, 0, 0.8]], dtype=np.float32)
         self.lockdown_rate_reduction = np.array([[0, 1, 0.6], [0, 0.6, 0.6]], dtype=np.float32)
         self.isolation_rate_reduction = np.array([0.2, 1, 1], dtype=np.float32)
         self.tracking_rates = np.array([1, 0.8, 0], dtype=np.float32)
@@ -1112,7 +1113,7 @@ def run_simulation(
 
                             # here agent infect contact
                             if g.cumulative_sum > ra1:
-                                where_infections_happened_counter[my.connections_type[agent][ith_contact]]                    
+                                where_infections_happened_counter[my.connections_type[agent][ith_contact]] += 1                   
                                 my.state[contact] = 0
                                 agents_in_state[0].append(np.uint32(contact))
                                 state_total_counts[0] += 1
@@ -1188,7 +1189,7 @@ def run_simulation(
 
                 if my.cfg.N_events > 0:
                     add_daily_events(
-                        my, g, day, agents_in_state, state_total_counts, SIR_transition_rates
+                        my, g, day, agents_in_state, state_total_counts, SIR_transition_rates, where_infections_happened_counter
                     )
 
                 daily_counter = 0
@@ -1210,11 +1211,11 @@ def run_simulation(
                         intervention.reason_for_test[random_people_for_test] = 1
 
                     test_if_label_needs_intervention(
-                        intervention, day, intervention_type_to_init=1, threshold=0.01
+                        intervention, day, intervention_type_to_init=2, threshold=0.0
                     )
 
                     test_if_intervention_on_labels_can_be_removed(
-                        my, g, intervention, day, threshold=0.001
+                        my, g, intervention, day, threshold=0.000
                     )
 
                     for ith_label, intervention_type in enumerate(intervention.types):
@@ -1234,6 +1235,18 @@ def run_simulation(
                                     label=ith_label,
                                     rate_reduction=intervention.lockdown_rate_reduction,
                                 )
+                            
+                            apply_masking = intervention_type == 2
+                            if apply_masking and intervention_has_not_been_applied:
+                                intervention.started_as[ith_label] = 2
+                                masking_on_label(
+                                    my,
+                                    g,
+                                    intervention,
+                                    label=ith_label,
+                                    rate_reduction=intervention.masking_rate_reduction,
+                                )
+
 
             if intervention.any_testing():
 
@@ -1354,7 +1367,7 @@ def test_if_label_needs_intervention(
     intervention,
     day,
     intervention_type_to_init,
-    threshold=0.004,  # threshold is the fraction that need to be positive.
+    threshold=0.000,  # threshold is the fraction that need to be positive.
 ):
     infected_per_label = np.zeros_like(intervention.label_counter, dtype=np.uint32)
 
@@ -1434,7 +1447,7 @@ def remove_intervention_at_label(my, g, intervention, ith_label):
 
 
 @njit
-def test_if_intervention_on_labels_can_be_removed(my, g, intervention, day, threshold=0.001):
+def test_if_intervention_on_labels_can_be_removed(my, g, intervention, day, threshold=0.5):
 
     infected_per_label = np.zeros(intervention.N_labels, dtype=np.int32)
     for agent, day_found in enumerate(intervention.day_found_infected):
@@ -1536,7 +1549,7 @@ def reduce_frac_rates_of_agent(my, g, intervention, agent, rate_reduction):
     for ith_contact, contact in enumerate(my.connections[agent]):
 
         # update rates from agent to contact. Rate_reduction makes it depending on connection type
-        if np.random.rand() < remove_rates[my.connections_type[agent][ith_contact]]:
+        if np.random.rand() > remove_rates[my.connections_type[agent][ith_contact]]:
             act_rate_reduction = np.array([0, 0, 0], dtype=np.float32)
         else:
             act_rate_reduction = reduce_rates
@@ -1556,7 +1569,7 @@ def reduce_frac_rates_of_agent(my, g, intervention, agent, rate_reduction):
             contact,
             rate,
             agent_update_rate,
-            rate_reduction=rate_reduction,
+            rate_reduction=act_rate_reduction,
         )
 
     # actually updates to gillespie sums
@@ -1566,7 +1579,7 @@ def reduce_frac_rates_of_agent(my, g, intervention, agent, rate_reduction):
 
 @njit
 def remove_and_reduce_rates_of_agent(my, g, intervention, agent, rate_reduction):
-    # rate reduction is 2 3-vectors. is used for masking interventions
+    # rate reduction is 2 3-vectors. is used for lockdown interventions
     agent_update_rate = 0.0
     remove_rates = rate_reduction[0]
     reduce_rates = rate_reduction[1]
@@ -1665,7 +1678,7 @@ def test_a_person(my, g, intervention, agent, click, day):
 
 
 @njit
-def add_daily_events(my, g, day, agents_in_state, state_total_counts, SIR_transition_rates):
+def add_daily_events(my, g, day, agents_in_state, state_total_counts, SIR_transition_rates, where_infections_happened_counter):
     N_tot = my.cfg.N_tot
     event_size_max = my.cfg.event_size_max
     # if no max, set it to N_tot
@@ -1715,6 +1728,7 @@ def add_daily_events(my, g, day, agents_in_state, state_total_counts, SIR_transi
 
         # XXX this update was needed
         my.state[agent_getting_infected_at_event] = 0
+        where_infections_happened_counter[3] +=1
         agents_in_state[0].append(np.uint32(agent_getting_infected_at_event))
         state_total_counts[0] += 1
         g.total_sum_of_state_changes += SIR_transition_rates[0]

@@ -213,7 +213,7 @@ class Simulation:
         N_daily_tests = 20_000  # 20000  # TODO make Par?
         labels = self.df_coordinates["idx"].values
         if self.my.cfg.version >= 2:
-            interventions_to_apply = List([1, 4, 6])
+            interventions_to_apply = List([2,4, 6])
         else:
             interventions_to_apply = None
 

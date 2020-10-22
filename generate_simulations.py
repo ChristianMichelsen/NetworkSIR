@@ -25,11 +25,11 @@ if utils.is_local_computer():
     all_simulation_parameters = [
         {
             # "N_tot": 58_000,
-            "N_tot": 100_0,
+            "N_tot": 580_003,
             "rho": 0.1,
-            "beta": [0.0015],
+            "beta": [0.0015,0.002],
             "make_initial_infections_at_kommune": True,
-            "N_events": [30],
+            "N_events": [3000],
             "mu": 40,
             "day_max": 150,
             "lambda_I" : 0.5,
