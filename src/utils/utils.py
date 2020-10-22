@@ -900,10 +900,13 @@ def format_cfg(cfg):
             cfg[key] = int(val)
         elif isinstance(spec_cfg[key], nb.types.Boolean):
             cfg[key] = bool(val)
+        elif isinstance(spec_cfg[key], nb.types.List):
+            cfg[key] = list(val)
         elif isinstance(spec_cfg[key], nb.types.Set):
             cfg[key] = set(val)
         elif isinstance(spec_cfg[key], nb.types.Array):
-            cfg[key] = np.array(val, dtype=spec_cfg[key].dtype.name)
+            # cfg[key] = np.array(val, dtype=spec_cfg[key].dtype.name)
+            cfg[key] = list(val)
 
     return cfg
 

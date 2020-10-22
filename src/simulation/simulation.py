@@ -398,11 +398,11 @@ if debugging:
         {
             "version": 2.0,
             "N_tot": 58000,
-            "rho": 0.1,
+            "rho": 0.0,
             "epsilon_rho": 0.04,
-            "mu": 20.0,
+            "mu": 40.0,
             "sigma_mu": 0.0,
-            "beta": 0.012,
+            "beta": 0.01,
             "sigma_beta": 0.0,
             "algo": 2,
             "N_init": 100,
@@ -416,17 +416,17 @@ if debugging:
             "event_size_mean": 50.0,
             "event_beta_scaling": 10.0,
             "event_weekend_multiplier": 1.0,
-            "do_interventions": True,
-            "interventions_to_apply": {1, 4, 6},
+            "do_interventions": False,
+            "interventions_to_apply": [1, 4, 6],
             "f_daily_tests": 0.01,
-            "test_delay_in_clicks": np.array([0, 0, 25]),
-            "results_delay_in_clicks": np.array([5, 10, 5]),
-            "chance_of_finding_infected": np.array([0.0, 0.15, 0.15, 0.15, 0.0]),
-            "days_looking_back": 7,
-            "masking_rate_reduction": np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.8]]),
-            "lockdown_rate_reduction": np.array([[0.0, 1.0, 0.6], [0.0, 0.6, 0.6]]),
-            "isolation_rate_reduction": np.array([0.2, 1.0, 1.0]),
-            "tracking_rates": np.array([1.0, 0.8, 0.0]),
+            "test_delay_in_clicks": [0, 0, 25],
+            "results_delay_in_clicks": [5, 10, 5],
+            "chance_of_finding_infected": [0.0, 0.15, 0.15, 0.15, 0.0],
+            "days_looking_back": 7.0,
+            "masking_rate_reduction": [[0.0, 0.0, 0.0], [0.0, 0.0, 0.8]],
+            "lockdown_rate_reduction": [[0.0, 1.0, 0.6], [0.0, 0.6, 0.6]],
+            "isolation_rate_reduction": [0.2, 1.0, 1.0],
+            "tracking_rates": [1.0, 0.8, 0.0],
             "ID": 0,
         }
     )
@@ -442,7 +442,7 @@ if debugging:
             df = simulation.run_simulation(verbose_interventions=False)
         display(df)
         print(f"Time taken: {t.elapsed:.1f}")
-        # simulation.save(time_elapsed=t.elapsed, save_hdf5=True, save_csv=True)
+        simulation.save(time_elapsed=t.elapsed, save_hdf5=True, save_csv=True)
 
         my = simulation.my
         df_coordinates = simulation.df_coordinates
