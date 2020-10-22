@@ -1,6 +1,7 @@
 #  Define default simulation parameters
 
-version: 1.0 # the version of the algorithm
+# Default parameters:
+version: 2.0 # the version of the algorithm
 N_tot: 580_000  # Total number of nodes!
 rho: 0.0  # Spacial dependency. Average distance to connect with.
 epsilon_rho: 0.04  # fraction of connections not depending on distance
@@ -12,7 +13,10 @@ algo: 2  # node connection algorithm, ignore if version >= 2
 N_init: 100  # Initial Infected
 lambda_E: 1.0  # E->I, Lambda(from E states)
 lambda_I: 1.0  # I->R, Lambda(from I states)
+
+# Other:
 make_random_initial_infections: True # Infections around a single agent
+day_max: 0 # if other than 0, sets the maximum number of days the algorithm runs
 clustering_connection_retries: 0 # number of times to try and reconnect two agents
 
 # event-related variables
@@ -22,4 +26,30 @@ event_size_mean: 50 # mean size of events (exponential distribution)
 event_beta_scaling: 10 # how much more disease spreads at events (1 = normal, 2 = double of normal)
 event_weekend_multiplier: 1.0 # ratio of how many more events are happening in weekends. 1 = similar, 2 = double
 
-day_max: 0 # if other than 0, sets the maximum number of days the algorithm runs
+
+# Lockdown-related variables
+
+do_interventions: False # bool, whether or not to apply any interventions, lockdowns or similar
+
+# 1: Lockdown (jobs and schools)
+# 2: Cover (with face masks)
+# 3: Tracking (infected and their connections)
+# 4: Test people with symptoms
+# 5: Isolate
+# 6: Random Testing
+# 0: Do nothing
+interventions_to_apply: [1, 4, 6]
+
+f_daily_tests: 0.01 # Daily tests as fraction of full population
+
+test_delay_in_clicks: [0, 0, 25] #clicks until test. [symptoms, random_test, tracing]
+results_delay_in_clicks: [5, 10, 5] #clicks from test until results. [symptoms, random_test, tracing]
+chance_of_finding_infected: [0.0, 0.15, 0.15, 0.15, 0.0] # chance of being detected in test in I_th state
+days_looking_back: 7 # When looking for local outbreaks, how many days are we looking back, e.g. number of people infected within the last 7 days
+
+# Reductions.
+# The rate reductions are list of list, first and second entry are rate reductions for the groups [family, job, other]. The third entry is the chance of choosing the first set. As such you can have some follow the lockdown and some not or some one group being able to work from home and another isn't.
+masking_rate_reduction: [[0.0, 0.0, 0.0], [0.0, 0.0, 0.8]] # [family, job, other]
+lockdown_rate_reduction: [[0.0, 1.0, 0.6], [0.0, 0.6, 0.6]] # [family, job, other]
+isolation_rate_reduction: [0.2, 1.0, 1.0] # [family, job, other]
+tracking_rates: [1.0, 0.8, 0.0] # [family, job, other]

@@ -1,16 +1,3 @@
-# which simulation parameters are integers (the rest are floats)
-INTEGER_SIMULATION_PARAMETERS:
-    - N_tot
-    - N_init
-    - algo
-    - clustering_connection_retries
-    - N_events
-    - event_size_max
-    - ID
-
-BOOL_SIMULATION_PARAMETERS:
-    - make_random_initial_infections
-
 # # exclude these parameters in network initialization filename
 # EXCLUDE_PARAMETER_IN_INIT:
 #     - N_init

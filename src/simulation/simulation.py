@@ -36,6 +36,7 @@ while True:
     else:
         break
 
+# print(Path("").cwd())
 from src.utils import utils
 from src.simulation import nb_simulation
 
@@ -56,6 +57,10 @@ class Simulation:
         self.hash = utils.cfg_to_hash(self.cfg)
         self.my = nb_simulation.initialize_My(self.cfg)
         utils.set_numba_random_seed(self.cfg.ID)
+
+        if self.cfg.version == 1:
+            if self.cfg.do_interventions:
+                raise AssertionError("interventions not yet implemented for version 1")
 
     def _initialize_network(self):
 
@@ -131,8 +136,6 @@ class Simulation:
         self.N_ages = len(self.agents_in_age_group)
         return None
 
-    #     )
-
     def initialize_network(self, force_rerun=False, save_initial_network=True):
         utils.set_numba_random_seed(self.cfg.ID)
 
@@ -172,33 +175,21 @@ class Simulation:
             self.N_infectious_states,
         )
 
-    def run_simulation(self):
+    def run_simulation(self, verbose_interventions=None):
         utils.set_numba_random_seed(self.cfg.ID)
 
         if self.verbose:
             print("RUN SIMULATION")
 
-        N_daily_tests = 20_000  # 20000  # TODO make Par?
         labels = self.df_coordinates["idx"].values
-        if self.my.cfg.version >= 2:
-            interventions_to_apply = List([1, 4, 6])
-        else:
-            interventions_to_apply = None
 
-        # 1: Lockdown (jobs and schools)
-        # 2: Cover (with face masks)
-        # 3: Tracking (infected and their connections)
-        # 4: Test people with symptoms
-        # 5: Isolate
-        # 6: Random Testing
-        # 0: Do nothing
+        if verbose_interventions is None:
+            verbose_interventions = self.verbose
 
         self.intervention = nb_simulation.Intervention(
-            N_tot=self.cfg.N_tot,
-            N_daily_tests=N_daily_tests,
+            self.my.cfg,
             labels=labels,
-            interventions_to_apply=interventions_to_apply,
-            verbose=self.verbose,
+            verbose=verbose_interventions,
         )
 
         res = nb_simulation.run_simulation(
@@ -214,11 +205,10 @@ class Simulation:
             self.verbose,
         )
 
-        out_time, out_state_counts, out_my_state = res
-        # self.time =
-        # self.state_counts =
+        out_time, out_state_counts, out_my_state, intervention = res
         self.my_state = np.array(out_my_state)
         self.df = utils.state_counts_to_df(np.array(out_time), np.array(out_state_counts))
+        self.intervention = intervention
         return self.df
 
     def _get_filename(self, name="ABM", filetype="hdf5"):
@@ -231,6 +221,14 @@ class Simulation:
         filename_cfg = f"Data/cfgs/cfg_{date}_{self.hash}.yaml"
         self.cfg.dump_to_file(filename_cfg, exclude="ID")
         return None
+
+    def _add_cfg_to_hdf5_file(self, f, cfg=None):
+        if cfg is None:
+            cfg = self.cfg
+        for key, val in cfg.items():
+            if isinstance(val, set):
+                val = list(val)
+            f.attrs[key] = val
 
     def _save_dataframe(self, save_csv=False, save_hdf5=True):
 
@@ -245,8 +243,7 @@ class Simulation:
             utils.make_sure_folder_exist(filename_hdf5)
             with h5py.File(filename_hdf5, "w", **hdf5_kwargs) as f:  #
                 f.create_dataset("df", data=utils.dataframe_to_hdf5_format(self.df))
-                for key, val in self.cfg.items():
-                    f.attrs[key] = val
+                self._add_cfg_to_hdf5_file(f)
 
         return None
 
@@ -261,9 +258,9 @@ class Simulation:
         with h5py.File(filename_hdf5, "w", **hdf5_kwargs) as f:  #
             f.create_dataset("my_state", data=self.my_state)
             f.create_dataset("my_number_of_contacts", data=self.my.number_of_contacts)
-            f.create_dataset(
-                "cfg_str", data=str(self.cfg)
-            )  # import ast; ast.literal_eval(str(cfg))
+            f.create_dataset("day_found_infected", data=self.intervention.day_found_infected)
+            # import ast; ast.literal_eval(str(cfg))
+            f.create_dataset("cfg_str", data=str(self.cfg))
             f.create_dataset("df", data=utils.dataframe_to_hdf5_format(self.df))
             f.create_dataset(
                 "df_coordinates",
@@ -273,24 +270,14 @@ class Simulation:
             if time_elapsed:
                 f.create_dataset("time_elapsed", data=time_elapsed)
 
-            for key, val in self.cfg.items():
-                f.attrs[key] = val
+            self._add_cfg_to_hdf5_file(f)
 
         return None
-
-    def _update_database(self):
-        db_cfg = utils.get_db_cfg()
-        cfg = utils.DotDict(self.cfg.copy())
-        cfg.hash = self.hash
-        cfg.pop("ID")
-        if not db_cfg.contains(Query().hash == cfg.hash):
-            db_cfg.insert(cfg)
 
     def save(self, save_csv=False, save_hdf5=True, save_only_ID_0=False, time_elapsed=None):
         self._save_cfg()
         self._save_dataframe(save_csv=save_csv, save_hdf5=save_hdf5)
         self._save_simulation_results(save_only_ID_0=save_only_ID_0, time_elapsed=time_elapsed)
-        # self._update_database()
 
 
 #%%
@@ -395,7 +382,8 @@ def run_simulations(
     return N_files
 
 
-if utils.is_ipython and debugging:
+# if utils.is_ipython and debugging:
+if debugging:
 
     verbose = True
     force_rerun = True
@@ -408,7 +396,7 @@ if utils.is_ipython and debugging:
 
     cfg = utils.DotDict(
         {
-            "version": 1.0,
+            "version": 2.0,
             "N_tot": 58000,
             "rho": 0.1,
             "epsilon_rho": 0.04,
@@ -421,12 +409,24 @@ if utils.is_ipython and debugging:
             "lambda_E": 1.0,
             "lambda_I": 1.0,
             "make_random_initial_infections": True,
+            "day_max": 0.0,
             "clustering_connection_retries": 0,
             "N_events": 0,
             "event_size_max": 0,
             "event_size_mean": 50.0,
             "event_beta_scaling": 10.0,
             "event_weekend_multiplier": 1.0,
+            "do_interventions": False,
+            "interventions_to_apply": [1, 4, 6],
+            "f_daily_tests": 0.01,
+            "test_delay_in_clicks": [0, 0, 25],
+            "results_delay_in_clicks": [5, 10, 5],
+            "chance_of_finding_infected": [0.0, 0.15, 0.15, 0.15, 0.0],
+            "days_looking_back": 7.0,
+            "masking_rate_reduction": [[0.0, 0.0, 0.0], [0.0, 0.0, 0.8]],
+            "lockdown_rate_reduction": [[0.0, 1.0, 0.6], [0.0, 0.6, 0.6]],
+            "isolation_rate_reduction": [0.2, 1.0, 1.0],
+            "tracking_rates": [1.0, 0.8, 0.0],
             "ID": 0,
         }
     )
@@ -439,25 +439,14 @@ if utils.is_ipython and debugging:
             simulation = Simulation(cfg, verbose)
             simulation.initialize_network(force_rerun=force_rerun)
             simulation.make_initial_infections()
-            df = simulation.run_simulation()
-            display(df)
-        # simulation.save(time_elapsed=t.elapsed, save_hdf5=True, save_csv=True)
+            df = simulation.run_simulation(verbose_interventions=False)
+        display(df)
+        print(f"Time taken: {t.elapsed:.1f}")
+        simulation.save(time_elapsed=t.elapsed, save_hdf5=True, save_csv=True)
 
         my = simulation.my
         df_coordinates = simulation.df_coordinates
-        intervention = simulation.intervention
+        # intervention = simulation.intervention
         g = simulation.g
 
-        simulation.hash
-
-    # db_cfg.insert(cfg)
-    # db.search(q.ID == 0)
-    # db_cfg.search(q.ID == 0)
-    # db_cfg.count(q.ID == 0)
-    # db_cfg.count(query_dict(cfg))
-
-    # from pathos.helpers import mp as pathos_multiprocess
-    # manager = pathos_multiprocess.Manager()
-    # queue = manager.Queue()
-
-# %%
+        # simulation.hash
