@@ -247,10 +247,7 @@ class Simulation:
     def _add_cfg_to_hdf5_file(self, f, cfg=None):
         if cfg is None:
             cfg = self.cfg
-        for key, val in cfg.items():
-            if isinstance(val, set):
-                val = list(val)
-            f.attrs[key] = val
+        utils.add_cfg_to_hdf5_file(f, cfg)
 
     def _save_dataframe(self, save_csv=False, save_hdf5=True):
 
@@ -506,9 +503,92 @@ if debugging:
         print(f"Time taken: {t.elapsed:.1f}")
         simulation.save(time_elapsed=t.elapsed, save_hdf5=True, save_csv=True)
 
-        my = simulation.my
-        df_coordinates = simulation.df_coordinates
-        intervention = simulation.intervention
-        g = simulation.g
+#%%
+
+my = simulation.my
+df_coordinates = simulation.df_coordinates
+intervention = simulation.intervention
+g = simulation.g
+
+agents_in_age_group = simulation.agents_in_age_group
+N_ages = len(simulation.agents_in_age_group)
 
 #%%
+
+import pickle
+
+
+def jitclass_to_hdf5_ready_dict(jitclass, skip="cfg"):
+
+    if isinstance(skip, str):
+        skip = [skip]
+
+    typ = jitclass._numba_type_
+    fields = typ.struct
+
+    ints_floats_bool_set = (nb.types.Integer, nb.types.Float, nb.types.Boolean, nb.types.Set)
+
+    d_out = {}
+    for key, dtype in fields.items():
+        val = getattr(my, key)
+        if isinstance(dtype, nb.types.ListType):
+            if utils.is_nested_numba_list(val):
+                d_out[key] = utils.NestedArray(val).to_dict()
+            else:
+                d_out[key] = list(val)
+        elif isinstance(dtype, nb.types.Array):
+            d_out[key] = np.array(val, dtype=dtype.dtype.name)
+        elif key.lower() in skip:
+            continue
+        elif isinstance(dtype, ints_floats_bool_set):
+            d_out[key] = val
+        else:
+            print(key)
+    return d_out
+
+
+d_out = jitclass_to_hdf5_ready_dict(my, skip="cfg")
+
+#%%
+
+filename = "test.hdf5"
+
+
+def save_jitclass_dict(filename, d_out, cfg=None):
+
+    with h5py.File(filename, "w", **hdf5_kwargs) as f:
+        for key, val in d_out.items():
+            if isinstance(val, dict):
+                group = f.create_group(key)
+                for k, v in val.items():
+                    group.create_dataset(k, data=v)
+            else:
+                f.create_dataset(key, data=val)
+        if cfg is not None:
+            utils.add_cfg_to_hdf5_file(f, cfg)
+
+
+# %%
+
+filename = "test.hdf5"
+
+
+def load_jitclass_to_dict(filename):
+    d_in = {}
+    with h5py.File(filename, "r") as f:
+        for key, val in f.items():
+            if isinstance(val, h5py.Dataset):
+                d_in[key] = val[()]
+            else:
+                d_tmp = {}
+                for k, v in val.items():
+                    d_tmp[k] = v[()]
+                d_in[key] = d_tmp
+    return d_in
+
+
+# %%
+
+# def load_My_from_dict():
+#     my = nb_simulation.initialize_My(cfg)
+#     for key, val in d_in

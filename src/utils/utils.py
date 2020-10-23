@@ -183,13 +183,8 @@ def get_numba_list_dtype(x, as_string=False):
 def flatten_nested_list(nested_list, sort_nested_list=False):
     res = List()
     for lst in nested_list:
-        if sort_nested_list:
-            sorted_indices = np.argsort(np.asarray(lst))
-            for index in sorted_indices:
-                res.append(lst[index])
-        else:
-            for x in lst:
-                res.append(x)
+        for x in lst:
+            res.append(x)
     return np.asarray(res)
 
 
@@ -201,8 +196,8 @@ def get_cumulative_indices(nested_list, index_dtype=np.int64):
     return index
 
 
-def nested_list_to_awkward_array(nested_list, return_lengths=False, sort_nested_list=False):
-    content = ak.layout.NumpyArray(flatten_nested_list(nested_list, sort_nested_list))
+def nested_list_to_awkward_array(nested_list, return_lengths=False):
+    content = ak.layout.NumpyArray(flatten_nested_list(nested_list))
     index = ak.layout.Index64(get_cumulative_indices(nested_list))
     listoffsetarray = ak.layout.ListOffsetArray64(index, content)
     array = ak.Array(listoffsetarray)
@@ -549,6 +544,73 @@ class MutableArray:
 
 
 #%%
+
+
+def is_nested_numba_list(nested_lists):
+    if isinstance(nested_lists, List) and isinstance(nested_lists[0], List):
+        return True
+    else:
+        return False
+
+
+class NestedArray:
+
+    """Simple Class that takes a nested list and converts to content and offsets."""
+
+    def __init__(self, nested_lists=None):
+
+        if nested_lists is not None:
+            if is_nested_numba_list(nested_lists):
+                self.dtype = str(nested_lists._list_type.dtype.dtype)
+            else:
+                raise AssertionError("Only implemented for nested Numba lists")
+
+            self.content = np.array(
+                flatten_nested_list(nested_lists), dtype=getattr(np, self.dtype)
+            )
+            self.offsets = np.array(get_cumulative_indices(nested_lists), dtype=np.int64)
+
+    def __getitem__(self, i):
+        return self.content[self.offsets[i] : self.offsets[i + 1]]
+
+    def __repr__(self):
+        first_array = self.content[self.offsets[0] : self.offsets[1]]
+        with np.printoptions(threshold=0, edgeitems=2):
+            s = str(first_array)
+        s_dtype = repr(first_array).split("],")[1]
+        return f"NestedArray([array({s},{s_dtype}, ..., ])"
+
+    def __len__(self):
+        return len(self.offsets) - 1
+
+    def to_dict(self):
+        return {"content": self.content, "offsets": self.offsets}
+
+    def to_nested_nested_lists(self):
+        return to_nested_nested_lists(self.content, self.offsets)
+
+    @classmethod
+    def from_dict(cls, d):
+        instance = cls()
+        instance.content = d["content"]
+        instance.offsets = d["offsets"]
+        return instance
+
+@njit
+def to_nested_nested_lists(content, offsets):
+    out = List()
+    N_offsets = len(offsets)
+    for i in range(N_offsets-1):
+        inner = List()
+        for x in content[offsets[i] : offsets[i + 1]]:
+            inner.append(x)
+        out.append(inner)
+    return out
+
+#%%
+
+
+#%%
 # from collections import UserDict
 
 
@@ -650,7 +712,7 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True):
     exclude.append("hash")
     exclude.append("day_max")
     exclude.append("make_initial_infections_at_kommune")
-    
+
     title = "$"
     for sim_par, val in cfg.items():
         if not sim_par in exclude:
@@ -1719,3 +1781,13 @@ def delete_every_file_with_hash(hashes, base_dir="./Data/", verbose=True):
             if verbose:
                 print(f"Deleting folder: {folder_to_delete}")
             folder_to_delete.rmdir()
+
+
+#%%
+
+
+def add_cfg_to_hdf5_file(f, cfg):
+    for key, val in cfg.items():
+        # if isinstance(val, set):
+        # val = list(val)
+        f.attrs[key] = val
