@@ -503,15 +503,15 @@ if debugging:
         print(f"Time taken: {t.elapsed:.1f}")
         simulation.save(time_elapsed=t.elapsed, save_hdf5=True, save_csv=True)
 
-#%%
+        #%%
 
-my = simulation.my
-df_coordinates = simulation.df_coordinates
-intervention = simulation.intervention
-g = simulation.g
+        my = simulation.my
+        df_coordinates = simulation.df_coordinates
+        intervention = simulation.intervention
+        g = simulation.g
 
-agents_in_age_group = simulation.agents_in_age_group
-N_ages = len(simulation.agents_in_age_group)
+        agents_in_age_group = simulation.agents_in_age_group
+        N_ages = len(simulation.agents_in_age_group)
 
 #%%
 
@@ -547,7 +547,7 @@ def jitclass_to_hdf5_ready_dict(jitclass, skip="cfg"):
     return d_out
 
 
-d_out = jitclass_to_hdf5_ready_dict(my, skip="cfg")
+# d_out = jitclass_to_hdf5_ready_dict(my, skip="cfg")
 
 #%%
 
