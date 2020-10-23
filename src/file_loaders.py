@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from pathlib import Path
 import re
@@ -166,3 +167,38 @@ class ABM_simulations:
             + f"Contains {len(self)} files with "
             + f"{len(self.cfgs)} different simulation parameters."
         )
+
+
+#%%
+
+
+def load_kommune_data(df_coordinates):
+    my_kommune = df_coordinates["kommune"].tolist()
+    municipality_filename = "Data/SSI/Municipality_cases_time_series.csv"
+    mdf = pd.read_csv(municipality_filename, sep=";")
+    mdf = mdf.set_index("date_sample")
+    # https://files.ssi.dk/Data-Epidemiologiske-Rapport-22102020-20mg
+    dates = [
+        "2020-09-14",
+        "2020-09-13",
+        "2020-09-12",
+        "2020-09-11",
+        "2020-09-10",
+        "2020-09-09",
+        "2020-09-08",
+        "2020-09-07",
+        "2020-09-06",
+    ]
+    kommune_names = list(set(my_kommune))
+    infected_per_kommune_ints = np.zeros(len(kommune_names))
+    for date in dates:
+        infected_per_kommune_series = mdf.loc[date]
+
+        for ith_kommune, kommune in enumerate(kommune_names):
+            if kommune == "Samsø":
+                infected_per_kommune_ints[ith_kommune] += 1
+            elif kommune == "København":
+                infected_per_kommune_ints[ith_kommune] += infected_per_kommune_series["Copenhagen"]
+            else:
+                infected_per_kommune_ints[ith_kommune] += infected_per_kommune_series[kommune]
+    return infected_per_kommune_ints, kommune_names, my_kommune

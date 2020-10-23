@@ -39,6 +39,7 @@ while True:
 # print(Path("").cwd())
 from src.utils import utils
 from src.simulation import nb_simulation
+from src import file_loaders
 
 
 hdf5_kwargs = dict(track_order=True)
@@ -68,7 +69,7 @@ class Simulation:
         coordinates_raw = utils.df_coordinates_to_coordinates(self.df_coordinates)
 
         if self.verbose:
-            print(f"INITIALIZE VERSION {self.cfg.version} NETWORK")
+            print(f"\nINITIALIZE VERSION {self.cfg.version} NETWORK")
 
         if self.cfg.version >= 2:
 
@@ -116,6 +117,7 @@ class Simulation:
                 matrix_work,
                 matrix_other,
                 agents_in_age_group,
+                verbose=self.verbose,
             )
 
         else:
@@ -146,7 +148,7 @@ class Simulation:
         utils.set_numba_random_seed(self.cfg.ID)
 
         if self.verbose:
-            print("INITIAL INFECTIONS")
+            print("\nINITIAL INFECTIONS")
 
         np.random.seed(self.cfg.ID)
 
@@ -163,38 +165,26 @@ class Simulation:
         self.SIR_transition_rates = utils.initialize_SIR_transition_rates(
             self.N_states, self.N_infectious_states, self.cfg
         )
-        if self.cfg.make_initial_infections_at_kommune:           
-            my_kommune = self.df_coordinates['kommune'].tolist()
-            municipality_filename = "Data/municipality_cases_time_series.csv"
-            mdf = pd.read_csv(municipality_filename, sep = ";")
-            mdf=mdf.set_index('date_sample')  
-            dates =['2020-09-14', '2020-09-13', '2020-09-12', '2020-09-11', '2020-09-10', '2020-09-09', '2020-09-08', '2020-09-07', '2020-09-06']
-            kommune_names = list(set(my_kommune))
-            infected_per_kommune_ints = np.zeros(len(kommune_names))
-            for date in dates:
-                infected_per_kommune_series = mdf.loc[date]           
-
-                for ith_kommune, kommune in enumerate(kommune_names):
-                    if kommune=="Samsø":
-                        infected_per_kommune_ints[ith_kommune] += 1
-                    elif kommune == "København":
-                        infected_per_kommune_ints[ith_kommune] += infected_per_kommune_series["Copenhagen"]
-                    else:
-                        infected_per_kommune_ints[ith_kommune] += infected_per_kommune_series[kommune]
+        if self.cfg.make_initial_infections_at_kommune:
+            infected_per_kommune_ints, kommune_names, my_kommune = file_loaders.load_kommune_data(
+                self.df_coordinates
+            )
 
             nb_simulation.make_initial_infections_from_kommune_data(
-            self.my,
-            self.g,
-            self.state_total_counts,
-            self.agents_in_state,
-            self.SIR_transition_rates,
-            self.agents_in_age_group,
-            self.initial_ages_exposed,
-            self.N_infectious_states,
-            infected_per_kommune_ints,
-            kommune_names,
-            my_kommune,
-        )
+                self.my,
+                self.g,
+                self.state_total_counts,
+                self.agents_in_state,
+                self.SIR_transition_rates,
+                self.agents_in_age_group,
+                self.initial_ages_exposed,
+                self.N_infectious_states,
+                infected_per_kommune_ints,
+                kommune_names,
+                my_kommune,
+                self.verbose,
+            )
+
         else:
             nb_simulation.make_initial_infections(
                 self.my,
@@ -211,7 +201,7 @@ class Simulation:
         utils.set_numba_random_seed(self.cfg.ID)
 
         if self.verbose:
-            print("RUN SIMULATION")
+            print("\nRUN SIMULATION")
 
         labels = self.df_coordinates["idx"].values
 
@@ -421,9 +411,12 @@ if debugging:
     force_rerun = True
 
     d_simulation_parameters = {
-        "N_tot": 58_000,
-        "N_events": [0, 100],
+        "beta": [0.0015, 0.002],
+        "make_initial_infections_at_kommune": True,
+        "N_events": 3000,
         "mu": 20,
+        "day_max": 150,
+        "event_size_max": 50,
     }
 
     cfg = utils.DotDict(
@@ -441,6 +434,7 @@ if debugging:
             "lambda_E": 1.0,
             "lambda_I": 1.0,
             "make_random_initial_infections": True,
+            "make_initial_infections_at_kommune": False,
             "day_max": 0.0,
             "clustering_connection_retries": 0,
             "N_events": 0,
@@ -463,10 +457,46 @@ if debugging:
         }
     )
 
-    if __name__ == "__main__" and False:
-        run_simulations(d_simulation_parameters)
+    cfg = utils.DotDict(
+        {
+            "version": 2.0,
+            "N_tot": 58000,
+            "rho": 0.0,
+            "epsilon_rho": 0.04,
+            "mu": 20.0,
+            "sigma_mu": 0.0,
+            "beta": 0.0015,
+            "sigma_beta": 0.0,
+            "algo": 2,
+            "N_init": 100,
+            "lambda_E": 1.0,
+            "lambda_I": 1.0,
+            "make_random_initial_infections": True,
+            "make_initial_infections_at_kommune": False,
+            "day_max": 20.0,
+            "clustering_connection_retries": 0,
+            "N_events": 3000,
+            "event_size_max": 50,
+            "event_size_mean": 50.0,
+            "event_beta_scaling": 10.0,
+            "event_weekend_multiplier": 1.0,
+            "do_interventions": False,
+            "interventions_to_apply": [1, 4, 6],
+            "f_daily_tests": 0.01,
+            "test_delay_in_clicks": [0, 0, 25],
+            "results_delay_in_clicks": [5, 10, 5],
+            "chance_of_finding_infected": [0.0, 0.15, 0.15, 0.15, 0.0],
+            "days_looking_back": 7.0,
+            "masking_rate_reduction": [[0.0, 0.0, 0.3], [0.0, 0.0, 0.8]],
+            "lockdown_rate_reduction": [[0.0, 1.0, 0.6], [0.0, 0.6, 0.6]],
+            "isolation_rate_reduction": [0.2, 1.0, 1.0],
+            "tracking_rates": [1.0, 0.8, 0.0],
+            "ID": 0,
+        }
+    )
 
-    if False:
+    if __name__ == "__main__" and False:
+        # run_simulations(d_simulation_parameters)
         with Timer() as t:
             simulation = Simulation(cfg, verbose)
             simulation.initialize_network(force_rerun=force_rerun)
@@ -478,7 +508,7 @@ if debugging:
 
         my = simulation.my
         df_coordinates = simulation.df_coordinates
-        # intervention = simulation.intervention
+        intervention = simulation.intervention
         g = simulation.g
 
-        # simulation.hash
+#%%

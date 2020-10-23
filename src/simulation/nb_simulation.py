@@ -707,8 +707,11 @@ def connect_work_and_others(
     agents_in_age_group,
     verbose=True,
 ):
-    mu_printer = 1
-    while mu_counter < my.cfg.mu / 2 * my.cfg.N_tot:
+    progress_delta_print = 0.1  # 10 percent
+    progress_counter = 1
+
+    mu_tot = my.cfg.mu / 2 * my.cfg.N_tot
+    while mu_counter < mu_tot:
 
         ra_work_other = np.random.rand()
         if ra_work_other < work_other_ratio:
@@ -733,9 +736,11 @@ def connect_work_and_others(
             rho_tmp,
         )
         mu_counter += 1
-        if verbose and mu_counter * 100 / (my.cfg.mu / 2 * my.cfg.N_tot) > mu_printer:
-            print("connected n percent of things", mu_printer)
-            mu_printer += 1
+        if verbose:
+            progress = mu_counter / mu_tot
+            if progress > progress_counter * progress_delta_print:
+                progress_counter += 1
+                print("Connected ", round(progress * 100), r"% of work and others")
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -780,10 +785,11 @@ def compute_initial_agents_to_infect_from_kommune(
     infected_per_kommune_start,
     kommune_names,
     my_kommune,
+    verbose=False,
 ):
     fraction_found = 0.5  # estimate of size of fraction of positive we find. roughly speaking "mørketallet" is the inverse of this times n_found_positive- TODO: make this a function based on N_daily_test, tracking_rates and symptomatics
     contact_number_init = (
-        1.05  # used to estimate how many people are in the e state, from how many found positive.
+        1.05  # used to estimate how many people are in the E state, from how many found positive.
     )
     N_tot_frac = my.cfg.N_tot / 5_800_000
     time_inf = 1 / my.cfg.lambda_I
@@ -795,20 +801,22 @@ def compute_initial_agents_to_infect_from_kommune(
 
     for num_of_infected_in_kommune, kommune in zip(infected_per_kommune_start, kommune_names):
         num_of_infected_normed = np.int32(np.ceil(num_of_infected_in_kommune * norm_factor))
-        print(
-            "kommune",
-            kommune,
-            "num_infected",
-            num_of_infected_normed,
-            "non normed",
-            num_of_infected_in_kommune,
-        )
+        if verbose:
+            print(
+                "kommune",
+                kommune,
+                "num_infected",
+                num_of_infected_normed,
+                "non normed",
+                num_of_infected_in_kommune,
+            )
         list_of_agent_in_kommune = []
         for agent, agent_kommune in zip(range(my.cfg.N_tot), my_kommune):
             if kommune == agent_kommune:
                 list_of_agent_in_kommune.append(agent)
         if num_of_infected_normed != 0:
-            print("kommune", kommune, "num_infected", num_of_infected_normed)
+            if verbose:
+                print("kommune", kommune, "num_infected", num_of_infected_normed)
             liste = np.random.choice(
                 np.asarray(list_of_agent_in_kommune), size=num_of_infected_normed, replace=False
             )
@@ -870,6 +878,7 @@ def make_initial_infections_from_kommune_data(
     infected_per_kommune_ints,
     kommune_names,
     my_kommune,
+    verbose=False,
 ):
 
     # version 2 has age groups
@@ -884,7 +893,11 @@ def make_initial_infections_from_kommune_data(
         possible_agents = np.arange(my.cfg.N_tot, dtype=np.uint32)
 
     initial_agents_to_infect, E_I_ratio = compute_initial_agents_to_infect_from_kommune(
-        my, infected_per_kommune_ints, kommune_names, my_kommune
+        my,
+        infected_per_kommune_ints,
+        kommune_names,
+        my_kommune,
+        verbose,
     )
     # initial_agents_to_infect.flatten()
     g.total_sum_of_state_changes = 0.0
@@ -950,6 +963,7 @@ def do_bug_check(
         continue_run = False
         if verbose:
             print("Equilibrium")
+            print(day, my.cfg.day_max, my.cfg.day_max > 0, day > my.cfg.day_max)
 
     elif state_total_counts[N_states - 1] > my.cfg.N_tot - 10:
         if verbose:
@@ -1186,7 +1200,7 @@ def run_simulation(
 
         ################
 
-        if nts * click < real_time:
+        while nts * click < real_time:
 
             daily_counter += 1
             out_time.append(real_time)
@@ -1584,7 +1598,7 @@ def masking_on_label(my, g, intervention, label, rate_reduction):
 
 
 @njit
-def test_a_person(my, g, intervention, agent, click, day):
+def test_a_person(my, g, intervention, agent, click):
     # if agent is infectious and hasn't been tested before
     if my.agent_is_infectious(agent) and intervention.agent_has_not_been_tested(agent):
         intervention.clicks_when_tested_result[agent] = (
@@ -1653,7 +1667,10 @@ def apply_interventions_on_label(my, g, intervention, day, click):
         apply_random_testing(my, intervention, click)
 
     test_if_label_needs_intervention(
-        intervention, day, intervention_type_to_init=1, threshold=0.004
+        intervention,
+        day,
+        intervention_type_to_init=1,
+        threshold=0.004,
     )
     test_if_intervention_on_labels_can_be_removed(my, g, intervention, day, threshold=0.001)
 
@@ -1680,7 +1697,7 @@ def test_tagged_agents(my, g, intervention, day, click):
     for agent in range(my.cfg.N_tot):
         # testing everybody who should be tested
         if intervention.clicks_when_tested[agent] == click:
-            test_a_person(my, g, intervention, agent, click, day)
+            test_a_person(my, g, intervention, agent, click)
 
         # getting results for people
         if intervention.clicks_when_tested_result[agent] == click:
