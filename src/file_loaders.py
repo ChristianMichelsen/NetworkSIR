@@ -172,27 +172,42 @@ class ABM_simulations:
 #%%
 
 
+from io import BytesIO
+from zipfile import ZipFile
+import urllib.request
+from urllib.error import HTTPError
+import datetime
+
+
+def load_SSI_url(SSI_data_url):
+    with ZipFile(BytesIO(urllib.request.urlopen(SSI_data_url).read())) as zfile:
+        df = pd.read_csv(zfile.open("Municipality_cases_time_series.csv"), sep=";")
+    return df
+
+
+def load_newest_SSI_data(max_days_back=30):
+    # SSI_data_url = "https://files.ssi.dk/Data-Epidemiologiske-Rapport-22102020-20mg"
+    today = datetime.date.today()
+    for i in range(max_days_back):
+        day = today - datetime.timedelta(days=i)
+        s_day = day.strftime("%d%m%Y")
+        SSI_data_url = f"https://files.ssi.dk/Data-Epidemiologiske-Rapport-{s_day}-20mg"
+        try:
+            df = load_SSI_url(SSI_data_url)
+            return df
+        except HTTPError:
+            continue
+    raise AssertionError("Could not find any data from SSI")
+
+
 def load_kommune_data(df_coordinates):
     my_kommune = df_coordinates["kommune"].tolist()
-    municipality_filename = "Data/SSI/Municipality_cases_time_series.csv"
-    mdf = pd.read_csv(municipality_filename, sep=";")
-    mdf = mdf.set_index("date_sample")
-    # https://files.ssi.dk/Data-Epidemiologiske-Rapport-22102020-20mg
-    dates = [
-        "2020-09-14",
-        "2020-09-13",
-        "2020-09-12",
-        "2020-09-11",
-        "2020-09-10",
-        "2020-09-09",
-        "2020-09-08",
-        "2020-09-07",
-        "2020-09-06",
-    ]
+    df = load_newest_SSI_data().set_index("date_sample")
+    dates = df.index[-8:]
     kommune_names = list(set(my_kommune))
     infected_per_kommune_ints = np.zeros(len(kommune_names))
     for date in dates:
-        infected_per_kommune_series = mdf.loc[date]
+        infected_per_kommune_series = df.loc[date]
 
         for ith_kommune, kommune in enumerate(kommune_names):
             if kommune == "Samsø":
