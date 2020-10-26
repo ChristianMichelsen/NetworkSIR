@@ -39,6 +39,7 @@ while True:
 # print(Path("").cwd())
 from src.utils import utils
 from src.simulation import nb_simulation
+from src.simulation import nb_load_jitclass
 from src import file_loaders
 
 
@@ -138,11 +139,46 @@ class Simulation:
         self.N_ages = len(self.agents_in_age_group)
         return None
 
+    def _save_initialized_network(self, filename):
+        if self.verbose:
+            print(f"Saving initialized network to {filename}", flush=True)
+        utils.make_sure_folder_exist(filename)
+        my_hdf5ready = nb_load_jitclass.jitclass_to_hdf5_ready_dict(self.my)
+
+        with h5py.File(filename, "w", **hdf5_kwargs) as f:
+            group_my = f.create_group("my")
+            nb_load_jitclass.save_jitclass_hdf5ready(group_my, my_hdf5ready)
+            utils.NestedArray(self.agents_in_age_group).add_to_hdf5_file(f, "agents_in_age_group")
+            f.create_dataset("N_ages", data=self.N_ages)
+            self._add_cfg_to_hdf5_file(f)
+
+    def _load_initialized_network(self, filename):
+        if self.verbose:
+            print(f"Loading previously initialized network, please wait", flush=True)
+        with h5py.File(filename, "r") as f:
+            self.agents_in_age_group = utils.NestedArray.from_hdf5(
+                f, "agents_in_age_group"
+            ).to_nested_numba_lists()
+            self.N_ages = f["N_ages"][()]
+            my_hdf5ready = nb_load_jitclass.load_jitclass_to_dict(f["my"])
+            self.my = nb_load_jitclass.load_My_from_dict(my_hdf5ready, self.cfg)
+        self.df_coordinates = utils.load_df_coordinates(self.N_tot, self.cfg.ID)
+
     def initialize_network(self, force_rerun=False, save_initial_network=True):
         utils.set_numba_random_seed(self.cfg.ID)
 
-        # with Timer() as t:
-        self._initialize_network()
+        filename = "Data/initialized_network/"
+        filename += f"initialized_network__{self.hash}__ID__{self.cfg.ID}.hdf5"
+
+        # Loading initialized network
+        if utils.file_exists(filename) and not force_rerun:
+            self._load_initialized_network(filename)
+
+        # initalizing network and (possibly) saving it
+        else:
+            self._initialize_network()
+            if save_initial_network:
+                self._save_initialized_network(filename)
 
     def make_initial_infections(self):
         utils.set_numba_random_seed(self.cfg.ID)
@@ -419,7 +455,7 @@ if debugging:
     cfg = utils.DotDict(
         {
             "version": 2.0,
-            "N_tot": 58000,
+            "N_tot": 580000,
             "rho": 0.1,
             "epsilon_rho": 0.04,
             "mu": 20.0,
@@ -430,15 +466,18 @@ if debugging:
             "N_init": 100,
             "lambda_E": 1.0,
             "lambda_I": 1.0,
+            # other
             "make_random_initial_infections": True,
             "make_initial_infections_at_kommune": False,
             "day_max": 0.0,
             "clustering_connection_retries": 0,
+            # events
             "N_events": 0,
             "event_size_max": 0,
             "event_size_mean": 50.0,
             "event_beta_scaling": 10.0,
             "event_weekend_multiplier": 1.0,
+            # lockdowns / interventions
             "do_interventions": False,
             "interventions_to_apply": [1, 4, 6],
             "f_daily_tests": 0.01,
@@ -454,141 +493,59 @@ if debugging:
         }
     )
 
-    cfg = utils.DotDict(
-        {
-            "version": 2.0,
-            "N_tot": 58000,
-            "rho": 0.0,
-            "epsilon_rho": 0.04,
-            "mu": 20.0,
-            "sigma_mu": 0.0,
-            "beta": 0.0015,
-            "sigma_beta": 0.0,
-            "algo": 2,
-            "N_init": 100,
-            "lambda_E": 1.0,
-            "lambda_I": 1.0,
-            "make_random_initial_infections": True,
-            "make_initial_infections_at_kommune": True,
-            "day_max": 20.0,
-            "clustering_connection_retries": 0,
-            "N_events": 3000,
-            "event_size_max": 50,
-            "event_size_mean": 50.0,
-            "event_beta_scaling": 10.0,
-            "event_weekend_multiplier": 1.0,
-            "do_interventions": True,
-            "interventions_to_apply": [1, 4, 6],
-            "f_daily_tests": 0.01,
-            "test_delay_in_clicks": [0, 0, 25],
-            "results_delay_in_clicks": [5, 10, 5],
-            "chance_of_finding_infected": [0.0, 0.15, 0.15, 0.15, 0.0],
-            "days_looking_back": 7.0,
-            "masking_rate_reduction": [[0.0, 0.0, 0.3], [0.0, 0.0, 0.8]],
-            "lockdown_rate_reduction": [[0.0, 1.0, 0.6], [0.0, 0.6, 0.6]],
-            "isolation_rate_reduction": [0.2, 1.0, 1.0],
-            "tracking_rates": [1.0, 0.8, 0.0],
-            "ID": 0,
-        }
-    )
+    # cfg = utils.DotDict(
+    #     {
+    #         "version": 2.0,
+    #         "N_tot": 58000,
+    #         "rho": 0.0,
+    #         "epsilon_rho": 0.04,
+    #         "mu": 20.0,
+    #         "sigma_mu": 0.0,
+    #         "beta": 0.0015,
+    #         "sigma_beta": 0.0,
+    #         "algo": 2,
+    #         "N_init": 100,
+    #         "lambda_E": 1.0,
+    #         "lambda_I": 1.0,
+    #         "make_random_initial_infections": True,
+    #         "make_initial_infections_at_kommune": True,
+    #         "day_max": 20.0,
+    #         "clustering_connection_retries": 0,
+    #         "N_events": 3000,
+    #         "event_size_max": 50,
+    #         "event_size_mean": 50.0,
+    #         "event_beta_scaling": 10.0,
+    #         "event_weekend_multiplier": 1.0,
+    #         "do_interventions": True,
+    #         "interventions_to_apply": [1, 4, 6],
+    #         "f_daily_tests": 0.01,
+    #         "test_delay_in_clicks": [0, 0, 25],
+    #         "results_delay_in_clicks": [5, 10, 5],
+    #         "chance_of_finding_infected": [0.0, 0.15, 0.15, 0.15, 0.0],
+    #         "days_looking_back": 7.0,
+    #         "masking_rate_reduction": [[0.0, 0.0, 0.3], [0.0, 0.0, 0.8]],
+    #         "lockdown_rate_reduction": [[0.0, 1.0, 0.6], [0.0, 0.6, 0.6]],
+    #         "isolation_rate_reduction": [0.2, 1.0, 1.0],
+    #         "tracking_rates": [1.0, 0.8, 0.0],
+    #         "ID": 0,
+    #     }
+    # )
 
-    if __name__ == "__main__" and False:
+    if __name__ == "__main__" and True:
         # run_simulations(d_simulation_parameters)
         with Timer() as t:
             simulation = Simulation(cfg, verbose)
-            simulation.initialize_network(force_rerun=force_rerun)
+            simulation.initialize_network(
+                force_rerun=force_rerun,
+                save_initial_network=True,
+            )
             simulation.make_initial_infections()
             df = simulation.run_simulation(verbose_interventions=False)
         display(df)
         print(f"Time taken: {t.elapsed:.1f}")
         simulation.save(time_elapsed=t.elapsed, save_hdf5=True, save_csv=True)
 
-        #%%
-
         my = simulation.my
         df_coordinates = simulation.df_coordinates
         intervention = simulation.intervention
         g = simulation.g
-
-        agents_in_age_group = simulation.agents_in_age_group
-        N_ages = len(simulation.agents_in_age_group)
-
-#%%
-
-import pickle
-
-
-def jitclass_to_hdf5_ready_dict(jitclass, skip="cfg"):
-
-    if isinstance(skip, str):
-        skip = [skip]
-
-    typ = jitclass._numba_type_
-    fields = typ.struct
-
-    ints_floats_bool_set = (nb.types.Integer, nb.types.Float, nb.types.Boolean, nb.types.Set)
-
-    d_out = {}
-    for key, dtype in fields.items():
-        val = getattr(my, key)
-        if isinstance(dtype, nb.types.ListType):
-            if utils.is_nested_numba_list(val):
-                d_out[key] = utils.NestedArray(val).to_dict()
-            else:
-                d_out[key] = list(val)
-        elif isinstance(dtype, nb.types.Array):
-            d_out[key] = np.array(val, dtype=dtype.dtype.name)
-        elif key.lower() in skip:
-            continue
-        elif isinstance(dtype, ints_floats_bool_set):
-            d_out[key] = val
-        else:
-            print(key)
-    return d_out
-
-
-# d_out = jitclass_to_hdf5_ready_dict(my, skip="cfg")
-
-#%%
-
-filename = "test.hdf5"
-
-
-def save_jitclass_dict(filename, d_out, cfg=None):
-
-    with h5py.File(filename, "w", **hdf5_kwargs) as f:
-        for key, val in d_out.items():
-            if isinstance(val, dict):
-                group = f.create_group(key)
-                for k, v in val.items():
-                    group.create_dataset(k, data=v)
-            else:
-                f.create_dataset(key, data=val)
-        if cfg is not None:
-            utils.add_cfg_to_hdf5_file(f, cfg)
-
-
-# %%
-
-filename = "test.hdf5"
-
-
-def load_jitclass_to_dict(filename):
-    d_in = {}
-    with h5py.File(filename, "r") as f:
-        for key, val in f.items():
-            if isinstance(val, h5py.Dataset):
-                d_in[key] = val[()]
-            else:
-                d_tmp = {}
-                for k, v in val.items():
-                    d_tmp[k] = v[()]
-                d_in[key] = d_tmp
-    return d_in
-
-
-# %%
-
-# def load_My_from_dict():
-#     my = nb_simulation.initialize_My(cfg)
-#     for key, val in d_in

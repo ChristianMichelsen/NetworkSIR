@@ -547,7 +547,7 @@ class MutableArray:
 
 
 def is_nested_numba_list(nested_lists):
-    if isinstance(nested_lists, List) and isinstance(nested_lists[0], List):
+    if isinstance(nested_lists, List) and isinstance(nested_lists[0], (List, np.ndarray)):
         return True
     else:
         return False
@@ -559,16 +559,16 @@ class NestedArray:
 
     def __init__(self, nested_lists=None):
 
-        if nested_lists is not None:
-            if is_nested_numba_list(nested_lists):
-                self.dtype = str(nested_lists._list_type.dtype.dtype)
-            else:
-                raise AssertionError("Only implemented for nested Numba lists")
+        if nested_lists is None:
+            return
 
-            self.content = np.array(
-                flatten_nested_list(nested_lists), dtype=getattr(np, self.dtype)
-            )
-            self.offsets = np.array(get_cumulative_indices(nested_lists), dtype=np.int64)
+        if is_nested_numba_list(nested_lists):
+            self.dtype = str(nested_lists._list_type.dtype.dtype)
+        else:
+            raise AssertionError("Only implemented for nested Numba lists")
+
+        self.content = np.array(flatten_nested_list(nested_lists), dtype=getattr(np, self.dtype))
+        self.offsets = np.array(get_cumulative_indices(nested_lists), dtype=np.int64)
 
     def __getitem__(self, i):
         return self.content[self.offsets[i] : self.offsets[i + 1]]
@@ -586,8 +586,13 @@ class NestedArray:
     def to_dict(self):
         return {"content": self.content, "offsets": self.offsets}
 
-    def to_nested_nested_lists(self):
-        return to_nested_nested_lists(self.content, self.offsets)
+    def to_nested_numba_lists(self):
+        return to_nested_numba_lists(self.content, self.offsets)
+
+    def add_to_hdf5_file(self, f, key):
+        group = f.create_group(key)
+        group.create_dataset("content", data=self.content)
+        group.create_dataset("offsets", data=self.offsets)
 
     @classmethod
     def from_dict(cls, d):
@@ -596,16 +601,25 @@ class NestedArray:
         instance.offsets = d["offsets"]
         return instance
 
+    @classmethod
+    def from_hdf5(cls, f, key):
+        instance = cls()
+        instance.content = f[key]["content"][()]
+        instance.offsets = f[key]["offsets"][()]
+        return instance
+
+
 @njit
-def to_nested_nested_lists(content, offsets):
+def to_nested_numba_lists(content, offsets):
     out = List()
     N_offsets = len(offsets)
-    for i in range(N_offsets-1):
+    for i in range(N_offsets - 1):
         inner = List()
         for x in content[offsets[i] : offsets[i + 1]]:
             inner.append(x)
         out.append(inner)
     return out
+
 
 #%%
 
@@ -963,13 +977,19 @@ def format_cfg(cfg):
             cfg[key] = int(val)
         elif isinstance(spec_cfg[key], nb.types.Boolean):
             cfg[key] = bool(val)
-        elif isinstance(spec_cfg[key], nb.types.List):
-            cfg[key] = list(val)
+        elif isinstance(spec_cfg[key], nb.types.ListType):
+            if isinstance(val, np.ndarray):
+                cfg[key] = val.tolist()
+            else:
+                cfg[key] = list(val)
         elif isinstance(spec_cfg[key], nb.types.Set):
             cfg[key] = set(val)
         elif isinstance(spec_cfg[key], nb.types.Array):
             # cfg[key] = np.array(val, dtype=spec_cfg[key].dtype.name)
-            cfg[key] = list(val)
+            if isinstance(val, np.ndarray):
+                cfg[key] = val.tolist()
+            else:
+                cfg[key] = list(val)
 
     return cfg
 
@@ -1785,9 +1805,19 @@ def delete_every_file_with_hash(hashes, base_dir="./Data/", verbose=True):
 
 #%%
 
+import h5py
+
 
 def add_cfg_to_hdf5_file(f, cfg):
     for key, val in cfg.items():
         # if isinstance(val, set):
         # val = list(val)
         f.attrs[key] = val
+
+
+def read_cfg_from_hdf5_file(filename):
+    cfg = {}
+    with h5py.File(filename, "r") as f:
+        for key, val in f.attrs.items():
+            cfg[key] = val
+    return format_cfg(cfg)

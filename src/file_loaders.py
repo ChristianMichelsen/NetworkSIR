@@ -6,6 +6,7 @@ import h5py
 import os
 from tqdm import tqdm
 from src.utils import utils
+from numba.typed import List, Dict
 
 
 def pandas_load_file(filename):
@@ -201,10 +202,10 @@ def load_newest_SSI_data(max_days_back=30):
 
 
 def load_kommune_data(df_coordinates):
-    my_kommune = df_coordinates["kommune"].tolist()
+    my_kommune = List(df_coordinates["kommune"].tolist())
     df = load_newest_SSI_data().set_index("date_sample")
     dates = df.index[-8:]
-    kommune_names = list(set(my_kommune))
+    kommune_names = List(set(my_kommune))
     infected_per_kommune_ints = np.zeros(len(kommune_names))
     for date in dates:
         infected_per_kommune_series = df.loc[date]

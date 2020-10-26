@@ -242,8 +242,6 @@ def initialize_My(cfg):
     return My(nb_cfg)
 
 
-
-
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # # # # # # # # # # # # # # # Gillespie Algorithm # # # # # # # # # # # # # # #
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -798,7 +796,7 @@ def compute_initial_agents_to_infect_from_kommune(
     time_e = 1 / my.cfg.lambda_E
     norm_factor = contact_number_init / fraction_found * N_tot_frac * (1 + time_e / time_inf)
 
-    initial_agents_to_infect = []
+    initial_agents_to_infect = List()
     # num_infected = 0
 
     for num_of_infected_in_kommune, kommune in zip(infected_per_kommune_start, kommune_names):
@@ -812,7 +810,7 @@ def compute_initial_agents_to_infect_from_kommune(
                 "non normed",
                 num_of_infected_in_kommune,
             )
-        list_of_agent_in_kommune = []
+        list_of_agent_in_kommune = List()
         for agent, agent_kommune in zip(range(my.cfg.N_tot), my_kommune):
             if kommune == agent_kommune:
                 list_of_agent_in_kommune.append(agent)
