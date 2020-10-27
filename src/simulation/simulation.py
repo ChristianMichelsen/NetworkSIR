@@ -428,10 +428,17 @@ def run_simulations(
 
     num_cores = utils.get_num_cores_N_tot(d_simulation_parameters, num_cores_max)
 
+    if isinstance(d_simulation_parameters, dict):
+        s_simulation_parameters = str(d_simulation_parameters)
+    elif isinstance(d_simulation_parameters, list):
+        s_simulation_parameters = f"{len(d_simulation_parameters)} MCMC runs, see cfg/simulation_parameters.yaml for more info"
+    else:
+        raise AssertionError("d_simulation_parameters neither list nor dict")
+
     print(
         f"\n\n" f"Generating {N_files:3d} network-based simulations",
         f"with {num_cores} cores",
-        f"based on {d_simulation_parameters}.",
+        f"based on {s_simulation_parameters}.",
         "Please wait. \n",
         flush=True,
     )

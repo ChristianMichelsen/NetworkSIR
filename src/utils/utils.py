@@ -994,34 +994,65 @@ def format_cfg(cfg):
     return cfg
 
 
-def generate_cfgs(d_simulation_parameters, N_runs=1, N_tot_max=False, verbose=False):
+def _generate_cfgs_MCMC(d_simulation_parameters, N_runs=1, N_tot_max=False, verbose=False):
+    """ Generates cfgs for MCMC-based simulation parameters """
 
     cfg_default = get_cfg_default()
-
-    d_list = []
-    for name, lst in d_simulation_parameters.items():
-        if isinstance(lst, (int, float)):
-            lst = [lst]
-        d_list.append([{name: val} for val in lst])
-    d_list.append([{"ID": ID} for ID in range(N_runs)])
-    all_combinations = list(product(*d_list))
-
     has_not_printed = True
 
     cfgs = []
-    for combination in all_combinations:
+    for simulation_parameter in d_simulation_parameters:
+        # break
         cfg = cfg_default.copy()
-        for d in combination:
-            cfg.update(d)
+        cfg.update(simulation_parameter)
         if not N_tot_max or cfg["N_tot"] < N_tot_max:
-            cfgs.append(cfg)
+            for ID in range(N_runs):
+                tmp = cfg.copy()
+                tmp["ID"] = ID
+                cfgs.append(tmp)
         else:
             if verbose and has_not_printed:
                 print("Skipping some files due to N_tot > N_tot_max")
                 has_not_printed = False
+    return cfgs
+
+
+def generate_cfgs(d_simulation_parameters, N_runs=1, N_tot_max=False, verbose=False):
+
+    if isinstance(d_simulation_parameters, list):
+        cfgs = _generate_cfgs_MCMC(
+            d_simulation_parameters,
+            N_runs=N_runs,
+            N_tot_max=N_tot_max,
+            verbose=verbose,
+        )
+
+    else:
+        cfg_default = get_cfg_default()
+
+        d_list = []
+        for name, lst in d_simulation_parameters.items():
+            if isinstance(lst, (int, float)):
+                lst = [lst]
+            d_list.append([{name: val} for val in lst])
+        d_list.append([{"ID": ID} for ID in range(N_runs)])
+        all_combinations = list(product(*d_list))
+
+        has_not_printed = True
+
+        cfgs = []
+        for combination in all_combinations:
+            cfg = cfg_default.copy()
+            for d in combination:
+                cfg.update(d)
+            if not N_tot_max or cfg["N_tot"] < N_tot_max:
+                cfgs.append(cfg)
+            else:
+                if verbose and has_not_printed:
+                    print("Skipping some files due to N_tot > N_tot_max")
+                    has_not_printed = False
 
     cfgs = [format_cfg(cfg) for cfg in cfgs]
-
     return cfgs
 
 
@@ -1830,3 +1861,75 @@ def get_cfg_network_initialized(cfg):
     include = load_yaml("cfg/settings.yaml")["network_initialization_include_parameters"]
     cfg_network_initialized = {key: cfg[key] for key in include}
     return cfg_network_initialized
+
+
+#%%
+
+
+def get_simulation_parameters():
+    yaml_filename = "cfg/simulation_parameters.yaml"
+    all_simulation_parameters_input = load_yaml(yaml_filename)["all_simulation_parameters"]
+    all_simulation_parameters = []
+    for simulation_parameter in all_simulation_parameters_input:
+        if "N_RS" in simulation_parameter.keys() and "MCMC" in simulation_parameter.keys():
+            # break
+            all_simulation_parameters.append(
+                get_random_samples(simulation_parameter, random_state=0)
+            )
+        else:
+            all_simulation_parameters.append(simulation_parameter)
+    return all_simulation_parameters
+
+
+#%%
+
+from scipy.stats import uniform as sp_uniform
+from scipy.stats import randint
+from sklearn.model_selection import ParameterSampler
+
+
+def uniform(a=0, b=1):
+    loc = a
+    scale = b - a
+    return sp_uniform(loc, scale)
+
+
+def _round_param_list(param_list, param_grid):
+
+    sorted_keys = list(param_grid.keys())
+
+    rounded_list = []
+    for d in param_list:
+        tmp = {}
+        for key in sorted_keys:
+            val = d[key]
+            if isinstance(val, float):
+                val = round(val, 4)
+            tmp[key] = val
+        rounded_list.append(tmp)
+    return rounded_list
+
+def _append_remaining_parameters(simulation_parameter, rounded_list):
+    keyvals = {key: val for key, val in simulation_parameter.items() if not key in ['N_RS', 'MCMC']}
+    cfgs = []
+    for cfg in rounded_list:
+        for key, val in keyvals.items():
+            cfg[key] = val
+        cfgs.append(cfg)
+    return cfgs
+
+def get_random_samples(simulation_parameter, random_state=0):
+    N = simulation_parameter["N_RS"]
+    param_grid = {}
+    for key, val in simulation_parameter["MCMC"].items():
+        pdf = val[0]
+        if pdf.lower() == "uniform":
+            param_grid[key] = uniform(*val[1:])
+        elif pdf.lower() == "randint":
+            param_grid[key] = randint(*val[1:])
+        else:
+            raise AssertionError(f"PDF for {pdf} not implemented yet")
+    param_list = list(ParameterSampler(param_grid, n_iter=N, random_state=random_state))
+    rounded_list = _round_param_list(param_list, param_grid)
+    cfgs = _append_remaining_parameters(simulation_parameter, rounded_list)
+    return cfgs

@@ -18,7 +18,7 @@ lambda_I: 1.0  # I->R, Lambda(from I states)
 # Other:
 make_random_initial_infections: True # Infections around a single agent
 make_initial_infections_at_kommune: False # Initiate infections at kommune basis
-day_max: 35 # 5 weeks. Sets the maximum number of days the algorithm runs
+day_max: 0 # 5 weeks. Sets the maximum number of days the algorithm runs
 clustering_connection_retries: 0 # number of times to try and reconnect two agents
 work_other_ratio: 0.5 # 0.2 = 20% work, 80% other
 N_contacts_max: 100 # maximum number of contacts

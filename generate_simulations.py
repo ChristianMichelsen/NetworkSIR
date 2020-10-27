@@ -41,8 +41,7 @@ if utils.is_local_computer():
     ]
 
 else:
-    yaml_filename = "cfg/simulation_parameters.yaml"
-    all_simulation_parameters = utils.load_yaml(yaml_filename)["all_simulation_parameters"]
+    all_simulation_parameters = utils.get_simulation_parameters()
 
 
 #%%

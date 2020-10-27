@@ -52,7 +52,7 @@ spec_cfg = {
     "make_initial_infections_at_kommune": nb.boolean,
     "clustering_connection_retries": nb.uint32,
     "work_other_ratio": nb.float32,  # 0.2 = 20% work, 80% other
-    "N_contacts_max": nb.uint32,
+    "N_contacts_max": nb.uint16,
     # events
     "N_events": nb.uint16,
     "event_size_max": nb.uint16,
