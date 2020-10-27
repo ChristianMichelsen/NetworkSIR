@@ -27,9 +27,9 @@ if utils.is_local_computer():
     all_simulation_parameters = [
         {
             "N_tot": 58_000,
-            "N_contacts_max": 100,
-            "work_other_ratio": 0.5,
-            "N_init": [100, 1000]
+            # "N_contacts_max": 100,
+            # "work_other_ratio": 0.5,
+            # "N_init": [100, 1000]
             # "rho": 0.1,
             # "beta": [0.0015, 0.002],
             # "make_initial_infections_at_kommune": True,

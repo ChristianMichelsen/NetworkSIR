@@ -28,7 +28,7 @@ MCMC: &MCMC { N_events: [randint, 750, 1250],
 all_simulation_parameters:
   - {N_tot: 580_000}
   - {N_RS: 100, MCMC: *MCMC, day_max: 35}
-  - {N_tot: 5_800_000}
+  - {N_tot: 5_800_000, N_init: 20_000}
 
   # - {N_tot: 5_800_000}
   # - {N_events: [750, 1000, 1250], event_size_max: [50, 20, 10], event_size_mean: [3, 5, 7, 10]}
