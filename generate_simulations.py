@@ -16,7 +16,7 @@ num_cores_max = 40
 N_runs = 10
 
 dry_run = False
-force_rerun = False
+force_rerun = True
 verbose = True
 
 #%%
@@ -27,13 +27,16 @@ if utils.is_local_computer():
     all_simulation_parameters = [
         {
             "N_tot": 58_000,
-            "rho": 0.1,
-            "beta": [0.0015, 0.002],
-            "make_initial_infections_at_kommune": True,
-            "N_events": 1000,
-            "mu": 20,
-            "day_max": 150,
-            "event_size_max": 50,
+            "N_contacts_max": 100,
+            "work_other_ratio": 0.5,
+            "N_init": [100, 1000]
+            # "rho": 0.1,
+            # "beta": [0.0015, 0.002],
+            # "make_initial_infections_at_kommune": True,
+            # "N_events": 1000,
+            # "mu": 20,
+            # "day_max": 150,
+            # "event_size_max": 50,
         },
     ]
 

@@ -51,6 +51,8 @@ spec_cfg = {
     "make_random_initial_infections": nb.boolean,
     "make_initial_infections_at_kommune": nb.boolean,
     "clustering_connection_retries": nb.uint32,
+    "work_other_ratio": nb.float32,  # 0.2 = 20% work, 80% other
+    "N_contacts_max": nb.uint32,
     # events
     "N_events": nb.uint16,
     "event_size_max": nb.uint16,
@@ -98,6 +100,8 @@ class Config(object):
         self.make_initial_infections_at_kommune = False
         self.day_max = 0
         self.clustering_connection_retries = 0
+        self.work_other_ratio = 0.5
+        self.N_contacts_max = 0
 
         # events
         self.N_events = 0
@@ -552,8 +556,16 @@ def update_node_connections(
         if not cluster_retry_succesful(my, agent1, agent2, rho_tmp):
             return False
 
-    alread_added = agent1 in my.connections[agent2] or agent2 in my.connections[agent1]
-    if alread_added:
+    already_added = agent1 in my.connections[agent2] or agent2 in my.connections[agent1]
+    if already_added:
+        return False
+
+    N_contacts_max = my.cfg.N_contacts_max
+    maximum_contacts_exceeded = (N_contacts_max > 0) and (
+        (len(my.connections[agent1]) >= N_contacts_max)
+        or (len(my.connections[agent2]) >= N_contacts_max)
+    )
+    if maximum_contacts_exceeded:
         return False
 
     my.connections[agent1].append(np.uint32(agent2))
@@ -701,7 +713,7 @@ def connect_work_and_others(
     my,
     N_ages,
     mu_counter,
-    work_other_ratio,
+    # work_other_ratio,
     matrix_work,
     matrix_other,
     agents_in_age_group,
@@ -714,7 +726,7 @@ def connect_work_and_others(
     while mu_counter < mu_tot:
 
         ra_work_other = np.random.rand()
-        if ra_work_other < work_other_ratio:
+        if ra_work_other < my.cfg.work_other_ratio:
             matrix = matrix_work
             run_algo = run_algo_work
         else:
@@ -735,6 +747,7 @@ def connect_work_and_others(
             age2,
             rho_tmp,
         )
+
         mu_counter += 1
         if verbose:
             progress = mu_counter / mu_tot

@@ -1,0 +1,16 @@
+# include these parameters when saving the initialized network
+network_initialization_include_parameters:
+- version
+- N_tot
+- rho
+- epsilon_rho
+- mu
+- sigma_mu
+- beta
+- sigma_beta
+
+- clustering_connection_retries
+- work_other_ratio
+- N_contacts_max
+
+# - ID

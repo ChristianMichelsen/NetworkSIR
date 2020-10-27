@@ -17,32 +17,37 @@ event_size_maxs: &event_size_maxs [0, 1, 2, 3, 4, 5, 10, 15, 20, 30, 40, 50, 75,
 
 # define list of simulation_parameters to be simulated
 all_simulation_parameters:
-  - {N_events: 0, mu: 20, beta: 0.012, rho: 0.1}
-  - {N_events: [100, 500, 1_000, 5_000, 10_000], event_size_max: [50, 20, 10], mu: 20, beta: 0.012, rho: 0.1}
-  - {N_events: *N_events, event_size_max: *event_size_maxs, rho: 0.1}
-  - {rho: [0.1], epsilon_rho: [0, 0.02, 0.04], beta: [0.007, 0.01], make_random_initial_infections: [True, False], N_tot: [580_000, 5_800_000]} #make local initial infection
-  - {rho: *rhos}
-  - {rho: *rhos, beta: 0.007} #, 0.01, 0.015]}
-  - {rho: *rhos, sigma_beta: 1}
-  - {rho: *rhos, sigma_mu: 1}
-  - {rho: *rhos, sigma_mu: 1, sigma_beta: 1}
-  - {N_tot: [580_000, 5_800_000], rho: [0, 0.1]}
-  - {mu: *mus, rho: [0, 0.1]}
-  - {beta: *betas, rho: [0, 0.1]}
-  - {epsilon_rho: *epsilon_rhos, rho: 0.1}
-  - {rho: [0.1], epsilon_rho: [0, 0.04], beta: [0.007, 0.01], make_random_initial_infections: [True, False], N_tot: [580_000, 5_800_000]} #make local initial infection
-  - {rho: *rhos, beta: 0.005}
-  - {beta: [0.02, 0.04], mu: [20, 10], sigma_mu: [0, 1], sigma_beta: [0, 1], rho: [0, 0.1]}
-  - {sigma_beta: [0, 0.25, 0.5, 0.75, 1], sigma_mu: [0, 1], rho: [0, 0.1]}
-  - {sigma_mu: [0, 0.25, 0.5, 0.75, 1], sigma_beta: [0, 1], rho: [0, 0.1]}
-  - {N_init: [10, 100, 1_000, 10_000]}
-  - {lambda_E: [0.5, 1, 2, 4]}
-  - {lambda_I: [0.5, 1, 2, 4]}
-  - {N_tot: *N_tots_small, rho: [0, 0.1]}
-  - {N_tot: *N_tots_medium, rho: [0, 0.1]}
-  - {N_tot: *N_tots_large, rho: [0, 0.1]}
-  - {N_tot: 5_800_000, rho: *rhos}
-  - {N_events: 0, mu: 20, beta: 0.012, rho: 0.1, N_tot: 5_800_000}
-  - {N_events: [100, 500, 1_000, 5_000, 10_000], event_size_max: [50, 20, 10], mu: 20, beta: 0.012, rho: 0.1, N_tot: 5_800_000}
-  - {N_events: *N_events, event_size_max: *event_size_maxs, rho: 0.1, N_tot: 5_800_000}
-  - {N_tot: 10_000_000, rho: [0, 0.1]}
+  - {N_tot: 580_000}
+  - {N_tot: 5_800_000}
+  - {N_events: [750, 1000, 1250], event_size_max: [50, 20, 10], event_size_mean: [3, 5, 7, 10]}
+  - {beta: 0.007, 0.008, 0.009, 0.01, 0.011, 0.012, 0.013, 0.014, 0.015}
+  - {mu: 10, 20, 30}
+  # - {N_events: 0, mu: 20, beta: 0.012, rho: 0.1}
+  # - {N_events: [100, 500, 1_000, 5_000, 10_000], event_size_max: [50, 20, 10], mu: 20, beta: 0.012, rho: 0.1}
+  # - {N_events: *N_events, event_size_max: *event_size_maxs, rho: 0.1}
+  # - {rho: [0.1], epsilon_rho: [0, 0.02, 0.04], beta: [0.007, 0.01], make_random_initial_infections: [True, False], N_tot: [580_000, 5_800_000]} #make local initial infection
+  # - {rho: *rhos}
+  # - {rho: *rhos, beta: 0.007} #, 0.01, 0.015]}
+  # - {rho: *rhos, sigma_beta: 1}
+  # - {rho: *rhos, sigma_mu: 1}
+  # - {rho: *rhos, sigma_mu: 1, sigma_beta: 1}
+  # - {N_tot: [580_000, 5_800_000], rho: [0, 0.1]}
+  # - {mu: *mus, rho: [0, 0.1]}
+  # - {beta: *betas, rho: [0, 0.1]}
+  # - {epsilon_rho: *epsilon_rhos, rho: 0.1}
+  # - {rho: [0.1], epsilon_rho: [0, 0.04], beta: [0.007, 0.01], make_random_initial_infections: [True, False], N_tot: [580_000, 5_800_000]} #make local initial infection
+  # - {rho: *rhos, beta: 0.005}
+  # - {beta: [0.02, 0.04], mu: [20, 10], sigma_mu: [0, 1], sigma_beta: [0, 1], rho: [0, 0.1]}
+  # - {sigma_beta: [0, 0.25, 0.5, 0.75, 1], sigma_mu: [0, 1], rho: [0, 0.1]}
+  # - {sigma_mu: [0, 0.25, 0.5, 0.75, 1], sigma_beta: [0, 1], rho: [0, 0.1]}
+  # - {N_init: [10, 100, 1_000, 10_000]}
+  # - {lambda_E: [0.5, 1, 2, 4]}
+  # - {lambda_I: [0.5, 1, 2, 4]}
+  # - {N_tot: *N_tots_small, rho: [0, 0.1]}
+  # - {N_tot: *N_tots_medium, rho: [0, 0.1]}
+  # - {N_tot: *N_tots_large, rho: [0, 0.1]}
+  # - {N_tot: 5_800_000, rho: *rhos}
+  # - {N_events: 0, mu: 20, beta: 0.012, rho: 0.1, N_tot: 5_800_000}
+  # - {N_events: [100, 500, 1_000, 5_000, 10_000], event_size_max: [50, 20, 10], mu: 20, beta: 0.012, rho: 0.1, N_tot: 5_800_000}
+  # - {N_events: *N_events, event_size_max: *event_size_maxs, rho: 0.1, N_tot: 5_800_000}
+  # - {N_tot: 10_000_000, rho: [0, 0.1]}

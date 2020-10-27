@@ -2,31 +2,33 @@
 
 
 # Default parameters:
-version: 2.0 # the version of the algorithm
+version: 2.1 # the version of the algorithm
 N_tot: 580_000  # Total number of nodes!
-rho: 0.0  # Spacial dependency. Average distance to connect with.
+rho: 0.1  # Spacial dependency. Average distance to connect with.
 epsilon_rho: 0.04  # fraction of connections not depending on distance
-mu: 40.0  # Average number of connections of a node (init: 20)
+mu: 20.0  # Average number of connections of a node (init: 20)
 sigma_mu: 0.0  # Spread (skewness) in N connections
-beta: 0.01  # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
+beta: 0.012  # Daily infection rate (SIR, init: 0-1, but beta = (2mu/N_tot)* betaSIR)
 sigma_beta: 0.0  # Spread in rates, beta
-algo: 2  # node connection algorithm, ignore if version >= 2
-N_init: 100  # Initial Infected
+# algo: 2  # node connection algorithm, ignore if version >= 2
+N_init: 2000  # Initial Infected
 lambda_E: 1.0  # E->I, Lambda(from E states)
 lambda_I: 1.0  # I->R, Lambda(from I states)
 
 # Other:
 make_random_initial_infections: True # Infections around a single agent
 make_initial_infections_at_kommune: False # Initiate infections at kommune basis
-
-day_max: 0 # if other than 0, sets the maximum number of days the algorithm runs
+day_max: 35 # 5 weeks. Sets the maximum number of days the algorithm runs
 clustering_connection_retries: 0 # number of times to try and reconnect two agents
+work_other_ratio: 0.5 # 0.2 = 20% work, 80% other
+N_contacts_max: 100 # maximum number of contacts
+
 # event-related variables
 N_events: 0 # number of daily events
-event_size_max: 0 #max size of events. If 0 => N_tot (no max)
-event_size_mean: 50 # mean size of events (exponential distribution)
-event_beta_scaling: 10 # how much more disease spreads at events (1 = normal, 2 = double of normal)
-event_weekend_multiplier: 1.0 # ratio of how many more events are happening in weekends. 1 = similar, 2 = double
+event_size_max: 50 #max size of events. If 0 => N_tot (no max)
+event_size_mean: 5 # mean size of events (exponential distribution)
+event_beta_scaling: 5 # how much more disease spreads at events (1 = normal, 2 = double of normal)
+event_weekend_multiplier: 2.0 # ratio of how many more events are happening in weekends. 1 = similar, 2 = double
 
 
 # Lockdown-related variables

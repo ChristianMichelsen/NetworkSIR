@@ -1821,3 +1821,12 @@ def read_cfg_from_hdf5_file(filename):
         for key, val in f.attrs.items():
             cfg[key] = val
     return format_cfg(cfg)
+
+
+#%%
+
+
+def get_cfg_network_initialized(cfg):
+    include = load_yaml("cfg/settings.yaml")["network_initialization_include_parameters"]
+    cfg_network_initialized = {key: cfg[key] for key in include}
+    return cfg_network_initialized

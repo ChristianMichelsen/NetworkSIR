@@ -105,7 +105,7 @@ class Simulation:
             matrix_other = matrix_other * counter_ages * counter_ages.reshape((-1, 1))
             matrix_other = matrix_other / matrix_other.sum()
 
-            work_other_ratio = 0.5  # 20% work, 80% other
+            # work_other_ratio = 0.5  # 20% work, 80% other
 
             if self.verbose:
                 print("Connecting work and others, currently slow, please wait")
@@ -114,7 +114,7 @@ class Simulation:
                 self.my,
                 N_ages,
                 mu_counter,
-                work_other_ratio,
+                # work_other_ratio,
                 matrix_work,
                 matrix_other,
                 agents_in_age_group,
@@ -170,15 +170,31 @@ class Simulation:
         filename = "Data/initialized_network/"
         filename += f"initialized_network__{self.hash}__ID__{self.cfg.ID}.hdf5"
 
-        # Loading initialized network
-        if utils.file_exists(filename) and not force_rerun:
-            self._load_initialized_network(filename)
-
-        # initalizing network and (possibly) saving it
+        cfg_network_initialized = utils.get_cfg_network_initialized(self.cfg)
+        if len(utils.query_cfg(cfg_network_initialized)) == 0:
+            initialize_network = True
+            if self.verbose:
+                print("Initializing network since it does not exist in database")
+        elif not utils.file_exists(filename):
+            initialize_network = True
+            if self.verbose:
+                print("Initializing network since the hdf5-file does not exist")
+        elif force_rerun:
+            initialize_network = True
+            if self.verbose:
+                print("Initializing network since it was forced to")
         else:
+            initialize_network = False
+
+        # Initalizing network and (optionally) saving it
+        if initialize_network:
             self._initialize_network()
             if save_initial_network:
                 self._save_initialized_network(filename)
+
+        # Loading initialized network
+        else:
+            self._load_initialized_network(filename)
 
     def make_initial_infections(self):
         utils.set_numba_random_seed(self.cfg.ID)
@@ -444,33 +460,31 @@ if debugging:
     force_rerun = True
 
     d_simulation_parameters = {
-        "beta": [0.0015, 0.002],
-        "make_initial_infections_at_kommune": True,
-        "N_events": 3000,
-        "mu": 20,
-        "day_max": 150,
-        "event_size_max": 50,
+        "N_tot": 58_000,
+        "N_init": [100, 1000],
     }
 
     cfg = utils.DotDict(
         {
             "version": 2.0,
-            "N_tot": 580000,
+            "N_tot": 58000,
             "rho": 0.1,
             "epsilon_rho": 0.04,
             "mu": 20.0,
             "sigma_mu": 0.0,
             "beta": 0.012,
             "sigma_beta": 0.0,
-            "algo": 2,
+            # "algo": 2,
             "N_init": 100,
             "lambda_E": 1.0,
             "lambda_I": 1.0,
             # other
             "make_random_initial_infections": True,
             "make_initial_infections_at_kommune": False,
-            "day_max": 0.0,
+            "day_max": 35.0,
             "clustering_connection_retries": 0,
+            "work_other_ratio": 0.5,
+            "N_contacts_max": 100,
             # events
             "N_events": 0,
             "event_size_max": 0,
@@ -493,45 +507,7 @@ if debugging:
         }
     )
 
-    # cfg = utils.DotDict(
-    #     {
-    #         "version": 2.0,
-    #         "N_tot": 58000,
-    #         "rho": 0.0,
-    #         "epsilon_rho": 0.04,
-    #         "mu": 20.0,
-    #         "sigma_mu": 0.0,
-    #         "beta": 0.0015,
-    #         "sigma_beta": 0.0,
-    #         "algo": 2,
-    #         "N_init": 100,
-    #         "lambda_E": 1.0,
-    #         "lambda_I": 1.0,
-    #         "make_random_initial_infections": True,
-    #         "make_initial_infections_at_kommune": True,
-    #         "day_max": 20.0,
-    #         "clustering_connection_retries": 0,
-    #         "N_events": 3000,
-    #         "event_size_max": 50,
-    #         "event_size_mean": 50.0,
-    #         "event_beta_scaling": 10.0,
-    #         "event_weekend_multiplier": 1.0,
-    #         "do_interventions": True,
-    #         "interventions_to_apply": [1, 4, 6],
-    #         "f_daily_tests": 0.01,
-    #         "test_delay_in_clicks": [0, 0, 25],
-    #         "results_delay_in_clicks": [5, 10, 5],
-    #         "chance_of_finding_infected": [0.0, 0.15, 0.15, 0.15, 0.0],
-    #         "days_looking_back": 7.0,
-    #         "masking_rate_reduction": [[0.0, 0.0, 0.3], [0.0, 0.0, 0.8]],
-    #         "lockdown_rate_reduction": [[0.0, 1.0, 0.6], [0.0, 0.6, 0.6]],
-    #         "isolation_rate_reduction": [0.2, 1.0, 1.0],
-    #         "tracking_rates": [1.0, 0.8, 0.0],
-    #         "ID": 0,
-    #     }
-    # )
-
-    if __name__ == "__main__" and True:
+    if __name__ == "__main__" and False:
         # run_simulations(d_simulation_parameters)
         with Timer() as t:
             simulation = Simulation(cfg, verbose)
@@ -549,3 +525,9 @@ if debugging:
         df_coordinates = simulation.df_coordinates
         intervention = simulation.intervention
         g = simulation.g
+
+        # N_tot": 58_000,
+        # "N_contacts_max": 100,
+        # "work_other_ratio": 0.5,
+
+#%%
