@@ -537,4 +537,43 @@ if debugging:
         # "N_contacts_max": 100,
         # "work_other_ratio": 0.5,
 
-#%%
+        #%%
+
+        cfg = utils.DotDict(
+            {
+                "version": 2.1,
+                "N_tot": 580000,
+                "rho": 0.1,
+                "epsilon_rho": 0.04,
+                "mu": 29.5714,
+                "sigma_mu": 0.0,
+                "beta": 0.0141,
+                "sigma_beta": 0.0,
+                "N_init": 2000,
+                "lambda_E": 1.0,
+                "lambda_I": 1.0,
+                "make_random_initial_infections": True,
+                "make_initial_infections_at_kommune": False,
+                "day_max": 35.0,
+                "clustering_connection_retries": 0,
+                "work_other_ratio": 0.2697,
+                "N_contacts_max": 0,
+                "N_events": 930,
+                "event_size_max": 24,
+                "event_size_mean": 6.1444,
+                "event_beta_scaling": 5.0,
+                "event_weekend_multiplier": 2.0,
+                "do_interventions": False,
+                "interventions_to_apply": [1, 4, 6],
+                "f_daily_tests": 0.01,
+                "test_delay_in_clicks": [0, 0, 25],
+                "results_delay_in_clicks": [5, 10, 5],
+                "chance_of_finding_infected": [0.0, 0.15, 0.15, 0.15, 0.0],
+                "days_looking_back": 7.0,
+                "masking_rate_reduction": [[0.0, 0.0, 0.3], [0.0, 0.0, 0.8]],
+                "lockdown_rate_reduction": [[0.0, 1.0, 0.6], [0.0, 0.6, 0.6]],
+                "isolation_rate_reduction": [0.2, 1.0, 1.0],
+                "tracking_rates": [1.0, 0.8, 0.0],
+                "ID": 0,
+            }
+        )

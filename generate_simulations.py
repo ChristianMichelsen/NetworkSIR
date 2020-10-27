@@ -12,11 +12,11 @@ from contexttimer import Timer
 
 N_tot_max = False
 
-num_cores_max = 40
+num_cores_max = 35
 N_runs = 10
 
-dry_run = False
-force_rerun = True
+dry_run = True
+force_rerun = False
 verbose = True
 
 #%%
@@ -43,6 +43,7 @@ if utils.is_local_computer():
 else:
     all_simulation_parameters = utils.get_simulation_parameters()
 
+x=x
 
 #%%
 

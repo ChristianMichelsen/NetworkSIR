@@ -719,7 +719,7 @@ def connect_work_and_others(
     agents_in_age_group,
     verbose=True,
 ):
-    progress_delta_print = 0.1  # 10 percent
+    progress_delta_print = 0.01  # 10 percent
     progress_counter = 1
 
     mu_tot = my.cfg.mu / 2 * my.cfg.N_tot
