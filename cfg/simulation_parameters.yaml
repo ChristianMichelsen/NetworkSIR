@@ -18,9 +18,9 @@ event_size_maxs: &event_size_maxs [0, 1, 2, 3, 4, 5, 10, 15, 20, 30, 40, 50, 75,
 MCMC: &MCMC { N_events: [randint, 750, 1250],
               event_size_max: [randint, 10, 50],
               event_size_mean: [uniform, 3, 10],
-              beta: [uniform, 0.007, 0.015],
-              mu: [uniform, 10, 30],
-              work_other_ratio: [uniform, 0.2, 0.8],
+              beta: [uniform, 0.008, 0.010],
+              mu: [uniform, 10, 20],
+              work_other_ratio: [uniform, 0.4, 0.8],
             }
 
 

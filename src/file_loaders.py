@@ -23,6 +23,10 @@ def pandas_load_file(filename):
     # only keep relevant columns
     df = df_raw[["Time", "E", "I", "R"]].copy()
     df.rename(columns={"Time": "time"}, inplace=True)
+
+    # remove duplicate timings
+    df = df.loc[df["time"].drop_duplicates().index]
+
     return df
 
 

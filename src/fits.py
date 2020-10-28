@@ -197,7 +197,6 @@ def run_actual_fit(t, y, sy, cfg, dt, ts):
 
 def fit_single_file(filename, cfg, ts=0.1, dt=0.01, y_max=0.01):
 
-    # cfg = utils.string_to_dict(filename)
     df = file_loaders.pandas_load_file(filename)
 
     df_interpolated = SIR.interpolate_df(df)
