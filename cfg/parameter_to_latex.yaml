@@ -12,12 +12,33 @@
   lambda_E: \lambda_E
   lambda_I: \lambda_I
   ID: \mathrm{ID}
+
   make_random_initial_infections: \mathrm{rand.inf.}
-  make_initial_infections_at_kommune": \mathrm{rand.inf.kom.}
+  make_initial_infections_at_kommune: \mathrm{rand.inf.kom.}
   clustering_connection_retries: N_\mathrm{retries}^\mathrm{connect}
+  work_other_ratio: f_\mathrm{work/other}
+  N_contacts_max: N_{\mathrm{contacts}_\mathrm{max}}
+  day_max: \mathrm{day}_\mathrm{max}
+
+
   N_events: N_\mathrm{events}
   event_size_max: \mathrm{event}_{\mathrm{size}_\mathrm{max}}
   event_size_mean: \mathrm{event}_{\mathrm{size}_\mathrm{mean}}
   event_weekend_multiplier: \mathrm{event}_{\mathrm{weekend}_\mathrm{multiplier}}
   event_beta_scaling: \mathrm{event}_{\beta_\mathrm{scaling}}
+
+
+  do_interventions: \mathrm{do}_\mathrm{int.}
+  interventions_to_apply: \mathrm{int.}
+  f_daily_tests: f_\mathrm{daily tests}
+  test_delay_in_clicks: \mathrm{test}_\mathrm{delay}
+  results_delay_in_clicks: \mathrm{result}_\mathrm{delay}
+  chance_of_finding_infected: \mathrm{chance}_\mathrm{find. inf.}
+  days_looking_back: \mathrm{days}_\mathrm{look.back}
+  masking_rate_reduction: \mathrm{rate.red.}_\mathrm{mask}
+  lockdown_rate_reduction: \mathrm{rate.red.}_\mathrm{lockdown}
+  isolation_rate_reduction: \mathrm{rate.red.}_\mathrm{iso.}
+  tracking_rates: \mathrm{tracking}_\mathrm{rates}
+
   hash: \mathrm{hash}
+

@@ -93,7 +93,7 @@ def plot_single_ABM_simulation(
     N_tot = cfg.N_tot
 
     fig, axes = plt.subplots(ncols=2, figsize=(16, 7))
-    fig.subplots_adjust(top=0.8)
+    fig.subplots_adjust(top=0.75)
 
     T_max = 0
     lw = 0.3 * 10 / np.sqrt(len(filenames))
@@ -157,10 +157,11 @@ def plot_single_ABM_simulation(
             )
 
     title = utils.dict_to_title(cfg, len(filenames))
-    fig.suptitle(title, fontsize=16)
+    fig.suptitle(title, fontsize=15)
     plt.subplots_adjust(wspace=0.4)
 
     return fig, axes
+
 
 def plot_single_ABM_simulation_test_focus(
     cfg, abm_files, add_top_text=True, xlim=(0, None), legend_fontsize=30
@@ -240,10 +241,10 @@ def plot_single_ABM_simulation_test_focus(
     fig.suptitle(title, fontsize=16)
     plt.subplots_adjust(wspace=0.4)
 
-    return fig, ax    
+    return fig, ax
 
 
-def plot_ABM_simulations(abm_files, force_rerun=False, plot_found_vs_real_inf = False):
+def plot_ABM_simulations(abm_files, force_rerun=False, plot_found_vs_real_inf=False):
 
     # pdf_name = "test.pdf"
     pdf_name = Path(f"Figures/ABM_simulations.pdf")
@@ -268,15 +269,10 @@ def plot_ABM_simulations(abm_files, force_rerun=False, plot_found_vs_real_inf = 
         ):
 
             # break
-<<<<<<< Updated upstream
-
-            fig, _ = plot_single_ABM_simulation(cfg, abm_files)
-=======
             if plot_found_vs_real_inf:
                 fig, ax = plot_single_ABM_simulation_test_focus(cfg, abm_files)
             else:
                 fig, ax = plot_single_ABM_simulation(cfg, abm_files)
->>>>>>> Stashed changes
 
             pdf.savefig(fig, dpi=100)
             plt.close("all")
@@ -1273,4 +1269,3 @@ def make_paper_screenshot(
 
 
 #%%
-

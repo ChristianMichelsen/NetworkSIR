@@ -700,7 +700,7 @@ def human_format_scientific(num, digits=3):
     )
 
 
-def dict_to_title(d, N=None, exclude="hash", in_two_line=True):
+def dict_to_title(d, N=None, exclude="hash", in_two_line=True, remove_rates=True):
 
     # important to make a copy since overwriting below
     cfg = DotDict(d)
@@ -710,6 +710,7 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True):
     cfg.make_random_initial_infections = (
         r"\mathrm{" + str(bool(cfg.make_random_initial_infections)) + r"}"
     )
+    cfg.do_interventions = r"\mathrm{" + str(bool(cfg.do_interventions)) + r"}"
     cfg.N_events = human_format(cfg.N_events)
     if "event_size_max" in cfg:
         cfg.event_size_max = human_format(cfg.event_size_max)
@@ -726,6 +727,11 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True):
     exclude.append("hash")
     exclude.append("day_max")
     exclude.append("make_initial_infections_at_kommune")
+    if remove_rates:
+        exclude.append("masking_rate_reduction")
+        exclude.append("lockdown_rate_reduction")
+        exclude.append("isolation_rate_reduction")
+        exclude.append("tracking_rates")
 
     title = "$"
     for sim_par, val in cfg.items():
@@ -733,7 +739,7 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True):
             title += f"{parameter_to_latex[sim_par]} = {val}, \,"
     title += f"{parameter_to_latex['version']} = {cfg.version}, \,"
     if "hash" in cfg:
-        title += f"{parameter_to_latex['hash']} = {cfg.hash}, \,"
+        title += fr"{parameter_to_latex['hash']} = {cfg.hash}, \,"
 
     if in_two_line:
         if "lambda_E" in title:
@@ -742,8 +748,14 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True):
             title = title.replace(", \\,\\lambda_I", "$\n$\\lambda_I")
         if "N_\\mathrm{events}" in title:
             title = title.replace(", \\,N_\\mathrm{events}", "$\n$N_\\mathrm{events}")
+        if "N_\\mathrm{events}" in title:
+            title = title.replace(
+                ", \\,\\mathrm{do}_\\mathrm{int.}", "$\n$\\mathrm{do}_\\mathrm{int.}"
+            )
         if "\\mathrm{v.}" in title:
             title = title.replace(", \\,\\mathrm{v.}", "$\n$\\mathrm{v.}")
+
+    # \mathrm{do}_\mathrm{int.}
 
     if N:
         title += r"\#" + f"{N}, \,"
@@ -1909,14 +1921,16 @@ def _round_param_list(param_list, param_grid):
         rounded_list.append(tmp)
     return rounded_list
 
+
 def _append_remaining_parameters(simulation_parameter, rounded_list):
-    keyvals = {key: val for key, val in simulation_parameter.items() if not key in ['N_RS', 'MCMC']}
+    keyvals = {key: val for key, val in simulation_parameter.items() if not key in ["N_RS", "MCMC"]}
     cfgs = []
     for cfg in rounded_list:
         for key, val in keyvals.items():
             cfg[key] = val
         cfgs.append(cfg)
     return cfgs
+
 
 def get_random_samples(simulation_parameter, random_state=0):
     N = simulation_parameter["N_RS"]
