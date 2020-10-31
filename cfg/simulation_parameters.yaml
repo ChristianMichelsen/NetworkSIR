@@ -26,11 +26,11 @@ MCMC: &MCMC { N_events: [randint, 1_000, 10_000],
 # define list of simulation_parameters to be simulated
 all_simulation_parameters:
   - {N_tot: 580_000}
-  - {N_RS: 100, MCMC: *MCMC, day_max: 50}
   - {N_RS: 100, MCMC: *MCMC, day_max: 50, event_size_max: 3}
   - {N_RS: 100, MCMC: *MCMC, day_max: 50, event_size_max: 5}
   - {N_RS: 100, MCMC: *MCMC, day_max: 50, event_size_max: 10}
   - {N_RS: 100, MCMC: *MCMC, day_max: 50, event_size_max: 20}
+  - {N_RS: 100, MCMC: *MCMC, day_max: 50, event_size_max: 50}
   - {N_RS: 100, MCMC: *MCMC, day_max: 50, event_size_max: 0}
   - {N_tot: 5_800_000, N_init: 20_000}
 
