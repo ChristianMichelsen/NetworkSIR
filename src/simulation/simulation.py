@@ -485,7 +485,8 @@ if debugging:
             "lambda_E": 1.0,
             "lambda_I": 1.0,
             # other
-            "make_random_initial_infections": True,
+            "make_random_initial_infections": False,
+            "make_weighted_random_initial_infections": True,
             "make_initial_infections_at_kommune": False,
             "day_max": 0.0,
             "clustering_connection_retries": 0,

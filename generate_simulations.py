@@ -15,7 +15,7 @@ N_tot_max = False
 num_cores_max = 35
 N_runs = 10
 
-dry_run = True
+dry_run = False
 force_rerun = False
 verbose = True
 
@@ -26,7 +26,9 @@ if utils.is_local_computer():
 
     all_simulation_parameters = [
         {
-            "N_tot": 58_000,
+            # "N_tot": 58_000,
+            "N_tot": 580_000,
+            "make_weighted_random_initial_infections": True,
             # "N_contacts_max": 100,
             # "work_other_ratio": 0.5,
             # "N_init": [100, 1000]

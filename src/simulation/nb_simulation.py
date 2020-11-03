@@ -1,3 +1,4 @@
+from numba.core.types.scalars import Boolean
 import numpy as np
 from pathlib import Path
 import os
@@ -49,6 +50,7 @@ spec_cfg = {
     # other
     "day_max": nb.float32,
     "make_random_initial_infections": nb.boolean,
+    "make_weighted_random_initial_infections": nb.boolean,
     "make_initial_infections_at_kommune": nb.boolean,
     "clustering_connection_retries": nb.uint32,
     "work_other_ratio": nb.float32,  # 0.2 = 20% work, 80% other
@@ -97,6 +99,7 @@ class Config(object):
 
         # other
         self.make_random_initial_infections = True
+        self.make_weighted_random_initial_infections = False
         self.make_initial_infections_at_kommune = False
         self.day_max = 0
         self.clustering_connection_retries = 0
@@ -767,11 +770,56 @@ def single_random_choice(x):
 
 
 @njit
+def set_to_array(input_set):
+    out = List()
+    for s in input_set:
+        out.append(s)
+    return np.asarray(out)
+
+
+@njit
+def nb_random_choice(arr, prob, size=1, replace=False):
+    """
+    :param arr: A 1D numpy array of values to sample from.
+    :param prob: A 1D numpy array of probabilities for the given samples.
+    :param size: Integer describing the size of the output.
+    :return: A random sample from the given array with a given probability.
+    """
+
+    assert len(arr) == len(prob)
+    assert size < len(arr)
+
+    prob = prob / np.sum(prob)
+    if replace:
+        ra = np.random.random(size=size)
+        idx = np.searchsorted(np.cumsum(prob), ra, side="right")
+        return arr[idx]
+    else:
+        if size / len(arr) > 0.5:
+            print(
+                "Warning: choosing more than 50% of the input array with replacement, can be slow."
+            )
+        out = set()
+        while len(out) < size:
+            ra = np.random.random()
+            idx = np.searchsorted(np.cumsum(prob), ra, side="right")
+            x = arr[idx]
+            if not x in out:
+                out.add(x)
+        return set_to_array(out)
+
+
+@njit
 def compute_initial_agents_to_infect(my, possible_agents):
 
     ##  Standard outbreak type, infecting randomly
     if my.cfg.make_random_initial_infections:
         return np.random.choice(possible_agents, size=my.cfg.N_init, replace=False)
+
+    elif my.cfg.make_weighted_random_initial_infections:
+        return nb_random_choice(
+            possible_agents, prob=my.number_of_contacts, size=my.cfg.N_init, replace=False
+        )
 
     # Local outbreak type, infecting around a point:
     else:
