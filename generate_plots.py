@@ -18,7 +18,7 @@ rc_params.set_rc_params()
 num_cores_max = 30
 
 do_make_1D_scan = True
-force_rerun = True
+force_rerun = False
 verbose = False
 
 #%%
@@ -149,78 +149,9 @@ for cfg in cfgs:
     print(cfg)
 # cfgs.sort(key=lambda cfg: cfg["N_tot"])
 # [cfg.hash for cfg in cfgs]
-# %%
+#%%
 
-
-from src import SIR
-
-from collections import deque
-from bisect import insort, bisect_left
-from itertools import islice
-
-
-def running_median_insort(seq, window_size):
-    """Contributed by Peter Otten"""
-    seq = iter(seq)
-    d = deque()
-    s = []
-    result = []
-    for item in islice(seq, window_size):
-        d.append(item)
-        insort(s, item)
-        result.append(s[len(d) // 2])
-    m = window_size // 2
-    for item in seq:
-        old = d.popleft()
-        d.append(item)
-        del s[bisect_left(s, old)]
-        insort(s, item)
-        result.append(s[m])
-    return result
-
-
-def plot_R_eff(cfg):
-    filenames = abm_files.cfg_to_filenames(cfg)
-
-    T_peaks = []
-    for filename in filenames:
-        df = file_loaders.pandas_load_file(filename)
-        T_peak = df["time"].iloc[df["I"].argmax()]
-        T_peaks.append(T_peak)
-
-    fig, ax = plt.subplots()
-    for i, filename in enumerate(filenames):
-        df = file_loaders.pandas_load_file(filename)
-        df_interpolated = SIR.interpolate_df(df)
-        T_peak = df["time"].iloc[df["I"].argmax()]
-        time = df_interpolated["time"].values[:-1] - T_peak + np.mean(T_peaks)
-        S = (cfg.N_tot - df_interpolated[["E", "I", "R"]].sum(axis=1)).values
-        # I = df_interpolated["I"].values
-        R = df_interpolated["R"].values
-        R_eff = -(S[1:] - S[:-1]) / (R[1:] - R[:-1])
-        R_eff_running_median = np.array(running_median_insort(R_eff, 7))
-        ax.plot(
-            time,
-            R_eff,
-            "-k",
-            alpha=0.1,
-            label="$\mathcal{R}_\mathrm{eff}$" if i == 0 else None,
-        )
-        ax.plot(
-            time,
-            R_eff_running_median,
-            "-k",
-            label="Running median $(\mathcal{R}_\mathrm{eff}, 7)$" if i == 0 else None,
-        )
-    ax.legend()
-    ax.set(ylim=(-0.01, np.percentile(R_eff_running_median, 95)))
-
-    title = utils.dict_to_title(cfg, len(filenames))
-    fig.suptitle(title, fontsize=20)
-    fig.subplots_adjust(top=0.82)
-
-    return fig, ax
-
+# R_eff for beta 1D-scan
 
 cfgs, _ = utils.get_1D_scan_cfgs_all_filenames(
     scan_parameter="beta",
@@ -228,19 +159,41 @@ cfgs, _ = utils.get_1D_scan_cfgs_all_filenames(
 )
 cfgs.sort(key=lambda cfg: cfg["beta"])
 
+plot.plot_R_eff_beta_1D_scan(cfgs)
 
-#%%
+# %%
 
-pdf_name = "Figures/R_eff.pdf"
-from matplotlib.backends.backend_pdf import PdfPages
+# from matplotlib.backends.backend_pdf import PdfPages
+
+
+reload(plot)
+
+# plot MCMC results
+
+variable = "event_size_max"
+
+db_cfg = utils.get_db_cfg()
+
+used_hashes = set()
+
+
+pdf_name = f"Figures/MCMC_{variable}.pdf"
 
 with PdfPages(pdf_name) as pdf:
-    for cfg in tqdm(
-        cfgs,
-        desc="Plotting R_eff for beta 1D-scan",
-    ):
-        fig, ax = plot_R_eff(cfg)
+    for item in tqdm(db_cfg):
+        item.pop(variable, None)
+        hash_ = item.pop("hash", None)
+        if hash_ in used_hashes:
+            continue
+        cfgs = utils.query_cfg(item)
+        if len(cfgs) == 1:
+            continue
+
+        fig, ax = plot.plot_multiple_ABM_simulations(cfgs, abm_files, variable)
         pdf.savefig(fig, dpi=100)
         plt.close("all")
+
+        for cfg in cfgs:
+            used_hashes.add(cfg.hash)
 
 # %%
