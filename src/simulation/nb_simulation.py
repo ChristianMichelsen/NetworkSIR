@@ -812,6 +812,10 @@ def nb_random_choice(arr, prob, size=1, replace=False):
 @njit
 def compute_initial_agents_to_infect(my, possible_agents):
 
+    # make sure that not both random and weighted random are set to True at the same time
+    if my.cfg.make_random_initial_infections and my.cfg.make_weighted_random_initial_infections:
+        raise AssertionError(f"Cannot both make random and weighted random infections")
+
     ##  Standard outbreak type, infecting randomly
     if my.cfg.make_random_initial_infections:
         return np.random.choice(possible_agents, size=my.cfg.N_init, replace=False)

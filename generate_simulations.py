@@ -29,6 +29,7 @@ if utils.is_local_computer():
             # "N_tot": 58_000,
             "N_tot": 580_000,
             "make_weighted_random_initial_infections": True,
+            "make_random_initial_infections": False,
             # "N_contacts_max": 100,
             # "work_other_ratio": 0.5,
             # "N_init": [100, 1000]

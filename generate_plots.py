@@ -29,7 +29,7 @@ reload(file_loaders)
 abm_files = file_loaders.ABM_simulations()
 N_files = len(abm_files)
 
-# x=x
+x = x
 
 #%%
 plot.plot_ABM_simulations(abm_files, force_rerun=force_rerun)
@@ -139,16 +139,21 @@ d_query = utils.DotDict(
     {
         # "epsilon_rho": 0.02,
         "N_tot": 580_000,
-        "rho": 0.0,
-        "beta": 0.007,
+        # "rho": 0.0,
+        # "beta": 0.007,
+        "make_weighted_random_initial_infections": True,
     },
 )
 
 cfgs = utils.query_cfg(d_query)
-for cfg in cfgs:
-    print(cfg)
+# for cfg in cfgs:
+#     print(cfg)
+
 # cfgs.sort(key=lambda cfg: cfg["N_tot"])
 # [cfg.hash for cfg in cfgs]
+
+# plot.plot_single_ABM_simulation(cfgs[0], abm_files)
+
 #%%
 
 # R_eff for beta 1D-scan
@@ -156,10 +161,12 @@ for cfg in cfgs:
 cfgs, _ = utils.get_1D_scan_cfgs_all_filenames(
     scan_parameter="beta",
     non_default_parameters={},
+    # non_default_parameters=dict(make_weighted_random_initial_infections=True),
 )
 cfgs.sort(key=lambda cfg: cfg["beta"])
 
 plot.plot_R_eff_beta_1D_scan(cfgs)
+
 
 # %%
 
