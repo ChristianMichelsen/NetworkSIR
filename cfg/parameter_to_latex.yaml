@@ -14,7 +14,7 @@
   ID: \mathrm{ID}
 
   make_random_initial_infections: \mathrm{rand.inf.}
-  make_weighted_random_initial_infections: \mathrm{w.rand.inf.}
+  weighted_random_initial_infections: \mathrm{w.rand.inf.}
   make_initial_infections_at_kommune: \mathrm{rand.inf.kom.}
   clustering_connection_retries: N_\mathrm{retries}^\mathrm{connect}
   work_other_ratio: f_\mathrm{work/other}

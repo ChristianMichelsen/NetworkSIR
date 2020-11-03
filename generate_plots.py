@@ -141,7 +141,7 @@ d_query = utils.DotDict(
         "N_tot": 580_000,
         # "rho": 0.0,
         # "beta": 0.007,
-        "make_weighted_random_initial_infections": True,
+        "weighted_random_initial_infections": True,
     },
 )
 
@@ -161,7 +161,7 @@ cfgs = utils.query_cfg(d_query)
 cfgs, _ = utils.get_1D_scan_cfgs_all_filenames(
     scan_parameter="beta",
     non_default_parameters={},
-    # non_default_parameters=dict(make_weighted_random_initial_infections=True),
+    # non_default_parameters=dict(weighted_random_initial_infections=True),
 )
 cfgs.sort(key=lambda cfg: cfg["beta"])
 

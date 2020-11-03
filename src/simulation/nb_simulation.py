@@ -50,7 +50,7 @@ spec_cfg = {
     # other
     "day_max": nb.float32,
     "make_random_initial_infections": nb.boolean,
-    "make_weighted_random_initial_infections": nb.boolean,
+    "weighted_random_initial_infections": nb.boolean,
     "make_initial_infections_at_kommune": nb.boolean,
     "clustering_connection_retries": nb.uint32,
     "work_other_ratio": nb.float32,  # 0.2 = 20% work, 80% other
@@ -99,7 +99,7 @@ class Config(object):
 
         # other
         self.make_random_initial_infections = True
-        self.make_weighted_random_initial_infections = False
+        self.weighted_random_initial_infections = False
         self.make_initial_infections_at_kommune = False
         self.day_max = 0
         self.clustering_connection_retries = 0
@@ -810,20 +810,28 @@ def nb_random_choice(arr, prob, size=1, replace=False):
 
 
 @njit
-def compute_initial_agents_to_infect(my, possible_agents):
+def make_random_initial_infections(my, possible_agents):
+    if my.cfg.weighted_random_initial_infections:
+        return nb_random_choice(
+            possible_agents,
+            prob=my.number_of_contacts,
+            size=my.cfg.N_init,
+            replace=False,
+        )
+    else:
+        return np.random.choice(
+            possible_agents,
+            size=my.cfg.N_init,
+            replace=False,
+        )
 
-    # make sure that not both random and weighted random are set to True at the same time
-    if my.cfg.make_random_initial_infections and my.cfg.make_weighted_random_initial_infections:
-        raise AssertionError(f"Cannot both make random and weighted random infections")
+
+@njit
+def compute_initial_agents_to_infect(my, possible_agents):
 
     ##  Standard outbreak type, infecting randomly
     if my.cfg.make_random_initial_infections:
-        return np.random.choice(possible_agents, size=my.cfg.N_init, replace=False)
-
-    elif my.cfg.make_weighted_random_initial_infections:
-        return nb_random_choice(
-            possible_agents, prob=my.number_of_contacts, size=my.cfg.N_init, replace=False
-        )
+        return make_random_initial_infections(my, possible_agents)
 
     # Local outbreak type, infecting around a point:
     else:
