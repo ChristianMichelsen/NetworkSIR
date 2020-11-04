@@ -175,6 +175,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 if False:
 
+    reload(utils)
     reload(plot)
 
     # plot MCMC results

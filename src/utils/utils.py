@@ -710,6 +710,9 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True, remove_rates=True
     cfg.make_random_initial_infections = (
         r"\mathrm{" + str(bool(cfg.make_random_initial_infections)) + r"}"
     )
+    cfg.weighted_random_initial_infections = (
+        r"\mathrm{" + str(bool(cfg.weighted_random_initial_infections)) + r"}"
+    )
     cfg.do_interventions = r"\mathrm{" + str(bool(cfg.do_interventions)) + r"}"
     cfg.N_events = human_format(cfg.N_events)
     if "event_size_max" in cfg:
@@ -751,6 +754,11 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True, remove_rates=True
         if "N_\\mathrm{events}" in title:
             title = title.replace(
                 ", \\,\\mathrm{do}_\\mathrm{int.}", "$\n$\\mathrm{do}_\\mathrm{int.}"
+            )
+        if "N_\\mathrm{events}" in title:
+            title = title.replace(
+                ", \\,\\mathrm{chance}_\\mathrm{find. inf.}",
+                "$\n$\\mathrm{chance}_\\mathrm{find. inf.}",
             )
         if "\\mathrm{v.}" in title:
             title = title.replace(", \\,\\mathrm{v.}", "$\n$\\mathrm{v.}")
