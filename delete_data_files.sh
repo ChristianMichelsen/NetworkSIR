@@ -16,10 +16,19 @@ fi
 read -r -p "Also delete initialized networks? [y/N] " response
 if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]
 then
-    # rm -rf Data/initialized_network
+    rm -rf Data/initialized_network
     echo "Deleted initialized networks"
 else
     echo "Not deleting initialized networks"
+fi
+
+read -r -p "Also delete database file (db.json)? [y/N] " response
+if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]
+then
+    rm db.json
+    echo "Deleted database file"
+else
+    echo "Not deleting database file"
 fi
 
 
