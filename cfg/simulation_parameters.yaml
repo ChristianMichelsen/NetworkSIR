@@ -18,21 +18,23 @@ event_size_maxs: &event_size_maxs [0, 1, 2, 3, 4, 5, 10, 15, 20, 30, 40, 50, 75,
 MCMC: &MCMC { N_events: [randint, 1_000, 10_000],
               # event_size_max: [randint, 3, 15],
               event_size_mean: [uniform, 3, 10],
-              beta: [uniform, 0.008, 0.012],
-              mu: [uniform, 10, 20],
+              beta: [uniform, 0.008, 0.011],
+              mu: [uniform, 10, 15],
               work_other_ratio: [uniform, 0.4, 0.8],
             }
 
+  # N_RS: &N_RS 2
+
 # define list of simulation_parameters to be simulated
 all_simulation_parameters:
-  - {N_tot: 580_000, weighted_random_initial_infections: [False, True]}
-  - {N_RS: 100, MCMC: *MCMC, day_max: 50, event_size_max: 3, weighted_random_initial_infections: True}
-  - {N_RS: 100, MCMC: *MCMC, day_max: 50, event_size_max: 5, weighted_random_initial_infections: True}
-  - {N_RS: 100, MCMC: *MCMC, day_max: 50, event_size_max: 10, weighted_random_initial_infections: True}
-  - {N_RS: 100, MCMC: *MCMC, day_max: 50, event_size_max: 20, weighted_random_initial_infections: True}
-  - {N_RS: 100, MCMC: *MCMC, day_max: 50, event_size_max: 50, weighted_random_initial_infections: True}
-  - {N_RS: 100, MCMC: *MCMC, day_max: 50, event_size_max: 0, weighted_random_initial_infections: True}
-  - {N_tot: 5_800_000, N_init: 20_000, weighted_random_initial_infections: [False, True]}
+  # - {N_tot: 580_000, weighted_random_initial_infections: [False, True]}
+  - {N_RS: 2, MCMC: *MCMC, day_max: 50, event_size_max: 0, weighted_random_initial_infections: True}
+  # - {N_RS: 100, MCMC: *MCMC, day_max: 50, event_size_max: 50, weighted_random_initial_infections: True}
+  # - {N_RS: 100, MCMC: *MCMC, day_max: 50, event_size_max: 20, weighted_random_initial_infections: True}
+  # - {N_RS: 100, MCMC: *MCMC, day_max: 50, event_size_max: 10, weighted_random_initial_infections: True}
+  # - {N_RS: 100, MCMC: *MCMC, day_max: 50, event_size_max: 5, weighted_random_initial_infections: True}
+  - {N_RS: 2, MCMC: *MCMC, day_max: 50, event_size_max: 3, weighted_random_initial_infections: True}
+  # - {N_tot: 5_800_000, N_init: 20_000, weighted_random_initial_infections: [False, True]}
 
   # - {N_tot: 5_800_000}
   # - {N_events: [750, 1000, 1250], event_size_max: [50, 20, 10], event_size_mean: [3, 5, 7, 10]}

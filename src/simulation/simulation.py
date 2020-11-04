@@ -231,6 +231,7 @@ class Simulation:
                 self.agents_in_age_group,
                 self.initial_ages_exposed,
                 self.N_infectious_states,
+                self.N_states,
                 infected_per_kommune_ints,
                 kommune_names,
                 my_kommune,
@@ -247,6 +248,7 @@ class Simulation:
                 self.agents_in_age_group,
                 self.initial_ages_exposed,
                 self.N_infectious_states,
+                self.N_states,
             )
 
     def run_simulation(self, verbose_interventions=None):

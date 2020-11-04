@@ -170,37 +170,36 @@ plot.plot_R_eff_beta_1D_scan(cfgs)
 
 # %%
 
-# from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.backends.backend_pdf import PdfPages
 
 
-reload(plot)
+if False:
 
-# plot MCMC results
+    reload(plot)
 
-variable = "event_size_max"
+    # plot MCMC results
 
-db_cfg = utils.get_db_cfg()
+    variable = "event_size_max"
 
-used_hashes = set()
+    db_cfg = utils.get_db_cfg()
 
+    used_hashes = set()
 
-pdf_name = f"Figures/MCMC_{variable}.pdf"
+    pdf_name = f"Figures/MCMC_{variable}.pdf"
 
-with PdfPages(pdf_name) as pdf:
-    for item in tqdm(db_cfg):
-        item.pop(variable, None)
-        hash_ = item.pop("hash", None)
-        if hash_ in used_hashes:
-            continue
-        cfgs = utils.query_cfg(item)
-        if len(cfgs) == 1:
-            continue
+    with PdfPages(pdf_name) as pdf:
+        for item in tqdm(db_cfg):
+            item.pop(variable, None)
+            hash_ = item.pop("hash", None)
+            if hash_ in used_hashes:
+                continue
+            cfgs = utils.query_cfg(item)
+            if len(cfgs) == 1:
+                continue
 
-        fig, ax = plot.plot_multiple_ABM_simulations(cfgs, abm_files, variable)
-        pdf.savefig(fig, dpi=100)
-        plt.close("all")
+            fig, ax = plot.plot_multiple_ABM_simulations(cfgs, abm_files, variable)
+            pdf.savefig(fig, dpi=100)
+            plt.close("all")
 
-        for cfg in cfgs:
-            used_hashes.add(cfg.hash)
-
-# %%
+            for cfg in cfgs:
+                used_hashes.add(cfg.hash)

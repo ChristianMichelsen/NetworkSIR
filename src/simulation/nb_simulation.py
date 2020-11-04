@@ -909,6 +909,7 @@ def make_initial_infections(
     agents_in_age_group,
     initial_ages_exposed,
     N_infectious_states,
+    N_states,
 ):
 
     # version 2 has age groups
@@ -926,7 +927,7 @@ def make_initial_infections(
 
     ##  Now make initial infections
     for _, agent in enumerate(initial_agents_to_infect):
-        new_state = np.random.randint(N_infectious_states)  # E1, E2, E3 or E4
+        new_state = np.random.randint(N_states - 1)  # E1-E4 or I1-I4, uniformly distributed
         my.state[agent] = new_state
 
         agents_in_state[new_state].append(np.uint32(agent))
@@ -934,6 +935,12 @@ def make_initial_infections(
 
         g.total_sum_of_state_changes += SIR_transition_rates[new_state]
         g.cumulative_sum_of_state_changes[new_state:] += SIR_transition_rates[new_state]
+
+        if my.state[agent] >= N_infectious_states:
+            for contact, rate in zip(my.connections[agent], g.rates[agent]):
+                # update rates if contact is susceptible
+                if my.agent_is_susceptable(contact):
+                    g.update_rates(my, +rate, agent)
 
     return None
 
@@ -948,6 +955,7 @@ def make_initial_infections_from_kommune_data(
     agents_in_age_group,
     initial_ages_exposed,
     N_infectious_states,
+    N_states,
     infected_per_kommune_ints,
     kommune_names,
     my_kommune,
@@ -977,7 +985,7 @@ def make_initial_infections_from_kommune_data(
 
     ##  Now make initial infections
     for _, agent in enumerate(initial_agents_to_infect):
-        new_state = np.random.randint(N_infectious_states)  # E1, E2, E3 or E4
+        new_state = np.random.randint(N_states - 1)  # E1-E4 or I1-I4, uniformly distributed
         if np.random.rand() < E_I_ratio:
             new_state += 4
         my.state[agent] = new_state

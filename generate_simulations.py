@@ -46,6 +46,8 @@ if utils.is_local_computer():
 else:
     all_simulation_parameters = utils.get_simulation_parameters()
 
+
+# all_simulation_parameters = utils.get_simulation_parameters()
 # x=x
 
 #%%
