@@ -936,7 +936,7 @@ def make_initial_infections(
         g.total_sum_of_state_changes += SIR_transition_rates[new_state]
         g.cumulative_sum_of_state_changes[new_state:] += SIR_transition_rates[new_state]
 
-        if my.state[agent] >= N_infectious_states:
+        if my.agent_is_infectious(agent):
             for contact, rate in zip(my.connections[agent], g.rates[agent]):
                 # update rates if contact is susceptible
                 if my.agent_is_susceptable(contact):
