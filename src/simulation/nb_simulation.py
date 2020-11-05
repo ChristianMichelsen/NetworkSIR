@@ -908,7 +908,7 @@ def make_initial_infections(
     SIR_transition_rates,
     agents_in_age_group,
     initial_ages_exposed,
-    N_infectious_states,
+    # N_infectious_states,
     N_states,
 ):
 
@@ -936,11 +936,14 @@ def make_initial_infections(
         g.total_sum_of_state_changes += SIR_transition_rates[new_state]
         g.cumulative_sum_of_state_changes[new_state:] += SIR_transition_rates[new_state]
 
+        # Moves TO infectious State from non-infectious
         if my.agent_is_infectious(agent):
             for contact, rate in zip(my.connections[agent], g.rates[agent]):
                 # update rates if contact is susceptible
                 if my.agent_is_susceptable(contact):
                     g.update_rates(my, +rate, agent)
+
+        update_infection_list_for_newly_infected_agent(my, g, agent)
 
     return None
 
@@ -954,7 +957,7 @@ def make_initial_infections_from_kommune_data(
     SIR_transition_rates,
     agents_in_age_group,
     initial_ages_exposed,
-    N_infectious_states,
+    # N_infectious_states,
     N_states,
     infected_per_kommune_ints,
     kommune_names,
@@ -996,11 +999,15 @@ def make_initial_infections_from_kommune_data(
         g.total_sum_of_state_changes += SIR_transition_rates[new_state]
         g.cumulative_sum_of_state_changes[new_state:] += SIR_transition_rates[new_state]
 
-        if my.state[agent] >= N_infectious_states:
+        # if my.state[agent] >= N_infectious_states:
+        if my.agent_is_infectious(agent):
             for contact, rate in zip(my.connections[agent], g.rates[agent]):
                 # update rates if contact is susceptible
                 if my.agent_is_susceptable(contact):
                     g.update_rates(my, +rate, agent)
+
+        update_infection_list_for_newly_infected_agent(my, g, agent)
+
     return None
 
 
@@ -1282,10 +1289,12 @@ def run_simulation(
         ################
 
         while nts * click < real_time:
+            # if nts * click < real_time:
 
             daily_counter += 1
-            out_time.append(real_time)
-            out_state_counts.append(state_total_counts.copy())
+            if (len(out_time) == 0) or (real_time != out_time[-1]):
+                out_time.append(real_time)
+                out_state_counts.append(state_total_counts.copy())
 
             if daily_counter >= 10:
 
@@ -1305,6 +1314,10 @@ def run_simulation(
 
                 daily_counter = 0
                 day += 1
+                # if np.all(my.state != out_my_state[-1]):
+                # print(my.state)
+                # print(out_my_state[-1])
+                # print("\n\n")
                 out_my_state.append(my.state.copy())
 
             if intervention.apply_interventions:

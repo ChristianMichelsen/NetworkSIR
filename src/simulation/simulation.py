@@ -164,14 +164,21 @@ class Simulation:
             self.my = nb_load_jitclass.load_My_from_dict(my_hdf5ready, self.cfg)
         self.df_coordinates = utils.load_df_coordinates(self.N_tot, self.cfg.ID)
 
-    def initialize_network(self, force_rerun=False, save_initial_network=True):
+    def initialize_network(
+        self, force_rerun=False, save_initial_network=True, force_load_initial_network=False
+    ):
         utils.set_numba_random_seed(self.cfg.ID)
 
         filename = "Data/initialized_network/"
         filename += f"initialized_network__{self.hash}__ID__{self.cfg.ID}.hdf5"
 
         cfg_network_initialized = utils.get_cfg_network_initialized(self.cfg)
-        if len(utils.query_cfg(cfg_network_initialized)) == 0:
+
+        if force_load_initial_network:
+            initialize_network = False
+            if self.verbose:
+                print("Force loading initialized network")
+        elif len(utils.query_cfg(cfg_network_initialized)) == 0:
             initialize_network = True
             if self.verbose:
                 print("Initializing network since it does not exist in database")
@@ -230,7 +237,7 @@ class Simulation:
                 self.SIR_transition_rates,
                 self.agents_in_age_group,
                 self.initial_ages_exposed,
-                self.N_infectious_states,
+                # self.N_infectious_states,
                 self.N_states,
                 infected_per_kommune_ints,
                 kommune_names,
@@ -247,7 +254,7 @@ class Simulation:
                 self.SIR_transition_rates,
                 self.agents_in_age_group,
                 self.initial_ages_exposed,
-                self.N_infectious_states,
+                # self.N_infectious_states,
                 self.N_states,
             )
 
@@ -282,6 +289,7 @@ class Simulation:
         )
 
         out_time, out_state_counts, out_my_state, intervention = res
+        self.out_time = out_time
         self.my_state = np.array(out_my_state)
         self.df = utils.state_counts_to_df(np.array(out_time), np.array(out_state_counts))
         self.intervention = intervention
@@ -476,7 +484,7 @@ if debugging:
     cfg = utils.DotDict(
         {
             "version": 2.1,
-            "N_tot": 580_000,
+            "N_tot": 58_000,
             "rho": 0.1,
             "epsilon_rho": 0.04,
             "mu": 20.0,
@@ -500,8 +508,8 @@ if debugging:
             "event_size_mean": 5.0,
             "event_beta_scaling": 5.0,
             "event_weekend_multiplier": 2.0,
-            "do_interventions": False,
             # lockdown / intervention
+            "do_interventions": False,
             "interventions_to_apply": [1, 4, 6],
             "f_daily_tests": 0.01,
             "test_delay_in_clicks": [0, 0, 25],
@@ -516,18 +524,19 @@ if debugging:
         }
     )
 
-    if __name__ == "__main__" and False:
+    if __name__ == "__main__" and True:
         with Timer() as t:
             simulation = Simulation(cfg, verbose)
             simulation.initialize_network(
                 force_rerun=force_rerun,
                 save_initial_network=True,
+                # force_load_initial_network=True,
             )
             simulation.make_initial_infections()
             df = simulation.run_simulation(verbose_interventions=False)
         display(df)
         print(f"Time taken: {t.elapsed:.1f}")
-        simulation.save(time_elapsed=t.elapsed, save_hdf5=True, save_csv=True)
+        # simulation.save(time_elapsed=t.elapsed, save_hdf5=True, save_csv=True)
 
         # run_simulations(d_simulation_parameters)
 
@@ -536,47 +545,51 @@ if debugging:
         intervention = simulation.intervention
         g = simulation.g
 
+        # simulation.my_state
+        # simulation.out_time
+        # np.all(simulation.my_state[-2] == simulation.my_state[-1])
+
         # N_tot": 58_000,
         # "N_contacts_max": 100,
         # "work_other_ratio": 0.5,
 
         #%%
 
-        cfg = utils.DotDict(
-            {
-                "version": 2.1,
-                "N_tot": 580000,
-                "rho": 0.1,
-                "epsilon_rho": 0.04,
-                "mu": 29.5714,
-                "sigma_mu": 0.0,
-                "beta": 0.0141,
-                "sigma_beta": 0.0,
-                "N_init": 2000,
-                "lambda_E": 1.0,
-                "lambda_I": 1.0,
-                "make_random_initial_infections": True,
-                "make_initial_infections_at_kommune": False,
-                "day_max": 35.0,
-                "clustering_connection_retries": 0,
-                "work_other_ratio": 0.2697,
-                "N_contacts_max": 0,
-                "N_events": 930,
-                "event_size_max": 24,
-                "event_size_mean": 6.1444,
-                "event_beta_scaling": 5.0,
-                "event_weekend_multiplier": 2.0,
-                "do_interventions": False,
-                "interventions_to_apply": [1, 4, 6],
-                "f_daily_tests": 0.01,
-                "test_delay_in_clicks": [0, 0, 25],
-                "results_delay_in_clicks": [5, 10, 5],
-                "chance_of_finding_infected": [0.0, 0.15, 0.15, 0.15, 0.0],
-                "days_looking_back": 7.0,
-                "masking_rate_reduction": [[0.0, 0.0, 0.3], [0.0, 0.0, 0.8]],
-                "lockdown_rate_reduction": [[0.0, 1.0, 0.6], [0.0, 0.6, 0.6]],
-                "isolation_rate_reduction": [0.2, 1.0, 1.0],
-                "tracking_rates": [1.0, 0.8, 0.0],
-                "ID": 0,
-            }
-        )
+        # cfg = utils.DotDict(
+        #     {
+        #         "version": 2.1,
+        #         "N_tot": 580000,
+        #         "rho": 0.1,
+        #         "epsilon_rho": 0.04,
+        #         "mu": 29.5714,
+        #         "sigma_mu": 0.0,
+        #         "beta": 0.0141,
+        #         "sigma_beta": 0.0,
+        #         "N_init": 2000,
+        #         "lambda_E": 1.0,
+        #         "lambda_I": 1.0,
+        #         "make_random_initial_infections": True,
+        #         "make_initial_infections_at_kommune": False,
+        #         "day_max": 35.0,
+        #         "clustering_connection_retries": 0,
+        #         "work_other_ratio": 0.2697,
+        #         "N_contacts_max": 0,
+        #         "N_events": 930,
+        #         "event_size_max": 24,
+        #         "event_size_mean": 6.1444,
+        #         "event_beta_scaling": 5.0,
+        #         "event_weekend_multiplier": 2.0,
+        #         "do_interventions": False,
+        #         "interventions_to_apply": [1, 4, 6],
+        #         "f_daily_tests": 0.01,
+        #         "test_delay_in_clicks": [0, 0, 25],
+        #         "results_delay_in_clicks": [5, 10, 5],
+        #         "chance_of_finding_infected": [0.0, 0.15, 0.15, 0.15, 0.0],
+        #         "days_looking_back": 7.0,
+        #         "masking_rate_reduction": [[0.0, 0.0, 0.3], [0.0, 0.0, 0.8]],
+        #         "lockdown_rate_reduction": [[0.0, 1.0, 0.6], [0.0, 0.6, 0.6]],
+        #         "isolation_rate_reduction": [0.2, 1.0, 1.0],
+        #         "tracking_rates": [1.0, 0.8, 0.0],
+        #         "ID": 0,
+        #     }
+        # )
