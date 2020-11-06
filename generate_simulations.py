@@ -47,8 +47,8 @@ else:
     all_simulation_parameters = utils.get_simulation_parameters()
 
 
-# all_simulation_parameters = utils.get_simulation_parameters()
-# x=x
+all_simulation_parameters = utils.get_simulation_parameters()
+# x = x
 
 #%%
 
