@@ -121,14 +121,14 @@ def cfg_to_y0(cfg):
     y0 = (
         cfg.N_tot - cfg.N_init,
         cfg.N_tot,
-        cfg.N_init / 4,
-        cfg.N_init / 4,
-        cfg.N_init / 4,
-        cfg.N_init / 4,
-        0,
-        0,
-        0,
-        0,
+        cfg.N_init / 8,
+        cfg.N_init / 8,
+        cfg.N_init / 8,
+        cfg.N_init / 8,
+        cfg.N_init / 8,
+        cfg.N_init / 8,
+        cfg.N_init / 8,
+        cfg.N_init / 8,
         0,
     )
     return y0

@@ -113,9 +113,12 @@ def get_cfgs(all_folders):
 
 
 class ABM_simulations:
-    def __init__(self, base_dir="Data/ABM", filetype="hdf5"):
+    def __init__(self, base_dir="Data/ABM", filetype="hdf5", verbose=False):
         self.base_dir = Path(base_dir)
         self.filetype = filetype
+        self.verbose = verbose
+        if verbose:
+            print("Initializing ABM_simulations")
         self.all_filenames = get_all_ABM_filenames(base_dir, filetype)
         self.all_folders = get_all_ABM_folders(self.all_filenames)
         self.cfgs = get_cfgs(self.all_folders)

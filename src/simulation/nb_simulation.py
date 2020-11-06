@@ -1314,10 +1314,6 @@ def run_simulation(
 
                 daily_counter = 0
                 day += 1
-                # if np.all(my.state != out_my_state[-1]):
-                # print(my.state)
-                # print(out_my_state[-1])
-                # print("\n\n")
                 out_my_state.append(my.state.copy())
 
             if intervention.apply_interventions:

@@ -14,7 +14,7 @@ from src import file_loaders
 from src import rc_params
 from src import fits
 
-rc_params.set_rc_params()
+rc_params.set_rc_params(dpi=100)
 num_cores_max = 30
 
 do_make_1D_scan = True
@@ -26,7 +26,7 @@ verbose = False
 reload(plot)
 reload(file_loaders)
 
-abm_files = file_loaders.ABM_simulations()
+abm_files = file_loaders.ABM_simulations(verbose=True)
 N_files = len(abm_files)
 
 x = x
@@ -170,37 +170,9 @@ plot.plot_R_eff_beta_1D_scan(cfgs)
 
 # %%
 
-from matplotlib.backends.backend_pdf import PdfPages
+reload(plot)
 
-
-if False:
-
-    reload(utils)
-    reload(plot)
-
-    # plot MCMC results
-
-    variable = "event_size_max"
-
-    db_cfg = utils.get_db_cfg()
-
-    used_hashes = set()
-
-    pdf_name = f"Figures/MCMC_{variable}.pdf"
-
-    with PdfPages(pdf_name) as pdf:
-        for item in tqdm(db_cfg):
-            item.pop(variable, None)
-            hash_ = item.pop("hash", None)
-            if hash_ in used_hashes:
-                continue
-            cfgs = utils.query_cfg(item)
-            if len(cfgs) == 1:
-                continue
-
-            fig, ax = plot.plot_multiple_ABM_simulations(cfgs, abm_files, variable)
-            pdf.savefig(fig, dpi=100)
-            plt.close("all")
-
-            for cfg in cfgs:
-                used_hashes.add(cfg.hash)
+# plot MCMC results
+variable = "event_size_max"
+plot.make_MCMC_plots(variable, abm_files, N_max_figures=None)
+# %%

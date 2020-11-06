@@ -1365,6 +1365,8 @@ def plot_multiple_ABM_simulations(
     legend_fontsize=20,
     d_label_loc=None,
     ylim_scale=1,
+    figsize=(16, 7),
+    dpi=100,
 ):
 
     d_ylabel = {"I": "Fraction Infected", "R": "Fraction Recovered"}
@@ -1373,7 +1375,7 @@ def plot_multiple_ABM_simulations(
 
     colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 
-    fig, axes = plt.subplots(ncols=2, figsize=(16, 7))
+    fig, axes = plt.subplots(ncols=2, figsize=figsize, dpi=dpi)
     fig.subplots_adjust(top=0.75)
 
     for i_cfg, cfg in enumerate(cfgs):
@@ -1438,3 +1440,41 @@ def plot_multiple_ABM_simulations(
     plt.subplots_adjust(wspace=0.4)
 
     return fig, axes
+
+
+#%%
+
+
+def get_MCMC_data(variable):
+
+    db_cfg = utils.get_db_cfg()
+
+    used_hashes = set()
+    cfgs_to_plot = []
+    for item in db_cfg:
+        item.pop(variable, None)
+        hash_ = item.pop("hash", None)
+        if hash_ in used_hashes:
+            continue
+        cfgs = utils.query_cfg(item)
+        if len(cfgs) != 1:
+            cfgs_to_plot.append(cfgs)
+            for cfg in cfgs:
+                used_hashes.add(cfg.hash)
+    return cfgs_to_plot
+
+
+def make_MCMC_plots(variable, abm_files, N_max_figures=None):
+
+    cfgs_to_plot = get_MCMC_data(variable)
+
+    if N_max_figures is not None:
+        print(f"Only plotting the first {N_max_figures} MCMC figures", flush=True)
+        cfgs_to_plot = cfgs_to_plot[:N_max_figures]
+
+    pdf_name = f"Figures/MCMC_{variable}.pdf"
+    with PdfPages(pdf_name) as pdf:
+        for cfgs in tqdm(cfgs_to_plot):
+            fig, ax = plot_multiple_ABM_simulations(cfgs, abm_files, variable)
+            pdf.savefig(fig, dpi=100)
+            plt.close("all")

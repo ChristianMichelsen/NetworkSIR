@@ -18,7 +18,7 @@ from src.utils import utils
 from src import animation_utils
 from src import file_loaders
 
-rc_params.set_rc_params(fig_dpi=50)  #
+rc_params.set_rc_params(dpi=50)  #
 num_cores_max = 1
 
 #%%
