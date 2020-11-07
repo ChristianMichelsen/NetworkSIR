@@ -1395,8 +1395,14 @@ def plot_multiple_ABM_simulations(
             t = df["time"].values
             label = f"{cfg[variable]}" if i_filename == 0 else None
 
-            axes[0].plot(t, df["I"] / N_tot, lw=lw, c=colors[i_cfg], label=label)
-            axes[1].plot(t, df["R"] / N_tot, lw=lw, c=colors[i_cfg], label=label)
+            if i_cfg > len(colors):
+                ls = "--"
+            else:
+                ls = "-"
+
+            plot_kwargs = dict(lw=lw, ls=ls, c=colors[i_cfg % len(colors)], label=label)
+            axes[0].plot(t, df["I"] / N_tot, **plot_kwargs)
+            axes[1].plot(t, df["R"] / N_tot, **plot_kwargs)
 
             if t.max() > T_max:
                 T_max = t.max()
@@ -1452,6 +1458,7 @@ def get_MCMC_data(variable):
     used_hashes = set()
     cfgs_to_plot = []
     for item in db_cfg:
+        # break
         item.pop(variable, None)
         hash_ = item.pop("hash", None)
         if hash_ in used_hashes:
@@ -1472,9 +1479,13 @@ def make_MCMC_plots(variable, abm_files, N_max_figures=None):
         print(f"Only plotting the first {N_max_figures} MCMC figures", flush=True)
         cfgs_to_plot = cfgs_to_plot[:N_max_figures]
 
+    if len(cfgs_to_plot) == 0:
+        print(f"No runs to plot for {variable}")
+        return
+
     pdf_name = f"Figures/MCMC_{variable}.pdf"
     with PdfPages(pdf_name) as pdf:
-        for cfgs in tqdm(cfgs_to_plot):
+        for cfgs in tqdm(cfgs_to_plot, desc=f"Plotting MCMC runs for {variable}"):
             fig, ax = plot_multiple_ABM_simulations(cfgs, abm_files, variable)
             pdf.savefig(fig, dpi=100)
             plt.close("all")

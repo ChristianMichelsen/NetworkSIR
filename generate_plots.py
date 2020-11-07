@@ -29,8 +29,6 @@ reload(file_loaders)
 abm_files = file_loaders.ABM_simulations(verbose=True)
 N_files = len(abm_files)
 
-x = x
-
 #%%
 plot.plot_ABM_simulations(abm_files, force_rerun=force_rerun)
 
@@ -135,17 +133,17 @@ with PdfPages(pdf_name) as pdf:
 
 #%%
 
-d_query = utils.DotDict(
-    {
-        # "epsilon_rho": 0.02,
-        "N_tot": 580_000,
-        # "rho": 0.0,
-        # "beta": 0.007,
-        "weighted_random_initial_infections": True,
-    },
-)
+# d_query = utils.DotDict(
+#     {
+#         # "epsilon_rho": 0.02,
+#         "N_tot": 580_000,
+#         # "rho": 0.0,
+#         # "beta": 0.007,
+#         "weighted_random_initial_infections": True,
+#     },
+# )
 
-cfgs = utils.query_cfg(d_query)
+# cfgs = utils.query_cfg(d_query)
 # for cfg in cfgs:
 #     print(cfg)
 
@@ -174,5 +172,6 @@ reload(plot)
 
 # plot MCMC results
 variable = "event_size_max"
+variable = "results_delay_in_clicks"
 plot.make_MCMC_plots(variable, abm_files, N_max_figures=None)
 # %%

@@ -1506,7 +1506,7 @@ def get_1D_scan_cfgs_all_filenames(scan_parameter, non_default_parameters):
     parameters.pop(scan_parameter)
 
     db_cfg = get_db_cfg()
-    cfgs = db_cfg.search(query_dict(parameters))
+    cfgs = db_cfg.search(dict_to_query(parameters))
     cfgs = [DotDict(cfg) for cfg in cfgs]
     all_filenames = [hash_to_filenames(cfg.hash) for cfg in cfgs]
 
@@ -1790,7 +1790,7 @@ def multiple_queries(*lst):
     return reduce(iand, lst)
 
 
-def query_dict(d):
+def dict_to_query(d):
     """
     Takes a whole dictionary (d) as input and turns it into
     a database (TinyDB) query. Assumes q = Query()
@@ -1817,7 +1817,7 @@ def hash_to_cfg(hash_):
 
 def query_cfg(cfg):
     db_cfg = get_db_cfg()
-    cfgs = db_cfg.search(query_dict(cfg))
+    cfgs = db_cfg.search(dict_to_query(cfg))
     return [DotDict(cfg) for cfg in cfgs]
 
 
