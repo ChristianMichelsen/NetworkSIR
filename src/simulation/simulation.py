@@ -474,7 +474,7 @@ def run_simulations(
 if debugging:
 
     verbose = True
-    force_rerun = True
+    force_rerun = False
 
     d_simulation_parameters = {
         "N_tot": 58_000,
@@ -509,17 +509,18 @@ if debugging:
             "event_beta_scaling": 5.0,
             "event_weekend_multiplier": 2.0,
             # lockdown / intervention
-            "do_interventions": False,
-            "interventions_to_apply": [1, 4, 6],
+            "do_interventions": True,
+            "interventions_to_apply": [3, 4, 5, 6],
             "f_daily_tests": 0.01,
             "test_delay_in_clicks": [0, 0, 25],
-            "results_delay_in_clicks": [5, 10, 5],
+            "results_delay_in_clicks": [10, 10, 10],
             "chance_of_finding_infected": [0.0, 0.15, 0.15, 0.15, 0.0],
             "days_looking_back": 7.0,
             "masking_rate_reduction": [[0.0, 0.0, 0.3], [0.0, 0.0, 0.8]],
             "lockdown_rate_reduction": [[0.0, 1.0, 0.6], [0.0, 0.6, 0.6]],
             "isolation_rate_reduction": [0.2, 1.0, 1.0],
             "tracking_rates": [1.0, 0.8, 0.0],
+            "tracking_delay": 1.0,
             "ID": 0,
         }
     )

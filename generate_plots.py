@@ -173,5 +173,28 @@ reload(plot)
 # plot MCMC results
 variable = "event_size_max"
 variable = "results_delay_in_clicks"
-plot.make_MCMC_plots(variable, abm_files, N_max_figures=None)
+
+variable_subset = [
+    [2, 2, 2],
+    [4, 4, 4],
+    [6, 6, 6],
+    [8, 8, 8],
+    [10, 10, 10],
+    [12, 12, 12],
+    [14, 14, 14],
+    [16, 16, 16],
+    [18, 18, 18],
+    [20, 20, 20],
+    [25, 25, 25],
+    [30, 30, 30],
+]
+
+N_max_figures = 3
+
+plot.make_MCMC_plots(
+    variable,
+    abm_files,
+    # N_max_figures=N_max_figures,
+    variable_subset=variable_subset,
+)
 # %%

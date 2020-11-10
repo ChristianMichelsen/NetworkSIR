@@ -58,3 +58,4 @@ masking_rate_reduction: [[0.0, 0.0, 0.3], [0.0, 0.0, 0.8]] # [family, job, other
 lockdown_rate_reduction: [[0.0, 1.0, 0.6], [0.0, 0.6, 0.6]] # [family, job, other]
 isolation_rate_reduction: [0.2, 1.0, 1.0] # [family, job, other]
 tracking_rates: [1.0, 0.8, 0.0] # [family, job, other]
+tracking_delay: 10 # 

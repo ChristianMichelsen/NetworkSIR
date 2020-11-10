@@ -1451,9 +1451,23 @@ def plot_multiple_ABM_simulations(
 #%%
 
 
-def get_MCMC_data(variable):
+def get_accepted_cfgs(cfgs, used_hashes, variable, variable_subset, sort_by_variable):
+    accepted_cfgs = []
+    for cfg in cfgs:
+        used_hashes.add(cfg.hash)
+        if variable_subset is None or cfg[variable] in variable_subset:
+            accepted_cfgs.append(cfg)
+    if sort_by_variable:
+        accepted_cfgs = sorted(accepted_cfgs, key=lambda cfg: cfg[variable])
+    return accepted_cfgs, used_hashes
+
+
+def get_MCMC_data(variable, variable_subset, sort_by_variable=True, N_max=None):
 
     db_cfg = utils.get_db_cfg()
+
+    if N_max is None:
+        N_max = len(db_cfg)
 
     used_hashes = set()
     cfgs_to_plot = []
@@ -1465,15 +1479,25 @@ def get_MCMC_data(variable):
             continue
         cfgs = utils.query_cfg(item)
         if len(cfgs) != 1:
-            cfgs_to_plot.append(cfgs)
-            for cfg in cfgs:
-                used_hashes.add(cfg.hash)
+            accepted_cfgs, used_hashes = get_accepted_cfgs(
+                cfgs, used_hashes, variable, variable_subset, sort_by_variable,
+            )
+            # accepted_cfgs = []
+            # for cfg in cfgs:
+            #     used_hashes.add(cfg.hash)
+            #     if variable_subset is None or cfg[variable] in variable_subset:
+            #         accepted_cfgs.append(cfg)
+            # if sort_by_variable:
+            #     accepted_cfgs = sorted(accepted_cfgs, key=lambda cfg: cfg[variable])
+            cfgs_to_plot.append(accepted_cfgs)
+            if len(cfgs_to_plot) >= N_max:
+                return cfgs_to_plot
     return cfgs_to_plot
 
 
-def make_MCMC_plots(variable, abm_files, N_max_figures=None):
+def make_MCMC_plots(variable, abm_files, N_max_figures=None, variable_subset=None):
 
-    cfgs_to_plot = get_MCMC_data(variable)
+    cfgs_to_plot = get_MCMC_data(variable, variable_subset, N_max=N_max_figures)
 
     if N_max_figures is not None:
         print(f"Only plotting the first {N_max_figures} MCMC figures", flush=True)

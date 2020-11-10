@@ -28,8 +28,11 @@ if utils.is_local_computer():
         {
             # "N_tot": 58_000,
             "N_tot": 58_000,
-            "make_random_initial_infections": True,
-            "weighted_random_initial_infections": True,
+            # "make_random_initial_infections": True,
+            # "weighted_random_initial_infections": True,
+            # "test_delay_in_clicks": [0, 0, 25],
+            "results_delay_in_clicks": [[10, 10, 10]],
+            "tracking_delay": [1, 25],
             # "N_contacts_max": 100,
             # "work_other_ratio": 0.5,
             # "N_init": [100, 1000]
@@ -47,7 +50,7 @@ else:
     all_simulation_parameters = utils.get_simulation_parameters()
 
 
-all_simulation_parameters = utils.get_simulation_parameters()
+# all_simulation_parameters = utils.get_simulation_parameters()
 # x = x
 
 #%%

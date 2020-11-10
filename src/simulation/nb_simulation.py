@@ -74,6 +74,7 @@ spec_cfg = {
     "lockdown_rate_reduction": nb.float64[:, ::1],  # to make the type C instead if A
     "isolation_rate_reduction": nb.float64[:],
     "tracking_rates": nb.float64[:],
+    "tracking_delay": nb.float64,
     # ID
     "ID": nb.uint16,
 }
@@ -126,6 +127,7 @@ class Config(object):
         self.lockdown_rate_reduction = np.array([[0.0, 1.0, 0.6], [0.0, 0.6, 0.6]])
         self.isolation_rate_reduction = np.array([0.2, 1.0, 1.0])
         self.tracking_rates = np.array([1.0, 0.8, 0.0])
+        self.tracking_delay = 10
 
         self.ID = 0
 
@@ -243,6 +245,9 @@ class My(object):
     def agent_is_infectious(self, agent):
         return self.state[agent] in self.infectious_states
 
+    def agent_is_not_infectious(self, agent):
+        return not self.agent_is_infectious(agent)
+
 
 def initialize_My(cfg):
     nb_cfg = initialize_nb_cfg(cfg)
@@ -318,6 +323,7 @@ spec_intervention = {
     "positive_test_counter": nb.uint32[:],
     "clicks_when_tested": nb.int32[:],
     "clicks_when_tested_result": nb.int32[:],
+    "clicks_when_isolated": nb.int32[:],
     "types": nb.uint8[:],
     "started_as": nb.uint8[:],
     "verbose": nb.boolean,
@@ -344,6 +350,8 @@ class Intervention(object):
     - clicks_when_tested: When you were tested measured in clicks (10 clicks = 1 day)
 
     - clicks_when_tested_result: When you get your test results measured in clicks
+
+    - clicks_when_isolated: when you were told to go in isolation and be tested
 
     - types: array to keep count of which intervention are at place at which label
         0: Do nothing
@@ -373,6 +381,7 @@ class Intervention(object):
         self.positive_test_counter = np.zeros(3, dtype=np.uint32)
         self.clicks_when_tested = np.full(self.cfg.N_tot, fill_value=-1, dtype=np.int32)
         self.clicks_when_tested_result = np.full(self.cfg.N_tot, fill_value=-1, dtype=np.int32)
+        self.clicks_when_isolated = np.full(self.cfg.N_tot, fill_value=-1, dtype=np.int32)
 
         self.types = np.zeros(self.N_labels, dtype=np.uint8)
         self.started_as = np.zeros(self.N_labels, dtype=np.uint8)
@@ -388,13 +397,20 @@ class Intervention(object):
     def agent_has_not_been_tested(self, agent):
         return self.day_found_infected[agent] == -1
 
+    def agent_has_been_tested(self, agent):
+        return not self.agent_has_not_been_tested(agent)
+
     @property
     def apply_interventions(self):
         return self.cfg.do_interventions
 
     @property
     def apply_interventions_on_label(self):
-        return (1 in self.cfg.interventions_to_apply) or (2 in self.cfg.interventions_to_apply)
+        return (
+            (1 in self.cfg.interventions_to_apply)
+            or (2 in self.cfg.interventions_to_apply)
+            or (6 in self.cfg.interventions_to_apply)
+        )
 
     @property
     def apply_tracking(self):
@@ -722,7 +738,7 @@ def connect_work_and_others(
     agents_in_age_group,
     verbose=True,
 ):
-    progress_delta_print = 0.01  # 10 percent
+    progress_delta_print = 0.1  # 10 percent
     progress_counter = 1
 
     mu_tot = my.cfg.mu / 2 * my.cfg.N_tot
@@ -1317,6 +1333,7 @@ def run_simulation(
                 out_my_state.append(my.state.copy())
 
             if intervention.apply_interventions:
+
                 test_tagged_agents(my, g, intervention, day, click)
 
             click += 1
@@ -1711,9 +1728,19 @@ def test_a_person(my, g, intervention, agent, click):
                     intervention.clicks_when_tested[contact] = (
                         click + intervention.cfg.test_delay_in_clicks[2]
                     )
+                    intervention.clicks_when_isolated[contact] = click + my.cfg.tracking_delay
+
+    # this should only trigger if they have gone into isolation after contact tracing
+    elif (
+        my.agent_is_not_infectious(agent)
+        and intervention.agent_has_been_tested(agent)
+        and click > intervention.clicks_when_isolated[agent]
+    ):
+        reset_rates_of_agent(my, g, agent, connection_type_weight=None)
 
     intervention.clicks_when_tested[agent] = -1
     intervention.reason_for_test[agent] = -1
+    intervention.clicks_when_isolated[agent] = -1
 
     return None
 
@@ -1788,6 +1815,15 @@ def test_tagged_agents(my, g, intervention, day, click):
         # testing everybody who should be tested
         if intervention.clicks_when_tested[agent] == click:
             test_a_person(my, g, intervention, agent, click)
+
+        if intervention.clicks_when_isolated[agent] == click:
+            cut_rates_of_agent(
+                my,
+                g,
+                intervention,
+                agent,
+                rate_reduction=intervention.cfg.isolation_rate_reduction,
+            )
 
         # getting results for people
         if intervention.clicks_when_tested_result[agent] == click:
