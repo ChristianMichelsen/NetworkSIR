@@ -194,7 +194,7 @@ N_max_figures = 3
 plot.make_MCMC_plots(
     variable,
     abm_files,
-    # N_max_figures=N_max_figures,
+    N_max_figures=N_max_figures,
     variable_subset=variable_subset,
 )
 # %%

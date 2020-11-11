@@ -40,6 +40,7 @@
   lockdown_rate_reduction: \mathrm{rate.red.}_\mathrm{lockdown}
   isolation_rate_reduction: \mathrm{rate.red.}_\mathrm{iso.}
   tracking_rates: \mathrm{tracking}_\mathrm{rates}
+  tracking_delay: \mathrm{tracking}_\mathrm{delay}
 
   hash: \mathrm{hash}
 
