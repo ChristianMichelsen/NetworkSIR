@@ -158,7 +158,10 @@ class ABM_simulations:
                 "cfg_list:",
                 cfg_list,
             )
-        return self.d[cfg_list[0].hash]
+        try:
+            return self.d[cfg_list[0].hash]
+        except KeyError:
+            return None
 
     # def __getitem__(self, key):
     #     if isinstance(key, int):

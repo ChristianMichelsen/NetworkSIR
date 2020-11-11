@@ -163,7 +163,7 @@ cfgs, _ = utils.get_1D_scan_cfgs_all_filenames(
 )
 cfgs.sort(key=lambda cfg: cfg["beta"])
 
-plot.plot_R_eff_beta_1D_scan(cfgs)
+plot.plot_R_eff_beta_1D_scan(cfgs, abm_files)
 
 
 # %%
@@ -194,7 +194,7 @@ N_max_figures = 3
 plot.make_MCMC_plots(
     variable,
     abm_files,
-    N_max_figures=N_max_figures,
-    variable_subset=variable_subset,
+    # N_max_figures=N_max_figures,
+    # variable_subset=variable_subset,
 )
 # %%

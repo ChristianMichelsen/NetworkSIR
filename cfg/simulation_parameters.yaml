@@ -34,13 +34,13 @@ all_simulation_parameters:
   # - {N_RS: 100, MCMC: *MCMC, day_max: 50, event_size_max: 3, weighted_random_initial_infections: True}
   # - {N_tot: 5_800_000, N_init: 20_000, weighted_random_initial_infections: [False, True]}
 
+    - {N_RS: 100, MCMC: *MCMC, day_max: 50, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [5, 5, 5]}
+    - {N_RS: 100, MCMC: *MCMC, day_max: 50, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [10, 10, 10]}
     - {N_RS: 100, MCMC: *MCMC, day_max: 50, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [15, 15, 15]}
     - {N_RS: 100, MCMC: *MCMC, day_max: 50, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [20, 20, 20]}
     - {N_RS: 100, MCMC: *MCMC, day_max: 50, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [25, 25, 25]}
     - {N_RS: 100, MCMC: *MCMC, day_max: 50, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [30, 30, 30]}
     - {N_RS: 100, MCMC: *MCMC, day_max: 50, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [0, 0, 0]}
-    - {N_RS: 100, MCMC: *MCMC, day_max: 50, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [5, 5, 5]}
-    - {N_RS: 100, MCMC: *MCMC, day_max: 50, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [10, 10, 10]}
     # - {N_RS: 100, MCMC: *MCMC, day_max: 50, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [2, 2, 2]}
     # - {N_RS: 100, MCMC: *MCMC, day_max: 50, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [4, 4, 4]}
     # - {N_RS: 100, MCMC: *MCMC, day_max: 50, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [5, 5, 5]}

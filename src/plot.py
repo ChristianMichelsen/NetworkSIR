@@ -168,6 +168,8 @@ def plot_single_ABM_simulation_test_focus(
 ):
 
     filenames = abm_files.cfg_to_filenames(cfg)
+    if filenames is None:
+        return None
 
     if not isinstance(cfg, utils.DotDict):
         cfg = utils.DotDict(cfg)
@@ -270,11 +272,13 @@ def plot_ABM_simulations(abm_files, force_rerun=False, plot_found_vs_real_inf=Fa
 
             # break
             if plot_found_vs_real_inf:
-                fig, ax = plot_single_ABM_simulation_test_focus(cfg, abm_files)
+                fig_ax = plot_single_ABM_simulation_test_focus(cfg, abm_files)
             else:
-                fig, ax = plot_single_ABM_simulation(cfg, abm_files)
+                fig_ax = plot_single_ABM_simulation(cfg, abm_files)
 
-            pdf.savefig(fig, dpi=100)
+            if fig_ax is not None:
+                fig, ax = fig_ax
+                pdf.savefig(fig, dpi=100)
             plt.close("all")
 
 
@@ -720,9 +724,10 @@ def plot_fits(all_fits, force_rerun=False, verbose=False):
                 continue
 
             cfg = utils.hash_to_cfg(hash_)
-            fig, ax = plot_single_fit(cfg, fit_objects)
-
-            pdf.savefig(fig, dpi=100)
+            fig_ax = plot_single_fit(cfg, fit_objects)
+            if fig_ax is not None:
+                fig, ax = fig_ax
+                pdf.savefig(fig, dpi=100)
             plt.close("all")
 
 
@@ -1006,7 +1011,9 @@ def plot_number_of_contacts(network_files, force_rerun=False):
         ):
             # cfg = utils.string_to_dict(str(network_filename))
             if "_ID__0" in network_filename:
-                fig, ax = plot_single_number_of_contacts(network_filename)
+                fig_ax = plot_single_number_of_contacts(network_filename)
+                if fig_ax is not None:
+                    fig, ax = fig_ax
                 pdf.savefig(fig, dpi=100)
                 plt.close("all")
 
@@ -1298,8 +1305,10 @@ def running_median_insort(seq, window_size):
     return result
 
 
-def plot_R_eff(cfg):
+def plot_R_eff(cfg, abm_files):
     filenames = abm_files.cfg_to_filenames(cfg)
+    if filenames is None:
+        return None
 
     T_peaks = []
     for filename in filenames:
@@ -1344,13 +1353,15 @@ def plot_R_eff(cfg):
 from matplotlib.backends.backend_pdf import PdfPages
 
 
-def plot_R_eff_beta_1D_scan(cfgs):
+def plot_R_eff_beta_1D_scan(cfgs, abm_files):
     pdf_name = "Figures/R_eff.pdf"
 
     with PdfPages(pdf_name) as pdf:
         for cfg in tqdm(cfgs, desc="Plotting R_eff for beta 1D-scan"):
-            fig, ax = plot_R_eff(cfg)
-            pdf.savefig(fig, dpi=100)
+            fig_ax = plot_R_eff(cfg, abm_files)
+            if fig_ax is not None:
+                fig, ax = fig_ax
+                pdf.savefig(fig, dpi=100)
             plt.close("all")
 
 
@@ -1381,6 +1392,8 @@ def plot_multiple_ABM_simulations(
     for i_cfg, cfg in enumerate(cfgs):
 
         filenames = abm_files.cfg_to_filenames(cfg)
+        if filenames is None:
+            return None
 
         if not isinstance(cfg, utils.DotDict):
             cfg = utils.DotDict(cfg)
@@ -1480,7 +1493,11 @@ def get_MCMC_data(variable, variable_subset, sort_by_variable=True, N_max=None):
         cfgs = utils.query_cfg(item)
         if len(cfgs) != 1:
             accepted_cfgs, used_hashes = get_accepted_cfgs(
-                cfgs, used_hashes, variable, variable_subset, sort_by_variable,
+                cfgs,
+                used_hashes,
+                variable,
+                variable_subset,
+                sort_by_variable,
             )
             # accepted_cfgs = []
             # for cfg in cfgs:
@@ -1510,6 +1527,8 @@ def make_MCMC_plots(variable, abm_files, N_max_figures=None, variable_subset=Non
     pdf_name = f"Figures/MCMC_{variable}.pdf"
     with PdfPages(pdf_name) as pdf:
         for cfgs in tqdm(cfgs_to_plot, desc=f"Plotting MCMC runs for {variable}"):
-            fig, ax = plot_multiple_ABM_simulations(cfgs, abm_files, variable)
-            pdf.savefig(fig, dpi=100)
+            fig_ax = plot_multiple_ABM_simulations(cfgs, abm_files, variable)
+            if fig_ax is not None:
+                fig, ax = fig_ax
+                pdf.savefig(fig, dpi=100)
             plt.close("all")
