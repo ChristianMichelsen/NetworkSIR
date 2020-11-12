@@ -33,13 +33,17 @@ all_simulation_parameters:
   # - {N_RS: 100, MCMC: *MCMC, day_max: 100, event_size_max: 5, weighted_random_initial_infections: True}
   # - {N_RS: 100, MCMC: *MCMC, day_max: 100, event_size_max: 3, weighted_random_initial_infections: True}
   # - {N_tot: 5_800_000, N_init: 20_000, weighted_random_initial_infections: [False, True]}
-    - {N_RS: 100, MCMC: *MCMC, day_max: 100, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_delay: 0}
-    - {N_RS: 100, MCMC: *MCMC, day_max: 100, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_delay: 5}
-    - {N_RS: 100, MCMC: *MCMC, day_max: 100, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_delay: 10}
-    - {N_RS: 100, MCMC: *MCMC, day_max: 100, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_delay: 15}
-    - {N_RS: 100, MCMC: *MCMC, day_max: 100, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_delay: 20}
-    - {N_RS: 100, MCMC: *MCMC, day_max: 100, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_delay: 25}
-    - {N_RS: 100, MCMC: *MCMC, day_max: 100, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_delay: 30}
+
+  # CHANGE IN tracking_delay
+    - {N_RS: 100, MCMC: *MCMC, day_max: 100, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [20, 20, 20], tracking_delay: 0}
+    - {N_RS: 100, MCMC: *MCMC, day_max: 100, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [20, 20, 20], tracking_delay: 5}
+    - {N_RS: 100, MCMC: *MCMC, day_max: 100, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [20, 20, 20], tracking_delay: 10}
+    - {N_RS: 100, MCMC: *MCMC, day_max: 100, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [20, 20, 20], tracking_delay: 15}
+    - {N_RS: 100, MCMC: *MCMC, day_max: 100, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [20, 20, 20], tracking_delay: 20}
+    - {N_RS: 100, MCMC: *MCMC, day_max: 100, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [20, 20, 20], tracking_delay: 25}
+    - {N_RS: 100, MCMC: *MCMC, day_max: 100, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [20, 20, 20], tracking_delay: 30}
+
+    # CHANGE IN results_delay_in_clicks
     - {N_RS: 100, MCMC: *MCMC, day_max: 100, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [5, 5, 5]}
     - {N_RS: 100, MCMC: *MCMC, day_max: 100, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [10, 10, 10]}
     - {N_RS: 100, MCMC: *MCMC, day_max: 100, weighted_random_initial_infections: True, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], results_delay_in_clicks: [15, 15, 15]}

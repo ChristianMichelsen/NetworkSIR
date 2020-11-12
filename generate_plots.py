@@ -152,7 +152,7 @@ if False:
     for cfg in cfgs:
         print(cfg)
 
-x = x
+# x = x
 
 # cfgs.sort(key=lambda cfg: cfg["N_tot"])
 # [cfg.hash for cfg in cfgs]
