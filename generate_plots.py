@@ -133,19 +133,26 @@ with PdfPages(pdf_name) as pdf:
 
 #%%
 
-# d_query = utils.DotDict(
-#     {
-#         # "epsilon_rho": 0.02,
-#         "N_tot": 580_000,
-#         # "rho": 0.0,
-#         # "beta": 0.007,
-#         "weighted_random_initial_infections": True,
-#     },
-# )
+if False:
 
-# cfgs = utils.query_cfg(d_query)
-# for cfg in cfgs:
-#     print(cfg)
+    d_query = utils.DotDict(
+        {
+            # "epsilon_rho": 0.02,
+            # "N_tot": 580_000,
+            # "rho": 0.0,
+            # "beta": 0.0108,
+            # "weighted_random_initial_infections": True,
+            # "results_delay_in_clicks": [30, 30, 30],
+            # "event_size_mean": 7.9997,
+            "hash": "1e04392284"
+        },
+    )
+
+    cfgs = utils.query_cfg(d_query)
+    for cfg in cfgs:
+        print(cfg)
+
+x = x
 
 # cfgs.sort(key=lambda cfg: cfg["N_tot"])
 # [cfg.hash for cfg in cfgs]
@@ -155,15 +162,15 @@ with PdfPages(pdf_name) as pdf:
 #%%
 
 # R_eff for beta 1D-scan
+if False:
+    cfgs, _ = utils.get_1D_scan_cfgs_all_filenames(
+        scan_parameter="beta",
+        non_default_parameters={},
+        # non_default_parameters=dict(weighted_random_initial_infections=True),
+    )
+    cfgs.sort(key=lambda cfg: cfg["beta"])
 
-cfgs, _ = utils.get_1D_scan_cfgs_all_filenames(
-    scan_parameter="beta",
-    non_default_parameters={},
-    # non_default_parameters=dict(weighted_random_initial_infections=True),
-)
-cfgs.sort(key=lambda cfg: cfg["beta"])
-
-plot.plot_R_eff_beta_1D_scan(cfgs, abm_files)
+    plot.plot_R_eff_beta_1D_scan(cfgs, abm_files)
 
 
 # %%
