@@ -69,12 +69,12 @@ spec_cfg = {
     "test_delay_in_clicks": nb.int64[:],
     "results_delay_in_clicks": nb.int64[:],
     "chance_of_finding_infected": nb.float64[:],
-    "days_looking_back": nb.float64,
+    "days_looking_back": nb.int64,
     "masking_rate_reduction": nb.float64[:, ::1],  # to make the type C instead if A
     "lockdown_rate_reduction": nb.float64[:, ::1],  # to make the type C instead if A
     "isolation_rate_reduction": nb.float64[:],
     "tracking_rates": nb.float64[:],
-    "tracking_delay": nb.float64,
+    "tracking_delay": nb.int64,
     # ID
     "ID": nb.uint16,
 }

@@ -180,6 +180,7 @@ reload(plot)
 # plot MCMC results
 variable = "event_size_max"
 variable = "results_delay_in_clicks"
+variable = "tracking_delay"
 
 variable_subset = [
     [20, 20, 20],
