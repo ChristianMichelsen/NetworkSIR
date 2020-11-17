@@ -17,7 +17,7 @@ lambda_I: 1.0  # I->R, Lambda(from I states)
 
 # Other:
 make_random_initial_infections: True # Infections around a single agent
-weighted_random_initial_infections: False # Infections weighted by the number of contacts
+weighted_random_initial_infections: True # Infections weighted by the number of contacts
 make_initial_infections_at_kommune: False # Initiate infections at kommune basis
 day_max: 0 # 5 weeks. Sets the maximum number of days the algorithm runs
 clustering_connection_retries: 0 # number of times to try and reconnect two agents
@@ -26,7 +26,7 @@ N_contacts_max: 0 # maximum number of contacts
 
 # event-related variables
 N_events: 0 # number of daily events
-event_size_max: 50 #max size of events. If 0 => N_tot (no max)
+event_size_max: 10 #max size of events. If 0 => N_tot (no max)
 event_size_mean: 5 # mean size of events (exponential distribution)
 event_beta_scaling: 5 # how much more disease spreads at events (1 = normal, 2 = double of normal)
 event_weekend_multiplier: 2.0 # ratio of how many more events are happening in weekends. 1 = similar, 2 = double
@@ -58,4 +58,4 @@ masking_rate_reduction: [[0.0, 0.0, 0.3], [0.0, 0.0, 0.8]] # [family, job, other
 lockdown_rate_reduction: [[0.0, 1.0, 0.6], [0.0, 0.6, 0.6]] # [family, job, other]
 isolation_rate_reduction: [0.2, 1.0, 1.0] # [family, job, other]
 tracking_rates: [1.0, 0.8, 0.0] # [family, job, other]
-tracking_delay: 10 # 
+tracking_delay: 10 #

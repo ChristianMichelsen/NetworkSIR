@@ -740,8 +740,11 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True, remove_rates=True
     for sim_par, val in cfg.items():
         if not sim_par in exclude:
             title += f"{parameter_to_latex[sim_par]} = {val}, \,"
-    title += f"{parameter_to_latex['version']} = {cfg.version}, \,"
-    if "hash" in cfg:
+
+    if not "version" in exclude:
+        title += f"{parameter_to_latex['version']} = {cfg.version}, \,"
+
+    if "hash" in cfg and "hash" not in exclude:
         title += fr"{parameter_to_latex['hash']} = {cfg.hash}, \,"
 
     if in_two_line:
