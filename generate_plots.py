@@ -18,9 +18,11 @@ from src import database
 rc_params.set_rc_params(dpi=100)
 num_cores_max = 30
 
-do_make_1D_scan = True
+make_1D_scan = False
 force_rerun = False
 verbose = False
+make_fits = False
+
 
 #%%
 
@@ -31,14 +33,14 @@ abm_files = file_loaders.ABM_simulations(verbose=True)
 N_files = len(abm_files)
 
 
-x = x
+# x = x
 
 #%%
 plot.plot_ABM_simulations(abm_files, force_rerun=force_rerun)
 
 #%%
 
-x = x
+# x = x
 
 reload(plot)
 
@@ -82,25 +84,25 @@ parameters_1D_scan = [
 ]
 
 # reload(plot)
-if do_make_1D_scan:
+if make_1D_scan:
     for parameter_1D_scan in parameters_1D_scan:
         plot.plot_1D_scan(**parameter_1D_scan)
 
 #%%
 
-reload(fits)
-num_cores = utils.get_num_cores(num_cores_max)
-all_fits = fits.get_fit_results(abm_files, force_rerun=False, num_cores=num_cores, y_max=0.01)
+if make_fits:
+
+    reload(fits)
+    num_cores = utils.get_num_cores(num_cores_max)
+    all_fits = fits.get_fit_results(abm_files, force_rerun=False, num_cores=num_cores, y_max=0.01)
+
+    reload(plot)
+    plot.plot_fits(all_fits, force_rerun=force_rerun, verbose=verbose)
 
 #%%
 
 reload(plot)
-plot.plot_fits(all_fits, force_rerun=force_rerun, verbose=verbose)
-
-#%%
-
-reload(plot)
-if do_make_1D_scan:
+if make_1D_scan:
     for parameter_1D_scan in parameters_1D_scan:
         plot.plot_1D_scan_fit_results(all_fits, **parameter_1D_scan)
 
@@ -183,9 +185,12 @@ reload(plot)
 reload(database)
 
 
+# x = x
+
 # plot MCMC results
 variable = "event_size_max"
 variable = "results_delay_in_clicks"
+reverse_order = True
 extra_selections = {"tracking_rates": [1.0, 0.8, 0.0]}
 
 # variable_subset = [
@@ -193,21 +198,27 @@ extra_selections = {"tracking_rates": [1.0, 0.8, 0.0]}
 #     [30, 30, 30],
 # ]
 
-# N_max_figures = 1
+N_max_figures = 2
+N_max_figures = None
+
 
 plot.make_MCMC_plots(
     variable,
     abm_files,
-    # N_max_figures=N_max_figures,
-    # variable_subset=variable_subset,
     extra_selections=extra_selections,
+    N_max_figures=N_max_figures,
+    index_in_list_to_sortby=0,
+    reverse_order=True,  # True since a higher value of results_delay_in_clicks is less intervention
+    # variable_subset=variable_subset,
 )
-
 
 # plot MCMC results
 plot.make_MCMC_plots(
     variable="tracking_rates",
     abm_files=abm_files,
     extra_selections={"results_delay_in_clicks": [20, 20, 20]},
+    N_max_figures=N_max_figures,
+    index_in_list_to_sortby=-1,
+    reverse_order=False,
 )
 # %%

@@ -11,6 +11,7 @@ from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 from matplotlib.transforms import Bbox
 from collections import defaultdict
 import warnings
+from importlib import reload
 
 try:
     from src.utils import utils
@@ -26,6 +27,8 @@ except ImportError:
     import file_loaders
     import SIR
     import database
+import generate_R_eff_fits
+
 
 from numba import njit
 from functools import lru_cache
@@ -1370,10 +1373,16 @@ def plot_R_eff_beta_1D_scan(cfgs, abm_files):
 #%%
 
 
+# reload(generate_R_eff_fits)
+
+
 def plot_multiple_ABM_simulations(
     cfgs,
     abm_files,
     variable,
+    R_effs,
+    reverse_order=False,
+    days=None,
     xlim=(0, None),
     legend_fontsize=20,
     d_label_loc=None,
@@ -1417,43 +1426,53 @@ def plot_multiple_ABM_simulations(
 
             plot_kwargs = dict(lw=lw, ls=ls, c=colors[i_cfg % len(colors)], label=label)
             axes[0].plot(t, df["I"] / N_tot, **plot_kwargs)
-            axes[1].plot(t, df["R"] / N_tot, **plot_kwargs)
+            # axes[1].plot(t, df["R"] / N_tot, **plot_kwargs)
 
             if t.max() > T_max:
                 T_max = t.max()
 
-    for state, ax in zip(["I", "R"], axes):
-        # break
+    # for state, ax in zip(["I", "R"], axes):
+    # break
 
-        df_deterministic = compute_df_deterministic(cfg, state, T_max=T_max)
+    df_deterministic = compute_df_deterministic(cfg, "I", T_max=T_max)
 
-        ax.plot(
-            df_deterministic["time"],
-            df_deterministic[state] / N_tot,
-            lw=lw * 4,
-            color="k",
-            label="SEIR",
-        )
+    axes[0].plot(
+        df_deterministic["time"],
+        df_deterministic["I"] / N_tot,
+        lw=lw * 4,
+        color="k",
+        label="SEIR",
+    )
 
-        legend_title = r"$" + utils.get_parameter_to_latex()[variable] + r"$"
-        leg = ax.legend(
-            loc=d_label_loc[state],
-            fontsize=legend_fontsize,
-            title=legend_title,
-            title_fontsize=30,
-            labelspacing=0.1,
-        )
-        for legobj in leg.legendHandles:
-            legobj.set_linewidth(lw * 4)
+    legend_title = r"$" + utils.get_parameter_to_latex()[variable] + r"$"
+    leg = axes[0].legend(
+        loc=d_label_loc["I"],
+        fontsize=legend_fontsize,
+        title=legend_title,
+        title_fontsize=30,
+        labelspacing=0.1,
+    )
+    for legobj in leg.legendHandles:
+        legobj.set_linewidth(lw * 4)
 
-        ax.set(
-            xlabel="Time [days]",
-            ylim=(0, None),
-            ylabel=d_ylabel[state],
-            xlim=xlim,
-        )
-        ax.set_ylim(0, ax.get_ylim()[1] * ylim_scale)
-        ax.yaxis.set_major_formatter(PercentFormatter(xmax=1))
+    axes[0].set(
+        xlabel="Time [days]",
+        ylim=(0, None),
+        ylabel=d_ylabel["I"],
+        xlim=xlim,
+    )
+    axes[0].set_ylim(0, axes[0].get_ylim()[1] * ylim_scale)
+    axes[0].yaxis.set_major_formatter(PercentFormatter(xmax=1))
+
+    xlabel = r"$" + utils.get_parameter_to_latex()[variable] + r"$"
+    generate_R_eff_fits.plot_R_effs_single_comparison(
+        R_effs,
+        variable,
+        reverse_order,
+        days=days,
+        ax=axes[1],
+        xlabel=xlabel,
+    )
 
     # cfg.pop(variable, None)
     title = utils.dict_to_title(cfg, exclude=["hash", variable])
@@ -1467,21 +1486,30 @@ def plot_multiple_ABM_simulations(
 
 
 def make_MCMC_plots(
-    variable, abm_files, N_max_figures=None, variable_subset=None, extra_selections=None
+    variable,
+    abm_files,
+    reverse_order=False,
+    days=None,
+    N_max_figures=None,
+    variable_subset=None,
+    extra_selections=None,
+    index_in_list_to_sortby=0,
 ):
 
     cfgs_to_plot = database.get_MCMC_data(
-        variable, variable_subset, N_max=N_max_figures, extra_selections=extra_selections,
+        variable,
+        variable_subset,
+        N_max=N_max_figures,
+        extra_selections=extra_selections,
     )
-
-
-    if N_max_figures is not None:
-        print(f"Only plotting the first {N_max_figures} MCMC figures", flush=True)
-        cfgs_to_plot = cfgs_to_plot[:N_max_figures]
 
     if len(cfgs_to_plot) == 0:
         print(f"No runs to plot for {variable}")
         return
+
+    if N_max_figures is not None:
+        print(f"Only plotting the first {N_max_figures} MCMC figures", flush=True)
+        cfgs_to_plot = cfgs_to_plot[:N_max_figures]
 
     s_extra = ""
     if extra_selections:
@@ -1492,7 +1520,20 @@ def make_MCMC_plots(
     pdf_name = f"Figures/MCMC_{variable}{s_extra}.pdf"
     with PdfPages(pdf_name) as pdf:
         for cfgs in tqdm(cfgs_to_plot, desc=f"Plotting MCMC runs for {variable}"):
-            fig_ax = plot_multiple_ABM_simulations(cfgs, abm_files, variable)
+            # break
+
+            R_effs = generate_R_eff_fits.compute_R_eff_fits_from_cfgs(
+                cfgs,
+                abm_files,
+                variable,
+                index_in_list_to_sortby=index_in_list_to_sortby,
+                do_tqdm=False,
+            )
+
+            fig_ax = plot_multiple_ABM_simulations(
+                cfgs, abm_files, variable, R_effs, reverse_order, days
+            )
+
             if fig_ax is not None:
                 fig, ax = fig_ax
                 pdf.savefig(fig, dpi=100)

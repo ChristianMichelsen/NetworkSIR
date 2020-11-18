@@ -14,19 +14,15 @@ import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib import rc_context
 import sigfig
+import matplotlib
 
 
 from src.utils import utils
 from src import file_loaders
 from src import fits
 from src import plot
-
-
-import matplotlib
-
-matplotlib.style.use("default")
-sns.set_style("white")
-sns.set_context("talk", font_scale=1, rc={"lines.linewidth": 2})
+from src import database
+import generate_R_eff_fits
 
 num_cores_max = 30
 delta_time = 8
@@ -102,13 +98,14 @@ class FittingClassChi2:
             self.fit_kwargs = {
                 "I_0": self.y[0],
                 "R_eff": 1,
-                "limit_R_eff": (0, None)
+                "limit_R_eff": (0, None),
                 "T": 8,
                 "fix_T": True,
             }
             self.fit_kwargs_retry = {
                 "I_0": self.y[0],
                 "R_eff": 0.5,
+                "limit_R_eff": (0, None),
                 "T": 8,
                 "fix_T": True,
             }
@@ -177,7 +174,9 @@ def fit_df(df):
     return R_eff
 
 
-def compute_R_eff_fits_from_cfgs(cfgs, do_tqdm=True):
+def compute_R_eff_fits_from_cfgs(
+    cfgs, abm_files, variable, index_in_list_to_sortby=0, do_tqdm=True
+):
 
     R_effs = {}
 
@@ -185,6 +184,7 @@ def compute_R_eff_fits_from_cfgs(cfgs, do_tqdm=True):
         cfgs = tqdm(cfgs, desc="Creating R_eff (fits)")
 
     for cfg in cfgs:
+        # break
         filenames = abm_files.cfg_to_filenames(cfg)
         df = load_df(filenames)
         R_eff = fit_df(df)
@@ -192,21 +192,36 @@ def compute_R_eff_fits_from_cfgs(cfgs, do_tqdm=True):
 
         # if variable is a list, use first value
         if isinstance(key, list):
-            key = key[0]
+            key = key[index_in_list_to_sortby]
         R_effs[key] = R_eff
     return R_effs
 
 
-def plot_R_effs_single_comparison(R_effs, variable, reverse_order, days):
+def plot_R_effs_single_comparison(
+    R_effs, variable, reverse_order, days=None, title=None, xlabel=None, ax=None
+):
 
-    xlabel = variable
+    if days is None:
+        days = [20, 25, 30, 35, 40]
+
+    if xlabel is None:
+        xlabel = variable
     if reverse_order:
         xlabel += " (reversed)"
-    title = utils.dict_to_title(cfgs[0], exclude=["hash", variable, "version"])
+    # title = utils.dict_to_title(cfgs[0], exclude=["hash", variable, "version"])
 
-    xlim = np.min(list(R_effs.keys())) - 1, np.max(list(R_effs.keys())) + 1
+    xmin = np.min(list(R_effs.keys()))
+    xmax = np.max(list(R_effs.keys()))
+    delta = xmax - xmin
+    xmin -= delta / 10
+    xmax += delta / 10
+    xlim = [xmin, xmax]
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    no_ax = False
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        no_ax = True
+
     for i, day in enumerate(days):
         # break
         df = pd.DataFrame.from_dict(
@@ -233,8 +248,9 @@ def plot_R_effs_single_comparison(R_effs, variable, reverse_order, days):
             capthick=1,
         )
 
-    ax.set(xlabel=xlabel, ylabel="R_eff", xlim=xlim)
-    ax.set_title(title, fontsize=12)
+    ax.set(xlabel=xlabel, ylabel="$\mathcal{R}_\mathrm{eff}$", xlim=xlim)
+    if title:
+        ax.set_title(title, fontsize=12)
     ax.grid(alpha=0.4)
 
     # Shrink current axis by 20%
@@ -247,45 +263,60 @@ def plot_R_effs_single_comparison(R_effs, variable, reverse_order, days):
     if reverse_order:
         ax.invert_xaxis()
         # ax.set_xlim(ax.get_xlim()[::-1])
-    return fig
+
+    if no_ax:
+        return fig
 
 
 reload(file_loaders)
 
-abm_files = file_loaders.ABM_simulations(verbose=True)
-N_files = len(abm_files)
+if __name__ == "__main__" and False:
 
+    matplotlib.style.use("default")
+    sns.set_style("white")
+    sns.set_context("talk", font_scale=1, rc={"lines.linewidth": 2})
 
-# plot MCMC results
-variable = "event_size_max"
-variable = "results_delay_in_clicks"
-reverse_order = True
+    abm_files = file_loaders.ABM_simulations(verbose=True)
+    N_files = len(abm_files)
 
+    # plot MCMC results
+    variable = "event_size_max"
+    variable = "results_delay_in_clicks"
+    reverse_order = True
+    extra_selections = {"tracking_rates": [1.0, 0.8, 0.0]}
 
-N_max_figures = 10
-N_max_figures = None
+    N_max_figures = 10
+    N_max_figures = None
 
+    cfgs_to_plot = database.get_MCMC_data(
+        variable,
+        variable_subset=None,
+        N_max=N_max_figures,
+        extra_selections=extra_selections,
+    )
 
-cfgs_to_plot = plot.get_MCMC_data(
-    variable,
-    variable_subset=None,
-    N_max=N_max_figures,
-)
+    days = [20, 25, 30, 35, 40]
 
+    cfgs = cfgs_to_plot[2]
 
-days = [20, 25, 30, 35, 40]
+    s_extra = ""
+    if extra_selections:
+        s_extra += "__"
+        for key, val in extra_selections.items():
+            s_extra += f"__{key}__{val}"
 
+    pdf_name = f"Figures/R_eff_MCMC_{variable}{s_extra}.pdf"
+    desc = f"Plotting R_eff fits for {len(cfgs_to_plot)} MCMC cfgs"
+    with PdfPages(pdf_name) as pdf:
+        for cfgs in tqdm(cfgs_to_plot):
 
-cfgs = cfgs_to_plot[2]
+            R_effs = compute_R_eff_fits_from_cfgs(
+                cfgs,
+                abm_files,
+                index_in_list_to_sortby=0,
+                do_tqdm=False,
+            )
+            fig = plot_R_effs_single_comparison(R_effs, variable, reverse_order, days)
 
-
-pdf_name = f"Figures/R_eff_MCMC_{variable}.pdf"
-desc = f"Plotting R_eff fits for {len(cfgs_to_plot)} MCMC cfgs"
-with PdfPages(pdf_name) as pdf:
-    for cfgs in tqdm(cfgs_to_plot):
-
-        R_effs = compute_R_eff_fits_from_cfgs(cfgs, do_tqdm=False)
-        fig = plot_R_effs_single_comparison(R_effs, variable, reverse_order, days)
-
-        pdf.savefig(fig, dpi=100, bbox_inches="tight")
-        plt.close("all")
+            pdf.savefig(fig, dpi=100, bbox_inches="tight")
+            plt.close("all")
