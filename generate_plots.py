@@ -203,13 +203,57 @@ N_max_figures = None
 
 
 plot.make_MCMC_plots(
-    variable,
-    abm_files,
-    extra_selections=extra_selections,
+    variable="results_delay_in_clicks",
+    abm_files=abm_files,
+    extra_selections={"tracking_rates": [1.0, 0.8, 0.0]},
     N_max_figures=N_max_figures,
     index_in_list_to_sortby=0,
     reverse_order=True,  # True since a higher value of results_delay_in_clicks is less intervention
     # variable_subset=variable_subset,
+)
+
+
+plot.make_MCMC_plots(
+    variable="results_delay_in_clicks",
+    abm_files=abm_files,
+    extra_selections={"tracking_rates": [1.0, 0.8, 0.25]},
+    N_max_figures=N_max_figures,
+    index_in_list_to_sortby=0,
+    reverse_order=True,  # True since a higher value of results_delay_in_clicks is less intervention
+    # variable_subset=variable_subset,
+)
+
+
+plot.make_MCMC_plots(
+    variable="results_delay_in_clicks",
+    abm_files=abm_files,
+    extra_selections={"tracking_rates": [1.0, 0.8, 0.5]},
+    N_max_figures=N_max_figures,
+    index_in_list_to_sortby=0,
+    reverse_order=True,  # True since a higher value of results_delay_in_clicks is less intervention
+    # variable_subset=variable_subset,
+)
+
+
+plot.make_MCMC_plots(
+    variable="results_delay_in_clicks",
+    abm_files=abm_files,
+    extra_selections={"tracking_rates": [1.0, 0.8, 0.75]},
+    N_max_figures=N_max_figures,
+    index_in_list_to_sortby=0,
+    reverse_order=True,  # True since a higher value of results_delay_in_clicks is less intervention
+    # variable_subset=variable_subset,
+)
+
+
+# plot MCMC results
+plot.make_MCMC_plots(
+    variable="tracking_rates",
+    abm_files=abm_files,
+    extra_selections={"results_delay_in_clicks": [30, 30, 30]},
+    N_max_figures=N_max_figures,
+    index_in_list_to_sortby=-1,
+    reverse_order=False,
 )
 
 # plot MCMC results
@@ -217,6 +261,17 @@ plot.make_MCMC_plots(
     variable="tracking_rates",
     abm_files=abm_files,
     extra_selections={"results_delay_in_clicks": [20, 20, 20]},
+    N_max_figures=N_max_figures,
+    index_in_list_to_sortby=-1,
+    reverse_order=False,
+)
+
+
+# plot MCMC results
+plot.make_MCMC_plots(
+    variable="tracking_rates",
+    abm_files=abm_files,
+    extra_selections={"results_delay_in_clicks": [10, 10, 10]},
     N_max_figures=N_max_figures,
     index_in_list_to_sortby=-1,
     reverse_order=False,

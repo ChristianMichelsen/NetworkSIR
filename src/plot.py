@@ -1494,7 +1494,20 @@ def make_MCMC_plots(
     variable_subset=None,
     extra_selections=None,
     index_in_list_to_sortby=0,
+    force_rerun=False,
 ):
+
+    s_extra = ""
+    if extra_selections:
+        s_extra += "__"
+        for key, val in extra_selections.items():
+            s_extra += f"__{key}__{val}"
+
+    pdf_name = f"Figures/MCMC_{variable}{s_extra}.pdf"
+
+    if Path(pdf_name).exists() and not force_rerun:
+        print(f"{pdf_name} already exists\n", flush=True)
+        return None
 
     cfgs_to_plot = database.get_MCMC_data(
         variable,
@@ -1511,13 +1524,6 @@ def make_MCMC_plots(
         print(f"Only plotting the first {N_max_figures} MCMC figures", flush=True)
         cfgs_to_plot = cfgs_to_plot[:N_max_figures]
 
-    s_extra = ""
-    if extra_selections:
-        s_extra += "__"
-        for key, val in extra_selections.items():
-            s_extra += f"__{key}__{val}"
-
-    pdf_name = f"Figures/MCMC_{variable}{s_extra}.pdf"
     with PdfPages(pdf_name) as pdf:
         for cfgs in tqdm(cfgs_to_plot, desc=f"Plotting MCMC runs for {variable}"):
             # break
