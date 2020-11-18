@@ -26,6 +26,11 @@ MCMC: &MCMC { N_events: [randint, 1_000, 5_000],
 all_simulation_parameters:
 
     # CHANGE IN results_delay_in_clicks
+
+    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [0.0, 0.0, 0]}
+    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.0, 0]}
+    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0]}
+
     - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0], results_delay_in_clicks: [0, 0, 0]}
     - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0], results_delay_in_clicks: [10, 10, 10]}
     - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0], results_delay_in_clicks: [20, 20, 20]}
