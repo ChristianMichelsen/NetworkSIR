@@ -18,12 +18,14 @@ try:
     # from src import simulation_utils
     from src import file_loaders
     from src import SIR
+    from src import database
 except ImportError:
     import utils
 
     # import simulation_utils
     import file_loaders
     import SIR
+    import database
 
 from numba import njit
 from functools import lru_cache
@@ -1464,57 +1466,14 @@ def plot_multiple_ABM_simulations(
 #%%
 
 
-def get_accepted_cfgs(cfgs, used_hashes, variable, variable_subset, sort_by_variable):
-    accepted_cfgs = []
-    for cfg in cfgs:
-        used_hashes.add(cfg.hash)
-        if variable_subset is None or cfg[variable] in variable_subset:
-            accepted_cfgs.append(cfg)
-    if sort_by_variable:
-        accepted_cfgs = sorted(accepted_cfgs, key=lambda cfg: cfg[variable])
-    return accepted_cfgs, used_hashes
+def make_MCMC_plots(
+    variable, abm_files, N_max_figures=None, variable_subset=None, extra_selections=None
+):
 
+    cfgs_to_plot = database.get_MCMC_data(
+        variable, variable_subset, N_max=N_max_figures, extra_selections=extra_selections,
+    )
 
-def get_MCMC_data(variable, variable_subset, sort_by_variable=True, N_max=None):
-
-    db_cfg = utils.get_db_cfg()
-
-    if N_max is None:
-        N_max = len(db_cfg)
-
-    used_hashes = set()
-    cfgs_to_plot = []
-    for item in db_cfg:
-        # break
-        item.pop(variable, None)
-        hash_ = item.pop("hash", None)
-        if hash_ in used_hashes:
-            continue
-        cfgs = utils.query_cfg(item)
-        if len(cfgs) != 1:
-            accepted_cfgs, used_hashes = get_accepted_cfgs(
-                cfgs,
-                used_hashes,
-                variable,
-                variable_subset,
-                sort_by_variable,
-            )
-            # accepted_cfgs = []
-            # for cfg in cfgs:
-            #     used_hashes.add(cfg.hash)
-            #     if variable_subset is None or cfg[variable] in variable_subset:
-            #         accepted_cfgs.append(cfg)
-            # if sort_by_variable:
-            #     accepted_cfgs = sorted(accepted_cfgs, key=lambda cfg: cfg[variable])
-            cfgs_to_plot.append(accepted_cfgs)
-            if len(cfgs_to_plot) >= N_max:
-                return cfgs_to_plot
-    return cfgs_to_plot
-
-
-def make_MCMC_plots(variable, abm_files, N_max_figures=None, variable_subset=None):
-
-    cfgs_to_plot = get_MCMC_data(variable, variable_subset, N_max=N_max_figures)
 
     if N_max_figures is not None:
         print(f"Only plotting the first {N_max_figures} MCMC figures", flush=True)
@@ -1524,7 +1483,13 @@ def make_MCMC_plots(variable, abm_files, N_max_figures=None, variable_subset=Non
         print(f"No runs to plot for {variable}")
         return
 
-    pdf_name = f"Figures/MCMC_{variable}.pdf"
+    s_extra = ""
+    if extra_selections:
+        s_extra += "__"
+        for key, val in extra_selections.items():
+            s_extra += f"__{key}__{val}"
+
+    pdf_name = f"Figures/MCMC_{variable}{s_extra}.pdf"
     with PdfPages(pdf_name) as pdf:
         for cfgs in tqdm(cfgs_to_plot, desc=f"Plotting MCMC runs for {variable}"):
             fig_ax = plot_multiple_ABM_simulations(cfgs, abm_files, variable)

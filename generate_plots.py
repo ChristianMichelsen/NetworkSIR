@@ -13,6 +13,7 @@ from src import plot
 from src import file_loaders
 from src import rc_params
 from src import fits
+from src import database
 
 rc_params.set_rc_params(dpi=100)
 num_cores_max = 30
@@ -28,6 +29,9 @@ reload(file_loaders)
 
 abm_files = file_loaders.ABM_simulations(verbose=True)
 N_files = len(abm_files)
+
+
+x = x
 
 #%%
 plot.plot_ABM_simulations(abm_files, force_rerun=force_rerun)
@@ -176,23 +180,34 @@ if False:
 # %%
 
 reload(plot)
+reload(database)
+
 
 # plot MCMC results
 variable = "event_size_max"
 variable = "results_delay_in_clicks"
-# variable = "tracking_delay"
+extra_selections = {"tracking_rates": [1.0, 0.8, 0.0]}
 
-variable_subset = [
-    [20, 20, 20],
-    [30, 30, 30],
-]
+# variable_subset = [
+#     [20, 20, 20],
+#     [30, 30, 30],
+# ]
 
-N_max_figures = 3
+# N_max_figures = 1
 
 plot.make_MCMC_plots(
     variable,
     abm_files,
     # N_max_figures=N_max_figures,
     # variable_subset=variable_subset,
+    extra_selections=extra_selections,
+)
+
+
+# plot MCMC results
+plot.make_MCMC_plots(
+    variable="tracking_rates",
+    abm_files=abm_files,
+    extra_selections={"results_delay_in_clicks": [20, 20, 20]},
 )
 # %%
