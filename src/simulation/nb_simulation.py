@@ -45,6 +45,7 @@ spec_cfg = {
     "beta_connection_type": nb.float32[:],
     "algo": nb.uint8,
     "N_init": nb.uint16,
+    "N_init_English": nb.uint16,
     "lambda_E": nb.float32,
     "lambda_I": nb.float32,
     # other
@@ -55,6 +56,7 @@ spec_cfg = {
     "clustering_connection_retries": nb.uint32,
     "work_other_ratio": nb.float32,  # 0.2 = 20% work, 80% other
     "N_contacts_max": nb.uint16,
+    "beta_UK_multiplier": nb.float32,
     # events
     "N_events": nb.uint16,
     "event_size_max": nb.uint16,
@@ -95,6 +97,7 @@ class Config(object):
         self.sigma_beta = 0.0
         self.algo = 2
         self.N_init = 100
+        self.N_init_English = 0
         self.lambda_E = 1.0
         self.lambda_I = 1.0
 
@@ -106,6 +109,7 @@ class Config(object):
         self.clustering_connection_retries = 0
         self.work_other_ratio = 0.5
         self.N_contacts_max = 0
+        self.beta_UK_multiplier = 1.0
 
         # events
         self.N_events = 0
@@ -203,6 +207,7 @@ spec_my = {
     "tent": nb.uint16[:],
     "kommune": nb.uint8[:],
     "infectious_states": ListType(nb.int64),
+    "corona_type": nb.uint8[:],
     "cfg": nb_cfg_type,
 }
 
@@ -226,6 +231,7 @@ class My(object):
         self.tent = np.zeros(N_tot, dtype=np.uint16)
         self.kommune = np.zeros(N_tot, dtype=np.uint8)
         self.infectious_states = List([4, 5, 6, 7])
+        self.corona_type = np.zeros(N_tot, dtype=np.uint8)
         self.cfg = nb_cfg
 
     def dist(self, agent1, agent2):
@@ -961,6 +967,49 @@ def make_initial_infections(
 
         update_infection_list_for_newly_infected_agent(my, g, agent)
 
+    # English Corona Type
+
+    if my.cfg.N_init_English > 0:
+
+        rho_init_local_outbreak = 0.1
+
+        possible_agents_UK = np.arange(my.cfg.N_tot, dtype=np.uint32)
+        # this is where the outbreak starts
+        outbreak_agent_UK = single_random_choice(possible_agents_UK)
+
+        initial_agents_to_infect_UK = List()
+        initial_agents_to_infect_UK.append(outbreak_agent_UK)
+
+        while len(initial_agents_to_infect_UK) < my.cfg.N_init_English:
+            proposed_agent_UK = single_random_choice(possible_agents_UK)
+
+            if my.dist_accepted(outbreak_agent_UK, proposed_agent_UK, rho_init_local_outbreak):
+                if proposed_agent_UK not in initial_agents_to_infect_UK:
+                    if my.agent_is_susceptable(proposed_agent_UK):
+                        initial_agents_to_infect_UK.append(proposed_agent_UK)
+        initial_agents_to_infect_UK = np.asarray(initial_agents_to_infect_UK, dtype=np.uint32)
+
+        ##  Now make initial UK infections
+        for _, agent in enumerate(initial_agents_to_infect_UK):
+            new_state = np.random.randint(N_states - 1)  # E1-E4 or I1-I4, uniformly distributed
+            my.state[agent] = new_state
+            my.corona_type[agent] = 1  # IMPORTANT LINE!
+
+            agents_in_state[new_state].append(np.uint32(agent))
+            state_total_counts[new_state] += 1
+
+            g.total_sum_of_state_changes += SIR_transition_rates[new_state]
+            g.cumulative_sum_of_state_changes[new_state:] += SIR_transition_rates[new_state]
+
+            # Moves TO infectious State from non-infectious
+            if my.agent_is_infectious(agent):
+                for contact, rate in zip(my.connections[agent], g.rates[agent]):
+                    # update rates if contact is susceptible
+                    if my.agent_is_susceptable(contact):
+                        g.update_rates(my, +rate, agent)
+
+            update_infection_list_for_newly_infected_agent(my, g, agent)
+
     return None
 
 
@@ -1230,9 +1279,13 @@ def run_simulation(
 
             # Moves TO infectious State from non-infectious
             if my.state[agent] == N_infectious_states:
-                for contact, rate in zip(my.connections[agent], g.rates[agent]):
+                # for i, (contact, rate) in enumerate(zip(my.connections[agent], g.rates[agent])):
+                for i, contact in enumerate(my.connections[agent]):
                     # update rates if contact is susceptible
                     if my.agent_is_susceptable(contact):
+                        if my.corona_type[agent] == 1:
+                            g.rates[agent][i] *= my.cfg.beta_UK_multiplier
+                        rate = g.rates[agent][i]
                         g.update_rates(my, +rate, agent)
 
             # If this moves to Recovered state
@@ -1273,6 +1326,9 @@ def run_simulation(
                                     my.connections_type[agent][ith_contact]
                                 ] += 1
                                 my.state[contact] = 0
+
+                                my.corona_type[contact] = my.corona_type[agent]
+
                                 agents_in_state[0].append(np.uint32(contact))
                                 state_total_counts[0] += 1
                                 g.total_sum_of_state_changes += SIR_transition_rates[0]

@@ -25,37 +25,41 @@ MCMC: &MCMC { N_events: [randint, 1_000, 5_000],
 # define list of simulation_parameters to be simulated
 all_simulation_parameters:
 
-    # CHANGE IN results_delay_in_clicks
-
-    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [0.0, 0.0, 0]}
-    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.0, 0]}
-    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0]}
-
-    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0], results_delay_in_clicks: [0, 0, 0]}
-    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0], results_delay_in_clicks: [10, 10, 10]}
-    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0], results_delay_in_clicks: [20, 20, 20]}
-    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0], results_delay_in_clicks: [30, 30, 30]}
-
+    - {N_init: 200, N_init_English: 20, beta_UK_multiplier: [1.0, 1.3, 1.5, 1.7], beta: [0.006, 0.008, 0.010, 0.012], N_tot: 58_000}
+    - {N_init: 2_000, N_init_English: 200, beta_UK_multiplier: [1.0, 1.3, 1.5, 1.7], beta: [0.006, 0.008, 0.010, 0.012], N_tot: 580_000}
+    - {N_init: 20_000, N_init_English: 2000, beta_UK_multiplier: [1.0, 1.3, 1.5, 1.7], beta: [0.006, 0.008, 0.010, 0.012], N_tot: 5_800_000}
 
     # CHANGE IN results_delay_in_clicks
-    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.25], results_delay_in_clicks: [0, 0, 0]}
-    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.25], results_delay_in_clicks: [10, 10, 10]}
-    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.25], results_delay_in_clicks: [20, 20, 20]}
-    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.25], results_delay_in_clicks: [30, 30, 30]}
+
+    # - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [0.0, 0.0, 0]}
+    # - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.0, 0]}
+    # - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0]}
+
+    # - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0], results_delay_in_clicks: [0, 0, 0]}
+    # - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0], results_delay_in_clicks: [10, 10, 10]}
+    # - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0], results_delay_in_clicks: [20, 20, 20]}
+    # - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0], results_delay_in_clicks: [30, 30, 30]}
 
 
-    # CHANGE IN results_delay_in_clicks
-    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.5], results_delay_in_clicks: [0, 0, 0]}
-    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.5], results_delay_in_clicks: [10, 10, 10]}
-    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.5], results_delay_in_clicks: [20, 20, 20]}
-    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.5], results_delay_in_clicks: [30, 30, 30]}
+    # # CHANGE IN results_delay_in_clicks
+    # - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.25], results_delay_in_clicks: [0, 0, 0]}
+    # - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.25], results_delay_in_clicks: [10, 10, 10]}
+    # - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.25], results_delay_in_clicks: [20, 20, 20]}
+    # - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.25], results_delay_in_clicks: [30, 30, 30]}
 
 
-    # CHANGE IN results_delay_in_clicks
-    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.75], results_delay_in_clicks: [0, 0, 0]}
-    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.75], results_delay_in_clicks: [10, 10, 10]}
-    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.75], results_delay_in_clicks: [20, 20, 20]}
-    - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.75], results_delay_in_clicks: [30, 30, 30]}
+    # # CHANGE IN results_delay_in_clicks
+    # - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.5], results_delay_in_clicks: [0, 0, 0]}
+    # - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.5], results_delay_in_clicks: [10, 10, 10]}
+    # - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.5], results_delay_in_clicks: [20, 20, 20]}
+    # - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.5], results_delay_in_clicks: [30, 30, 30]}
+
+
+    # # CHANGE IN results_delay_in_clicks
+    # - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.75], results_delay_in_clicks: [0, 0, 0]}
+    # - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.75], results_delay_in_clicks: [10, 10, 10]}
+    # - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.75], results_delay_in_clicks: [20, 20, 20]}
+    # - {N_RS: 50, MCMC: *MCMC, day_max: 50, do_interventions: True, interventions_to_apply: [3, 4, 5, 6], tracking_rates: [1.0, 0.8, 0.75], results_delay_in_clicks: [30, 30, 30]}
 
 
   # - {N_tot: 5_800_000}

@@ -31,18 +31,20 @@ if utils.is_local_computer():
             # "make_random_initial_infections": True,
             # "weighted_random_initial_infections": True,
             # "test_delay_in_clicks": [0, 0, 25],
-            "results_delay_in_clicks": [[20, 20, 20]],
-            "tracking_delay": [0, 5, 10, 15, 20, 25, 30],
-            "weighted_random_initial_infections": True,
-            "do_interventions": True,
-            "interventions_to_apply": [[3, 4, 5, 6]],
+            # "results_delay_in_clicks": [[20, 20, 20]],
+            # "tracking_delay": [0, 5, 10, 15, 20, 25, 30],
+            # "weighted_random_initial_infections": True,
+            # "do_interventions": True,
+            # "interventions_to_apply": [[3, 4, 5, 6]],
             # "results_delay_in_clicks": [20, 20, 20],
             # "tracking_delay": 15
             # "N_contacts_max": 100,
             # "work_other_ratio": 0.5,
-            # "N_init": [100, 1000]
+            "N_init": [0],
+            "N_init_English": [100],
             # "rho": 0.1,
-            # "beta": [0.0015, 0.002],
+            "beta": [0.008, 0.010],
+            "beta_UK_multiplier": [1.0, 1.4, 1.7]
             # "make_initial_infections_at_kommune": True,
             # "N_events": 1000,
             # "mu": 20,
@@ -60,7 +62,7 @@ else:
 
 #%%
 
-N_runs = 2 if utils.is_local_computer() else N_runs
+N_runs = 1 if utils.is_local_computer() else N_runs
 
 N_files_total = 0
 

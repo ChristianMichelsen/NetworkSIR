@@ -22,6 +22,9 @@
   day_max: \mathrm{day}_\mathrm{max}
 
 
+  N_init_English:  N_\mathrm{init. UK.}
+  beta_UK_multiplier: \beta_\mathrm{UK}
+
   N_events: N_\mathrm{events}
   event_size_max: \mathrm{event}_{\mathrm{size}_\mathrm{max}}
   event_size_mean: \mathrm{event}_{\mathrm{size}_\mathrm{mean}}

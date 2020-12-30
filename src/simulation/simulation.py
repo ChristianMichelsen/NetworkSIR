@@ -1,3 +1,4 @@
+from re import X
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -594,3 +595,5 @@ if debugging:
         #         "ID": 0,
         #     }
         # )
+
+# %%
