@@ -967,7 +967,7 @@ def make_initial_infections(
 
         update_infection_list_for_newly_infected_agent(my, g, agent)
 
-    # English Corona Type
+    # English Corona Type TODO
 
     if my.cfg.N_init_English > 0:
 

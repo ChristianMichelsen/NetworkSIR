@@ -339,6 +339,7 @@ class Simulation:
 
         with h5py.File(filename_hdf5, "w", **hdf5_kwargs) as f:  #
             f.create_dataset("my_state", data=self.my_state)
+            f.create_dataset("my_corona_type", data=self.my.corona_type)
             f.create_dataset("my_number_of_contacts", data=self.my.number_of_contacts)
             f.create_dataset("day_found_infected", data=self.intervention.day_found_infected)
             # import ast; ast.literal_eval(str(cfg))
@@ -503,6 +504,9 @@ if debugging:
             "clustering_connection_retries": 0,
             "work_other_ratio": 0.5,
             "N_contacts_max": 200,
+            # English type
+            "N_init_English": 100,
+            "beta_UK_multiplier": 1.7,
             # contacts
             "N_events": 0,
             "event_size_max": 50,
@@ -510,7 +514,7 @@ if debugging:
             "event_beta_scaling": 5.0,
             "event_weekend_multiplier": 2.0,
             # lockdown / intervention
-            "do_interventions": True,
+            "do_interventions": False,
             "interventions_to_apply": [3, 4, 5, 6],
             "f_daily_tests": 0.01,
             "test_delay_in_clicks": [0, 0, 25],

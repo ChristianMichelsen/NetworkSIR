@@ -40,11 +40,11 @@ if utils.is_local_computer():
             # "tracking_delay": 15
             # "N_contacts_max": 100,
             # "work_other_ratio": 0.5,
-            "N_init": [0],
+            "N_init": [100],
             "N_init_English": [100],
             # "rho": 0.1,
-            "beta": [0.008, 0.010],
-            "beta_UK_multiplier": [1.0, 1.4, 1.7]
+            "beta": [0.008],
+            "beta_UK_multiplier": [1.0, 1.7]
             # "make_initial_infections_at_kommune": True,
             # "N_events": 1000,
             # "mu": 20,
@@ -62,7 +62,7 @@ else:
 
 #%%
 
-N_runs = 1 if utils.is_local_computer() else N_runs
+N_runs = 2 if utils.is_local_computer() else N_runs
 
 N_files_total = 0
 

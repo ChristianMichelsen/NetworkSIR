@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from numpy.core.numeric import True_
 import pandas as pd
 from tqdm import tqdm
 from pathlib import Path
@@ -18,9 +19,9 @@ from src import database
 rc_params.set_rc_params(dpi=100)
 num_cores_max = 30
 
-make_1D_scan = False
-force_rerun = False
-verbose = False
+make_1D_scan = True
+force_rerun = True
+verbose = True
 make_fits = False
 
 
@@ -32,55 +33,58 @@ reload(file_loaders)
 abm_files = file_loaders.ABM_simulations(verbose=True)
 N_files = len(abm_files)
 
-
 # x = x
 
 #%%
 plot.plot_ABM_simulations(abm_files, force_rerun=force_rerun)
 
-#%%
-
 x = x
+
+#%%
 
 reload(plot)
 
 parameters_1D_scan = [
-    dict(scan_parameter="event_size_max", non_default_parameters=dict(N_events=1)),
-    dict(scan_parameter="event_size_max", non_default_parameters=dict(N_events=10)),
-    dict(scan_parameter="event_size_max", non_default_parameters=dict(N_events=100)),
-    dict(scan_parameter="event_size_max", non_default_parameters=dict(N_events=1_000)),
-    dict(scan_parameter="event_size_max", non_default_parameters=dict(N_events=10_000)),
-    dict(scan_parameter="mu"),
-    dict(scan_parameter="beta", non_default_parameters=dict(rho=0.1)),
-    dict(scan_parameter="beta"),
-    dict(scan_parameter="beta", non_default_parameters=dict(sigma_beta=1)),
-    dict(scan_parameter="beta", non_default_parameters=dict(sigma_beta=1, rho=0.1)),
-    dict(scan_parameter="N_tot", do_log=True),
-    dict(scan_parameter="N_tot", do_log=True, non_default_parameters=dict(rho=0.1)),
-    dict(scan_parameter="N_init", do_log=True),
-    dict(scan_parameter="N_init", do_log=True, non_default_parameters=dict(rho=0.1)),
-    dict(scan_parameter="rho"),
-    dict(scan_parameter="rho", non_default_parameters=dict(epsilon_rho=0)),
-    dict(scan_parameter="rho", non_default_parameters=dict(epsilon_rho=0.02)),
-    dict(scan_parameter="rho", non_default_parameters=dict(beta=0.007)),
-    dict(scan_parameter="rho", non_default_parameters=dict(sigma_beta=1)),
-    dict(scan_parameter="rho", non_default_parameters=dict(sigma_mu=1)),
-    dict(scan_parameter="rho", non_default_parameters=dict(sigma_mu=1, sigma_beta=1)),
-    dict(scan_parameter="rho", non_default_parameters=dict(algo=1)),
-    dict(scan_parameter="rho", non_default_parameters=dict(N_tot=5_800_000)),
-    dict(scan_parameter="epsilon_rho"),
-    dict(scan_parameter="epsilon_rho", non_default_parameters=dict(rho=0.1)),
-    dict(scan_parameter="epsilon_rho", non_default_parameters=dict(rho=0.1, algo=1)),
-    dict(scan_parameter="sigma_beta"),
-    dict(scan_parameter="sigma_beta", non_default_parameters=dict(rho=0.1)),
-    dict(scan_parameter="sigma_beta", non_default_parameters=dict(sigma_mu=1)),
-    dict(scan_parameter="sigma_beta", non_default_parameters=dict(rho=0.1, sigma_mu=1)),
-    dict(scan_parameter="sigma_mu"),
-    dict(scan_parameter="sigma_mu", non_default_parameters=dict(rho=0.1)),
-    dict(scan_parameter="sigma_mu", non_default_parameters=dict(sigma_beta=1)),
-    dict(scan_parameter="sigma_mu", non_default_parameters=dict(rho=0.1, sigma_beta=1)),
-    dict(scan_parameter="lambda_E"),
-    dict(scan_parameter="lambda_I"),
+    # dict(scan_parameter="event_size_max", non_default_parameters=dict(N_events=1)),
+    # dict(scan_parameter="event_size_max", non_default_parameters=dict(N_events=10)),
+    # dict(scan_parameter="event_size_max", non_default_parameters=dict(N_events=100)),
+    # dict(scan_parameter="event_size_max", non_default_parameters=dict(N_events=1_000)),
+    # dict(scan_parameter="event_size_max", non_default_parameters=dict(N_events=10_000)),
+    # dict(scan_parameter="mu"),
+    # dict(scan_parameter="beta", non_default_parameters=dict(rho=0.1)),
+    # dict(scan_parameter="beta"),
+    # dict(scan_parameter="beta", non_default_parameters=dict(sigma_beta=1)),
+    # dict(scan_parameter="beta", non_default_parameters=dict(sigma_beta=1, rho=0.1)),
+    # dict(scan_parameter="N_tot", do_log=True),
+    # dict(scan_parameter="N_tot", do_log=True, non_default_parameters=dict(rho=0.1)),
+    # dict(scan_parameter="N_init", do_log=True),
+    # dict(scan_parameter="N_init", do_log=True, non_default_parameters=dict(rho=0.1)),
+    # dict(scan_parameter="rho"),
+    # dict(scan_parameter="rho", non_default_parameters=dict(epsilon_rho=0)),
+    # dict(scan_parameter="rho", non_default_parameters=dict(epsilon_rho=0.02)),
+    # dict(scan_parameter="rho", non_default_parameters=dict(beta=0.007)),
+    # dict(scan_parameter="rho", non_default_parameters=dict(sigma_beta=1)),
+    # dict(scan_parameter="rho", non_default_parameters=dict(sigma_mu=1)),
+    # dict(scan_parameter="rho", non_default_parameters=dict(sigma_mu=1, sigma_beta=1)),
+    # dict(scan_parameter="rho", non_default_parameters=dict(algo=1)),
+    # dict(scan_parameter="rho", non_default_parameters=dict(N_tot=5_800_000)),
+    # dict(scan_parameter="epsilon_rho"),
+    # dict(scan_parameter="epsilon_rho", non_default_parameters=dict(rho=0.1)),
+    # dict(scan_parameter="epsilon_rho", non_default_parameters=dict(rho=0.1, algo=1)),
+    # dict(scan_parameter="sigma_beta"),
+    # dict(scan_parameter="sigma_beta", non_default_parameters=dict(rho=0.1)),
+    # dict(scan_parameter="sigma_beta", non_default_parameters=dict(sigma_mu=1)),
+    # dict(scan_parameter="sigma_beta", non_default_parameters=dict(rho=0.1, sigma_mu=1)),
+    # dict(scan_parameter="sigma_mu"),
+    # dict(scan_parameter="sigma_mu", non_default_parameters=dict(rho=0.1)),
+    # dict(scan_parameter="sigma_mu", non_default_parameters=dict(sigma_beta=1)),
+    # dict(scan_parameter="sigma_mu", non_default_parameters=dict(rho=0.1, sigma_beta=1)),
+    # dict(scan_parameter="lambda_E"),
+    # dict(scan_parameter="lambda_I"),
+    dict(
+        scan_parameter="beta_UK_multiplier",
+        non_default_parameters=dict(N_init=2_000, N_init_English=200, beta=0.004),
+    ),
 ]
 
 # reload(plot)
@@ -120,15 +124,14 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 d_query = utils.DotDict(
     {
-        "mu": 20,
-        "beta": 0.012,
+        "beta": 0.004,
     },
 )
 
 cfgs = utils.query_cfg(d_query)
-cfgs.sort(key=lambda cfg: cfg["N_events"])
+cfgs.sort(key=lambda cfg: cfg["beta_UK_multiplier"])
 
-pdf_name = Path(f"Figures/ABM_simulations_events.pdf")
+pdf_name = Path(f"Figures/ABM_simulations_UK.pdf")
 utils.make_sure_folder_exist(pdf_name)
 with PdfPages(pdf_name) as pdf:
     for cfg in tqdm(cfgs, desc="Plotting only events"):
