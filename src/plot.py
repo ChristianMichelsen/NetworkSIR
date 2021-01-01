@@ -269,23 +269,23 @@ def plot_ABM_simulations(abm_files, force_rerun=False, plot_found_vs_real_inf=Fa
 
     with PdfPages(pdf_name) as pdf:
 
-        # # for ABM_parameter in tqdm(abm_files.keys, desc="Plotting individual ABM parameters"):
-        # for cfg in tqdm(
-        #     abm_files.iter_cfgs(),
-        #     desc="Plotting individual ABM parameters",
-        #     total=len(abm_files.cfgs),
-        # ):
+        # for ABM_parameter in tqdm(abm_files.keys, desc="Plotting individual ABM parameters"):
+        for cfg in tqdm(
+            abm_files.iter_cfgs(),
+            desc="Plotting individual ABM parameters",
+            total=len(abm_files.cfgs),
+        ):
 
-        #     break
-        if plot_found_vs_real_inf:
-            fig_ax = plot_single_ABM_simulation_test_focus(cfg, abm_files)
-        else:
-            fig_ax = plot_single_ABM_simulation(cfg, abm_files)
+            #     break
+            if plot_found_vs_real_inf:
+                fig_ax = plot_single_ABM_simulation_test_focus(cfg, abm_files)
+            else:
+                fig_ax = plot_single_ABM_simulation(cfg, abm_files)
 
-        if fig_ax is not None:
-            fig, ax = fig_ax
-            pdf.savefig(fig, dpi=100)
-        plt.close("all")
+            if fig_ax is not None:
+                fig, ax = fig_ax
+                pdf.savefig(fig, dpi=100)
+            plt.close("all")
 
 
 # %%
@@ -1558,7 +1558,8 @@ def _load_corona_type_data(filename):
 
 
 def get_I_corona_type(my_state, my_corona_type, corona_type):
-    return ((my_state >= 0) & (my_state < 8) & (my_corona_type == corona_type)).sum(axis=1)
+    # getting I states that also has specified corona_type
+    return ((my_state >= 4) & (my_state < 8) & (my_corona_type == corona_type)).sum(axis=1)
 
 
 xlim = (0, None)

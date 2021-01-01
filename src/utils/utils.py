@@ -719,6 +719,8 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True, remove_rates=True
         cfg.event_size_max = human_format(cfg.event_size_max)
     if "hash" in cfg:
         cfg.hash = r"\mathrm{" + str(cfg.hash) + r"}"
+    if "outbreak_position_UK" in cfg:
+        cfg.outbreak_position_UK = r"\mathrm{" + str(cfg.outbreak_position_UK) + r"}"
 
     # parameter_to_latex = get_parameter_to_latex()
     parameter_to_latex = load_yaml("cfg/parameter_to_latex.yaml")
