@@ -505,7 +505,7 @@ if debugging:
             "work_other_ratio": 0.5,
             "N_contacts_max": 200,
             # English type
-            "N_init_English": 100,
+            "N_init_UK": 100,
             "beta_UK_multiplier": 1.7,
             # contacts
             "N_events": 0,
@@ -530,7 +530,7 @@ if debugging:
         }
     )
 
-    if __name__ == "__main__" and True:
+    if __name__ == "__main__" and False:
         with Timer() as t:
             simulation = Simulation(cfg, verbose)
             simulation.initialize_network(

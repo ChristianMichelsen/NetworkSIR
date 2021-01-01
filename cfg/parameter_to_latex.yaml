@@ -22,7 +22,7 @@
   day_max: \mathrm{day}_\mathrm{max}
 
 
-  N_init_English:  N_\mathrm{init. UK.}
+  N_init_UK:  N_\mathrm{init. UK.}
   beta_UK_multiplier: \beta_\mathrm{UK}
 
   N_events: N_\mathrm{events}

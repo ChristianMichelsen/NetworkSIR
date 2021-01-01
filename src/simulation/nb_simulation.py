@@ -45,7 +45,7 @@ spec_cfg = {
     "beta_connection_type": nb.float32[:],
     "algo": nb.uint8,
     "N_init": nb.uint16,
-    "N_init_English": nb.uint16,
+    "N_init_UK": nb.uint16,
     "lambda_E": nb.float32,
     "lambda_I": nb.float32,
     # other
@@ -57,6 +57,7 @@ spec_cfg = {
     "work_other_ratio": nb.float32,  # 0.2 = 20% work, 80% other
     "N_contacts_max": nb.uint16,
     "beta_UK_multiplier": nb.float32,
+    "outbreak_position_UK": nb.types.unicode_type,
     # events
     "N_events": nb.uint16,
     "event_size_max": nb.uint16,
@@ -97,7 +98,7 @@ class Config(object):
         self.sigma_beta = 0.0
         self.algo = 2
         self.N_init = 100
-        self.N_init_English = 0
+        self.N_init_UK = 0
         self.lambda_E = 1.0
         self.lambda_I = 1.0
 
@@ -239,8 +240,17 @@ class My(object):
         point2 = self.coordinates[agent2]
         return utils.haversine_scipy(point1, point2)
 
+    def dist_coordinate(self, agent, coordinate):
+        return utils.haversine_scipy(self.coordinates[agent], coordinate[::-1])
+
     def dist_accepted(self, agent1, agent2, rho_tmp):
         if np.exp(-self.dist(agent1, agent2) * rho_tmp) > np.random.rand():
+            return True
+        else:
+            return False
+
+    def dist_accepted_coordinate(self, agent, coordinate, rho_tmp):
+        if np.exp(-self.dist_coordinate(agent, coordinate) * rho_tmp) > np.random.rand():
             return True
         else:
             return False
@@ -922,6 +932,18 @@ def compute_initial_agents_to_infect_from_kommune(
 
 
 @njit
+def find_outbreak_agent(my, possible_agents, coordinate, rho, max_tries=10_000):
+    counter = 0
+    while True:
+        outbreak_agent = single_random_choice(possible_agents)
+        if my.dist_accepted_coordinate(outbreak_agent, coordinate, rho):
+            return outbreak_agent
+        counter += 1
+        if counter >= max_tries:
+            raise AssertionError("Couldn't find any outbreak agent!")
+
+
+@njit
 def make_initial_infections(
     my,
     g,
@@ -969,18 +991,49 @@ def make_initial_infections(
 
     # English Corona Type TODO
 
-    if my.cfg.N_init_English > 0:
+    if my.cfg.N_init_UK > 0:
 
         rho_init_local_outbreak = 0.1
 
         possible_agents_UK = np.arange(my.cfg.N_tot, dtype=np.uint32)
+
         # this is where the outbreak starts
-        outbreak_agent_UK = single_random_choice(possible_agents_UK)
+
+        if my.cfg.outbreak_position_UK.lower() == "københavn":
+            coordinate = (55.67594, 12.56553)
+
+            outbreak_agent_UK = find_outbreak_agent(
+                my,
+                possible_agents_UK,
+                coordinate,
+                rho_init_local_outbreak,
+                max_tries=10_000,
+            )
+
+            # print("København", outbreak_agent_UK, my.coordinates[outbreak_agent_UK])
+
+        elif my.cfg.outbreak_position_UK.lower() == "nordjylland":
+            coordinate = (57.36085, 10.09901)  # "Vendsyssel" på Google Maps
+
+            outbreak_agent_UK = find_outbreak_agent(
+                my,
+                possible_agents_UK,
+                coordinate,
+                rho_init_local_outbreak,
+                max_tries=10_000,
+            )
+            # print("nordjylland", outbreak_agent_UK, my.coordinates[outbreak_agent_UK])
+
+        # elif "," in my.cfg.outbreak_position_UK:
+        # pass
+        else:
+            outbreak_agent_UK = single_random_choice(possible_agents_UK)
+            # print("random", outbreak_agent_UK, my.coordinates[outbreak_agent_UK])
 
         initial_agents_to_infect_UK = List()
         initial_agents_to_infect_UK.append(outbreak_agent_UK)
 
-        while len(initial_agents_to_infect_UK) < my.cfg.N_init_English:
+        while len(initial_agents_to_infect_UK) < my.cfg.N_init_UK:
             proposed_agent_UK = single_random_choice(possible_agents_UK)
 
             if my.dist_accepted(outbreak_agent_UK, proposed_agent_UK, rho_init_local_outbreak):

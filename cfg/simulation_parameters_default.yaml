@@ -25,9 +25,9 @@ work_other_ratio: 0.5 # 0.2 = 20% work, 80% other
 N_contacts_max: 0 # maximum number of contacts
 
 # english type corona
-N_init_English: 0
+N_init_UK: 0
 beta_UK_multiplier: 1.7
-# corona_type: 0 # 0 = standard, 1 = UK (infection rate 70% higher)
+outbreak_position_UK: random
 
 
 # event-related variables

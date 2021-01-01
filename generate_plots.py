@@ -33,7 +33,13 @@ reload(file_loaders)
 abm_files = file_loaders.ABM_simulations(verbose=True)
 N_files = len(abm_files)
 
-# x = x
+#%%
+
+reload(plot)
+
+network_files = file_loaders.ABM_simulations(base_dir="Data/network", filetype="hdf5")
+plot.plot_corona_type(network_files, force_rerun=True, xlim=(0, 200))
+
 
 #%%
 plot.plot_ABM_simulations(abm_files, force_rerun=force_rerun)
@@ -83,7 +89,7 @@ parameters_1D_scan = [
     # dict(scan_parameter="lambda_I"),
     dict(
         scan_parameter="beta_UK_multiplier",
-        non_default_parameters=dict(N_init=2_000, N_init_English=200, beta=0.004),
+        non_default_parameters=dict(N_init=2_000, N_init_UK=200, beta=0.004),
     ),
 ]
 
@@ -279,4 +285,15 @@ plot.make_MCMC_plots(
     index_in_list_to_sortby=-1,
     reverse_order=False,
 )
+# %%
+
+reload(plot)
+
+network_files = file_loaders.ABM_simulations(base_dir="Data/network", filetype="hdf5")
+# for cfg in network_files.iter_cfgs():
+#     fig, axes = plot.plot_corona_type_single_plot(cfg, network_files)
+
+
+plot.plot_corona_type_single_plot(network_files, force_rerun=False)
+
 # %%
