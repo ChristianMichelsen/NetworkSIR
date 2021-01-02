@@ -33,18 +33,27 @@ reload(file_loaders)
 abm_files = file_loaders.ABM_simulations(verbose=True)
 N_files = len(abm_files)
 
+# x = x
+
 #%%
 
 reload(plot)
 
 network_files = file_loaders.ABM_simulations(base_dir="Data/network", filetype="hdf5")
-plot.plot_corona_type(network_files, force_rerun=force_rerun)
+plot.plot_corona_type_ratio_plot(network_files, force_rerun=force_rerun, xlim=(10, 100))
+plot.plot_corona_type(network_files, force_rerun=force_rerun, xlim=(10, 100))
 
 
 #%%
+
+
 plot.plot_ABM_simulations(abm_files, force_rerun=force_rerun)
 
 x = x
+
+
+# for cfg in network_files.iter_cfgs():
+#     break
 
 #%%
 
