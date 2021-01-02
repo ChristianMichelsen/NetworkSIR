@@ -16,7 +16,7 @@ num_cores_max = 45
 N_runs = 10
 
 dry_run = False
-force_rerun = False
+force_rerun = True
 verbose = True
 
 #%%
@@ -27,7 +27,7 @@ if utils.is_local_computer():
     all_simulation_parameters = [
         {
             # "N_tot": 58_000,
-            "N_tot": 58_000,
+            "N_tot": 580_000,
             # "make_random_initial_infections": True,
             # "weighted_random_initial_infections": True,
             # "test_delay_in_clicks": [0, 0, 25],
@@ -40,12 +40,12 @@ if utils.is_local_computer():
             # "tracking_delay": 15
             # "N_contacts_max": 100,
             # "work_other_ratio": 0.5,
-            "N_init": [100],
-            "N_init_UK": [100],
+            "N_init": [4000],
+            "N_init_UK": [50],
             # "rho": 0.1,
-            "beta": [0.010],
+            "beta": [0.004],
             "beta_UK_multiplier": [1.7],
-            "outbreak_position_UK": ["København", "Nordjylland", "random"],
+            "outbreak_position_UK": ["københavn", "nordjylland"],
             # "make_initial_infections_at_kommune": True,
             # "N_events": 1000,
             # "mu": 20,
@@ -63,7 +63,7 @@ else:
 
 #%%
 
-N_runs = 2 if utils.is_local_computer() else N_runs
+N_runs = 1 if utils.is_local_computer() else N_runs
 
 N_files_total = 0
 

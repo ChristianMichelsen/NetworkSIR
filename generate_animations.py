@@ -139,16 +139,18 @@ class AnimationBase:
 
             # self.coordinate_indices = f["coordinate_indices"][()]
             self.df_raw = pd.DataFrame(f["df"][()])
-            self.df_coordinates = pd.DataFrame(f["df_coordinates"][()])  # .drop("index", axis=1)
+            # self.df_coordinates = pd.DataFrame(f["df_coordinates"][()])  # .drop("index", axis=1)
+            self.coordinates = f["coordinates"][()]
             self.my_state = f["my_state"][()]
             self.my_number_of_contacts = f["my_number_of_contacts"][()]
+            self.my_corona_type = f["my_corona_type"][()]
 
             # g = awkward.hdf5(f)
             # g["my_connections"]
             # g["my_rates"]
 
         # self.df_coordinates = utils.load_coordinates_from_indices(self.coordinate_indices)
-        self.coordinates = utils.df_coordinates_to_coordinates(self.df_coordinates)
+        # self.coordinates = utils.df_coordinates_to_coordinates(self.df_coordinates)
 
     def _load_hdf5_file(self):
         try:
@@ -385,7 +387,15 @@ def get_inverse_mapping(mapping):
 
 
 class AnimateSIR(AnimationBase):
-    def __init__(self, filename, do_tqdm=False, verbose=False, N_max=None, df_counts=None):
+    def __init__(
+        self,
+        filename,
+        do_tqdm=False,
+        verbose=False,
+        N_max=None,
+        df_counts=None,
+        split_corona_types=False,
+    ):
         super().__init__(
             filename,
             animation_type="animation",
@@ -411,13 +421,15 @@ class AnimateSIR(AnimationBase):
         self.df_counts = df_counts
         self.__name__ = "AnimateSIR"
         self._initialize_plot()
+        self.split_corona_types = split_corona_types
 
     def _initialize_plot(self):
 
-        self.colors = ["#7F7F7F", "#D62728", "#2CA02C"]
+        # self.colors = ["#7F7F7F", "#D62728", "#2CA02C"]
         self.d_colors = {
             "S": "#7F7F7F",
             "I": "#D62728",
+            "I_UK": "#135DD8",
             "R": "#2CA02C",
         }  # orangy red: #D66727, normal red: #D62728
 
@@ -429,10 +441,11 @@ class AnimateSIR(AnimationBase):
         self.f_norm = lambda x: ImageNormalize(vmin=0.0, vmax=x * factor, stretch=LogStretch())
 
         # self.states = ['S', 'E', 'I', 'R']
-        self.states = ["S", "I", "R"]
+        self.states = ["S", "I", "I_UK", "R"]
         self.state_names = {
             "S": "Susceptable",
             "I": r"Infected $\&$ Exposed",
+            "I_UK": r"I $\&$ E UK",
             "R": "Recovered",
         }
 
@@ -446,6 +459,7 @@ class AnimateSIR(AnimationBase):
         self._geo_plot_kwargs["S"] = dict(alpha=0.2, norm=self.norm_1000)
         self._geo_plot_kwargs["R"] = dict(alpha=0.3, norm=self.norm_100)
         self._geo_plot_kwargs["I"] = dict(norm=self.norm_10)
+        self._geo_plot_kwargs["I_UK"] = dict(norm=self.norm_10)
 
     def _initialize_data(self):
 
@@ -504,8 +518,19 @@ class AnimateSIR(AnimationBase):
         df_R_eff = pd.DataFrame({"t": x_interpolated, "R_eff": y_interpolated})
         return df_R_eff
 
-    def _get_mask(self, i_day, state):
-        return np.isin(self.my_state[i_day], self.inverse_mapping[state])
+    def _get_mask(self, i_day, state, split_corona_types=False):
+        # mask = np.isin(self.my_state[i_day], self.inverse_mapping[state])
+
+        if split_corona_types and "I" in state:
+            mask = np.isin(self.my_state[i_day], self.inverse_mapping["I"])
+            if state == "I_UK":
+                return mask & (self.my_corona_type == 1)
+            elif state == "I":
+                return mask & (self.my_corona_type == 0)
+            else:
+                pass
+        else:
+            return np.isin(self.my_state[i_day], self.inverse_mapping[state])
 
     def _plot_i_day(self, i_day, dpi=50, include_Bornholm=True):
 
@@ -515,13 +540,19 @@ class AnimateSIR(AnimationBase):
         ax = fig.add_subplot(1, 1, 1, projection="scatter_density")
 
         for state in self.states:
-            if self.df_counts.loc[i_day, state] > 0:
-                ax.scatter_density(
-                    *self.coordinates[self._get_mask(i_day, state)].T,
-                    color=self.d_colors[state],
-                    dpi=dpi,
-                    **self._geo_plot_kwargs[state],
-                )
+            if state in self.df_counts.columns and self.df_counts.loc[i_day, state] == 0:
+                continue
+
+            mask = self._get_mask(i_day, state, self.split_corona_types)
+            if mask.sum() == 0:
+                continue
+
+            ax.scatter_density(
+                *self.coordinates[mask].T,
+                color=self.d_colors[state],
+                dpi=dpi,
+                **self._geo_plot_kwargs[state],
+            )
 
         if include_Bornholm:
             ax.set(xlim=(7.9, 15.3), ylim=(54.5, 58.2))
@@ -543,7 +574,9 @@ class AnimateSIR(AnimationBase):
         ax.legend(handles=circles, loc="upper left", fontsize=34, frameon=False)
 
         s_legend = [
-            utils.human_format(self.df_counts.loc[i_day, state], digits=1) for state in self.states
+            utils.human_format(self.df_counts.loc[i_day, state], digits=1)
+            for state in self.states
+            if "UK" not in state
         ]
         delta_s = 0.0261
         for i, s in enumerate(s_legend):
@@ -575,7 +608,7 @@ class AnimateSIR(AnimationBase):
         # secondary plots:
 
         # These are in unitless percentage of the figure size. (0,0 is bottom left)
-        left, bottom, width, height = [0.56, 0.75, 0.39 * 0.8, 0.08 * 0.8]
+        left, bottom, width, height = [0.58, 0.75, 0.38 * 0.8, 0.08 * 0.8]
 
         background_box = [(0.49, 0.60), 0.49, 0.35]
         ax.add_patch(
@@ -703,7 +736,7 @@ class AnimateSIR(AnimationBase):
             frameon=False,
             size_vertical=0.003,
             fontproperties=fontprops,
-            bbox_to_anchor=Bbox.from_bounds(8, 57.8, 0, 0),
+            bbox_to_anchor=Bbox.from_bounds(8, 57.4, 0, 0),
             # bbox_to_anchor=Bbox.from_bounds(9.3, 57.89, 0, 0), # NORDJYLLAND
             bbox_transform=ax.transData,
         )
@@ -1166,6 +1199,7 @@ def animate_file(
     make_gif=True,
     optimize_gif=True,
     animate_kommuner=False,
+    # **kwargs,
 ):
 
     animation = AnimateSIR(filename, do_tqdm=do_tqdm, verbose=verbose)
@@ -1175,6 +1209,7 @@ def animate_file(
         make_gif=make_gif,
         optimize_gif=optimize_gif,
         dpi=dpi,
+        # **kwargs,
     )
 
     if animate_kommuner:
@@ -1184,6 +1219,7 @@ def animate_file(
             force_rerun=force_rerun,
             make_gif=False,
             normalize_legend=False,  # TODO: Set to True normally
+            # **kwargs,
         )
 
 
@@ -1196,8 +1232,8 @@ num_cores = utils.get_num_cores(num_cores_max)
 
 network_files = file_loaders.ABM_simulations(base_dir="Data/network", filetype="hdf5")
 # print("Only keeping animations with ID_0 for now")
-# filenames = [filename for filename in network_files.iter_all_files() if "ID__0" in filename]
-filenames = [filename for filename in network_files.iter_all_files()]
+filenames = [filename for filename in network_files.iter_all_files() if "ID__0" in filename]
+# filenames = [filename for filename in network_files.iter_all_files()]
 
 
 N_files = len(filenames)
@@ -1206,12 +1242,30 @@ N_files = len(filenames)
 if N_files <= 1:
     num_cores = 1
 
-kwargs = dict(
-    do_tqdm=True,
-    verbose=True,
-    force_rerun=False,
-)
+kwargs = dict(do_tqdm=True, verbose=True, force_rerun=False, N_max=100)
 
+x = x
+
+
+#%%
+
+filename = filenames[0]
+
+for filename in filenames:
+
+    animation = AnimateSIR(filename, do_tqdm=True, verbose=True, N_max=100, split_corona_types=True)
+
+    animation.make_animation(
+        remove_frames=True,
+        force_rerun=True,
+        make_gif=False,
+        optimize_gif=False,
+        dpi=50,
+        include_Bornholm=False,
+    )
+
+
+x = x
 
 #%%
 
@@ -1253,22 +1307,22 @@ if __name__ == "__main__":
         print("\n\nFinished generating animations!")
 
 
-from pympler.asizeof import asizeof
-from pympler import summary
-from pympler import muppy
-from pympler import tracker
+# from pympler.asizeof import asizeof
+# from pympler import summary
+# from pympler import muppy
+# from pympler import tracker
 
 
-def get_size(obj):
-    "returns size i MiB"
-    return asizeof(obj) / 2 ** 20
+# def get_size(obj):
+#     "returns size i MiB"
+#     return asizeof(obj) / 2 ** 20
 
 
-def print_size(animation, min_size=None):
-    print(f"animation = {get_size(animation):.1f} MiB")
-    for key, val in animation.__dict__.items():
-        if min_size is None or get_size(val) > min_size:
-            print(f"{key} = {get_size(val):.1f} MiB")
+# def print_size(animation, min_size=None):
+#     print(f"animation = {get_size(animation):.1f} MiB")
+#     for key, val in animation.__dict__.items():
+#         if min_size is None or get_size(val) > min_size:
+#             print(f"{key} = {get_size(val):.1f} MiB")
 
 
 if False:
@@ -1311,5 +1365,3 @@ if False:
 
 
 #%%
-
-

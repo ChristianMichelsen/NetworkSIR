@@ -1040,6 +1040,7 @@ def make_initial_infections(
                 if proposed_agent_UK not in initial_agents_to_infect_UK:
                     if my.agent_is_susceptable(proposed_agent_UK):
                         initial_agents_to_infect_UK.append(proposed_agent_UK)
+
         initial_agents_to_infect_UK = np.asarray(initial_agents_to_infect_UK, dtype=np.uint32)
 
         ##  Now make initial UK infections

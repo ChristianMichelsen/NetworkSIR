@@ -153,17 +153,17 @@ class Simulation:
             f.create_dataset("N_ages", data=self.N_ages)
             self._add_cfg_to_hdf5_file(f)
 
-    def _load_initialized_network(self, filename):
-        if self.verbose:
-            print(f"Loading previously initialized network, please wait", flush=True)
-        with h5py.File(filename, "r") as f:
-            self.agents_in_age_group = utils.NestedArray.from_hdf5(
-                f, "agents_in_age_group"
-            ).to_nested_numba_lists()
-            self.N_ages = f["N_ages"][()]
-            my_hdf5ready = nb_load_jitclass.load_jitclass_to_dict(f["my"])
-            self.my = nb_load_jitclass.load_My_from_dict(my_hdf5ready, self.cfg)
-        self.df_coordinates = utils.load_df_coordinates(self.N_tot, self.cfg.ID)
+    # def _load_initialized_network(self, filename):
+    #     if self.verbose:
+    #         print(f"Loading previously initialized network, please wait", flush=True)
+    #     with h5py.File(filename, "r") as f:
+    #         self.agents_in_age_group = utils.NestedArray.from_hdf5(
+    #             f, "agents_in_age_group"
+    #         ).to_nested_numba_lists()
+    #         self.N_ages = f["N_ages"][()]
+    #         my_hdf5ready = nb_load_jitclass.load_jitclass_to_dict(f["my"])
+    #         self.my = nb_load_jitclass.load_My_from_dict(my_hdf5ready, self.cfg)
+    #     self.df_coordinates = utils.load_df_coordinates(self.N_tot, self.cfg.ID)
 
     def initialize_network(
         self, force_rerun=False, save_initial_network=True, force_load_initial_network=False
@@ -342,13 +342,14 @@ class Simulation:
             f.create_dataset("my_corona_type", data=self.my.corona_type)
             f.create_dataset("my_number_of_contacts", data=self.my.number_of_contacts)
             f.create_dataset("day_found_infected", data=self.intervention.day_found_infected)
+            f.create_dataset("coordinates", data=self.my.coordinates)
             # import ast; ast.literal_eval(str(cfg))
             f.create_dataset("cfg_str", data=str(self.cfg))
             f.create_dataset("df", data=utils.dataframe_to_hdf5_format(self.df))
-            f.create_dataset(
-                "df_coordinates",
-                data=utils.dataframe_to_hdf5_format(self.df_coordinates, cols_to_str="kommune"),
-            )
+            # f.create_dataset(
+            #     "df_coordinates",
+            #     data=utils.dataframe_to_hdf5_format(self.df_coordinates, cols_to_str="kommune"),
+            # )
 
             if time_elapsed:
                 f.create_dataset("time_elapsed", data=time_elapsed)
@@ -531,6 +532,7 @@ if debugging:
     )
 
     if __name__ == "__main__" and False:
+
         with Timer() as t:
             simulation = Simulation(cfg, verbose)
             simulation.initialize_network(
@@ -548,6 +550,9 @@ if debugging:
 
         my = simulation.my
         df_coordinates = simulation.df_coordinates
+
+        my.coordinates
+
         intervention = simulation.intervention
         g = simulation.g
 
