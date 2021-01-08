@@ -102,6 +102,7 @@ def plot_single_ABM_simulation(
 
     T_max = 0
     lw = 0.3 * 10 / np.sqrt(len(filenames))
+    lw_SEIR = 4
 
     stochastic_noise_I = []
     stochastic_noise_R = []
@@ -129,13 +130,13 @@ def plot_single_ABM_simulation(
         ax.plot(
             df_deterministic["time"],
             df_deterministic[variable] / N_tot,
-            lw=lw * 4,
+            lw=lw_SEIR,
             color=d_colors["red"],
             label="SEIR",
         )
         leg = ax.legend(loc=d_label_loc[variable], fontsize=legend_fontsize)
         for legobj in leg.legendHandles:
-            legobj.set_linewidth(lw * 4)
+            legobj.set_linewidth(lw_SEIR)
 
         ax.set(
             xlabel="Time [days]",
@@ -252,7 +253,7 @@ def plot_single_ABM_simulation_test_focus(
     return fig, ax
 
 
-def plot_ABM_simulations(abm_files, force_rerun=False, plot_found_vs_real_inf=False):
+def plot_ABM_simulations(abm_files, force_rerun=False, plot_found_vs_real_inf=False, **kwargs):
 
     # pdf_name = "test.pdf"
     pdf_name = Path(f"Figures/ABM_simulations.pdf")
@@ -280,7 +281,7 @@ def plot_ABM_simulations(abm_files, force_rerun=False, plot_found_vs_real_inf=Fa
             if plot_found_vs_real_inf:
                 fig_ax = plot_single_ABM_simulation_test_focus(cfg, abm_files)
             else:
-                fig_ax = plot_single_ABM_simulation(cfg, abm_files)
+                fig_ax = plot_single_ABM_simulation(cfg, abm_files, **kwargs)
 
             if fig_ax is not None:
                 fig, ax = fig_ax
@@ -1752,7 +1753,7 @@ def plot_corona_type_ratio_plot_single_plot(
 
         ax.set(
             xlabel="Time [days]",
-            ylim=(0, None) if variable == 'I' else None,
+            ylim=(0, None) if variable == "I" else None,
             ylabel=d_ylabel[variable],
             xlim=xlim,
         )

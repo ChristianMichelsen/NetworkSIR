@@ -12,7 +12,7 @@ from contexttimer import Timer
 
 N_tot_max = False
 
-num_cores_max = 45
+num_cores_max = 40
 N_runs = 10
 
 dry_run = False
@@ -26,8 +26,8 @@ if utils.is_local_computer():
 
     all_simulation_parameters = [
         {
-            # "N_tot": 58_000,
             "N_tot": 580_000,
+            # "N_tot": [58_000],
             # "make_random_initial_infections": True,
             # "weighted_random_initial_infections": True,
             # "test_delay_in_clicks": [0, 0, 25],
@@ -41,11 +41,17 @@ if utils.is_local_computer():
             # "N_contacts_max": 100,
             # "work_other_ratio": 0.5,
             "N_init": [4000],
+            # "N_init": [1000],
             "N_init_UK": [50],
+            "work_other_ratio": 0.95,  # "algo 1"
             # "rho": 0.1,
-            "beta": [0.004],
+            # "beta": [0.004],
+            "beta": [0.010],
+            # "beta": [0.016, 0.018],
             "beta_UK_multiplier": [1.7],
-            "outbreak_position_UK": ["københavn", "nordjylland"],
+            # "outbreak_position_UK": ["københavn", "nordjylland"],
+            "outbreak_position_UK": ["københavn"],
+            "N_daily_vaccinations": [0, int(10_000 / 5.8e6 * 580_000)],
             # "make_initial_infections_at_kommune": True,
             # "N_events": 1000,
             # "mu": 20,
@@ -63,7 +69,7 @@ else:
 
 #%%
 
-N_runs = 1 if utils.is_local_computer() else N_runs
+N_runs = 2 if utils.is_local_computer() else N_runs
 
 N_files_total = 0
 
@@ -90,6 +96,7 @@ with Timer() as t:
             force_rerun=force_rerun,
             dry_run=dry_run,
             save_csv=True,
+            save_initial_network=False,
         )
 
         N_files_total += N_files

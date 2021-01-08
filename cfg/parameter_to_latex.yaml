@@ -26,6 +26,8 @@
   beta_UK_multiplier: \beta_\mathrm{UK}
   outbreak_position_UK: \mathrm{outbreak}_\mathrm{UK}
 
+  N_daily_vaccinations: \mathrm{N}_\mathrm{vaccinations}
+
   N_events: N_\mathrm{events}
   event_size_max: \mathrm{event}_{\mathrm{size}_\mathrm{max}}
   event_size_mean: \mathrm{event}_{\mathrm{size}_\mathrm{mean}}

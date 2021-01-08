@@ -118,7 +118,7 @@ class ABM_simulations:
         self.filetype = filetype
         self.verbose = verbose
         if verbose:
-            print("Initializing ABM_simulations")
+            print("Initializing ABM_simulations \n", flush=True)
         self.all_filenames = get_all_ABM_filenames(base_dir, filetype)
         self.all_folders = get_all_ABM_folders(self.all_filenames)
         self.cfgs = get_cfgs(self.all_folders)

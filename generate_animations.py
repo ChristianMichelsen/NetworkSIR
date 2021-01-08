@@ -19,7 +19,7 @@ from src import animation_utils
 from src import file_loaders
 
 rc_params.set_rc_params(dpi=50)  #
-num_cores_max = 1
+num_cores_max = 40
 
 #%%
 
@@ -420,8 +420,8 @@ class AnimateSIR(AnimationBase):
 
         self.df_counts = df_counts
         self.__name__ = "AnimateSIR"
-        self._initialize_plot()
         self.split_corona_types = split_corona_types
+        self._initialize_plot()
 
     def _initialize_plot(self):
 
@@ -441,7 +441,11 @@ class AnimateSIR(AnimationBase):
         self.f_norm = lambda x: ImageNormalize(vmin=0.0, vmax=x * factor, stretch=LogStretch())
 
         # self.states = ['S', 'E', 'I', 'R']
-        self.states = ["S", "I", "I_UK", "R"]
+        if self.split_corona_types:
+            self.states = ["S", "I", "I_UK", "R"]
+        else:
+            self.states = ["S", "I", "R"]
+
         self.state_names = {
             "S": "Susceptable",
             "I": r"Infected $\&$ Exposed",
@@ -1199,28 +1203,36 @@ def animate_file(
     make_gif=True,
     optimize_gif=True,
     animate_kommuner=False,
-    # **kwargs,
+    N_max=None,
+    split_corona_types=False,
+    **kwargs,
 ):
 
-    animation = AnimateSIR(filename, do_tqdm=do_tqdm, verbose=verbose)
+    animation = AnimateSIR(
+        filename,
+        do_tqdm=do_tqdm,
+        verbose=verbose,
+        N_max=N_max,
+        split_corona_types=split_corona_types,
+    )
     animation.make_animation(
         remove_frames=remove_frames,
         force_rerun=force_rerun,
         make_gif=make_gif,
         optimize_gif=optimize_gif,
         dpi=dpi,
-        # **kwargs,
+        **kwargs,
     )
 
-    if animate_kommuner:
-        kommune_animation = KommuneMapAnimation(filename, do_tqdm=do_tqdm, verbose=verbose)
-        kommune_animation.make_animation(
-            remove_frames=remove_frames,
-            force_rerun=force_rerun,
-            make_gif=False,
-            normalize_legend=False,  # TODO: Set to True normally
-            # **kwargs,
-        )
+    # if animate_kommuner:
+    #     kommune_animation = KommuneMapAnimation(filename, do_tqdm=do_tqdm, verbose=verbose)
+    #     kommune_animation.make_animation(
+    #         remove_frames=remove_frames,
+    #         force_rerun=force_rerun,
+    #         make_gif=False,
+    #         normalize_legend=False,  # TODO: Set to True normally
+    #         # **kwargs,
+    #     )
 
 
 #%%
@@ -1242,30 +1254,34 @@ N_files = len(filenames)
 if N_files <= 1:
     num_cores = 1
 
-kwargs = dict(do_tqdm=True, verbose=True, force_rerun=False, N_max=100)
-
-x = x
+kwargs = dict(
+    do_tqdm=True,
+    verbose=True,
+    force_rerun=False,
+    # N_max=200,
+    split_corona_types=True,
+    include_Bornholm=False,
+)
 
 
 #%%
 
-filename = filenames[0]
+# filename = filenames[0]
 
-for filename in filenames:
+# for filename in filenames:
 
-    animation = AnimateSIR(filename, do_tqdm=True, verbose=True, N_max=100, split_corona_types=True)
+#     animation = AnimateSIR(filename, do_tqdm=True, verbose=True, N_max=100, split_corona_types=True)
 
-    animation.make_animation(
-        remove_frames=True,
-        force_rerun=True,
-        make_gif=False,
-        optimize_gif=False,
-        dpi=50,
-        include_Bornholm=False,
-    )
+#     animation.make_animation(
+#         remove_frames=True,
+#         force_rerun=True,
+#         make_gif=False,
+#         optimize_gif=False,
+#         dpi=50,
+#         include_Bornholm=False,
+#     )
 
-
-x = x
+# x = x
 
 #%%
 

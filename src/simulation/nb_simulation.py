@@ -58,6 +58,7 @@ spec_cfg = {
     "N_contacts_max": nb.uint16,
     "beta_UK_multiplier": nb.float32,
     "outbreak_position_UK": nb.types.unicode_type,
+    "N_daily_vaccinations": nb.uint16,
     # events
     "N_events": nb.uint16,
     "event_size_max": nb.uint16,
@@ -111,6 +112,7 @@ class Config(object):
         self.work_other_ratio = 0.5
         self.N_contacts_max = 0
         self.beta_UK_multiplier = 1.0
+        self.N_daily_vaccinations = 0
 
         # events
         self.N_events = 0
@@ -209,6 +211,7 @@ spec_my = {
     "kommune": nb.uint8[:],
     "infectious_states": ListType(nb.int64),
     "corona_type": nb.uint8[:],
+    "vaccination_type": nb.uint8[:],
     "cfg": nb_cfg_type,
 }
 
@@ -233,6 +236,7 @@ class My(object):
         self.kommune = np.zeros(N_tot, dtype=np.uint8)
         self.infectious_states = List([4, 5, 6, 7])
         self.corona_type = np.zeros(N_tot, dtype=np.uint8)
+        self.vaccination_type = np.zeros(N_tot, dtype=np.uint8)
         self.cfg = nb_cfg
 
     def dist(self, agent1, agent2):
@@ -1409,7 +1413,6 @@ def run_simulation(
                 break
 
             # Here we update infection lists so that newly infected cannot be infected again
-
             update_infection_list_for_newly_infected_agent(my, g, agent_getting_infected)
 
         ################
@@ -1442,8 +1445,35 @@ def run_simulation(
                 day += 1
                 out_my_state.append(my.state.copy())
 
-            if intervention.apply_interventions:
+                if my.cfg.N_daily_vaccinations > 0:
+                    # print("Starting to vaccinate, day", day)
 
+                    # try to vaccinate everyone, but only do vaccinate susceptable agents
+                    possible_agents_to_vaccinate = np.arange(my.cfg.N_tot, dtype=np.uint32)
+                    # agent = utils.numba_random_choice_list(agents_in_state[state_now])
+
+                    R_state = g.N_states - 1  # 8
+
+                    for i in range(my.cfg.N_daily_vaccinations):
+
+                        # find possible agent that gets vaccinated
+                        agent = single_random_choice(possible_agents_to_vaccinate)
+
+                        # pick agent if it is susceptible (in S state)
+                        if my.agent_is_susceptable(agent):
+                            # "vaccinate agent"
+                            my.vaccination_type[agent] = 1
+
+                            # set agent to recovered, instantly
+                            my.state[agent] = R_state
+
+                            agents_in_state[R_state].append(np.uint32(agent))
+                            state_total_counts[R_state] += 1
+
+                            # remove rates into agent from its infectios contacts
+                            update_infection_list_for_newly_infected_agent(my, g, agent)
+
+            if intervention.apply_interventions:
                 test_tagged_agents(my, g, intervention, day, click)
 
             click += 1
