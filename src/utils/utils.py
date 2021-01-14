@@ -705,6 +705,36 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True, remove_rates=True
     # important to make a copy since overwriting below
     cfg = DotDict(d)
 
+    # make "exclude" a list of keys to ignore
+    if isinstance(exclude, str) or exclude is None:
+        exclude = [exclude]
+
+    if cfg.N_events == 0:
+        exclude.append("event_size_max")
+        exclude.append("event_size_mean")
+        exclude.append("event_beta_scaling")
+        exclude.append("event_weekend_multiplier")
+
+    if not cfg.do_interventions:
+        exclude.append("interventions_to_apply")
+        exclude.append("f_daily_tests")
+        exclude.append("test_delay_in_clicks")
+        exclude.append("results_delay_in_clicks")
+        exclude.append("chance_of_finding_infected")
+        exclude.append("days_looking_back")
+        exclude.append("masking_rate_reduction")
+        exclude.append("lockdown_rate_reduction")
+        exclude.append("isolation_rate_reduction")
+        exclude.append("tracking_rates")
+        exclude.append("tracking_delay")
+
+    if cfg.N_init_UK == 0:
+        exclude.append("beta_UK_multiplier")
+        exclude.append("outbreak_position_UK")
+
+    if cfg.clustering_connection_retries == 0:
+        exclude.append("clustering_connection_retries")
+
     cfg.N_tot = human_format(cfg.N_tot)
     cfg.N_init = human_format(cfg.N_init)
     cfg.make_random_initial_infections = (
@@ -720,14 +750,16 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True, remove_rates=True
     if "hash" in cfg:
         cfg.hash = r"\mathrm{" + str(cfg.hash) + r"}"
     if "outbreak_position_UK" in cfg:
-        cfg.outbreak_position_UK = r"\mathrm{" + str(cfg.outbreak_position_UK) + r"}"
+        cfg.outbreak_position_UK = r"\mathrm{" + str(cfg.outbreak_position_UK).capitalize() + r"}"
+
+    if "N_daily_vaccinations" in cfg:
+        cfg.N_daily_vaccinations = human_format(cfg.N_daily_vaccinations)
+    if "N_init_UK" in cfg:
+        cfg.N_init_UK = human_format(cfg.N_init_UK)
 
     # parameter_to_latex = get_parameter_to_latex()
     parameter_to_latex = load_yaml("cfg/parameter_to_latex.yaml")
 
-    # make "exclude" a list of keys to ignore
-    if isinstance(exclude, str) or exclude is None:
-        exclude = [exclude]
     exclude.append("version")
     exclude.append("hash")
     exclude.append("day_max")
@@ -767,6 +799,14 @@ def dict_to_title(d, N=None, exclude="hash", in_two_line=True, remove_rates=True
             )
         if "\\mathrm{v.}" in title:
             title = title.replace(", \\,\\mathrm{v.}", "$\n$\\mathrm{v.}")
+
+        if "N_\\mathrm{init. UK.}" in title:
+            title = title.replace(", \\,N_\\mathrm{init. UK.}", "$\n$\\,N_\\mathrm{init. UK.}")
+
+        if "N_\\mathrm{events} = 0$\n$\\mathrm{do}" in title:
+            title = title.replace(
+                "N_\\mathrm{events} = 0$\n$\\mathrm{do}", "N_\\mathrm{events} = 0, \\,\\mathrm{do}"
+            )
 
     # \mathrm{do}_\mathrm{int.}
 

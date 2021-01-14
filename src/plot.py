@@ -1586,25 +1586,31 @@ def plot_corona_type_single_plot(
     ylim_scale=1.0,
     legend_fontsize=30,
     d_label_loc=None,
+    N_max_runs=None,
+    reposition_x_axis=False,
+    normalize=True,
 ):
 
     filenames = network_files.cfg_to_filenames(cfg)
     # filenames = [filename for filename in network_files.iter_all_files()]
+    if N_max_runs:
+        filenames = filenames[:N_max_runs]
 
     if not isinstance(cfg, utils.DotDict):
         cfg = utils.DotDict(cfg)
 
-    d_ylabel = {"I": "Fraction Infected", "R": "Fraction Infected"}
-    if d_label_loc is None:
-        d_label_loc = {"I": "upper right", "R": "upper right"}
+    # d_ylabel = {"I": "Fraction Infected", "R": "Fraction Infected"}
+    # if d_label_loc is None:
+    # d_label_loc = {"I": "upper right", "R": "upper right"}
 
-    N_tot = cfg.N_tot
+    N_tot = cfg.N_tot if normalize else 1
     start_day = xlim[0]
     end_day = xlim[1] if xlim[1] is not None else -1
+    delta_t = xlim[0] if reposition_x_axis else 0
 
     lw = 0.3 * 10 / np.sqrt(len(filenames))
 
-    fig, axes = plt.subplots(ncols=2, figsize=(16, 7))
+    fig, ax = plt.subplots(figsize=(10, 6))
     fig.subplots_adjust(top=0.75)
 
     # file, i = abm_files[ABM_parameter][0], 0
@@ -1612,52 +1618,53 @@ def plot_corona_type_single_plot(
         # break
         df = file_loaders.pandas_load_file(filename)
         my_corona_type, my_state = _load_corona_type_data(filename, start_day, end_day)
+        c = f"C{i}"
 
-        t = df["time"].values
-        label = r"ABM" if i == 0 else None
+        t = df["time"].values - delta_t
+        label = r"Total" if i == 0 else None
 
-        axes[0].plot(t, df["I"] / N_tot, lw=lw, c="k", label=label)
+        ax.plot(t, df["I"] / N_tot, lw=lw * 1.5, c=c, label=label)
 
-        t_days = np.arange(len(my_state)) + start_day
-
+        t_days = np.arange(len(my_state)) + start_day - delta_t
         I_normal, I_UK = get_I_corona_types(my_state, my_corona_type)
 
-        axes[1].plot(
+        ax.plot(
             t_days,
             I_normal / N_tot,
-            lw=lw,
-            c=f"C{i}",
+            lw=lw / 1.5,
+            ls="dotted",
+            c=c,
             label=r"DK" if i == 0 else None,
         )
-        axes[1].plot(
+        ax.plot(
             t_days,
             I_UK / N_tot,
-            lw=lw,
-            ls="dotted",
-            c=f"C{i}",
+            lw=lw / 1.5,
+            ls="dashed",
+            c=c,
             label=r"UK" if i == 0 else None,
         )
 
-    for variable, ax in zip(["I", "R"], axes):
+    ax.legend(fontsize=legend_fontsize)
 
-        leg = ax.legend(loc=d_label_loc[variable], fontsize=legend_fontsize)
-        # for legobj in leg.legendHandles:
-        #     legobj.set_linewidth(lw * 4)
+    if reposition_x_axis:
+        xlim = (xlim[0] - delta_t, xlim[1] - delta_t)
 
-        ax.set(
-            xlabel="Time [days]",
-            ylim=(0, None),
-            ylabel=d_ylabel[variable],
-            xlim=xlim,
-        )
-        ax.set_ylim(0, ax.get_ylim()[1] * ylim_scale)
+    ax.set(
+        xlabel="Tid [dage]",
+        ylim=(0, None),
+        ylabel="Inficerede",
+        xlim=xlim,
+    )
+    ax.set_ylim(0, ax.get_ylim()[1] * ylim_scale)
+    if normalize:
         ax.yaxis.set_major_formatter(PercentFormatter(xmax=1))
+    else:
+        ax.yaxis.set_major_formatter(EngFormatter())
 
     title = utils.dict_to_title(cfg, len(filenames))
     fig.suptitle(title, fontsize=15)
-    plt.subplots_adjust(wspace=0.4)
-
-    return fig, axes
+    return fig, ax
 
 
 def plot_corona_type(network_files, force_rerun=False, **kwargs):
@@ -1677,6 +1684,7 @@ def plot_corona_type(network_files, force_rerun=False, **kwargs):
             desc="Plotting corona type infections",
             total=len(network_files.cfgs),
         ):
+            # break
 
             #     break
             fig_ax = plot_corona_type_single_plot(cfg, network_files, **kwargs)
