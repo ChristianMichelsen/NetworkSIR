@@ -25,7 +25,9 @@ from src import database
 import generate_R_eff_fits
 
 num_cores_max = 30
-delta_time = 8
+# delta_time = 8
+# delta_time = 4.7
+delta_time = 7
 
 
 #%%
@@ -99,14 +101,16 @@ class FittingClassChi2:
                 "I_0": self.y[0],
                 "R_eff": 1,
                 "limit_R_eff": (0, None),
-                "T": 8,
+                # "T": 8,
+                "T": 4.7,
                 "fix_T": True,
             }
             self.fit_kwargs_retry = {
                 "I_0": self.y[0],
                 "R_eff": 0.5,
                 "limit_R_eff": (0, None),
-                "T": 8,
+                # "T": 8,
+                "T": 4.7,
                 "fix_T": True,
             }
             return exponential
@@ -174,8 +178,23 @@ def fit_df(df):
     return R_eff
 
 
+#%%
+
+def compute_R_eff(*abm_files=None, cfg=None, df=None):
+    if abm_files is None and cfg is None:
+        filenames = abm_files.cfg_to_filenames(cfg)
+        df = load_df(filenames)
+    elif df is None:
+        pass
+    else:
+        raise AssertionError("Must specify either abm-files and cfg, or df")
+
+    R_eff = fit_df(df)
+    return R_eff
+
+
 def compute_R_eff_fits_from_cfgs(
-    cfgs, abm_files, variable, index_in_list_to_sortby=0, do_tqdm=True
+    cfgs, abm_files, variable=None, index_in_list_to_sortby=0, do_tqdm=True
 ):
 
     R_effs = {}
@@ -183,13 +202,16 @@ def compute_R_eff_fits_from_cfgs(
     if do_tqdm:
         cfgs = tqdm(cfgs, desc="Creating R_eff (fits)")
 
+    counter = 0
     for cfg in cfgs:
         # break
-        filenames = abm_files.cfg_to_filenames(cfg)
-        df = load_df(filenames)
-        R_eff = fit_df(df)
-        key = cfg[variable]
+        R_eff = compute_R_eff(abm_files, cfg)
+        if variable is None or variable == "all":
+            key = counter
+        else:
+            key = cfg[variable]
 
+        counter += 1
         # if variable is a list, use first value
         if isinstance(key, list):
             key = key[index_in_list_to_sortby]
@@ -198,7 +220,7 @@ def compute_R_eff_fits_from_cfgs(
 
 
 def plot_R_effs_single_comparison(
-    R_effs, variable, reverse_order, days=None, title=None, xlabel=None, ax=None
+    R_effs, variable, reverse_order=False, days=None, title=None, xlabel=None, ax=None
 ):
 
     if days is None:
@@ -268,7 +290,29 @@ def plot_R_effs_single_comparison(
         return fig
 
 
-reload(file_loaders)
+def plot_R_eff(cfgs, abm_files):
+
+    for cfg in cfgs:
+        # break
+
+        R_eff = compute_R_eff(abm_files, cfg)
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        ax.errorbar(
+            R_eff.index,
+            R_eff["mean"],
+            R_eff["std"],
+            fmt=".",
+            color=f"k",
+            elinewidth=1,
+            capsize=4,
+            capthick=1,
+        )
+
+
+# reload(file_loaders)
+# reload(database)
 
 if __name__ == "__main__" and False:
 
@@ -280,24 +324,23 @@ if __name__ == "__main__" and False:
     N_files = len(abm_files)
 
     # plot MCMC results
-    variable = "event_size_max"
-    variable = "results_delay_in_clicks"
-    reverse_order = True
-    extra_selections = {"tracking_rates": [1.0, 0.8, 0.0]}
+    # variable = "all"
+    variable = "N_daily_vaccinations"
+    # extra_selections = {"tracking_rates": [1.0, 0.8, 0.0]}
 
-    N_max_figures = 10
-    N_max_figures = None
+    # N_max_figures = 10
+    # N_max_figures = None
 
     cfgs_to_plot = database.get_MCMC_data(
         variable,
-        variable_subset=None,
-        N_max=N_max_figures,
-        extra_selections=extra_selections,
+        # variable_subset=None,
+        # N_max=N_max_figures,
+        # extra_selections=extra_selections,
     )
 
     days = [20, 25, 30, 35, 40]
 
-    cfgs = cfgs_to_plot[2]
+    cfgs = cfgs_to_plot[0]
 
     s_extra = ""
     if extra_selections:
@@ -313,10 +356,11 @@ if __name__ == "__main__" and False:
             R_effs = compute_R_eff_fits_from_cfgs(
                 cfgs,
                 abm_files,
+                variable=variable,
                 index_in_list_to_sortby=0,
                 do_tqdm=False,
             )
-            fig = plot_R_effs_single_comparison(R_effs, variable, reverse_order, days)
+            fig = plot_R_effs_single_comparison(R_effs, variable, days=days)
 
             pdf.savefig(fig, dpi=100, bbox_inches="tight")
             plt.close("all")

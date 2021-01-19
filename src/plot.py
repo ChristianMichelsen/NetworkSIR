@@ -20,6 +20,7 @@ try:
     from src import file_loaders
     from src import SIR
     from src import database
+    from src import fits
 except ImportError:
     import utils
 
@@ -27,7 +28,8 @@ except ImportError:
     import file_loaders
     import SIR
     import database
-import generate_R_eff_fits
+    import fits
+# import generate_R_eff_fits
 
 
 from numba import njit
@@ -1551,13 +1553,12 @@ def make_MCMC_plots(
 #%%
 
 
-def _load_corona_type_data(filename, start_day=0, end_day=-1):
+def _load_corona_type_data(filename, day_max=None):
     with h5py.File(filename, "r") as f:
+        days_total = len(f["my_state"])
         my_corona_type = f["my_corona_type"][()]
-        if end_day == -1:
-            end_day = len(f["my_state"])
-        my_state = f["my_state"][start_day:end_day]
-    return my_corona_type, my_state
+        my_state = f["my_state"][slice(0, day_max)]
+    return my_corona_type, my_state, days_total
 
 
 @njit
@@ -1577,6 +1578,8 @@ xlim = (0, None)
 ylim_scale = 1.0
 legend_fontsize = 30
 d_label_loc = None
+normalize = False
+reposition_x_axis = True
 
 
 def plot_corona_type_single_plot(
@@ -1604,67 +1607,167 @@ def plot_corona_type_single_plot(
     # d_label_loc = {"I": "upper right", "R": "upper right"}
 
     N_tot = cfg.N_tot if normalize else 1
-    start_day = xlim[0]
+    start_day = xlim[0] if xlim[0] is not None else 0
     end_day = xlim[1] if xlim[1] is not None else -1
-    delta_t = xlim[0] if reposition_x_axis else 0
+    time_shift = xlim[0] if reposition_x_axis else 0
 
     lw = 0.3 * 10 / np.sqrt(len(filenames))
 
-    fig, ax = plt.subplots(figsize=(10, 6))
-    fig.subplots_adjust(top=0.75)
+    fig, axes = plt.subplots(figsize=(10, 9), nrows=2)
+    ax_I, ax_Reff = axes
+    fig.subplots_adjust(top=0.8)
 
-    # file, i = abm_files[ABM_parameter][0], 0
+    #%%
+
     for i, filename in enumerate(filenames):
         # break
+
         df = file_loaders.pandas_load_file(filename)
-        my_corona_type, my_state = _load_corona_type_data(filename, start_day, end_day)
-        c = f"C{i}"
-
-        t = df["time"].values - delta_t
-        label = r"Total" if i == 0 else None
-
-        ax.plot(t, df["I"] / N_tot, lw=lw * 1.5, c=c, label=label)
-
-        t_days = np.arange(len(my_state)) + start_day - delta_t
+        my_corona_type, my_state, days_total = _load_corona_type_data(
+            filename, end_day + time_shift
+        )
         I_normal, I_UK = get_I_corona_types(my_state, my_corona_type)
 
-        ax.plot(
-            t_days,
-            I_normal / N_tot,
+        df_corona_types = pd.DataFrame.from_dict({"DK": I_normal, "UK": I_UK})
+        df_corona_types["total"] = df_corona_types.sum(axis=1)
+        df_corona_types["time"] = df_corona_types.index + 1  # +1 to match df
+
+        c = f"C{i}"
+
+        if end_day == -1:
+            end_day_tmp = days_total
+        else:
+            end_day_tmp = min(end_day, days_total)
+
+        df_cut = df.query(f"@start_day <= time <=  @end_day_tmp")
+        df_cut["time"] -= time_shift
+        df_corona_types_cut = df_corona_types.query(f"@start_day <= time <=  @end_day_tmp")
+        df_corona_types_cut["time"] -= time_shift
+
+        ax_I.plot(
+            df_cut["time"],
+            df_cut["I"] / N_tot,
+            lw=lw * 1.5,
+            c=c,
+            # label=r"Total" if i == 0 else None,
+        )
+
+        ax_I.plot(
+            df_corona_types_cut["time"],
+            df_corona_types_cut["DK"] / N_tot,
             lw=lw / 1.5,
             ls="dotted",
             c=c,
-            label=r"DK" if i == 0 else None,
+            # label=r"DK" if i == 0 else None,
         )
-        ax.plot(
-            t_days,
-            I_UK / N_tot,
+
+        ax_I.plot(
+            df_corona_types_cut["time"],
+            df_corona_types_cut["UK"] / N_tot,
             lw=lw / 1.5,
             ls="dashed",
             c=c,
+            # label=r"UK" if i == 0 else None,
+        )
+
+        R_eff_total = fits.FitSingleInfection_R_eff(
+            df_corona_types["total"].values
+        ).fit_daily_R_eff(time_shift, keep_all_times=False)
+        R_eff_DK = fits.FitSingleInfection_R_eff(df_corona_types["DK"].values).fit_daily_R_eff(
+            time_shift,
+            keep_all_times=False,
+        )
+        R_eff_UK = fits.FitSingleInfection_R_eff(df_corona_types["UK"].values).fit_daily_R_eff(
+            time_shift,
+            keep_all_times=False,
+        )
+
+        #%%
+
+        ax_Reff.plot(
+            R_eff_total.index,
+            R_eff_total["mean"],
+            lw=lw * 1.5,
+            ls="-",
+            color=c,
+            label=r"Total" if i == 0 else None,
+        )
+        ax_Reff.plot(
+            R_eff_DK.index,
+            R_eff_DK["mean"],
+            lw=lw / 1.5,
+            ls="dotted",
+            color=c,
+            label=r"DK" if i == 0 else None,
+        )
+        ax_Reff.plot(
+            R_eff_UK.index,
+            R_eff_UK["mean"],
+            "-",
+            lw=lw / 1.5,
+            ls="dashed",
+            color=c,
             label=r"UK" if i == 0 else None,
         )
 
-    ax.legend(fontsize=legend_fontsize)
+        ax_Reff.fill_between(
+            R_eff_total.index,
+            R_eff_total["mean"] - R_eff_total["std"],
+            R_eff_total["mean"] + R_eff_total["std"],
+            color=c,
+            alpha=0.1,
+        )
+        ax_Reff.fill_between(
+            R_eff_DK.index,
+            R_eff_DK["mean"] - R_eff_DK["std"],
+            R_eff_DK["mean"] + R_eff_DK["std"],
+            color=c,
+            alpha=0.1,
+        )
+        ax_Reff.fill_between(
+            R_eff_UK.index,
+            R_eff_UK["mean"] - R_eff_UK["std"],
+            R_eff_UK["mean"] + R_eff_UK["std"],
+            color=c,
+            alpha=0.1,
+        )
 
-    if reposition_x_axis:
-        xlim = (xlim[0] - delta_t, xlim[1] - delta_t)
+    ax_Reff.axhline(y=1, c="k", lw=2)
 
-    ax.set(
-        xlabel="Tid [dage]",
+    ax_I.plot(np.nan, np.nan, lw=lw * 1.5, c="k", label=r"Total")
+    ax_I.plot(np.nan, np.nan, lw=lw / 1.5, c="k", ls="dotted", label=r"DK")
+    ax_I.plot(np.nan, np.nan, lw=lw / 1.5, c="k", ls="dashed", label=r"UK")
+
+    xlim = (0, end_day_tmp - time_shift - 1)
+
+    ax_I.legend(
+        fontsize=legend_fontsize,
+        ncol=3,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 1.35),
+    )
+
+    ax_I.set(
         ylim=(0, None),
         ylabel="Inficerede",
         xlim=xlim,
     )
-    ax.set_ylim(0, ax.get_ylim()[1] * ylim_scale)
+    ax_I.set_ylim(0, ax_I.get_ylim()[1] * ylim_scale)
+
     if normalize:
-        ax.yaxis.set_major_formatter(PercentFormatter(xmax=1))
+        ax_I.yaxis.set_major_formatter(PercentFormatter(xmax=1))
     else:
-        ax.yaxis.set_major_formatter(EngFormatter())
+        ax_I.yaxis.set_major_formatter(EngFormatter())
+
+    ax_Reff.set(
+        xlabel="Tid [dage]",
+        ylabel="Kontakttal",
+        xlim=xlim,
+    )
 
     title = utils.dict_to_title(cfg, len(filenames))
     fig.suptitle(title, fontsize=15)
-    return fig, ax
+    return fig, axes
 
 
 def plot_corona_type(network_files, force_rerun=False, **kwargs):
@@ -1684,9 +1787,6 @@ def plot_corona_type(network_files, force_rerun=False, **kwargs):
             desc="Plotting corona type infections",
             total=len(network_files.cfgs),
         ):
-            # break
-
-            #     break
             fig_ax = plot_corona_type_single_plot(cfg, network_files, **kwargs)
 
             if fig_ax is not None:

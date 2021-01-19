@@ -5,7 +5,7 @@ except ImportError:
     import utils
 
 
-def get_accepted_cfgs(cfgs, used_hashes, variable, variable_subset, sort_by_variable):
+def get_accepted_cfgs(cfgs, used_hashes, variable, variable_subset=None, sort_by_variable=False):
     accepted_cfgs = []
 
     for cfg in cfgs:
@@ -25,10 +25,13 @@ def passes_extra_selections_cut(query_cfg, extra_selections):
 
 
 def get_MCMC_data(
-    variable, variable_subset, sort_by_variable=True, N_max=None, extra_selections=None
+    variable="all", variable_subset=None, sort_by_variable=True, N_max=None, extra_selections=None
 ):
 
     db_cfg = utils.get_db_cfg()
+
+    if variable == "all":
+        return [utils.DotDict(cfg) for cfg in db_cfg]
 
     if N_max is None:
         N_max = len(db_cfg)

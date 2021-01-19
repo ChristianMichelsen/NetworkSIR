@@ -354,3 +354,87 @@ if False:
         fontsize=24,
     )
     ax.yaxis.set_major_formatter(EngFormatter())
+
+
+#%%
+
+import pandas as pd
+
+from iminuit import Minuit, describe
+from iminuit.util import make_func_code
+from IPython.display import display
+
+
+def exponential(t, I_0, R_eff, T):
+    return I_0 * R_eff ** (t / T)
+
+
+class FitSingleInfection_R_eff:
+    def __init__(self, I, x=None, verbose=True):
+
+        self.I = I
+        if x is not None:
+            self.x = x
+        else:
+            self.x = np.arange(len(I))
+        self.sy = np.sqrt(I)
+
+        self.verbose = verbose
+
+        self.model = exponential
+        self.fit_kwargs = {
+            "I_0": self.I[0],
+            "R_eff": 1,
+            "limit_R_eff": (0, None),
+            "T": 4.7,
+            "fix_T": True,
+        }
+        self.func_code = make_func_code(describe(self.model)[1:])
+        self.N_fit_parameters = len(describe(self.model)[1:])
+        self.N = len(I)
+        self.df = self.N - self.N_fit_parameters
+
+    def __call__(self, *par):
+        yhat = self.model(self.x, *par)
+        chi2 = np.sum((yhat - self.I) ** 2 / self.sy ** 2)
+        return chi2
+
+    def fit_single_week(self, verbose=None):
+        if verbose is None:
+            verbose = self.verbose
+        m = Minuit(self, errordef=1, pedantic=False, **self.fit_kwargs)
+        m.migrad()
+        if not m.fmin.is_valid:
+            print("Not valid fit")
+        if verbose:
+            display(m.fmin)
+            display(m.params)
+        return dict(m.values), dict(m.errors)
+
+    def fit_daily_R_eff(self, time_shift=0, keep_all_times=True):
+        self.I_org = self.I.copy()
+        self.x_org = self.x.copy()
+        self.sy_org = self.sy.copy()
+        R_eff = {}
+        for day in range(7, self.N):
+            days = np.arange(day - 7, day)
+            self.I = self.I_org[days]
+            self.x = self.x_org[days]
+            self.sy = self.sy_org[days]
+            values, errors = self.fit_single_week(verbose=False)
+
+            if keep_all_times or day - time_shift >= 0:
+                R_eff[day - time_shift] = {
+                    "mean": values["R_eff"],
+                    "std": errors["R_eff"],
+                    "day_start": days[0] - time_shift,
+                    "day_end": days[-1] - time_shift,
+                }
+        R_eff = pd.DataFrame(R_eff).T
+        self.I = self.I_org
+        self.x = self.x_org
+        self.sy = self.sy_org
+        del self.I_org
+        del self.x_org
+        del self.sy_org
+        return R_eff.convert_dtypes()
