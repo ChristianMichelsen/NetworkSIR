@@ -372,9 +372,9 @@ def exponential(t, I_0, R_eff, T):
 class FitSingleInfection_R_eff:
     def __init__(self, I, x=None, verbose=True):
 
-        self.I = I
+        self.I = I.copy()
         if x is not None:
-            self.x = x
+            self.x = x.copy()
         else:
             self.x = np.arange(len(I))
         self.sy = np.sqrt(I)
@@ -437,4 +437,4 @@ class FitSingleInfection_R_eff:
         del self.I_org
         del self.x_org
         del self.sy_org
-        return R_eff.convert_dtypes()
+        return R_eff.convert_dtypes().copy()

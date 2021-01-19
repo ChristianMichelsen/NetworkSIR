@@ -1574,6 +1574,25 @@ def get_I_corona_types(my_state, my_corona_type):
     # return (I_states & (my_corona_type[start_day:end_day, :] == corona_type)).sum(axis=1)
 
 
+def _plot_R_eff(ax, R_eff, **kwargs):
+    ax.plot(R_eff.index, R_eff["mean"], **kwargs)
+    ax.fill_between(
+        R_eff.index,
+        R_eff["mean"] - R_eff["std"],
+        R_eff["mean"] + R_eff["std"],
+        color=kwargs.get("color", "k"),
+        alpha=0.1,
+    )
+
+
+def _plot_corona_type_R_eff(series, time_shift, ax, **kwargs):
+    R_eff = fits.FitSingleInfection_R_eff(series.values).fit_daily_R_eff(
+        time_shift,
+        keep_all_times=False,
+    )
+    _plot_R_eff(ax, R_eff, **kwargs)
+
+
 xlim = (0, None)
 ylim_scale = 1.0
 legend_fontsize = 30
@@ -1639,9 +1658,9 @@ def plot_corona_type_single_plot(
         else:
             end_day_tmp = min(end_day, days_total)
 
-        df_cut = df.query(f"@start_day <= time <=  @end_day_tmp")
+        df_cut = df.query(f"@start_day <= time <=  @end_day_tmp").copy()
         df_cut["time"] -= time_shift
-        df_corona_types_cut = df_corona_types.query(f"@start_day <= time <=  @end_day_tmp")
+        df_corona_types_cut = df_corona_types.query(f"@start_day <= time <=  @end_day_tmp").copy()
         df_corona_types_cut["time"] -= time_shift
 
         ax_I.plot(
@@ -1649,7 +1668,6 @@ def plot_corona_type_single_plot(
             df_cut["I"] / N_tot,
             lw=lw * 1.5,
             c=c,
-            # label=r"Total" if i == 0 else None,
         )
 
         ax_I.plot(
@@ -1658,7 +1676,6 @@ def plot_corona_type_single_plot(
             lw=lw / 1.5,
             ls="dotted",
             c=c,
-            # label=r"DK" if i == 0 else None,
         )
 
         ax_I.plot(
@@ -1667,69 +1684,31 @@ def plot_corona_type_single_plot(
             lw=lw / 1.5,
             ls="dashed",
             c=c,
-            # label=r"UK" if i == 0 else None,
         )
 
-        R_eff_total = fits.FitSingleInfection_R_eff(
-            df_corona_types["total"].values
-        ).fit_daily_R_eff(time_shift, keep_all_times=False)
-        R_eff_DK = fits.FitSingleInfection_R_eff(df_corona_types["DK"].values).fit_daily_R_eff(
-            time_shift,
-            keep_all_times=False,
-        )
-        R_eff_UK = fits.FitSingleInfection_R_eff(df_corona_types["UK"].values).fit_daily_R_eff(
-            time_shift,
-            keep_all_times=False,
-        )
-
-        #%%
-
-        ax_Reff.plot(
-            R_eff_total.index,
-            R_eff_total["mean"],
+        _plot_corona_type_R_eff(
+            df_corona_types["total"],
+            time_shift=time_shift,
+            ax=ax_Reff,
             lw=lw * 1.5,
             ls="-",
             color=c,
-            label=r"Total" if i == 0 else None,
         )
-        ax_Reff.plot(
-            R_eff_DK.index,
-            R_eff_DK["mean"],
+        _plot_corona_type_R_eff(
+            df_corona_types["DK"],
+            time_shift=time_shift,
+            ax=ax_Reff,
             lw=lw / 1.5,
             ls="dotted",
             color=c,
-            label=r"DK" if i == 0 else None,
         )
-        ax_Reff.plot(
-            R_eff_UK.index,
-            R_eff_UK["mean"],
-            "-",
+        _plot_corona_type_R_eff(
+            df_corona_types["UK"],
+            time_shift=time_shift,
+            ax=ax_Reff,
             lw=lw / 1.5,
             ls="dashed",
             color=c,
-            label=r"UK" if i == 0 else None,
-        )
-
-        ax_Reff.fill_between(
-            R_eff_total.index,
-            R_eff_total["mean"] - R_eff_total["std"],
-            R_eff_total["mean"] + R_eff_total["std"],
-            color=c,
-            alpha=0.1,
-        )
-        ax_Reff.fill_between(
-            R_eff_DK.index,
-            R_eff_DK["mean"] - R_eff_DK["std"],
-            R_eff_DK["mean"] + R_eff_DK["std"],
-            color=c,
-            alpha=0.1,
-        )
-        ax_Reff.fill_between(
-            R_eff_UK.index,
-            R_eff_UK["mean"] - R_eff_UK["std"],
-            R_eff_UK["mean"] + R_eff_UK["std"],
-            color=c,
-            alpha=0.1,
         )
 
     ax_Reff.axhline(y=1, c="k", lw=2)
@@ -1744,7 +1723,7 @@ def plot_corona_type_single_plot(
         fontsize=legend_fontsize,
         ncol=3,
         loc="upper center",
-        bbox_to_anchor=(0.5, 1.35),
+        bbox_to_anchor=(0.5, 1.32),
     )
 
     ax_I.set(
