@@ -1,0 +1,12 @@
+cff-version: 1.1.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Christian
+    given-names: Michelsen
+    orcid: https://orcid.org/0000-0001-8446-9348
+  - family-names: Mathias
+    given-names: Heltberg
+    orcid: https://orcid.org/0000-0002-9699-4075
+title: Spatial heterogeneity affects predictions from early-curve fitting of pandemic outbreaks; A case study using population data from Denmark
+version: v2.2-paper
+date-released: 2022-08-11
