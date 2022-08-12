@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/258223118.svg)](https://zenodo.org/badge/latestdoi/258223118)
+
 If first time using:
 
     >> git clone https://github.com/ChristianMichelsen/NetworkSIR
